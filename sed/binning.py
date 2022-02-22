@@ -5,6 +5,7 @@ from typing import Tuple
 from typing import Union
 
 import dask
+import dask.dataframe
 import numba
 import numpy as np
 import pandas as pd
@@ -198,9 +199,10 @@ def bin_dataframe(
                 coreTasks.append(
                     dask.delayed(bin_partition)(
                         dfPartition,
+                        None,
                         binAxes,
-                        nBins,
                         binRanges,
+                        nBins,
                         hist_mode,
                     ),
                 )
