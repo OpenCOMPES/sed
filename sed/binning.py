@@ -4,7 +4,6 @@ from typing import Sequence
 from typing import Tuple
 from typing import Union
 
-import dask
 import dask.dataframe
 import numba
 import numpy as np
