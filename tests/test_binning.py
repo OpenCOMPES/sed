@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from sed.binning import _hist_Nd_numba_seq
+from sed.binning import _hist_from_bin_ranges
 
 sample1d = np.random.randn(int(1e2), 1)
 sample2d = np.random.randn(int(1e2), 2)
@@ -28,10 +28,10 @@ def test_hist_Nd_error_is_raised(_samples, _bins):
     with pytest.raises(ValueError):
         if _samples.shape[1] == len(_bins):
             pytest.skip("Not of interest")
-        _hist_Nd_numba_seq(_samples, _bins, ranges1d)
+        _hist_from_bin_ranges(_samples, _bins, ranges1d)
 
 
 def test_hist_Nd_proper_results():
-    H1 = _hist_Nd_numba_seq(sample3d, bins3d, ranges3d)
+    H1 = _hist_from_bin_ranges(sample3d, bins3d, ranges3d)
     H2, _ = np.histogramdd(sample3d, bins3d, ranges3d)
     np.testing.assert_allclose(H1, H2)
