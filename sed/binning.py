@@ -311,7 +311,7 @@ def applyJitter(
 
 
 @numba.jit(nogil=True, nopython=True)
-def _hist_Nd_numba_seq(
+def _hist_from_bin_ranges(
     sample: np.array,
     bins: Sequence,
     ranges: np.array,
@@ -431,7 +431,7 @@ def numba_histogramdd(
 
         nbin[i] = len(edges[i]) + 1  # includes an outlier on each end
 
-    hist = _hist_Nd_numba_seq(sample, bins, ranges)
+    hist = _hist_from_bin_ranges(sample, bins, ranges)
 
     if (hist.shape != nbin - 2).any():
         raise RuntimeError("Internal Shape Error")
