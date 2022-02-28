@@ -311,109 +311,55 @@ def applyJitter(
         df[col] += amp * np.random.standard_normal(size=colsize)
 
 
-@numba.jit(nogil=True, parallel=False)
-def _hist1d_numba_seq(sample, bins, ranges):
+@numba.jit(nogil=True, nopython=True)
+def _hist_from_bin_ranges(
+    sample: np.array,
+    bins: Sequence,
+    ranges: np.array,
+) -> np.array:
     """
-    1D Binning function, pre-compiled by Numba for performance.
+    N dimensional binning function, pre-compiled by Numba for performance.
     Behaves much like numpy.histogramdd, but calculates and returns unsigned 32
-    bit integers
-    """
-    H = np.zeros((bins[0]), dtype=np.uint32)
-    delta = 1 / ((ranges[:, 1] - ranges[:, 0]) / bins)
+    bit integers.
 
-    if sample.shape[1] != 1:
+    Args:
+        sample (np.array): The data to be histogrammed with shape N,D.
+        bins (Sequence): the number of bins for each dimension D.
+        ranges (Sequence): A sequence of length D, each an optional (lower,
+            upper) tuple giving the outer bin edges to be used if the edges are
+            not given explicitly in bins.
+
+    Raises:
+        ValueError: In case of dimension mismatch.
+
+    Returns:
+        hist (np.array): The computed histogram.
+    """
+    ndims = len(bins)
+    if sample.shape[1] != ndims:
         raise ValueError(
-            "The dimension of bins must be equal to the dimension of the "
-            "sample x.",
+            "The dimension of bins is not equal to the dimension of the sample x",
         )
 
-    for t in range(sample.shape[0]):
-        i = (sample[t, 0] - ranges[0, 0]) * delta[0]
-        if 0 <= i < bins[0]:
-            H[int(i)] += 1
+    H = np.zeros(bins, np.uint32)
+    Hflat = H.ravel()
+    delta = np.zeros(ndims, np.float64)
+    strides = np.zeros(ndims, np.int64)
 
-    return H
-
-
-@numba.jit(nogil=True, parallel=False)
-def _hist2d_numba_seq(sample, bins, ranges):
-    """
-    2D Binning function, pre-compiled by Numba for performance.
-    Behaves much like numpy.histogramdd, but calculates and returns unsigned 32
-    bit integers
-    """
-    H = np.zeros((bins[0], bins[1]), dtype=np.uint32)
-    delta = 1 / ((ranges[:, 1] - ranges[:, 0]) / bins)
-
-    if sample.shape[1] != 2:
-        raise ValueError(
-            "The dimension of bins must be equal to the dimension of the "
-            "sample x.",
-        )
+    for i in range(ndims):
+        delta[i] = 1 / ((ranges[i, 1] - ranges[i, 0]) / bins[i])
+        strides[i] = H.strides[i] // H.itemsize
 
     for t in range(sample.shape[0]):
-        i = (sample[t, 0] - ranges[0, 0]) * delta[0]
-        j = (sample[t, 1] - ranges[1, 0]) * delta[1]
-        if 0 <= i < bins[0] and 0 <= j < bins[1]:
-            H[int(i), int(j)] += 1
+        is_inside = True
+        flatidx = 0
+        for i in range(ndims):
+            j = (sample[t, i] - ranges[i, 0]) * delta[i]
+            is_inside = is_inside and (0 <= j < bins[i])
+            flatidx += int(j) * strides[i]
 
-    return H
-
-
-@numba.jit(nogil=True, parallel=False)
-def _hist3d_numba_seq(sample, bins, ranges):
-    """
-    3D Binning function, pre-compiled by Numba for performance.
-    Behaves much like numpy.histogramdd, but calculates and returns unsigned 32
-    bit integers
-    """
-    H = np.zeros((bins[0], bins[1], bins[2]), dtype=np.uint32)
-    delta = 1 / ((ranges[:, 1] - ranges[:, 0]) / bins)
-
-    if sample.shape[1] != 3:
-        raise ValueError(
-            "The dimension of bins must be equal to the dimension of the "
-            "sample x.",
-        )
-
-    for t in range(sample.shape[0]):
-        i = (sample[t, 0] - ranges[0, 0]) * delta[0]
-        j = (sample[t, 1] - ranges[1, 0]) * delta[1]
-        k = (sample[t, 2] - ranges[2, 0]) * delta[2]
-        if 0 <= i < bins[0] and 0 <= j < bins[1] and 0 <= k < bins[2]:
-            H[int(i), int(j), int(k)] += 1
-
-    return H
-
-
-@numba.jit(nogil=True, parallel=False)
-def _hist4d_numba_seq(sample, bins, ranges):
-    """
-    4D Binning function, pre-compiled by Numba for performance.
-    Behaves much like numpy.histogramdd, but calculates and returns unsigned 32
-    bit integers
-    """
-    H = np.zeros((bins[0], bins[1], bins[2], bins[3]), dtype=np.uint32)
-    delta = 1 / ((ranges[:, 1] - ranges[:, 0]) / bins)
-
-    if sample.shape[1] != 4:
-        raise ValueError(
-            "The dimension of bins must be equal to the dimension of the "
-            "sample x.",
-        )
-
-    for t in range(sample.shape[0]):
-        dim_1 = (sample[t, 0] - ranges[0, 0]) * delta[0]
-        dim_2 = (sample[t, 1] - ranges[1, 0]) * delta[1]
-        dim_3 = (sample[t, 2] - ranges[2, 0]) * delta[2]
-        dim_4 = (sample[t, 3] - ranges[3, 0]) * delta[3]
-        if (
-            0 <= dim_1 < bins[0]
-            and 0 <= dim_2 < bins[1]
-            and 0 <= dim_3 < bins[2]
-            and 0 <= dim_4 < bins[3]
-        ):
-            H[int(dim_1), int(dim_2), int(dim_3), int(dim_4)] += 1
+        if is_inside:
+            Hflat[flatidx] += int(is_inside)
 
     return H
 
@@ -486,18 +432,7 @@ def numba_histogramdd(
 
         nbin[i] = len(edges[i]) + 1  # includes an outlier on each end
 
-    if D == 1:
-        hist = _hist1d_numba_seq(sample, bins, ranges)
-    elif D == 2:
-        hist = _hist2d_numba_seq(sample, bins, ranges)
-    elif D == 3:
-        hist = _hist3d_numba_seq(sample, bins, ranges)
-    elif D == 4:
-        hist = _hist4d_numba_seq(sample, bins, ranges)
-    else:
-        raise NotImplementedError(
-            "Only implemented for up to 4 dimensions currently.",
-        )
+    hist = _hist_from_bin_ranges(sample, bins, ranges)
 
     if (hist.shape != nbin - 2).any():
         raise RuntimeError("Internal Shape Error")
