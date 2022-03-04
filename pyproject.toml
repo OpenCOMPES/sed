@@ -17,6 +17,11 @@ xarray = "^0.21.1"
 numba = "^0.55.1"
 threadpoolctl = "^3.1.0"
 tqdm = "^4.62.3"
+Sphinx = {version = "^4.4.0", optional = true}
+sphinx-rtd-theme = {version = "^1.0.0", optional = true}
+
+[tool.poetry.extras]
+docs = ["Sphinx", "sphinx-rtd-theme"]
 
 [tool.poetry.dev-dependencies]
 pytest = "^7.0.1"
