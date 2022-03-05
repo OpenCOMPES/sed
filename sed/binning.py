@@ -1,7 +1,6 @@
 # All functions in this file are adapted from https://github.com/mpes-kit/mpes
 from functools import reduce
 from typing import Sequence
-from typing import Tuple
 from typing import Union
 
 import dask.dataframe
@@ -25,36 +24,36 @@ def _arraysum(array_a, array_b):
 
 
 def bin_partition(
-    part: Union[dask.dataframe.core.DataFrame, pd.DataFrame],
+    part: dask.dataframe.core.DataFrame | pd.DataFrame,
     binDict: dict = None,
-    binAxes: Union[str, Sequence[str]] = None,
-    binRanges: Sequence[Tuple[float, float]] = None,
-    nBins: Union[int, Sequence[int]] = 100,
+    binAxes: str | Sequence[str] = None,
+    binRanges: Sequence[tuple[float, float]] = None,
+    nBins: int | Sequence[int] = 100,
     hist_mode: str = "numba",
     jitterParams: dict = None,
     return_edges: bool = False,
-) -> np.ndarray:
+) -> np.ndarray | tuple[np.ndarray, list]:
     """Compute the n-dimensional histogram of a single dataframe partition.
 
     Args:
-        part (ddf.DataFrame): dataframe on which to perform the histogram.
+        part: dataframe on which to perform the histogram.
             Usually a partition of a dask DataFrame.
-        binDict (dict, optional): TODO: implement passing binning parameters as
+        binDict: TODO: implement passing binning parameters as
             dictionary or other methods
-        binAxes (list): List of names of the axes (columns) on which to
+        binAxes: List of names of the axes (columns) on which to
             calculate the histogram.
             The order will be the order of the dimensions in the resulting array.
-        nBins (int or list, optional): List of number of points along the
-            different axes. Defaults to None.
-        binranges (tuple, optional): list of tuples containing the start and
-            end point of the binning range. Defaults to None.
-        hist_mode (str, optional): Histogram calculation method. Choose between
+        nBins: List of number of points along the
+            different axes.
+        binranges: list of tuples containing the start and
+            end point of the binning range.
+        hist_mode: Histogram calculation method. Choose between
             "numpy" which uses numpy.histogramdd, and "numba" which uses a
-            numba powered similar method. Defaults to 'numba'.
-        jitterParams (dict, optional): Not yet Implemented. Defaults to None.
-        return_edges: (bool, optional): If true, returns a list of D arrays
+            numba powered similar method.
+        jitterParams: Not yet Implemented.
+        return_edges: If true, returns a list of D arrays
             describing the bin edges for each dimension, similar to the
-            behaviour of np.histogramdd. Defaults to False
+            behaviour of np.histogramdd.
 
 
     Raises:
@@ -65,10 +64,12 @@ def bin_partition(
             present in the dataframe
 
     Returns:
-        hist (np.array) : The result of the n-dimensional binning
-        edges (list,optional) : A list of D arrays describing the bin edges for
-            each dimension.
-            This is returned only when return_edges is True.
+        2-element tuple returned only when return_edges is True. Otherwise 
+            only hist is returned.
+
+            - **hist**: The result of the n-dimensional binning
+            - **edges**: A list of D arrays describing the bin edges for
+                each dimension.
     """
     if jitterParams is not None:
         raise Warning("Jittering is not yet implemented.")
@@ -107,7 +108,7 @@ def bin_dataframe(
     df: dask.dataframe.DataFrame,
     binDict: dict = None,
     binAxes: Union[str, Sequence[str]] = None,
-    binRanges: Sequence[Tuple[float, float]] = None,
+    binRanges: Sequence[tuple[float, float]] = None,
     nBins: Union[int, Sequence[int]] = 100,
     hist_mode: str = "numba",
     mode: str = "fast",
@@ -122,32 +123,29 @@ def bin_dataframe(
     parallelized.
 
     Args:
-        df (dask.dataframe.DataFrame): _description_
-        binDict (dict, optional): TODO: implement passing binning parameters as
+        df: _description_
+        binDict: TODO: implement passing binning parameters as
             dictionary or other methods
-        binAxes (list): List of names of the axes (columns) on which to
+        binAxes: List of names of the axes (columns) on which to
             calculate the histogram.
             The order will be the order of the dimensions in the resulting
             array.
-        nBins (int or list, optional): List of number of points along the
-            different axes. Defaults to None.
-        binranges (tuple, optional): list of tuples containing the start and
-            end point of the binning range. Defaults to None.
-        hist_mode (str, optional): Histogram calculation method. Choose between
+        nBins: List of number of points along the
+            different axes.
+        binranges: list of tuples containing the start and
+            end point of the binning range.
+        hist_mode: Histogram calculation method. Choose between
             "numpy" which uses numpy.histogramdd, and "numba" which uses a
-            numba powered similar method. Defaults to 'numba'.
-        mode (str, optional): Defines how the results from each partition are
+            numba powered similar method.
+        mode: Defines how the results from each partition are
             combined.
-            Available modes are 'fast', 'lean' and 'legacy'. Defaults to 'fast'.
-        jitterParams (dict, optional): Not yet Implemented. Defaults to None.
-        pbar (bool, optional): Allows to deactivate the tqdm progress bar.
-            Defaults to True.
-        nCores (int, optional): Number of CPU cores to use for parallelization.
-            Defaults to N_CPU-1.
-        nThreadsPerWorker (int, optional): Limit the number of threads that
-            multiprocessing can spawn. Defaults to 4.
-        threadpoolAPI (str, optional): The API to use for multiprocessing.
-        Defaults to 'blas'.
+            Available modes are 'fast', 'lean' and 'legacy'.
+        jitterParams: Not yet Implemented.
+        pbar: Allows to deactivate the tqdm progress bar.
+        nCores: Number of CPU cores to use for parallelization.
+        nThreadsPerWorker: Limit the number of threads that
+            multiprocessing can spawn.
+        threadpoolAPI: The API to use for multiprocessing.
 
     Raises:
         Warning: Warns if there are unimplemented features the user is trying
@@ -156,7 +154,7 @@ def bin_dataframe(
             binning parameters
 
     Returns:
-        xr.DataArray: The result of the n-dimensional binning represented in an
+        The result of the n-dimensional binning represented in an
             xarray object, combining the data with the axes.
     """
     if jitterParams is not None:
@@ -290,14 +288,13 @@ def applyJitter(
     """Add jittering to the column of a dataframe
 
     Args:
-        df (pd.DataFrame): Dataframe to add noise/jittering to.
-        amp (float): Amplitude scaling for the jittering noise.
-        col (str): Name of the column to add jittering to.
-        mode (str, optional): Choose between 'uniform' for uniformly
+        df: Dataframe to add noise/jittering to.
+        amp: Amplitude scaling for the jittering noise.
+        col: Name of the column to add jittering to.
+        mode: Choose between 'uniform' for uniformly
             distributed noise, or 'normal' for noise with normal distribution.
             For columns with digital values, one should choose 'uniform' as
             well as amplitude (amp) equal to half the step size.
-            Defaults to 'uniform'.
     """
 
     colsize = df[col].size
@@ -323,9 +320,9 @@ def _hist_from_bin_ranges(
     bit integers.
 
     Args:
-        sample (np.array): The data to be histogrammed with shape N,D.
-        bins (Sequence): the number of bins for each dimension D.
-        ranges (Sequence): A sequence of length D, each an optional (lower,
+        sample: The data to be histogrammed with shape N,D.
+        bins: the number of bins for each dimension D.
+        ranges: A sequence of length D, each an optional (lower,
             upper) tuple giving the outer bin edges to be used if the edges are
             not given explicitly in bins.
 
@@ -333,7 +330,7 @@ def _hist_from_bin_ranges(
         ValueError: In case of dimension mismatch.
 
     Returns:
-        hist (np.array): The computed histogram.
+        The computed histogram.
     """
     ndims = len(bins)
     if sample.shape[1] != ndims:
@@ -368,7 +365,7 @@ def numba_histogramdd(
     sample: np.array,
     bins: Sequence,
     ranges: Sequence,
-) -> Tuple[np.array, np.array]:
+) -> tuple[np.array, np.array]:
     """Wrapper for the Number pre-compiled binning functions.
 
     Behaves in total much like numpy.histogramdd. Returns uint32 arrays.
@@ -379,9 +376,9 @@ def numba_histogramdd(
     sizes.
 
     Args:
-        sample (np.array): The data to be histogrammed with shape N,D
-        bins (Sequence): the number of bins for each dimension D
-        ranges (Sequence): the
+        sample: The data to be histogrammed with shape N,D
+        bins: the number of bins for each dimension D
+        ranges: the TODO: Missing description
 
     Raises:
         ValueError: In case of dimension mismatch.
@@ -390,9 +387,12 @@ def numba_histogramdd(
         RuntimeError: Internal shape error after binning
 
     Returns:
-        hist (np.array): The computed histogram
-        edges (np.array): A list of D arrays describing the bin edges for each
-        dimension.
+        2-element tuple returned only when return_edges is True. Otherwise 
+        only hist is returned.
+
+        - **hist**: The computed histogram
+        - **edges**: A list of D arrays describing the bin edges for
+            each dimension.
     """
 
     try:
