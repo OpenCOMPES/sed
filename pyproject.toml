@@ -19,9 +19,11 @@ threadpoolctl = "^3.1.0"
 tqdm = "^4.62.3"
 Sphinx = {version = "^4.4.0", optional = true}
 sphinx-rtd-theme = {version = "^1.0.0", optional = true}
+tomlkit = {version = "^0.10.0", extras = ["docs"]}
+sphinx-autodoc-typehints = {version = "^1.17.0", extras = ["docs"]}
 
 [tool.poetry.extras]
-docs = ["Sphinx", "sphinx-rtd-theme"]
+docs = ["Sphinx", "sphinx-rtd-theme", "tomlkit", "sphinx-autodoc-typehints"]
 
 [tool.poetry.dev-dependencies]
 pytest = "^7.0.1"
