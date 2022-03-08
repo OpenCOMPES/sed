@@ -1,6 +1,7 @@
 # All functions in this file are adapted from https://github.com/mpes-kit/mpes
 from functools import reduce
 from typing import Sequence
+from typing import Tuple
 from typing import Union
 
 import dask.dataframe
@@ -24,15 +25,15 @@ def _arraysum(array_a, array_b):
 
 
 def bin_partition(
-    part: dask.dataframe.core.DataFrame | pd.DataFrame,
+    part: Union[dask.dataframe.core.DataFrame, pd.DataFrame],
     binDict: dict = None,
-    binAxes: str | Sequence[str] = None,
-    binRanges: Sequence[tuple[float, float]] = None,
-    nBins: int | Sequence[int] = 100,
+    binAxes: Union[str, Sequence[str]] = None,
+    binRanges: Sequence[Tuple[float, float]] = None,
+    nBins: Union[int, Sequence[int]] = 100,
     hist_mode: str = "numba",
     jitterParams: dict = None,
     return_edges: bool = False,
-) -> np.ndarray | tuple[np.ndarray, list]:
+) -> Union[np.ndarray, Tuple[np.ndarray, list]]:
     """Compute the n-dimensional histogram of a single dataframe partition.
 
     Args:
@@ -64,7 +65,7 @@ def bin_partition(
             present in the dataframe
 
     Returns:
-        2-element tuple returned only when return_edges is True. Otherwise 
+        2-element tuple returned only when return_edges is True. Otherwise
             only hist is returned.
 
             - **hist**: The result of the n-dimensional binning
@@ -108,7 +109,7 @@ def bin_dataframe(
     df: dask.dataframe.DataFrame,
     binDict: dict = None,
     binAxes: Union[str, Sequence[str]] = None,
-    binRanges: Sequence[tuple[float, float]] = None,
+    binRanges: Sequence[Tuple[float, float]] = None,
     nBins: Union[int, Sequence[int]] = 100,
     hist_mode: str = "numba",
     mode: str = "fast",
@@ -365,7 +366,7 @@ def numba_histogramdd(
     sample: np.array,
     bins: Sequence,
     ranges: Sequence,
-) -> tuple[np.array, np.array]:
+) -> Tuple[np.array, np.array]:
     """Wrapper for the Number pre-compiled binning functions.
 
     Behaves in total much like numpy.histogramdd. Returns uint32 arrays.
@@ -387,7 +388,7 @@ def numba_histogramdd(
         RuntimeError: Internal shape error after binning
 
     Returns:
-        2-element tuple returned only when return_edges is True. Otherwise 
+        2-element tuple returned only when return_edges is True. Otherwise
         only hist is returned.
 
         - **hist**: The computed histogram
