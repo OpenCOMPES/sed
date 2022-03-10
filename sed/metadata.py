@@ -17,15 +17,14 @@ class MetaHandler:
         """Add an entry to the metadata container
 
         Args:
-            v (Dict): dictionary containing the metadata to add.
+            v: dictionary containing the metadata to add.
                 Must contain a 'name' key.
-            overwrite (str, optional): Control behaviour in case the 'name' key
+            overwrite: Control behaviour in case the 'name' key
                 is already present in the metadata dictionary. If raise, raises
                 a DuplicateEntryError.
                 If 'overwrite' it overwrites the previous data with the new
                 one.
                 If 'append' it adds a trailing number, keeping both entries.
-                Defaults to 'raise'.
 
         Raises:
             DuplicateEntryError: [description]

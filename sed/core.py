@@ -34,13 +34,13 @@ class SedProcessor:
         """Accessor to the underlying data structure.
 
         Args:
-            val (Any): [description]
+            val: [description]
 
         Raises:
             ValueError: [description]
 
         Returns:
-            pd.DataFrame: [description]
+            [description]
         """
         return self._dataframe[val]
 
@@ -68,7 +68,7 @@ class SedProcessor:
         """Load tabular data of Single Events
 
         Args:
-            data (TabularType): data in tabular format. Accepts anything which
+            data: data in tabular format. Accepts anything which
                 can be interpreted by pd.DataFrame as an input
 
         Returns:
@@ -92,20 +92,19 @@ class SedProcessor:
         """Compute the histogram along the given dimensions.
 
         Args:
-            mode (str, optional): Binning method, choose between numba,
-                fast, lean and legacy (Y. Acremann's method). Defaults to
-                'numba'.
-            ncores (int, optional): [description]. Defaults to N_CPU.
-            axes ([type], optional): [description]. Defaults to None.
-            nbins (int, optional): [description]. Defaults to None.
-            ranges (list, optional): [description]. Defaults to None.
-            binDict (dict, optional): [description]. Defaults to None.
-            pbar (bool, optional): [description]. Defaults to True.
-            jittered (bool, optional): [description]. Defaults to True.
-            pbenv (str, optional): [description]. Defaults to 'classic'.
+            mode: Binning method, choose between numba,
+                fast, lean and legacy (Y. Acremann's method).
+            ncores: [description].
+            axes: [description].
+            nbins: [description].
+            ranges: [description].
+            binDict: [description].
+            pbar: [description].
+            jittered: [description].
+            pbenv: [description].
 
         Returns:
-            xr.DataArray: [description]
+            [description]
         """
         pass
 
