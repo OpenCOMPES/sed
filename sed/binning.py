@@ -425,7 +425,7 @@ def numba_histogramdd(
         raise ValueError("range argument must have one entry per dimension")
 
     ranges = np.asarray(ranges)
-    bins = np.asarray(bins)
+    bins = tuple(bins)
 
     # Create edge arrays
     for i in range(D):
