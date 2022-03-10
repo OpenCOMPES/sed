@@ -20,9 +20,13 @@ poetry shell
 poetry install
 ```
 
-- If you wish to use the virtual environment created by poetry to work in a Jupyter notebook, you need also to create a Jupyter kernel for that.
+- If you wish to use the virtual environment created by poetry to work in a Jupyter notebook, you first need to install the optional notebook dependencies and then create a Jupyter kernel for that.
+  + Install the optional dependencies ipykernel and jupyter
+  ```python
+  poetry install -E notebook
+  ```
   + Make sure to run the command below within your virtual environment ('poetry run' ensures this) by typing:
   ```python
   poetry run ipython kernel install --user --name=sed_poetry
   ```
-  + The new kernel will be eligible now from your kernels list in Jupyter 
+  + The new kernel will be eligible now from your kernels list in Jupyter
