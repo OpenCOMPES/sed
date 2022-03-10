@@ -5,24 +5,28 @@ description = "Single Event Data Frame Processor: Backend to handle photoelectro
 authors = ["Muhammad Zain Sohail <zainsohail04@gmail.com>"]
 
 [tool.poetry.dependencies]
-python = ">=3.10,<3.11"
+python = ">=3.8,<3.11"
 numpy = ">=1.18,<1.22"
-pandas = "^1.4.0"
+pandas = "^1.4.1"
 h5py = "^3.6.0"
-dask = "^2022.1.1"
+dask = "^2021.12.0"
 fastparquet = "^0.8.0"
 pyarrow = "^7.0.0"
 psutil = "^5.9.0"
-xarray = "^0.21.1"
+xarray = "^0.20.1"
 numba = "^0.55.1"
 threadpoolctl = "^3.1.0"
 tqdm = "^4.62.3"
+matplotlib = "^3.5.1"
+jupyter = {version = "^1.0.0", extras = ["notebook"]}
+ipykernel = {version = "^6.9.1", extras = ["notebook"]}
 Sphinx = {version = "^4.4.0", optional = true}
 sphinx-rtd-theme = {version = "^1.0.0", optional = true}
 tomlkit = {version = "^0.10.0", extras = ["docs"]}
 sphinx-autodoc-typehints = {version = "^1.17.0", extras = ["docs"]}
 
 [tool.poetry.extras]
+notebook = ["jupyter", "ipykernel"]
 docs = ["Sphinx", "sphinx-rtd-theme", "tomlkit", "sphinx-autodoc-typehints"]
 
 [tool.poetry.dev-dependencies]
