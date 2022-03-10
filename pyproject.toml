@@ -17,9 +17,12 @@ xarray = "^0.20.1"
 numba = "^0.55.1"
 threadpoolctl = "^3.1.0"
 tqdm = "^4.62.3"
-jupyter = "^1.0.0"
-ipykernel = "^6.9.1"
 matplotlib = "^3.5.1"
+jupyter = {version = "^1.0.0", extras = ["notebook"]}
+ipykernel = {version = "^6.9.1", extras = ["notebook"]}
+
+[tool.poetry.extras]
+notebook = ["jupyter", "ipykernel"]
 
 [tool.poetry.dev-dependencies]
 pytest = "^7.0.1"
