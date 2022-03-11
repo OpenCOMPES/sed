@@ -394,7 +394,9 @@ def binsearch(bins: np.ndarray, val: float) -> int:
 
 @numba.jit(nopython=True, nogil=True, parallel=False)
 def _hist_from_bins(
-    sample: np.ndarray, bins: Sequence[np.ndarray], shape: Tuple,
+    sample: np.ndarray,
+    bins: Sequence[np.ndarray],
+    shape: Tuple,
 ) -> np.ndarray:
     """Numba powered binning method, similar to np.histogramdd.
 
@@ -500,7 +502,9 @@ def numba_histogramdd(
 
     if method == "array":
         hist = _hist_from_bins(
-            sample, tuple(bins), tuple(b.size for b in bins),
+            sample,
+            tuple(bins),
+            tuple(b.size for b in bins),
         )
         return hist, bins
 
