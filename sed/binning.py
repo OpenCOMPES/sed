@@ -1,9 +1,9 @@
 # All functions in this file are adapted from https://github.com/mpes-kit/mpes
 from functools import reduce
 from sqlite3 import InternalError
+from typing import List
 from typing import Sequence
 from typing import Tuple
-from typing import List
 from typing import Union
 
 import dask.dataframe
@@ -25,64 +25,81 @@ def _arraysum(array_a, array_b):
 
     return array_a + array_b
 
+
 def _simplify_binning_arguments(
-        bins: Union[int,dict,tuple, List[int], List[np.ndarray],List[tuple]] = 100,
-        axes: Union[str, Sequence[str]] = None,
-        ranges: Sequence[Tuple[float, float]] = None,
+    bins: Union[
+        int, dict, tuple, List[int], List[np.ndarray], List[tuple],
+    ] = 100,
+    axes: Union[str, Sequence[str]] = None,
+    ranges: Sequence[Tuple[float, float]] = None,
 ) -> tuple:
-    if isinstance(bins,dict): # bins is a dictionary: unravel to axes and bins
+    if isinstance(
+        bins, dict,
+    ):  # bins is a dictionary: unravel to axes and bins
         axes = []
         bins_ = []
-        for k,v in bins.items():
+        for k, v in bins.items():
             axes.append(k)
-            bins_.append(v) 
+            bins_.append(v)
         bins = bins_
 
-    if isinstance(bins,(int,np.ndarray)):
+    if isinstance(bins, (int, np.ndarray)):
         bins = [bins] * len(axes)
     elif isinstance(bins, tuple):
         if len(bins) == 3:
             bins = [bins]
         else:
-            raise ValueError('Bins defined as tuples should only be used to define start stop and step of the bins. i.e. should always have lenght 3.')
-    
-    assert isinstance(bins,list), f'Cannot interpret bins of type {type(bins)}'
-    assert axes is not None, f'Must define on which axes to bin'
-    assert all(type(x)==type(bins[0]) for x in bins), 'All elements in bins must be of the same type'
+            raise ValueError(
+                "Bins defined as tuples should only be used to define start stop and step of the bins. i.e. should always have lenght 3.",
+            )
+
+    assert isinstance(
+        bins, list,
+    ), f"Cannot interpret bins of type {type(bins)}"
+    assert axes is not None, f"Must define on which axes to bin"
+    assert all(
+        type(x) == type(bins[0]) for x in bins
+    ), "All elements in bins must be of the same type"
     # TODO: could implement accepting heterogeneous input.
     bin = bins[0]
 
-    if isinstance(bin,tuple):
+    if isinstance(bin, tuple):
         ranges = []
         bins_ = []
         for tpl in bins:
-            ranges.append([tpl[0],tpl[1]])
+            ranges.append([tpl[0], tpl[1]])
             bins_.append(tpl[2])
         bins = bins_
-    elif not isinstance(bin,(int,np.ndarray)):
-        raise TypeError(f'Could not interpret bins of type {type(bin)}')
-   
-    
+    elif not isinstance(bin, (int, np.ndarray)):
+        raise TypeError(f"Could not interpret bins of type {type(bin)}")
+
     if ranges is not None:
         if not (len(axes) == len(bins) == len(ranges)):
-            raise AttributeError('axes and range and bins must have the same number of elements')
-    elif isinstance(bin,int):
-        raise AttributeError('Must provide a range if bins is an integer or list of integers') 
+            raise AttributeError(
+                "axes and range and bins must have the same number of elements",
+            )
+    elif isinstance(bin, int):
+        raise AttributeError(
+            "Must provide a range if bins is an integer or list of integers",
+        )
     elif len(axes) != len(bins):
-        raise AttributeError('axes and bins must have the same number of elements')
+        raise AttributeError(
+            "axes and bins must have the same number of elements",
+        )
 
-    
     return bins, axes, ranges
 
 
 def bin_partition(
     part: Union[dask.dataframe.core.DataFrame, pd.DataFrame],
-    bins: Union[int,dict,tuple, List[int], List[np.ndarray],List[tuple]] = 100,
+    bins: Union[
+        int, dict, tuple, List[int], List[np.ndarray], List[tuple],
+    ] = 100,
     axes: Union[str, Sequence[str]] = None,
     ranges: Sequence[Tuple[float, float]] = None,
     histMode: str = "numba",
     returnEdges: bool = False,
-    skipTest:bool = False,
+    skipTest: bool = False,
 ) -> Union[np.ndarray, Tuple[np.ndarray, list]]:
     """Compute the n-dimensional histogram of a single dataframe partition.
 
@@ -122,7 +139,7 @@ def bin_partition(
                 each dimension.
     """
     if not skipTest:
-        bins,axes,ranges = _simplify_binning_arguments(bins,axes,ranges)
+        bins, axes, ranges = _simplify_binning_arguments(bins, axes, ranges)
 
     # Locate columns for binning operation
     colID = [part.columns.get_loc(axis) for axis in axes]
@@ -154,7 +171,9 @@ def bin_partition(
 
 def bin_dataframe(
     df: dask.dataframe.DataFrame,
-    bins: Union[int,dict,tuple, List[int], List[np.ndarray],List[tuple]] = 100,
+    bins: Union[
+        int, dict, tuple, List[int], List[np.ndarray], List[tuple],
+    ] = 100,
     axes: Union[str, Sequence[str]] = None,
     ranges: Sequence[Tuple[float, float]] = None,
     histMode: str = "numba",
@@ -205,20 +224,25 @@ def bin_dataframe(
             xarray object, combining the data with the axes.
     """
 
-    bins,axes,ranges = _simplify_binning_arguments(bins,axes,ranges)
-    
+    bins, axes, ranges = _simplify_binning_arguments(bins, axes, ranges)
+
     # create the coordinate axes for the xarray output
-    if isinstance(bins[0],np.ndarray):
+    if isinstance(bins[0], np.ndarray):
         coords = {ax: bin for ax, bin in zip(axes, bins)}
     elif ranges is None:
-        raise ValueError("bins is not an array and range is none.. this shouldn't happen.")
+        raise ValueError(
+            "bins is not an array and range is none.. this shouldn't happen.",
+        )
     else:
-        coords = {ax: np.linspace(r[0], r[1], n) for ax, r, n in zip(axes, ranges, bins)}
+        coords = {
+            ax: np.linspace(r[0], r[1], n)
+            for ax, r, n in zip(axes, ranges, bins)
+        }
 
     if isinstance(bins[0], np.ndarray):
-        fullShape = tuple([x.size for x in bins])
+        fullShape = tuple(x.size for x in bins)
     else:
-        fullShape = tuple(bins)        
+        fullShape = tuple(bins)
 
     fullResult = np.zeros(fullShape)
     partitionResults = []  # Partition-level results
@@ -247,7 +271,7 @@ def bin_dataframe(
                         ranges=ranges,
                         histMode=histMode,
                         skipTest=True,
-                        returnEdges=False
+                        returnEdges=False,
                     ),
                 )
 
@@ -524,7 +548,7 @@ def numba_histogramdd(
         sample = np.atleast_2d(sample).T
         N, D = sample.shape
 
-    if isinstance(bins,int):
+    if isinstance(bins, int):
         bins = D * [bins]
         method = "int"
         Db = len(bins)
