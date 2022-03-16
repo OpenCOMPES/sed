@@ -19,10 +19,7 @@ N_CPU = psutil.cpu_count()
 
 
 def _arraysum(array_a, array_b):
-    """
-    Calculate the sum of two arrays.
-    """
-
+    """ Calculate the sum of two arrays."""
     return array_a + array_b
 
 
@@ -432,7 +429,7 @@ def _hist_from_bin_range(
 
 @numba.jit(nogil=True, parallel=False, nopython=True)
 def binsearch(bins: np.ndarray, val: float) -> int:
-    """Bisection index search function.
+    """ Bisection index search function.
 
     Finds the index of the bin with the highest value below val, i.e. the left edge.
     returns -1 when the value is outside the bin range.
@@ -488,7 +485,6 @@ def _hist_from_bins(
 
     for i in range(ndims):
         strides[i] = H.strides[i] // H.itemsize
-
     for t in range(sample.shape[0]):
         is_inside = True
         flatidx = 0
