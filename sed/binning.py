@@ -1,7 +1,9 @@
 # All functions in this file are adapted from https://github.com/mpes-kit/mpes
 from functools import reduce
+from sqlite3 import InternalError
 from typing import Sequence
 from typing import Tuple
+from typing import List
 from typing import Union
 
 import dask.dataframe
@@ -23,83 +25,128 @@ def _arraysum(array_a, array_b):
 
     return array_a + array_b
 
+def _simplify_binning_arguments(
+        bins: Union[int,dict,tuple, List[int], List[np.ndarray],List[tuple]] = 100,
+        axes: Union[str, Sequence[str]] = None,
+        ranges: Sequence[Tuple[float, float]] = None,
+) -> tuple:
+    if isinstance(bins,dict): # bins is a dictionary: unravel to axes and bins
+        axes = []
+        bins_ = []
+        for k,v in bins.items():
+            axes.append(k)
+            bins_.append(v) 
+        bins = bins_
+
+    if isinstance(bins,(int,np.ndarray)):
+        bins = [bins] * len(axes)
+    elif isinstance(bins, tuple):
+        if len(bins) == 3:
+            bins = [bins]
+        else:
+            raise ValueError('Bins defined as tuples should only be used to define start stop and step of the bins. i.e. should always have lenght 3.')
+    
+    assert isinstance(bins,list), f'Cannot interpret bins of type {type(bins)}'
+    assert axes is not None, f'Must define on which axes to bin'
+    assert all(type(x)==type(bins[0]) for x in bins), 'All elements in bins must be of the same type'
+    # TODO: could implement accepting heterogeneous input.
+    bin = bins[0]
+
+    if isinstance(bin,tuple):
+        ranges = []
+        bins_ = []
+        for tpl in bins:
+            ranges.append([tpl[0],tpl[1]])
+            bins_.append(tpl[2])
+        bins = bins_
+    elif not isinstance(bin,(int,np.ndarray)):
+        raise TypeError(f'Could not interpret bins of type {type(bin)}')
+   
+    
+    if ranges is not None:
+        if not (len(axes) == len(bins) == len(ranges)):
+            raise AttributeError('axes and range and bins must have the same number of elements')
+    elif isinstance(bin,int):
+        raise AttributeError('Must provide a range if bins is an integer or list of integers') 
+    elif len(axes) != len(bins):
+        raise AttributeError('axes and bins must have the same number of elements')
+
+    
+    return bins, axes, ranges
+
 
 def bin_partition(
     part: Union[dask.dataframe.core.DataFrame, pd.DataFrame],
-    binDict: dict = None,
-    binAxes: Union[str, Sequence[str]] = None,
-    nBins: Union[int, Sequence[int]] = 100,
-    binRanges: Sequence[Tuple[float, float]] = None,
-    hist_mode: str = "numba",
-    jitterParams: dict = None,
-    return_edges: bool = False,
+    bins: Union[int,dict,tuple, List[int], List[np.ndarray],List[tuple]] = 100,
+    axes: Union[str, Sequence[str]] = None,
+    ranges: Sequence[Tuple[float, float]] = None,
+    histMode: str = "numba",
+    returnEdges: bool = False,
+    skipTest:bool = False,
 ) -> Union[np.ndarray, Tuple[np.ndarray, list]]:
     """Compute the n-dimensional histogram of a single dataframe partition.
 
     Args:
         part: dataframe on which to perform the histogram.
             Usually a partition of a dask DataFrame.
-        binDict: TODO: implement passing binning parameters as
-            dictionary or other methods
-        binAxes: List of names of the axes (columns) on which to
-            calculate the histogram.
+        bins: Definition of the bins. Can  be any of the following cases:
+            - an integer describing the number of bins in on all dimensions
+            - a tuple of 3 numbers describing start, end and step of the binning range
+            - a np.arrays defining the binning edges
+            - a list (NOT a tuple) of any of the above (int, tuple or np.ndarray)
+            - a dictionary made of the axes as keys and any of the above as values.
+            This takes priority over the axes and range arguments.
+        axes: The names of the axes (columns) on which to calculate the histogram.
             The order will be the order of the dimensions in the resulting array.
-        nBins: List of number of points along the
-            different axes.
-        binranges: list of tuples containing the start and
-            end point of the binning range.
-        hist_mode: Histogram calculation method. Choose between
+        ranges: list of tuples containing the start and end point of the binning range.
+        histMode: Histogram calculation method. Choose between
             "numpy" which uses numpy.histogramdd, and "numba" which uses a
             numba powered similar method.
-        jitterParams: Not yet Implemented.
-        return_edges: If true, returns a list of D arrays
+        returnEdges: If true, returns a list of D arrays
             describing the bin edges for each dimension, similar to the
             behaviour of np.histogramdd.
 
 
     Raises:
-        Warning: Warns if there are unimplemented features the user is trying
-            to use.
         ValueError: When the method requested is not available.
+        AttributeError: if bins axes and range are not congruent in dimensionality.
         KeyError: when the columns along which to compute the histogram are not
             present in the dataframe
 
     Returns:
-        2-element tuple returned only when return_edges is True. Otherwise
+        2-element tuple returned only when returnEdges is True. Otherwise
             only hist is returned.
 
             - **hist**: The result of the n-dimensional binning
             - **edges**: A list of D arrays describing the bin edges for
                 each dimension.
     """
-    if jitterParams is not None:
-        raise Warning("Jittering is not yet implemented.")
+    if not skipTest:
+        bins,axes,ranges = _simplify_binning_arguments(bins,axes,ranges)
 
-    cols = part.columns
     # Locate columns for binning operation
-    binColumns = [cols.get_loc(binax) for binax in binAxes]
+    colID = [part.columns.get_loc(axis) for axis in axes]
 
-    vals = part.values[:, binColumns]
-
-    if hist_mode == "numba":
+    vals = part.values[:, colID]
+    if histMode == "numba":
         hist_partition, edges = numba_histogramdd(
             vals,
-            bins=nBins,
-            ranges=binRanges,
+            bins=bins,
+            ranges=ranges,
         )
-    elif hist_mode == "numpy":
+    elif histMode == "numpy":
         hist_partition, edges = np.histogramdd(
             vals,
-            bins=nBins,
-            range=binRanges,
+            bins=bins,
+            range=ranges,
         )
     else:
         raise ValueError(
-            f"No binning method {hist_mode} available. Please choose between "
+            f"No binning method {histMode} available. Please choose between "
             f"numba and numpy.",
         )
 
-    if return_edges:
+    if returnEdges:
         return hist_partition, edges
     else:
         return hist_partition
@@ -107,13 +154,11 @@ def bin_partition(
 
 def bin_dataframe(
     df: dask.dataframe.DataFrame,
-    binDict: dict = None,
-    binAxes: Union[str, Sequence[str]] = None,
-    binRanges: Sequence[Tuple[float, float]] = None,
-    nBins: Union[int, Sequence[int]] = 100,
-    hist_mode: str = "numba",
+    bins: Union[int,dict,tuple, List[int], List[np.ndarray],List[tuple]] = 100,
+    axes: Union[str, Sequence[str]] = None,
+    ranges: Sequence[Tuple[float, float]] = None,
+    histMode: str = "numba",
     mode: str = "fast",
-    jitterParams: dict = None,
     pbar: bool = True,
     nCores: int = N_CPU - 1,
     nThreadsPerWorker: int = 4,
@@ -127,15 +172,15 @@ def bin_dataframe(
         df: _description_
         binDict: TODO: implement passing binning parameters as
             dictionary or other methods
-        binAxes: List of names of the axes (columns) on which to
+        axes: List of names of the axes (columns) on which to
             calculate the histogram.
             The order will be the order of the dimensions in the resulting
             array.
-        nBins: List of number of points along the
+        bins: List of number of points along the
             different axes.
-        binranges: list of tuples containing the start and
+        ranges: list of tuples containing the start and
             end point of the binning range.
-        hist_mode: Histogram calculation method. Choose between
+        histMode: Histogram calculation method. Choose between
             "numpy" which uses numpy.histogramdd, and "numba" which uses a
             numba powered similar method.
         mode: Defines how the results from each partition are
@@ -147,6 +192,7 @@ def bin_dataframe(
         nThreadsPerWorker: Limit the number of threads that
             multiprocessing can spawn.
         threadpoolAPI: The API to use for multiprocessing.
+        kwds: passed to dask.compute()
 
     Raises:
         Warning: Warns if there are unimplemented features the user is trying
@@ -158,24 +204,23 @@ def bin_dataframe(
         The result of the n-dimensional binning represented in an
             xarray object, combining the data with the axes.
     """
-    if jitterParams is not None:
-        raise Warning("Jittering is not yet implemented.")
-    if binDict is not None:
-        raise Warning("Usage of binDict is not yet implemented.")
 
-    if isinstance(binAxes, str):
-        binAxes = [binAxes]
-    elif binRanges is not None and len(binAxes) != len(binRanges):
-        raise ValueError("Must define ranges for all axes")
-    elif isinstance(nBins, int):
-        nBins = [nBins] * len(binAxes)
-    elif len(nBins) != len(binAxes):
-        raise ValueError(
-            "nBins must be integer or a list of integers for each dimension "
-            "in axes.",
-        )
+    bins,axes,ranges = _simplify_binning_arguments(bins,axes,ranges)
+    
+    # create the coordinate axes for the xarray output
+    if isinstance(bins[0],np.ndarray):
+        coords = {ax: bin for ax, bin in zip(axes, bins)}
+    elif ranges is None:
+        raise ValueError("bins is not an array and range is none.. this shouldn't happen.")
+    else:
+        coords = {ax: np.linspace(r[0], r[1], n) for ax, r, n in zip(axes, ranges, bins)}
 
-    fullResult = np.zeros(tuple(nBins))
+    if isinstance(bins[0], np.ndarray):
+        fullShape = tuple([x.size for x in bins])
+    else:
+        fullShape = tuple(bins)        
+
+    fullResult = np.zeros(fullShape)
     partitionResults = []  # Partition-level results
 
     # limit multithreading in worker threads
@@ -197,11 +242,12 @@ def bin_dataframe(
                 coreTasks.append(
                     dask.delayed(bin_partition)(
                         dfPartition,
-                        None,
-                        binAxes,
-                        nBins,
-                        binRanges,
-                        hist_mode,
+                        bins=bins,
+                        axes=axes,
+                        ranges=ranges,
+                        histMode=histMode,
+                        skipTest=True,
+                        returnEdges=False
                     ),
                 )
 
@@ -233,8 +279,8 @@ def bin_dataframe(
                         for r in coreResults:
                             combineParts.append(
                                 r[
-                                    int(j * nBins[0] / nCores) : int(
-                                        (j + 1) * nBins[0] / nCores,
+                                    int(j * fullShape[0] / nCores) : int(
+                                        (j + 1) * fullShape[0] / nCores,
                                     ),
                                     ...,
                                 ],
@@ -249,8 +295,8 @@ def bin_dataframe(
 
                     for j in range(0, nCores):
                         fullResult[
-                            int(j * nBins[0] / nCores) : int(
-                                (j + 1) * nBins[0] / nCores,
+                            int(j * fullShape[0] / nCores) : int(
+                                (j + 1) * fullShape[0] / nCores,
                             ),
                             ...,
                         ] += combineResults[j]
@@ -271,11 +317,8 @@ def bin_dataframe(
 
     da = xr.DataArray(
         data=fullResult.astype("float32"),
-        coords={
-            ax: np.linspace(r[0], r[1], n)
-            for ax, r, n in zip(binAxes, binRanges, nBins)
-        },
-        dims=list(binAxes),
+        coords=coords,
+        dims=list(axes),
     )
     return da
 
@@ -310,7 +353,7 @@ def applyJitter(
 
 
 @numba.jit(nogil=True, nopython=True)
-def _hist_from_bin_ranges(
+def _hist_from_bin_range(
     sample: np.array,
     bins: Sequence,
     ranges: np.array,
@@ -323,7 +366,7 @@ def _hist_from_bin_ranges(
     Args:
         sample: The data to be histogrammed with shape N,D.
         bins: the number of bins for each dimension D.
-        ranges: A sequence of length D, each an optional (lower,
+        range: A sequence of length D, each an optional (lower,
             upper) tuple giving the outer bin edges to be used if the edges are
             not given explicitly in bins.
 
@@ -418,7 +461,6 @@ def _hist_from_bins(
     Hflat = H.ravel()
 
     strides = np.zeros(ndims, np.int64)
-    # print(H.shape,strides.shape,H.strides.shape,H.itemsize)
 
     for i in range(ndims):
         strides[i] = H.strides[i] // H.itemsize
@@ -457,7 +499,7 @@ def numba_histogramdd(
     Args:
         sample: The data to be histogrammed with shape N,D
         bins: the number of bins for each dimension D, or a sequence of bins on which to calculate the histogram.
-        ranges: The range to use for binning when bins is a list of integers.
+        range: The range to use for binning when bins is a list of integers.
 
     Raises:
         ValueError: In case of dimension mismatch.
@@ -466,7 +508,7 @@ def numba_histogramdd(
         RuntimeError: Internal shape error after binning
 
     Returns:
-        2-element tuple returned only when return_edges is True. Otherwise
+        2-element tuple returned only when returnEdges is True. Otherwise
         only hist is returned.
 
         - **hist**: The computed histogram
@@ -482,6 +524,10 @@ def numba_histogramdd(
         sample = np.atleast_2d(sample).T
         N, D = sample.shape
 
+    if isinstance(bins,int):
+        bins = D * [bins]
+        method = "int"
+        Db = len(bins)
     try:
         Db = len(bins)
         if isinstance(bins[0], int):
@@ -510,7 +556,7 @@ def numba_histogramdd(
 
     elif method == "int":
 
-        # normalize the ranges argument
+        # normalize the range argument
         if ranges is None:
             ranges = (None,) * D
         elif len(ranges) != D:
@@ -530,7 +576,7 @@ def numba_histogramdd(
 
             nbin[i] = len(edges[i]) + 1  # includes an outlier on each end
 
-        hist = _hist_from_bin_ranges(sample, bins, ranges)
+        hist = _hist_from_bin_range(sample, bins, ranges)
 
         if (hist.shape != nbin - 2).any():
             raise RuntimeError("Internal Shape Error")
