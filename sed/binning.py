@@ -19,19 +19,25 @@ N_CPU = psutil.cpu_count()
 
 
 def _arraysum(array_a, array_b):
-    """ Calculate the sum of two arrays."""
+    """Calculate the sum of two arrays."""
     return array_a + array_b
 
 
 def _simplify_binning_arguments(
     bins: Union[
-        int, dict, tuple, List[int], List[np.ndarray], List[tuple],
+        int,
+        dict,
+        tuple,
+        List[int],
+        List[np.ndarray],
+        List[tuple],
     ] = 100,
     axes: Union[str, Sequence[str]] = None,
     ranges: Sequence[Tuple[float, float]] = None,
 ) -> tuple:
     if isinstance(
-        bins, dict,
+        bins,
+        dict,
     ):  # bins is a dictionary: unravel to axes and bins
         axes = []
         bins_ = []
@@ -51,7 +57,8 @@ def _simplify_binning_arguments(
             )
 
     assert isinstance(
-        bins, list,
+        bins,
+        list,
     ), f"Cannot interpret bins of type {type(bins)}"
     assert axes is not None, f"Must define on which axes to bin"
     assert all(
@@ -90,11 +97,17 @@ def _simplify_binning_arguments(
 def bin_partition(
     part: Union[dask.dataframe.core.DataFrame, pd.DataFrame],
     bins: Union[
-        int, dict, tuple, List[int], List[np.ndarray], List[tuple],
+        int,
+        dict,
+        tuple,
+        List[int],
+        List[np.ndarray],
+        List[tuple],
     ] = 100,
     axes: Union[str, Sequence[str]] = None,
     ranges: Sequence[Tuple[float, float]] = None,
     histMode: str = "numba",
+    jitter: Union[list, dict] = None,
     returnEdges: bool = False,
     skipTest: bool = False,
 ) -> Union[np.ndarray, Tuple[np.ndarray, list]]:
@@ -116,10 +129,15 @@ def bin_partition(
         histMode: Histogram calculation method. Choose between
             "numpy" which uses numpy.histogramdd, and "numba" which uses a
             numba powered similar method.
+        jitter: a list of the axes on which to apply jittering.
+            To specify the jitter amplitude or method (normal or uniform noise) a dictionary can be passed.
+            This should look like jitter={'axis':{'amplitude':0.5,'mode':'uniform'}}.
+            This example also shows the default behaviour, in case None is passed in the dictionary, or jitter is a list of strings.
+            Warning: this is not the most performing approach. applying jitter on the dataframe before calling the binning is much faster.
         returnEdges: If true, returns a list of D arrays
             describing the bin edges for each dimension, similar to the
             behaviour of np.histogramdd.
-
+        skipTest: turns off input check and data transformation. Defaults to False as it is intended for internal use only. Warning: setting this True might make error tracking difficult.
 
     Raises:
         ValueError: When the method requested is not available.
@@ -141,7 +159,32 @@ def bin_partition(
     # Locate columns for binning operation
     colID = [part.columns.get_loc(axis) for axis in axes]
 
-    vals = part.values[:, colID]
+    if jitter is not None:
+        sel_part = part[axes].copy()
+
+        if isinstance(jitter, Sequence):
+            jitter = {k: None for k in jitter}
+        for col, jpars in jitter.items():
+            if col in axes:
+                if jpars is None:
+                    jpars = {}
+                amp = jpars.get("amplitude", 0.5)
+                mode = jpars.get("mode", "uniform")
+                axIdx = axes.index(col)
+                bin = bins[axIdx]
+                if isinstance(bin, int):
+                    rng = ranges[axIdx]
+                    binsize = abs(rng[1] - rng[0]) / bin
+                else:
+                    binsize = abs(bin[0] - bin[1])
+                    assert np.allclose(
+                        binsize,
+                        abs(bin[-3] - bin[-2]),
+                    ), f"bins along {col} are not uniform. Cannot apply jitter."
+                apply_jitter_on_column(sel_part, amp * binsize, col, mode)
+        vals = sel_part.values
+    else:
+        vals = part.values[:, colID]
     if histMode == "numba":
         hist_partition, edges = numba_histogramdd(
             vals,
@@ -169,12 +212,18 @@ def bin_partition(
 def bin_dataframe(
     df: dask.dataframe.DataFrame,
     bins: Union[
-        int, dict, tuple, List[int], List[np.ndarray], List[tuple],
+        int,
+        dict,
+        tuple,
+        List[int],
+        List[np.ndarray],
+        List[tuple],
     ] = 100,
     axes: Union[str, Sequence[str]] = None,
     ranges: Sequence[Tuple[float, float]] = None,
     histMode: str = "numba",
     mode: str = "fast",
+    jitter: Union[list, dict] = None,
     pbar: bool = True,
     nCores: int = N_CPU - 1,
     nThreadsPerWorker: int = 4,
@@ -185,26 +234,29 @@ def bin_dataframe(
     parallelized.
 
     Args:
-        df: _description_
-        binDict: TODO: implement passing binning parameters as
-            dictionary or other methods
-        axes: List of names of the axes (columns) on which to
-            calculate the histogram.
-            The order will be the order of the dimensions in the resulting
-            array.
-        bins: List of number of points along the
-            different axes.
-        ranges: list of tuples containing the start and
-            end point of the binning range.
+        df: a dask.DataFrame on which to perform the histogram.
+        bins: Definition of the bins. Can  be any of the following cases:
+            - an integer describing the number of bins in on all dimensions
+            - a tuple of 3 numbers describing start, end and step of the binning range
+            - a np.arrays defining the binning edges
+            - a list (NOT a tuple) of any of the above (int, tuple or np.ndarray)
+            - a dictionary made of the axes as keys and any of the above as values.
+            This takes priority over the axes and range arguments.
+        axes: The names of the axes (columns) on which to calculate the histogram.
+            The order will be the order of the dimensions in the resulting array.
+        ranges: list of tuples containing the start and end point of the binning range.
         histMode: Histogram calculation method. Choose between
             "numpy" which uses numpy.histogramdd, and "numba" which uses a
             numba powered similar method.
         mode: Defines how the results from each partition are
             combined.
             Available modes are 'fast', 'lean' and 'legacy'.
-        jitterParams: Not yet Implemented.
+        jitter: a list of the axes on which to apply jittering.
+            To specify the jitter amplitude or method (normal or uniform noise) a dictionary can be passed.
+            This should look like jitter={'axis':{'amplitude':0.5,'mode':'uniform'}}.
+            This example also shows the default behaviour, in case None is passed in the dictionary, or jitter is a list of strings.
         pbar: Allows to deactivate the tqdm progress bar.
-        nCores: Number of CPU cores to use for parallelization.
+        nCores: Number of CPU cores to use for parallelization. Defaults to all but one of the available cores.
         nThreadsPerWorker: Limit the number of threads that
             multiprocessing can spawn.
         threadpoolAPI: The API to use for multiprocessing.
@@ -267,6 +319,7 @@ def bin_dataframe(
                         axes=axes,
                         ranges=ranges,
                         histMode=histMode,
+                        jitter=jitter,
                         skipTest=True,
                         returnEdges=False,
                     ),
@@ -344,13 +397,13 @@ def bin_dataframe(
     return da
 
 
-def applyJitter(
+def apply_jitter_on_column(
     df: Union[dask.dataframe.core.DataFrame, pd.DataFrame],
     amp: float,
     col: str,
     mode: str = "uniform",
 ):
-    """Add jittering to the column of a dataframe
+    """Add jittering to the column of a dataframe.
 
     Args:
         df: Dataframe to add noise/jittering to.
@@ -359,7 +412,7 @@ def applyJitter(
         mode: Choose between 'uniform' for uniformly
             distributed noise, or 'normal' for noise with normal distribution.
             For columns with digital values, one should choose 'uniform' as
-            well as amplitude (amp) equal to half the step size.
+            well as amplitude (amp) equal to the step size.
     """
 
     colsize = df[col].size
@@ -421,7 +474,7 @@ def _hist_from_bin_range(
             flatidx += int(j) * strides[i]
             # don't check all axes if you already know you're out of the range
             if not is_inside:
-                break  
+                break
         if is_inside:
             Hflat[flatidx] += int(is_inside)
 
@@ -430,7 +483,7 @@ def _hist_from_bin_range(
 
 @numba.jit(nogil=True, parallel=False, nopython=True)
 def binsearch(bins: np.ndarray, val: float) -> int:
-    """ Bisection index search function.
+    """Bisection index search function.
 
     Finds the index of the bin with the highest value below val, i.e. the left edge.
     returns -1 when the value is outside the bin range.
@@ -492,11 +545,11 @@ def _hist_from_bins(
         for i in range(ndims):
             j = binsearch(bins[i], sample[t, i])
             # binsearch returns -1 when the value is outside the bin range
-            is_inside = is_inside and (j >= 0)  
+            is_inside = is_inside and (j >= 0)
             flatidx += int(j) * strides[i]
             # don't check all axes if you already know you're out of the range
             if not is_inside:
-                break  
+                break
         if is_inside:
             Hflat[flatidx] += int(is_inside)
 
@@ -508,7 +561,7 @@ def numba_histogramdd(
     bins: Union[Sequence[Union[int, np.ndarray]], np.ndarray],
     ranges: Sequence = None,
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """ Multidimensional histogramming function, powered by Numba.
+    """Multidimensional histogramming function, powered by Numba.
 
     Behaves in total much like numpy.histogramdd. Returns uint32 arrays.
     This was chosen because it has a significant performance improvement over
