@@ -419,8 +419,9 @@ def _hist_from_bin_range(
             j = (sample[t, i] - ranges[i, 0]) * delta[i]
             is_inside = is_inside and (0 <= j < bins[i])
             flatidx += int(j) * strides[i]
+            # don't check all axes if you already know you're out of the range
             if not is_inside:
-                break  # don't check all axes if you already know you're out of the range
+                break  
         if is_inside:
             Hflat[flatidx] += int(is_inside)
 
@@ -490,12 +491,12 @@ def _hist_from_bins(
         flatidx = 0
         for i in range(ndims):
             j = binsearch(bins[i], sample[t, i])
-            is_inside = is_inside and (
-                j >= 0
-            )  # binsearch returns -1 when the value is outside the bin range
+            # binsearch returns -1 when the value is outside the bin range
+            is_inside = is_inside and (j >= 0)  
             flatidx += int(j) * strides[i]
+            # don't check all axes if you already know you're out of the range
             if not is_inside:
-                break  # don't check all axes if you already know you're out of the range
+                break  
         if is_inside:
             Hflat[flatidx] += int(is_inside)
 
@@ -507,7 +508,7 @@ def numba_histogramdd(
     bins: Union[Sequence[Union[int, np.ndarray]], np.ndarray],
     ranges: Sequence = None,
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """Wrapper for the Number pre-compiled binning functions.
+    """ Multidimensional histogramming function, powered by Numba.
 
     Behaves in total much like numpy.histogramdd. Returns uint32 arrays.
     This was chosen because it has a significant performance improvement over
@@ -554,7 +555,6 @@ def numba_histogramdd(
             method = "int"
         elif isinstance(bins[0], np.ndarray):
             method = "array"
-
     except AttributeError:
         # bins is a single integer
         bins = D * [bins]
@@ -575,7 +575,6 @@ def numba_histogramdd(
         return hist, bins
 
     elif method == "int":
-
         # normalize the range argument
         if ranges is None:
             ranges = (None,) * D
