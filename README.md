@@ -1,4 +1,7 @@
 # sed
+[![Documentation Status](https://readthedocs.org/projects/sed/badge/?version=latest)](https://sed.readthedocs.io/en/latest/?badge=latest)
+
+
 Single Event Data Frame Processor: Backend to handle photoelectron resolved datastreams
 
 # Installation
