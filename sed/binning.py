@@ -1,4 +1,5 @@
-# All functions in this file are adapted from https://github.com/mpes-kit/mpes
+# Note: some of the functions presented here were 
+# inspired by https://github.com/mpes-kit/mpes
 from functools import reduce
 from typing import Sequence
 from typing import Tuple
