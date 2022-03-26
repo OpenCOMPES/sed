@@ -85,47 +85,6 @@ def recursive_parse_metadata(
     return dictionary
 
 
-def res_to_xarray(
-    res: np.array,
-    bin_names: list,
-    bin_axes: list,
-    metadata: dict = None,
-) -> xr.DataArray:
-    """creates a BinnedArray (xarray subclass) out of the given np.array
-
-    Parameters:
-        res: nd array of binned data
-        bin_names: list of names of the binned axes
-        bin_axes: list of np.arrays with the values of the axes
-        metadata: Dictionary containing the metadata
-
-    Returns:
-        xres: BinnedArray
-            an xarray DataArray container with binned data, axis, and all available
-            metadata
-    """
-    dims = bin_names
-    coords = {}
-    for name, vals in zip(bin_names, bin_axes):
-        coords[name] = vals
-
-    xres = xr.DataArray(res, dims=dims, coords=coords)
-
-    for name in bin_names:
-        try:
-            xres[name].attrs["unit"] = DEFAULT_UNITS[name]
-        except KeyError:
-            pass
-
-    xres.attrs["units"] = "counts"
-    xres.attrs["long_name"] = "photoelectron counts"
-
-    if metadata is not None:
-        xres.attrs["metadata"] = metadata
-
-    return xres
-
-
 def xarray_to_h5(data: xr.DataArray, faddr: str, mode: str = "w"):
     """Save xarray formatted data to hdf5
 
@@ -145,7 +104,12 @@ def xarray_to_h5(data: xr.DataArray, faddr: str, mode: str = "w"):
         print(f"saving data to {faddr}")
 
         # Saving data, make a single dataset
-        h5File.create_dataset("binned/BinnedData", data=data.data)
+        dataset = h5File.create_dataset("binned/BinnedData", data=data.data)
+        try:
+            dataset.attrs["units"] = data.attrs["units"]
+            dataset.attrs["long_name"] = data.attrs["long_name"]
+        except KeyError:
+            pass
 
         # Saving axes
         axesGroup = h5File.create_group("axes")
@@ -156,6 +120,10 @@ def xarray_to_h5(data: xr.DataArray, faddr: str, mode: str = "w"):
                 data=data.coords[binName],
             )
             axis.attrs["name"] = binName
+            try:
+                axis.attrs["unit"] = data.coords[binName].attrs["unit"]
+            except KeyError:
+                pass
             axesNumber += 1
 
         if "metadata" in data.attrs and isinstance(
@@ -170,7 +138,7 @@ def xarray_to_h5(data: xr.DataArray, faddr: str, mode: str = "w"):
 
 
 def h5_to_xarray(faddr: str, mode: str = "r") -> xr.DataArray:
-    """Rear xarray data from formatted hdf5 file
+    """Read xarray data from formatted hdf5 file
 
     Args:
         faddr: complete file name (including path)
@@ -189,21 +157,42 @@ def h5_to_xarray(faddr: str, mode: str = "r") -> xr.DataArray:
             )
 
         # Reading the axes
-        axes = []
-        bin_names = []
+        binAxes = []
+        binNames = []
 
         try:
             for axis in h5_file["axes"]:
-                axes.append(h5_file["axes"][axis])
-                bin_names.append(h5_file["axes"][axis].attrs["name"])
+                binAxes.append(h5_file["axes"][axis])
+                binNames.append(h5_file["axes"][axis].attrs["name"])
         except KeyError:
             raise Exception("Wrong Data Format, the axes were not found.")
 
         # load metadata
+        metadata = None
         if "metadata" in h5_file:
             metadata = recursive_parse_metadata(h5_file["metadata"])
-            xarray = res_to_xarray(data, bin_names, axes, metadata)
 
-        else:
-            xarray = res_to_xarray(data, bin_names, axes)
+        coords = {}
+        for name, vals in zip(binNames, binAxes):
+            coords[name] = vals
+
+        xarray = xr.DataArray(data, dims=binNames, coords=coords)
+
+        try:
+            for name in binNames:
+                xarray[name].attrs["unit"] = h5_file["axes"][axis].attrs[
+                    "unit"
+                ]
+            xarray.attrs["units"] = h5_file["binned"]["BinnedData"].attrs[
+                "units"
+            ]
+            xarray.attrs["long_name"] = h5_file["binned"]["BinnedData"].attrs[
+                "long_name"
+            ]
+        except KeyError:
+            pass
+
+        if metadata is not None:
+            xarray.attrs["metadata"] = metadata
+
         return xarray
