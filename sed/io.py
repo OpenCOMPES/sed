@@ -4,23 +4,6 @@ import h5py
 import numpy as np
 import xarray as xr
 
-DEFAULT_UNITS = {
-    "X": "step",
-    "Y": "step",
-    "t": "step",
-    "tofVoltage": "V",
-    "extractorVoltage": "V",
-    "extractorCurrent": "A",
-    "cryoTemperature": "K",
-    "sampleTemperature": "K",
-    "dldTimeBinSize": "ns",
-    "delay": "ps",
-    "timeStamp": "s",
-    "energy": "eV",
-    "kx": "1/A",
-    "ky": "1/A",
-}
-
 
 def recursive_write_metadata(h5group: h5py.Group, node: dict):
     """
