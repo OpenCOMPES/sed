@@ -6,6 +6,26 @@ Single Event Data Frame Processor: Backend to handle photoelectron resolved data
 
 # Installation
 
+## Conda approach
+
+Clone this repository and cd to its root folder.
+Create a new environment by typing:
+```
+conda env create -f env.yml
+```
+This should install all the requirements to run `sed` in your environment.
+To activate your environment:
+```
+conda activate sed_conda
+```
+If you intend to work with jupyter notebooks, it is helpfull to install a jupyter kernel of your environment. This can be done, once activating your environment, by typing:
+```
+python -m ipykernel install --user --name=sed_conda
+``` 
+
+
+## Poetry approach (better, but more complex)
+
 - Prerequisites:
   + poetry: https://python-poetry.org/docs/
   + pyenv: https://github.com/pyenv/pyenv
