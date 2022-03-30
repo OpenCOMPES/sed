@@ -6,8 +6,7 @@ import xarray as xr
 
 
 def recursive_write_metadata(h5group: h5py.Group, node: dict):
-    """
-    Recurces through a python dictionary and writes it into an hdf5 file.
+    """Recurces through a python dictionary and writes it into an hdf5 file.
 
     Args:
         h5group: hdf5 group element where to store the current dict node to.
@@ -26,7 +25,7 @@ def recursive_write_metadata(h5group: h5py.Group, node: dict):
                 h5group.create_dataset(key, data=item)
             except TypeError:
                 h5group.create_dataset(key, data=str(item))
-                print("saved " + key + " as string")
+                print(f"Saved {key} as string.")
         elif isinstance(item, dict):
             print(key)
             group = h5group.create_group(key)
@@ -34,16 +33,17 @@ def recursive_write_metadata(h5group: h5py.Group, node: dict):
         else:
             try:
                 h5group.create_dataset(key, data=str(item))
-                print("saved " + key + " as string")
+                print(f"Saved {key} as string.")
             except BaseException:
-                raise ValueError("Cannot save %s type" % type(item))
+                raise Exception(
+                    f"Unknown error occured, cannot save {item} of type {type(item)}.",
+                )
 
 
 def recursive_parse_metadata(
     node: Union[h5py.Group, h5py.Dataset],
 ) -> dict:
-    """
-    Recurces through an hdf5 file, and parse it into a dictionary.
+    """Recurces through an hdf5 file, and parse it into a dictionary.
 
     Args:
         node: hdf5 group or dataset to parse into dictionary.
@@ -113,9 +113,9 @@ def xarray_to_h5(data: xr.DataArray, faddr: str, mode: str = "w"):
             data.attrs["metadata"],
             dict,
         ):
-            meta_group = h5File.create_group("metadata")
+            metaGroup = h5File.create_group("metadata")
 
-            recursive_write_metadata(meta_group, data.attrs["metadata"])
+            recursive_write_metadata(metaGroup, data.attrs["metadata"])
 
     print("Saving complete!")
 
