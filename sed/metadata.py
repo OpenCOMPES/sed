@@ -39,10 +39,10 @@ class MetaHandler:
             n = 0
             while True:
                 n += 1
-                newname = f"name_{n}"
-                if newname not in self._m.keys():
+                new_name = f"name_{n}"
+                if new_name not in self._m.keys():
                     break
-            self._m[newname] = v
+            self._m[new_name] = v
 
         else:
             raise ValueError(
@@ -50,7 +50,7 @@ class MetaHandler:
                 f"Please choose between overwrite,append or rise.",
             )
 
-    def addProcessing(self, method: str, **kwds: Any) -> None:
+    def add_processing(self, method: str, **kwds: Any) -> None:
         # TODO: #36 Add processing metadata validation tests
         self._m["processing"][method] = kwds
 

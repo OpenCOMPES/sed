@@ -79,13 +79,13 @@ class SedProcessor:
     def compute(
         self,
         mode: str = "numba",
-        binDict: dict = None,
+        bin_dict: dict = None,
         axes: list = None,
-        nbins: int = None,
+        n_bins: int = None,
         ranges: list = None,
         pbar: bool = True,
         jittered: bool = True,
-        ncores: int = N_CPU,
+        n_cores: int = N_CPU,
         pbenv: str = "classic",
         **kwds,
     ) -> xr.DataArray:
@@ -94,11 +94,11 @@ class SedProcessor:
         Args:
             mode: Binning method, choose between numba,
                 fast, lean and legacy (Y. Acremann's method).
-            ncores: [description].
+            n_cores: [description].
             axes: [description].
-            nbins: [description].
+            n_bins: [description].
             ranges: [description].
-            binDict: [description].
+            bin_dict: [description].
             pbar: [description].
             jittered: [description].
             pbenv: [description].
