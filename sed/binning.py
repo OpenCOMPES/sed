@@ -18,7 +18,7 @@ from tqdm.auto import tqdm
 N_CPU = psutil.cpu_count()
 
 
-def _arraysum(array_a, array_b):
+def _array_sum(array_a, array_b):
     """Calculate the sum of two arrays."""
     return array_a + array_b
 
@@ -106,10 +106,10 @@ def bin_partition(
     ] = 100,
     axes: Union[str, Sequence[str]] = None,
     ranges: Sequence[Tuple[float, float]] = None,
-    histMode: str = "numba",
+    hist_mode: str = "numba",
     jitter: Union[list, dict] = None,
-    returnEdges: bool = False,
-    skipTest: bool = False,
+    return_edges: bool = False,
+    skip_test: bool = False,
 ) -> Union[np.ndarray, Tuple[np.ndarray, list]]:
     """Compute the n-dimensional histogram of a single dataframe partition.
 
@@ -126,7 +126,7 @@ def bin_partition(
         axes: The names of the axes (columns) on which to calculate the histogram.
             The order will be the order of the dimensions in the resulting array.
         ranges: list of tuples containing the start and end point of the binning range.
-        histMode: Histogram calculation method. Choose between
+        his_mMode: Histogram calculation method. Choose between
             "numpy" which uses numpy.histogramdd, and "numba" which uses a
             numba powered similar method.
         jitter: a list of the axes on which to apply jittering.
@@ -134,7 +134,7 @@ def bin_partition(
             This should look like jitter={'axis':{'amplitude':0.5,'mode':'uniform'}}.
             This example also shows the default behaviour, in case None is passed in the dictionary, or jitter is a list of strings.
             Warning: this is not the most performing approach. applying jitter on the dataframe before calling the binning is much faster.
-        returnEdges: If true, returns a list of D arrays
+        return_edges: If true, returns a list of D arrays
             describing the bin edges for each dimension, similar to the
             behaviour of np.histogramdd.
         skipTest: turns off input check and data transformation. Defaults to False as it is intended for internal use only. Warning: setting this True might make error tracking difficult.
@@ -153,11 +153,11 @@ def bin_partition(
             - **edges**: A list of D arrays describing the bin edges for
                 each dimension.
     """
-    if not skipTest:
+    if not skip_test:
         bins, axes, ranges = _simplify_binning_arguments(bins, axes, ranges)
 
     # Locate columns for binning operation
-    colID = [part.columns.get_loc(axis) for axis in axes]
+    col_ID = [part.columns.get_loc(axis) for axis in axes]
 
     if jitter is not None:
         sel_part = part[axes].copy()
@@ -170,28 +170,28 @@ def bin_partition(
                     jpars = {}
                 amp = jpars.get("amplitude", 0.5)
                 mode = jpars.get("mode", "uniform")
-                axIdx = axes.index(col)
-                bin = bins[axIdx]
+                ax_idx = axes.index(col)
+                bin = bins[ax_idx]
                 if isinstance(bin, int):
-                    rng = ranges[axIdx]
-                    binsize = abs(rng[1] - rng[0]) / bin
+                    rng = ranges[ax_idx]
+                    bin_size = abs(rng[1] - rng[0]) / bin
                 else:
-                    binsize = abs(bin[0] - bin[1])
+                    bin_size = abs(bin[0] - bin[1])
                     assert np.allclose(
-                        binsize,
+                        bin_size,
                         abs(bin[-3] - bin[-2]),
                     ), f"bins along {col} are not uniform. Cannot apply jitter."
-                apply_jitter_on_column(sel_part, amp * binsize, col, mode)
+                apply_jitter_on_column(sel_part, amp * bin_size, col, mode)
         vals = sel_part.values
     else:
-        vals = part.values[:, colID]
-    if histMode == "numba":
+        vals = part.values[:, col_ID]
+    if hist_mode == "numba":
         hist_partition, edges = numba_histogramdd(
             vals,
             bins=bins,
             ranges=ranges,
         )
-    elif histMode == "numpy":
+    elif hist_mode == "numpy":
         hist_partition, edges = np.histogramdd(
             vals,
             bins=bins,
@@ -203,7 +203,7 @@ def bin_partition(
             f"numba and numpy.",
         )
 
-    if returnEdges:
+    if return_edges:
         return hist_partition, edges
     else:
         return hist_partition
@@ -221,13 +221,13 @@ def bin_dataframe(
     ] = 100,
     axes: Union[str, Sequence[str]] = None,
     ranges: Sequence[Tuple[float, float]] = None,
-    histMode: str = "numba",
+    hist_mode: str = "numba",
     mode: str = "fast",
     jitter: Union[list, dict] = None,
     pbar: bool = True,
-    nCores: int = N_CPU - 1,
-    nThreadsPerWorker: int = 4,
-    threadpoolAPI: str = "blas",
+    n_cores: int = N_CPU - 1,
+    n_threads_per_worker: int = 4,
+    threadpool_API: str = "blas",
     **kwds,
 ) -> xr.DataArray:
     """Computes the n-dimensional histogram on columns of a dataframe,
@@ -245,7 +245,7 @@ def bin_dataframe(
         axes: The names of the axes (columns) on which to calculate the histogram.
             The order will be the order of the dimensions in the resulting array.
         ranges: list of tuples containing the start and end point of the binning range.
-        histMode: Histogram calculation method. Choose between
+        hist_mMode: Histogram calculation method. Choose between
             "numpy" which uses numpy.histogramdd, and "numba" which uses a
             numba powered similar method.
         mode: Defines how the results from each partition are
@@ -256,10 +256,10 @@ def bin_dataframe(
             This should look like jitter={'axis':{'amplitude':0.5,'mode':'uniform'}}.
             This example also shows the default behaviour, in case None is passed in the dictionary, or jitter is a list of strings.
         pbar: Allows to deactivate the tqdm progress bar.
-        nCores: Number of CPU cores to use for parallelization. Defaults to all but one of the available cores.
-        nThreadsPerWorker: Limit the number of threads that
+        n_cores: Number of CPU cores to use for parallelization. Defaults to all but one of the available cores.
+        n_threads_per_worker: Limit the number of threads that
             multiprocessing can spawn.
-        threadpoolAPI: The API to use for multiprocessing.
+        threadpool_API: The API to use for multiprocessing.
         kwds: passed to dask.compute()
 
     Raises:
@@ -289,108 +289,108 @@ def bin_dataframe(
         }
 
     if isinstance(bins[0], np.ndarray):
-        fullShape = tuple(x.size for x in bins)
+        full_shape = tuple(x.size for x in bins)
     else:
-        fullShape = tuple(bins)
+        full_shape = tuple(bins)
 
-    fullResult = np.zeros(fullShape)
-    partitionResults = []  # Partition-level results
+    full_result = np.zeros(full_shape)
+    partition_results = []  # Partition-level results
 
     # limit multithreading in worker threads
-    with threadpool_limits(limits=nThreadsPerWorker, user_api=threadpoolAPI):
+    with threadpool_limits(limits=n_threads_per_worker, user_api=threadpool_API):
 
         # Main loop for binning
-        for i in tqdm(range(0, df.npartitions, nCores), disable=not (pbar)):
+        for i in tqdm(range(0, df.n_partitions, n_cores), disable=not (pbar)):
 
-            coreTasks = []  # Core-level jobs
-            for j in range(0, nCores):
+            core_tasks = []  # Core-level jobs
+            for j in range(0, n_cores):
 
                 ij = i + j
-                if ij >= df.npartitions:
+                if ij >= df.n_partitions:
                     break
 
-                dfPartition = df.get_partition(
+                df_partition = df.get_partition(
                     ij,
                 )  # Obtain dataframe partition
-                coreTasks.append(
+                core_tasks.append(
                     dask.delayed(bin_partition)(
-                        dfPartition,
+                        df_partition,
                         bins=bins,
                         axes=axes,
                         ranges=ranges,
-                        histMode=histMode,
+                        hist_mode=hist_mode,
                         jitter=jitter,
-                        skipTest=True,
-                        returnEdges=False,
+                        skip_test=True,
+                        return_edges=False,
                     ),
                 )
 
-            if len(coreTasks) > 0:
-                coreResults = dask.compute(*coreTasks, **kwds)
+            if len(core_tasks) > 0:
+                core_results = dask.compute(*core_tasks, **kwds)
 
                 if mode == "legacy":
                     # Combine all core results for a dataframe partition
-                    partitionResult = np.zeros_like(coreResults[0])
-                    for coreResult in coreResults:
-                        partitionResult += coreResult
+                    partition_result = np.zeros_like(core_results[0])
+                    for core_result in core_results:
+                        partition_result += core_result
 
-                    partitionResults.append(partitionResult)
-                    # del partitionResult
+                    partition_results.append(partition_result)
+                    # del partition_result
 
                 elif mode == "lean":
                     # Combine all core results for a dataframe partition
-                    partitionResult = reduce(_arraysum, coreResults)
-                    fullResult += partitionResult
-                    del partitionResult
-                    del coreResults
+                    partition_result = reduce(_array_sum, core_results)
+                    full_result += partition_result
+                    del partition_result
+                    del core_results
 
                 elif mode == "fast":
-                    combineTasks = []
-                    for j in range(0, nCores):
-                        combineParts = []
+                    combine_tasks = []
+                    for j in range(0, n_cores):
+                        combine_parts = []
                         # split results along the first dimension among worker
                         # threads
-                        for r in coreResults:
-                            combineParts.append(
+                        for r in core_results:
+                            combine_parts.append(
                                 r[
-                                    int(j * fullShape[0] / nCores) : int(
-                                        (j + 1) * fullShape[0] / nCores,
+                                    int(j * full_shape[0] / n_cores) : int(
+                                        (j + 1) * full_shape[0] / n_cores,
                                     ),
                                     ...,
                                 ],
                             )
-                        combineTasks.append(
-                            dask.delayed(reduce)(_arraysum, combineParts),
+                        combine_tasks.append(
+                            dask.delayed(reduce)(_array_sum, combine_parts),
                         )
-                    combineResults = dask.compute(*combineTasks, **kwds)
+                    combine_results = dask.compute(*combine_tasks, **kwds)
                     # Directly fill into target array. This is much faster than
                     # the (not so parallel) reduce/concatenation used before,
                     # and uses less memory.
 
-                    for j in range(0, nCores):
-                        fullResult[
-                            int(j * fullShape[0] / nCores) : int(
-                                (j + 1) * fullShape[0] / nCores,
+                    for j in range(0, n_cores):
+                        full_result[
+                            int(j * full_shape[0] / n_cores) : int(
+                                (j + 1) * full_shape[0] / n_cores,
                             ),
                             ...,
-                        ] += combineResults[j]
-                    del combineParts
-                    del combineTasks
-                    del combineResults
-                    del coreResults
+                        ] += combine_results[j]
+                    del combine_parts
+                    del combine_tasks
+                    del combine_results
+                    del core_results
                 else:
                     raise ValueError(f"Could not interpret mode {mode}")
 
-            del coreTasks
+            del core_tasks
 
     if mode == "legacy":
         # still need to combine all partition results
-        fullResult = np.zeros_like(partitionResults[0])
-        for pr in partitionResults:
-            fullResult += np.nan_to_num(pr)
+        full_result = np.zeros_like(partition_results[0])
+        for pr in partition_results:
+            full_result += np.nan_to_num(pr)
 
     da = xr.DataArray(
-        data=fullResult.astype("float32"),
+        data=full_result.astype("float32"),
         coords=coords,
         dims=list(axes),
     )
@@ -415,15 +415,15 @@ def apply_jitter_on_column(
             well as amplitude (amp) equal to the step size.
     """
 
-    colsize = df[col].size
+    col_size = df[col].size
     if mode == "uniform":
         # Uniform Jitter distribution
-        df[col] += amp * np.random.uniform(low=-1, high=1, size=colsize)
+        df[col] += amp * np.random.uniform(low=-1, high=1, size=col_size)
     elif mode == "normal":
         # Normal Jitter distribution works better for non-linear
         # transformations and jitter sizes that don't match the original bin
         # sizes
-        df[col] += amp * np.random.standard_normal(size=colsize)
+        df[col] += amp * np.random.standard_normal(size=col_size)
 
 
 @numba.jit(nogil=True, nopython=True)
@@ -450,39 +450,39 @@ def _hist_from_bin_range(
     Returns:
         The computed histogram.
     """
-    ndims = len(bins)
-    if sample.shape[1] != ndims:
+    n_dims = len(bins)
+    if sample.shape[1] != n_dims:
         raise ValueError(
             "The dimension of bins is not equal to the dimension of the sample x",
         )
 
     H = np.zeros(bins, np.uint32)
-    Hflat = H.ravel()
-    delta = np.zeros(ndims, np.float64)
-    strides = np.zeros(ndims, np.int64)
+    H_flat = H.ravel()
+    delta = np.zeros(n_dims, np.float64)
+    strides = np.zeros(n_dims, np.int64)
 
-    for i in range(ndims):
+    for i in range(n_dims):
         delta[i] = 1 / ((ranges[i, 1] - ranges[i, 0]) / bins[i])
         strides[i] = H.strides[i] // H.itemsize
 
     for t in range(sample.shape[0]):
         is_inside = True
-        flatidx = 0
+        flat_idx = 0
         for i in range(ndims):
             j = (sample[t, i] - ranges[i, 0]) * delta[i]
             is_inside = is_inside and (0 <= j < bins[i])
-            flatidx += int(j) * strides[i]
+            flat_idx += int(j) * strides[i]
             # don't check all axes if you already know you're out of the range
             if not is_inside:
                 break
         if is_inside:
-            Hflat[flatidx] += int(is_inside)
+            H_flat[flat_idx] += int(is_inside)
 
     return H
 
 
 @numba.jit(nogil=True, parallel=False, nopython=True)
-def binsearch(bins: np.ndarray, val: float) -> int:
+def bin_search(bins: np.ndarray, val: float) -> int:
     """Bisection index search function.
 
     Finds the index of the bin with the highest value below val, i.e. the left edge.
@@ -527,31 +527,31 @@ def _hist_from_bins(
     Returns:
         hist : the computed n-dimensional histogram
     """
-    ndims = len(bins)
-    if sample.shape[1] != ndims:
+    n_dims = len(bins)
+    if sample.shape[1] != n_dims:
         raise ValueError(
             "The dimension of bins is not equal to the dimension of the sample x",
         )
     H = np.zeros(shape, np.uint32)
-    Hflat = H.ravel()
+    H_flat = H.ravel()
 
-    strides = np.zeros(ndims, np.int64)
+    strides = np.zeros(n_dims, np.int64)
 
-    for i in range(ndims):
+    for i in range(n_dims):
         strides[i] = H.strides[i] // H.itemsize
     for t in range(sample.shape[0]):
         is_inside = True
-        flatidx = 0
-        for i in range(ndims):
-            j = binsearch(bins[i], sample[t, i])
-            # binsearch returns -1 when the value is outside the bin range
+        flat_idx = 0
+        for i in range(n_dims):
+            j = bin_search(bins[i], sample[t, i])
+            # bin_search returns -1 when the value is outside the bin range
             is_inside = is_inside and (j >= 0)
-            flatidx += int(j) * strides[i]
+            flat_idx += int(j) * strides[i]
             # don't check all axes if you already know you're out of the range
             if not is_inside:
                 break
         if is_inside:
-            Hflat[flatidx] += int(is_inside)
+            H_flat[flat_idx] += int(is_inside)
 
     return H
 
@@ -641,16 +641,16 @@ def numba_histogramdd(
 
         # Create edge arrays
         edges = D * [None]
-        nbin = np.empty(D, int)
+        n_bin = np.empty(D, int)
 
         for i in range(D):
             edges[i] = np.linspace(*ranges[i, :], bins[i] + 1)
 
-            nbin[i] = len(edges[i]) + 1  # includes an outlier on each end
+            n_bin[i] = len(edges[i]) + 1  # includes an outlier on each end
 
         hist = _hist_from_bin_range(sample, bins, ranges)
 
-        if (hist.shape != nbin - 2).any():
+        if (hist.shape != n_bin - 2).any():
             raise RuntimeError("Internal Shape Error")
 
         return hist, edges
