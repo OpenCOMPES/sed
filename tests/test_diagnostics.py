@@ -8,15 +8,17 @@ from sed.diagnostics import simulate_binned_data
 
 shapes = []
 for n in range(4):
-    shapes.append([np.random.randint(10) + 1 for i in range(n + 1)])
-axes_names = random.shuffle(["x", "y", "t", "e"])
+    shapes.append(tuple(np.random.randint(10) + 1 for i in range(n + 1)))
+axes_names = ["x", "y", "t", "e"]
+random.shuffle(axes_names)
+args = [(s, axes_names[: len(s)]) for s in shapes]
 
 
 @pytest.mark.parametrize(
-    "_shape",
-    shapes,
-    ids=lambda x: f"shapes:{x}",
+    "args",
+    args,
+    ids=lambda x: f"ndims:{len(x[0])}",
 )
-def test_simulated_binned_data_is_xarray(_shape):
-    sim = simulate_binned_data(_shape, axes_names)
-    assert isinstance(sim, xr.DataArray)
+def test_simulated_binned_data_is_xarray(args):
+    sim = simulate_binned_data(*args)
+    assert type(sim) == xr.DataArray

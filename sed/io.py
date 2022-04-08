@@ -230,11 +230,23 @@ def to_tiff(
 
         if axis_dict is None:
             axis_dict = {
-                "T": ["delayStage", "pumpProbeTime", "time"],
-                "Z": ["dldTime", "energy"],
+                "T": [
+                    "delayStage",
+                    "pumpProbeTime",
+                    "time",
+                    "t",
+                ],
+                "Z": [
+                    "dldTime",
+                    "energy",
+                    "e",
+                    "binding_energy",
+                    "energies",
+                    "binding_energies",
+                ],
                 "C": ["C"],
-                "Y": ["dldPosY", "ky"],
-                "X": ["dldPosX", "kx"],
+                "Y": ["dldPosY", "ky", "y", "ypos"],
+                "X": ["dldPosX", "kx", "x", "xpos"],
                 "S": ["S"],
             }
         else:
@@ -306,7 +318,8 @@ def load_tiff(
     else:
         if dims is None:
             dims = list(coords.keys())
-        assert (
-            data.ndim == len(coords) == len(dims)
-        ), "Data dimension must coincide number of coordinates provided"
+        assert data.ndim == len(coords) == len(dims), (
+            f"Data dimension {data.ndim} must coincide number of coordinates"
+            f"{len(coords)} and dimensions {len(dims)} provided,"
+        )
         return xr.DataArray(data=data, coords=coords, dims=dims, attrs=attrs)
