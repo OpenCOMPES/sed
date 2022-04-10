@@ -1,4 +1,3 @@
-from msilib import sequence
 from pathlib import Path
 from typing import Sequence
 from typing import Union
@@ -291,7 +290,7 @@ def to_tiff(
 def load_tiff(
     faddr: Union[str, Path],
     coords: Union[Sequence[str], dict] = None,
-    dims: sequence = None,
+    dims: Sequence = None,
     attrs: dict = None,
 ) -> Union[np.ndarray, xr.DataArray]:
     """Loads a tiff stack to an xarray.
