@@ -506,7 +506,9 @@ def binsearch(bins: np.ndarray, val: float) -> int:
     """
     low, high = 0, len(bins) - 1
     mid = high // 2
-    if (val < bins[low]) | (val >= bins[high]):
+    if val == bins[high]:
+        return high - 1
+    if (val < bins[low]) | (val > bins[high]):
         return -1
 
     while True:
