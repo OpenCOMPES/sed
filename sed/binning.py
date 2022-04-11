@@ -557,7 +557,6 @@ def _hist_from_bins(
         flatidx = 0
         for i in range(ndims):
             j = binsearch(bins[i], sample[t, i])
-            # j = np.searchsorted(bins[i],sample[t, i])
             # binsearch returns -1 when the value is outside the bin range
             is_inside = is_inside and (j >= 0)
             flatidx += int(j) * strides[i]
@@ -645,8 +644,12 @@ def numba_histogramdd(
     elif method == "int":
         # normalize the range argument
         if ranges is None:
-            ranges = (None,) * D
-        elif D == 1 and isinstance(ranges[0], (int, float)):
+            raise ValueError(
+                "must define a value for ranges when bins is"
+                " the number of bins",
+            )
+        #     ranges = (None,) * D
+        if D == 1 and isinstance(ranges[0], (int, float)):
             ranges = (ranges,)
         elif len(ranges) != D:
             raise ValueError(
