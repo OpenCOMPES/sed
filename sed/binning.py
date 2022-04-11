@@ -1,7 +1,6 @@
-# Note: some of the functions presented here were 
+# Note: some of the functions presented here were
 # inspired by https://github.com/mpes-kit/mpes
 from functools import reduce
-from sqlite3 import InternalError
 from typing import List
 from typing import Sequence
 from typing import Tuple
@@ -54,17 +53,18 @@ def _simplify_binning_arguments(
             bins = [bins]
         else:
             raise ValueError(
-                "Bins defined as tuples should only be used to define start stop and step of the bins. i.e. should always have lenght 3.",
+                "Bins defined as tuples should only be used to define start "
+                / "stop and step of the bins. i.e. should always have lenght 3.",
             )
 
     assert isinstance(
         bins,
         list,
     ), f"Cannot interpret bins of type {type(bins)}"
-    assert axes is not None, f"Must define on which axes to bin"
-    assert all(
-        type(x) == type(bins[0]) for x in bins
-    ), "All elements in bins must be of the same type"
+    assert axes is not None, "Must define on which axes to bin"
+    assert all(isinstance(x, type(bins[0])) for x in bins), (
+        "All elements in " "bins must be of the same type"
+    )
     # TODO: could implement accepting heterogeneous input.
     bin = bins[0]
 
@@ -131,14 +131,19 @@ def bin_partition(
             "numpy" which uses numpy.histogramdd, and "numba" which uses a
             numba powered similar method.
         jitter: a list of the axes on which to apply jittering.
-            To specify the jitter amplitude or method (normal or uniform noise) a dictionary can be passed.
+            To specify the jitter amplitude or method (normal or uniform noise)
+            a dictionary can be passed.
             This should look like jitter={'axis':{'amplitude':0.5,'mode':'uniform'}}.
-            This example also shows the default behaviour, in case None is passed in the dictionary, or jitter is a list of strings.
-            Warning: this is not the most performing approach. applying jitter on the dataframe before calling the binning is much faster.
+            This example also shows the default behaviour, in case None is
+            passed in the dictionary, or jitter is a list of strings.
+            Warning: this is not the most performing approach. applying jitter
+            on the dataframe before calling the binning is much faster.
         returnEdges: If true, returns a list of D arrays
             describing the bin edges for each dimension, similar to the
             behaviour of np.histogramdd.
-        skipTest: turns off input check and data transformation. Defaults to False as it is intended for internal use only. Warning: setting this True might make error tracking difficult.
+        skipTest: turns off input check and data transformation. Defaults to
+            False as it is intended for internal use only.
+            Warning: setting this True might make error tracking difficult.
 
     Raises:
         ValueError: When the method requested is not available.
@@ -253,11 +258,14 @@ def bin_dataframe(
             combined.
             Available modes are 'fast', 'lean' and 'legacy'.
         jitter: a list of the axes on which to apply jittering.
-            To specify the jitter amplitude or method (normal or uniform noise) a dictionary can be passed.
+            To specify the jitter amplitude or method (normal or uniform noise)
+            a dictionary can be passed.
             This should look like jitter={'axis':{'amplitude':0.5,'mode':'uniform'}}.
-            This example also shows the default behaviour, in case None is passed in the dictionary, or jitter is a list of strings.
+            This example also shows the default behaviour, in case None is
+            passed in the dictionary, or jitter is a list of strings.
         pbar: Allows to deactivate the tqdm progress bar.
-        nCores: Number of CPU cores to use for parallelization. Defaults to all but one of the available cores.
+        nCores: Number of CPU cores to use for parallelization. Defaults to
+            all but one of the available cores.
         nThreadsPerWorker: Limit the number of threads that
             multiprocessing can spawn.
         threadpoolAPI: The API to use for multiprocessing.
@@ -523,8 +531,10 @@ def _hist_from_bins(
 
     Args:
         sample : the array of shape (N,D) on which to compute the histogram
-        bins : array of shape (N,D) defining the D bins on which to compute the histogram, i.e. the desired output axes
-        shape: shape of the resulting array. Workaround for the fact numba does not allow to create tuples
+        bins : array of shape (N,D) defining the D bins on which to compute
+            the histogram, i.e. the desired output axes.
+        shape: shape of the resulting array. Workaround for the fact numba
+            does not allow to create tuples.
     Returns:
         hist : the computed n-dimensional histogram
     """
@@ -545,6 +555,7 @@ def _hist_from_bins(
         flatidx = 0
         for i in range(ndims):
             j = binsearch(bins[i], sample[t, i])
+            # j = np.searchsorted(bins[i],sample[t, i])
             # binsearch returns -1 when the value is outside the bin range
             is_inside = is_inside and (j >= 0)
             flatidx += int(j) * strides[i]
@@ -573,7 +584,8 @@ def numba_histogramdd(
 
     Args:
         sample: The data to be histogrammed with shape N,D
-        bins: the number of bins for each dimension D, or a sequence of bins on which to calculate the histogram.
+        bins: the number of bins for each dimension D, or a sequence of bins
+        on which to calculate the histogram.
         range: The range to use for binning when bins is a list of integers.
 
     Raises:
@@ -599,7 +611,7 @@ def numba_histogramdd(
         sample = np.atleast_2d(sample).T
         N, D = sample.shape
 
-    if isinstance(bins, int):
+    if isinstance(bins, (int, np.ndarray)):
         bins = D * [bins]
         method = "int"
         Db = len(bins)
@@ -624,7 +636,7 @@ def numba_histogramdd(
         hist = _hist_from_bins(
             sample,
             tuple(bins),
-            tuple(b.size for b in bins),
+            tuple(b.size - 1 for b in bins),
         )
         return hist, bins
 
@@ -632,6 +644,8 @@ def numba_histogramdd(
         # normalize the range argument
         if ranges is None:
             ranges = (None,) * D
+        elif D == 1 and isinstance(ranges[0], (int, float)):
+            ranges = (ranges,)
         elif len(ranges) != D:
             raise ValueError(
                 "range argument must have one entry per dimension",
