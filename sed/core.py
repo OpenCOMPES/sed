@@ -120,27 +120,25 @@ class SedProcessor:
 
     def viewEventHistogram(self, dfpid: int, ncol: int=2, bins: Sequence[int]=None, 
                 axes:Sequence[str]=None,
-                ranges:Sequence[Tuple[float, float]]=None, jittered:bool = True,
+                ranges:Sequence[Tuple[float, float]]=None, jittered:bool = False,
                 backend:str='bokeh', legend:bool=True, histkwds:dict={}, legkwds:dict={}, **kwds:Any):
         """
         Plot individual histograms of specified dimensions (axes) from a substituent dataframe partition.
-        **Parameters**\n
-        dfpid: int
-            Number of the data frame partition to look at.
-        ncol: int
-            Number of columns in the plot grid.
-        axes: list/tuple
-            Name of the axes to view.
-        bins: list/tuple
-            Bin values of all speicified axes.
-        ranges: list
-            Value ranges of all specified axes.
-        backend: str | 'matplotlib'
-            Backend of the plotting library ('matplotlib' or 'bokeh').
-        legend: bool | True
-            Option to include a legend in the histogram plots.
-        histkwds, legkwds, **kwds: dict, dict, keyword arguments
-            Extra keyword arguments passed to ``mpes.visualization.grid_histogram()``.
+
+        Args:
+            dfpid: Number of the data frame partition to look at.
+            ncol: Number of columns in the plot grid.
+            bins: Number of bins to use for the speicified axes.
+            axes: Name of the axes to display.
+            ranges: Value ranges of all specified axes.
+            jittered: Option to use the jittered dataframe.
+            backend: Backend of the plotting library ('matplotlib' or 'bokeh').
+            legend: Option to include a legend in the histogram plots.
+            histkwds, legkwds, **kwds: Extra keyword arguments passed to ``sed.diagnostics.grid_histogram()``.
+
+        Raises:
+            AssertError if Jittering is requested, but the jittered dataframe has not been created.
+            TypeError: Raises when the input values are not of the correct type.
         """
         if bins is None:
             bins = self._config["default_bins"]

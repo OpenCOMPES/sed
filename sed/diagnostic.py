@@ -9,20 +9,17 @@ from typing import Tuple
 from typing import Sequence
 from typing import Any
 
-def plot_single_hist(histvals:List[int], edges:List[float], legend:bool=None, **kwds:Any):
+def plot_single_hist(histvals:List[int], edges:List[float], legend:str=None, **kwds:Any) -> pbk.Figure:
     """ Bokeh-based plotting of a single histogram with legend and tooltips.
-    **Parameters**\n
-    histvals: 1D array
-        Histogram counts (e.g. vertical axis).
-    edges: 1D array
-        Histogram edge values (e.g. horizontal axis).
-    legend: str
-        Text for the plot legend.
-    **kwds:
-        Keyword arguments for 'bokeh.plotting.figure().quad()'.
-    **Return**\n
-    p: object
-        An instance of 'bokeh.plotting.figure()' as a plot handle.
+
+    Args:
+        histvals: Histogram counts (e.g. vertical axis).
+        edges: Histogram edge values (e.g. horizontal axis).
+        legend: Text for the plot legend.
+        **kwds: Keyword arguments for 'bokeh.plotting.figure().quad()'.
+
+    Returns:
+        An instance of 'bokeh.plotting.Figure' as a plot handle.
     """
 
     ttp = kwds.pop('tooltip', [('(x, y)', '($x, $y)')])
@@ -37,31 +34,23 @@ def plot_single_hist(histvals:List[int], edges:List[float], legend:bool=None, **
 
     return p
 
-def grid_histogram(dct:dict, ncol:int, rvs:List, rvbins:List,
+def grid_histogram(dct:dict, ncol:int, rvs:Sequence, rvbins:Sequence,
           rvranges:Sequence[Tuple[float, float]], backend:str='bokeh',
           legend:bool=True, histkwds:dict={}, legkwds:dict={}, **kwds:Any):
     """
     Grid plot of multiple 1D histograms.
-    **Parameters**\n
-    dct: dict
-        Dictionary containing the name and values of the random variables.
-    ncol: int
-        Number of columns in the plot grid.
-    rvs: list/tuple
-        List of names for the random variables (rvs).
-    rvbins: list/tuple
-        Bin values for all random variables.
-    rvranges: list/tuple
-        Value ranges of all random variables.
-    backend: str | 'bokeh'
-        Backend for making the plot ('matplotlib' or 'bokeh').
-    legend: bool | True
-        Option to include a legend in each histogram plot.
-    histkwds: dict | {}
-        Keyword arguments for histogram plots.
-    legkwds: dict | {}
-        Keyword arguments for legends.
-    **kwds: keyword arguments
+
+    Args:
+        dct: Dictionary containing the name and values of the random variables.
+        ncol: Number of columns in the plot grid.
+        rvs: List of names for the random variables (rvs).
+        rvbins: Bin values for all random variables.
+        rvranges: Value ranges of all random variables.
+        backend: Backend for making the plot ('matplotlib' or 'bokeh').
+        legend: Option to include a legend in each histogram plot.
+        histkwds: Keyword arguments for histogram plots.
+        legkwds: Keyword arguments for legends.
+        **kwds: Additional keyword arguments.
     """
 
     figsz = kwds.pop('figsize', (14, 8))
