@@ -1,15 +1,13 @@
 from typing import Any
-from typing import Union
-from typing import Tuple
 from typing import Sequence
-from typing import List
+from typing import Tuple
 
 import pandas as pd
 import psutil
 import xarray as xr
 
-from .metadata import MetaHandler
 from .diagnostic import grid_histogram
+from .metadata import MetaHandler
 
 N_CPU = psutil.cpu_count()
 
@@ -21,10 +19,15 @@ class SedProcessor:
 
         self._dataframe = None
 
-        self._config={}
+        self._config = {}
         self._config["default_bins"] = [80, 80, 80, 80]
-        self._config["default_axes"] = ['X', 'Y', 't', 'ADC']
-        self._config["default_ranges"] = [(0, 1800), (0, 1800), (68000, 74000), (0, 500)]
+        self._config["default_axes"] = ["X", "Y", "t", "ADC"]
+        self._config["default_ranges"] = [
+            (0, 1800),
+            (0, 1800),
+            (68000, 74000),
+            (0, 500),
+        ]
 
         self._dimensions = []
         self._coordinates = {}
@@ -118,12 +121,23 @@ class SedProcessor:
         """
         pass
 
-    def viewEventHistogram(self, dfpid: int, ncol: int=2, bins: Sequence[int]=None, 
-                axes:Sequence[str]=None,
-                ranges:Sequence[Tuple[float, float]]=None, jittered:bool = False,
-                backend:str='bokeh', legend:bool=True, histkwds:dict={}, legkwds:dict={}, **kwds:Any):
+    def viewEventHistogram(
+        self,
+        dfpid: int,
+        ncol: int = 2,
+        bins: Sequence[int] = None,
+        axes: Sequence[str] = None,
+        ranges: Sequence[Tuple[float, float]] = None,
+        jittered: bool = False,
+        backend: str = "bokeh",
+        legend: bool = True,
+        histkwds: dict = {},
+        legkwds: dict = {},
+        **kwds: Any,
+    ):
         """
-        Plot individual histograms of specified dimensions (axes) from a substituent dataframe partition.
+        Plot individual histograms of specified dimensions (axes) from a substituent
+        dataframe partition.
 
         Args:
             dfpid: Number of the data frame partition to look at.
@@ -134,10 +148,12 @@ class SedProcessor:
             jittered: Option to use the jittered dataframe.
             backend: Backend of the plotting library ('matplotlib' or 'bokeh').
             legend: Option to include a legend in the histogram plots.
-            histkwds, legkwds, **kwds: Extra keyword arguments passed to ``sed.diagnostics.grid_histogram()``.
+            histkwds, legkwds, **kwds: Extra keyword arguments passed to
+            ``sed.diagnostics.grid_histogram()``.
 
         Raises:
-            AssertError if Jittering is requested, but the jittered dataframe has not been created.
+            AssertError if Jittering is requested, but the jittered dataframe
+            has not been created.
             TypeError: Raises when the input values are not of the correct type.
         """
         if bins is None:
@@ -169,11 +185,23 @@ class SedProcessor:
                 group_dict[ax] = dfpart.values[:, cols.get_loc(ax)].compute()
 
             # Plot multiple histograms in a grid
-            grid_histogram(group_dict, ncol=ncol, rvs=axes, rvbins=bins, rvranges=ranges,
-                    backend=backend, legend=legend, histkwds=histkwds, legkwds=legkwds, **kwds)
+            grid_histogram(
+                group_dict,
+                ncol=ncol,
+                rvs=axes,
+                rvbins=bins,
+                rvranges=ranges,
+                backend=backend,
+                legend=legend,
+                histkwds=histkwds,
+                legkwds=legkwds,
+                **kwds,
+            )
 
         else:
-            raise TypeError('Inputs of axes, bins, ranges need to be list or tuple!')
+            raise TypeError(
+                "Inputs of axes, bins, ranges need to be list or tuple!",
+            )
 
     def add_dimension(self, name, range):
         if name in self._coordinates:
