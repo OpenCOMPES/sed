@@ -612,21 +612,18 @@ def numba_histogramdd(
         sample = np.atleast_2d(sample).T
         N, D = sample.shape
 
-    if isinstance(bins, (int, np.ndarray)):
+    if not isinstance(bins, (tuple, list)):
         bins = D * [bins]
+    Db = len(bins)
+    if isinstance(bins[0], (int, np.int_)):
         method = "int"
-        Db = len(bins)
-    try:
-        Db = len(bins)
-        if isinstance(bins[0], int):
-            method = "int"
-        elif isinstance(bins[0], np.ndarray):
-            method = "array"
-    except AttributeError:
-        # bins is a single integer
-        bins = D * [bins]
-        method = "int"
-        Db = len(bins)
+    elif isinstance(bins[0], np.ndarray):
+        method = "array"
+    else:
+        raise AttributeError(
+            f"bins must be int, np.ndarray or a sequence of the two. "
+            f"Found {type(bins[0])} instead",
+        )
 
     if Db != D:  # check number of dimensions
         raise ValueError(
