@@ -13,7 +13,7 @@ from sed.io import to_tiff
 shapes = []
 for n in range(4):
     shapes.append(tuple(np.random.randint(10) + 2 for i in range(n + 1)))
-axes_names = ["x", "y", "t", "e"]
+axes_names = ["x", "y", "delay", "e"]
 random.shuffle(axes_names)
 binned_arrays = [simulate_binned_data(s, axes_names[: len(s)]) for s in shapes]
 

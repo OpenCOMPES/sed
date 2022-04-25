@@ -233,10 +233,11 @@ def to_tiff(
                     "delayStage",
                     "pumpProbeTime",
                     "time",
-                    "t",
+                    "delay",
                 ],
                 "Z": [
                     "dldTime",
+                    "t",
                     "energy",
                     "e",
                     "binding_energy",
@@ -244,8 +245,8 @@ def to_tiff(
                     "binding_energies",
                 ],
                 "C": ["C"],
-                "Y": ["dldPosY", "ky", "y", "ypos"],
-                "X": ["dldPosX", "kx", "x", "xpos"],
+                "Y": ["dldPosY", "ky", "y", "ypos", "Y"],
+                "X": ["dldPosX", "kx", "x", "xpos", "X"],
                 "S": ["S"],
             }
         else:
@@ -277,10 +278,11 @@ def to_tiff(
     tifffile.imwrite(faddr, out.astype(np.float32), imagej=True)
     # clean up the temporary axes names
     for ax in _imagej_axes_order:
-        try:
-            dims_order.remove(ax)
-        except ValueError:
-            pass
+        if ax not in data.dims:
+            try:
+                dims_order.remove(ax)
+            except ValueError:
+                pass
 
     print(f"Successfully saved {faddr}\n Axes order: {dims_order}")
     if ret_axes_order:
