@@ -3,17 +3,18 @@
 from typing import Sequence
 from typing import Union
 
+import dask.dataframe
 import numpy as np
 import pandas as pd
 
 
 def apply_jitter(
-    df: pd.DataFrame,
+    df: Union[pd.DataFrame, dask.dataframe.DataFrame],
     cols: Union[str, Sequence[str]],
     cols_jittered: Union[str, Sequence[str]] = None,
     amps: Union[float, Sequence[float]] = 0.5,
     type: str = "uniform",
-) -> pd.DataFrame:
+) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
     """Add jittering to one or more dataframe columns.
 
     :Parameters:

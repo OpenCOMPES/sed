@@ -5,6 +5,7 @@ from typing import Sequence
 from typing import Tuple
 from typing import Union
 
+import dask.dataframe
 import numpy as np
 import pandas as pd
 import psutil
@@ -22,7 +23,7 @@ class SedProcessor:
 
     def __init__(
         self,
-        df: pd.DataFrame = None,
+        df: Union[pd.DataFrame, dask.dataframe.DataFrame] = None,
         metadata: dict = {},
         config: Union[dict, Path, str] = {},
     ):
@@ -95,7 +96,10 @@ class SedProcessor:
         for k, v in coords.items():
             self._coordinates[k] = xr.DataArray(v)
 
-    def load(self, data: pd.DataFrame) -> None:
+    def load(
+        self,
+        data: Union[pd.DataFrame, dask.dataframe.DataFrame],
+    ) -> None:
         """Load tabular data of Single Events
 
         Args:
@@ -105,7 +109,7 @@ class SedProcessor:
         Returns:
             None
         """
-        self._dataframe = pd.DataFrame(data)
+        self._dataframe = data
 
     def add_jitter(self, cols: Sequence[str] = None) -> None:
         """Add jitter to the selected dataframe columns.
