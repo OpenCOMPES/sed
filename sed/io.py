@@ -1,12 +1,15 @@
+from pathlib import Path
+from typing import Sequence
 from typing import Union
 
 import h5py
 import numpy as np
+import tifffile
 import xarray as xr
 
 
 def recursive_write_metadata(h5group: h5py.Group, node: dict):
-    """Recurces through a python dictionary and writes it into an hdf5 file.
+    """Recurses through a python dictionary and writes it into an hdf5 file.
 
     Args:
         h5group: hdf5 group element where to store the current dict node to.
@@ -43,7 +46,7 @@ def recursive_write_metadata(h5group: h5py.Group, node: dict):
 def recursive_parse_metadata(
     node: Union[h5py.Group, h5py.Dataset],
 ) -> dict:
-    """Recurces through an hdf5 file, and parse it into a dictionary.
+    """Recurses through an hdf5 file, and parse it into a dictionary.
 
     Args:
         node: hdf5 group or dataset to parse into dictionary.
@@ -68,7 +71,7 @@ def recursive_parse_metadata(
     return dictionary
 
 
-def xarray_to_h5(data: xr.DataArray, faddr: str, mode: str = "w"):
+def to_h5(data: xr.DataArray, faddr: str, mode: str = "w"):
     """Save xarray formatted data to hdf5
 
     Args:
@@ -120,7 +123,7 @@ def xarray_to_h5(data: xr.DataArray, faddr: str, mode: str = "w"):
     print("Saving complete!")
 
 
-def h5_to_xarray(faddr: str, mode: str = "r") -> xr.DataArray:
+def load_h5(faddr: str, mode: str = "r") -> xr.DataArray:
     """Read xarray data from formatted hdf5 file
 
     Args:
@@ -179,3 +182,145 @@ def h5_to_xarray(faddr: str, mode: str = "r") -> xr.DataArray:
             xarray.attrs["metadata"] = metadata
 
         return xarray
+
+
+def to_tiff(
+    data: Union[xr.DataArray, np.ndarray],
+    faddr: Union[Path, str],
+    axis_dict: dict = None,
+    ret_axes_order: bool = False,
+) -> None:
+    """Save an array as a  .tiff stack compatible with ImageJ
+
+    Args:
+        data: data to be saved. If a np.ndarray, the order is retained. If it
+        is an xarray.DataArray, the order is inferred from axis_dict instead.
+         ImageJ likes tiff files with axis order as
+        TZCYXS. Therefore, best axis order in input should be: Time, Energy,
+        posY, posX. The channels 'C' and 'S' are automatically added and can
+        be ignored.
+        faddr: full path and name of file to save.
+        axis_dict: name pairs for correct axis ordering. Keys should be any of
+        T,Z,C,Y,X,S. The Corresponding value will be searched among the
+        dimensions of the xarray, and placed in the right order for imagej
+        stacks metadata. If None it tries to guess the order from the name of
+        the axes. Defaults to None
+
+    Raise:
+        AttributeError: if more than one axis corresponds to a single dimension
+        NotImplementedError: if data is not 2,3 or 4 dimensional
+        TypeError: if data is not a np.ndarray or an xarray.DataArray
+    """
+    _imagej_axes_order = ["T", "Z", "C", "Y", "X", "S"]
+
+    if isinstance(data, np.ndarray):
+        dim_expansions = {2: [0, 1, 2, 5], 3: [0, 2, 5], 4: [2, 5]}
+        dims_order = data.dims
+        try:
+            out = np.expand_dims(data, dim_expansions[data.ndim])
+        except KeyError:
+            raise NotImplementedError(
+                f"Only 2-3-4D arrays supported when data is a {type(data)}",
+            )
+
+    elif isinstance(data, xr.DataArray):
+        dims_to_add = {"C": 1, "S": 1}
+        dims_order = []
+
+        if axis_dict is None:
+            axis_dict = {
+                "T": [
+                    "delayStage",
+                    "pumpProbeTime",
+                    "time",
+                    "delay",
+                ],
+                "Z": [
+                    "dldTime",
+                    "t",
+                    "energy",
+                    "e",
+                    "binding_energy",
+                    "energies",
+                    "binding_energies",
+                ],
+                "C": ["C"],
+                "Y": ["dldPosY", "ky", "y", "ypos", "Y"],
+                "X": ["dldPosX", "kx", "x", "xpos", "X"],
+                "S": ["S"],
+            }
+        else:
+            for key in _imagej_axes_order:
+                if key not in axis_dict.keys():
+                    axis_dict[key] = key
+
+        # Sort the dimensions in the correct order, and fill with one-point dimensions
+        # the missing axes.
+        for key in _imagej_axes_order:
+            axis_name_list = [
+                name for name in axis_dict[key] if name in data.dims
+            ]
+            if len(axis_name_list) > 1:
+                raise AttributeError(f"Too many dimensions for {key} axis.")
+            elif len(axis_name_list) == 1:
+                dims_order.append(*axis_name_list)
+            else:
+                dims_to_add[key] = 1
+                dims_order.append(key)
+
+        out = data.expand_dims(dims_to_add)
+        out = out.transpose(*dims_order).values
+    else:
+        raise TypeError(f"Cannot handle data of type {data.type}")
+
+    faddr = Path(faddr).with_suffix(".tiff")
+
+    tifffile.imwrite(faddr, out.astype(np.float32), imagej=True)
+    # clean up the temporary axes names
+    for ax in _imagej_axes_order:
+        if ax not in data.dims:
+            try:
+                dims_order.remove(ax)
+            except ValueError:
+                pass
+
+    print(f"Successfully saved {faddr}\n Axes order: {dims_order}")
+    if ret_axes_order:
+        return dims_order
+
+
+def load_tiff(
+    faddr: Union[str, Path],
+    coords: Union[Sequence[str], dict] = None,
+    dims: Sequence = None,
+    attrs: dict = None,
+) -> Union[np.ndarray, xr.DataArray]:
+    """Loads a tiff stack to an xarray.
+
+    The .tiff format does not retain information on the axes, so these need to
+    be manually added with the axes argument. Otherwise, this returns the data
+    only as np.ndarray
+
+    Args:
+        faddr: Path to file to load.
+        coords: The axes describing the data, following the tiff stack order:
+        dims: the order of the coordinates provided, considering the data is
+        ordered as TZCYXS. If None (default) it infers the order from the order
+        of the coords dictionary.
+        attrs: dictionary to add as attributes to the xarray.DataArray
+
+    Returns:
+        data: a np.array or xarray representing the data loaded from the .tiff
+        file
+    """
+    data = tifffile.imread(faddr).squeeze()
+    if coords is None:
+        return data
+    else:
+        if dims is None:
+            dims = list(coords.keys())
+        assert data.ndim == len(coords) == len(dims), (
+            f"Data dimension {data.ndim} must coincide number of coordinates"
+            f"{len(coords)} and dimensions {len(dims)} provided,"
+        )
+        return xr.DataArray(data=data, coords=coords, dims=dims, attrs=attrs)
