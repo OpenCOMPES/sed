@@ -1,0 +1,5 @@
+hist_mode: "numba"
+mode: fast
+pbar: True
+threads_per_worker: 4
+threadpool_API: "blas"

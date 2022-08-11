@@ -11,9 +11,10 @@ import pandas as pd
 import psutil
 import xarray as xr
 
-from .binning import bin_dataframe
-from .dfops import apply_jitter
-from .metadata import MetaHandler
+from sed.binning import bin_dataframe
+from sed.dfops import apply_jitter
+from sed.metadata import MetaHandler
+from sed.settings import parse_config
 
 N_CPU = psutil.cpu_count()
 
@@ -28,25 +29,14 @@ class SedProcessor:
         config: Union[dict, Path, str] = {},
     ):
 
-        # TODO: handle/load config dict/file
-        self._config = config
-        if not isinstance(self._config, dict):
-            self._config = {}
-        if "hist_mode" not in self._config.keys():
-            self._config["hist_mode"] = "numba"
-        if "mode" not in self._config.keys():
-            self._config["mode"] = "fast"
-        if "pbar" not in self._config.keys():
-            self._config["pbar"] = True
-        if "num_cores" not in self._config.keys():
+        self._config = parse_config(config)
+        if "num_cores" in self._config.keys():
+            if self._config["num_cores"] >= N_CPU:
+                self._config["num_cores"] = N_CPU - 1
+        else:
             self._config["num_cores"] = N_CPU - 1
-        if "threads_per_worker" not in self._config.keys():
-            self._config["threads_per_worker"] = 4
-        if "threadpool_API" not in self._config.keys():
-            self._config["threadpool_API"] = "blas"
 
         self._dataframe = df
-        self._dataframe_jittered = None
 
         self._dimensions = []
         self._coordinates = {}

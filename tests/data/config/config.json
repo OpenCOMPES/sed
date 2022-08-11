@@ -1,0 +1,1 @@
+{"hist_mode": "numba", "mode": "fast", "pbar": true, "num_cores": 20, "threads_per_worker": 4, "threadpool_API": "blas"}
