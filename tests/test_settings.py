@@ -10,11 +10,20 @@ from sed.settings import parse_config
 
 package_dir = os.path.dirname(sed.__file__)
 default_config_keys = [
+    "binning",
+    "histogram",
+]
+default_binning_keys = [
     "hist_mode",
     "mode",
     "pbar",
     "threads_per_worker",
     "threadpool_API",
+]
+default_histogram_keys = [
+    "bins",
+    "axes",
+    "ranges",
 ]
 
 
@@ -23,6 +32,10 @@ def test_default_config():
     assert isinstance(config, dict)
     for key in default_config_keys:
         assert key in config.keys()
+    for key in default_binning_keys:
+        assert key in config["binning"].keys()
+    for key in default_histogram_keys:
+        assert key in config["histogram"].keys()
 
 
 def test_load_dict():
