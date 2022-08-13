@@ -181,7 +181,7 @@ def load_h5(faddr: str, mode: str = "r") -> xr.DataArray:
             xarray.attrs["long_name"] = h5_file["binned"]["BinnedData"].attrs[
                 "long_name"
             ]
-        except KeyError:
+        except (KeyError, TypeError):
             pass
 
         if metadata is not None:
