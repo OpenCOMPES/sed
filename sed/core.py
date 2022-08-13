@@ -13,7 +13,7 @@ import xarray as xr
 
 from .binning import bin_dataframe
 from .dfops import apply_jitter
-from .diagnostic import grid_histogram
+from .diagnostics import grid_histogram
 from .metadata import MetaHandler
 
 N_CPU = psutil.cpu_count()
