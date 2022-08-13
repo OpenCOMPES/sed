@@ -24,10 +24,11 @@ binned_arrays = [simulate_binned_data(s, axes_names[: len(s)]) for s in shapes]
     ids=lambda x: f"ndims:{len(x.shape)}",
 )
 def test_save_and_load_tiff_array(_da):
-    axes_order = to_tiff(_da, "test", ret_axes_order=True)
-    da_transposed = _da.transpose(*axes_order)
-    as_array = load_tiff("test.tiff")
-    np.testing.assert_allclose(da_transposed.values, as_array)
+    nd_array = _da.data
+    if nd_array.ndim > 1:
+        to_tiff(nd_array, "test")
+        as_array = load_tiff("test.tiff")
+        np.testing.assert_allclose(nd_array, as_array)
 
 
 @pytest.mark.parametrize(
@@ -36,7 +37,7 @@ def test_save_and_load_tiff_array(_da):
     ids=lambda x: f"ndims:{len(x.shape)}",
 )
 def test_save_and_load_tiff_xarray(_da):
-    axes_order = to_tiff(_da, "test", ret_axes_order=True)
+    axes_order = to_tiff(_da, "test")
     da_transposed = _da.transpose(*axes_order)
     as_xarray = load_tiff("test.tiff", coords=_da.coords, dims=axes_order)
     np.testing.assert_allclose(da_transposed, as_xarray)

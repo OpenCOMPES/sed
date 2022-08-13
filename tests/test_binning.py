@@ -13,7 +13,7 @@ bins3d = (95, 34, 27)
 ranges1d = np.array([[1, 2]])
 ranges2d = np.array([[1, 2], [1, 2]])
 ranges3d = np.array([[1, 2], [1, 2], [1, 2]])
-arrays1d = np.linspace(*ranges1d[0], bins1d[0])
+arrays1d = [np.linspace(*ranges1d[0], bins1d[0])]
 arrays2d = [np.linspace(*ranges2d[i], bins2d[i]) for i in range(2)]
 arrays3d = [np.linspace(*ranges3d[i], bins3d[i]) for i in range(3)]
 
