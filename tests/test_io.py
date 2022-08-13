@@ -1,3 +1,5 @@
+"""This is a code that performs several tests for the input/output functions
+"""
 import random
 
 import numpy as np
@@ -24,6 +26,7 @@ binned_arrays = [simulate_binned_data(s, axes_names[: len(s)]) for s in shapes]
     ids=lambda x: f"ndims:{len(x.shape)}",
 )
 def test_save_and_load_tiff_array(_da):
+    """Test the tiff saving/loading function for np.ndarrays."""
     nd_array = _da.data
     if nd_array.ndim > 1:
         to_tiff(nd_array, "test")
@@ -37,6 +40,7 @@ def test_save_and_load_tiff_array(_da):
     ids=lambda x: f"ndims:{len(x.shape)}",
 )
 def test_save_and_load_tiff_xarray(_da):
+    """Test the tiff saving/loading function for xr.DataArrays."""
     axes_order = to_tiff(_da, "test")
     da_transposed = _da.transpose(*axes_order)
     as_xarray = load_tiff("test.tiff", coords=_da.coords, dims=axes_order)
@@ -51,6 +55,7 @@ def test_save_and_load_tiff_xarray(_da):
     ids=lambda x: f"ndims:{len(x.shape)}",
 )
 def test_save_and_load_hdf5(_da):
+    """Test the hdf5 saving/loading function."""
     faddr = "test.h5"
     to_h5(_da, faddr, mode="w")
     loaded = load_h5(faddr)
