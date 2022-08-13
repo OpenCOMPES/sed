@@ -2,7 +2,10 @@
 
 """
 from pathlib import Path
+from typing import Any
+from typing import Mapping
 from typing import Sequence
+from typing import Tuple
 from typing import Union
 
 import h5py
@@ -63,13 +66,13 @@ def recursive_parse_metadata(
             dictionary[key] = recursive_parse_metadata(value)
 
     else:
-        dictionary = node[...]
+        entry = node[...]
         try:
-            dictionary = dictionary.item()
+            dictionary = entry.item()
             if isinstance(dictionary, (bytes, bytearray)):
                 dictionary = dictionary.decode()
         except ValueError:
-            pass
+            dictionary = entry
 
     return dictionary
 
@@ -306,7 +309,7 @@ def to_tiff(
 
 def load_tiff(
     faddr: Union[str, Path],
-    coords: Union[Sequence[str], dict] = None,
+    coords: Union[Sequence[Tuple[Any, ...]], Mapping[Any, Any], None] = None,
     dims: Sequence = None,
     attrs: dict = None,
 ) -> Union[np.ndarray, xr.DataArray]:
