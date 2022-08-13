@@ -1,3 +1,4 @@
+bokeh>=2.4.2
 dask>=2021.12.0
 fastparquet>=0.8.0
 h5py>=3.6.0
