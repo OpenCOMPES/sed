@@ -1,0 +1,11 @@
+binning:
+  hist_mode: "numba"
+  mode: fast
+  pbar: True
+  threads_per_worker: 4
+  threadpool_API: "blas"
+
+histogram:
+  bins: [80, 80, 80, 80]
+  axes: ["X", "Y", "t", "ADC"]
+  ranges: [[0, 1800], [0, 1800], [65000, 69000], [0, 500], ]

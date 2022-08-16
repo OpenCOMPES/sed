@@ -1,4 +1,3 @@
-from pathlib import Path
 from typing import Any
 from typing import List
 from typing import Sequence
@@ -11,10 +10,11 @@ import pandas as pd
 import psutil
 import xarray as xr
 
-from .binning import bin_dataframe
-from .dfops import apply_jitter
 from .diagnostic import grid_histogram
-from .metadata import MetaHandler
+from sed.binning import bin_dataframe
+from sed.dfops import apply_jitter
+from sed.metadata import MetaHandler
+from sed.settings import parse_config
 
 N_CPU = psutil.cpu_count()
 
@@ -26,37 +26,19 @@ class SedProcessor:
         self,
         df: Union[pd.DataFrame, dask.dataframe.DataFrame] = None,
         metadata: dict = {},
-        config: Union[dict, Path, str] = {},
+        config: Union[dict, str] = {},
     ):
 
-        # TODO: handle/load config dict/file
-        self._config = config
-        if not isinstance(self._config, dict):
-            self._config = {}
-        if "hist_mode" not in self._config.keys():
-            self._config["hist_mode"] = "numba"
-        if "mode" not in self._config.keys():
-            self._config["mode"] = "fast"
-        if "pbar" not in self._config.keys():
-            self._config["pbar"] = True
-        if "num_cores" not in self._config.keys():
-            self._config["num_cores"] = N_CPU - 1
-        if "threads_per_worker" not in self._config.keys():
-            self._config["threads_per_worker"] = 4
-        if "threadpool_API" not in self._config.keys():
-            self._config["threadpool_API"] = "blas"
+        self._config = parse_config(config)
+        if "num_cores" in self._config["binning"].keys():
+            if self._config["binning"]["num_cores"] >= N_CPU:
+                self._config["binning"]["num_cores"] = N_CPU - 1
+        else:
+            self._config["binning"]["num_cores"] = N_CPU - 1
 
         self._dataframe = df
-        self._dataframe_jittered = None
 
-        self._config["default_bins"] = [80, 80, 80, 80]
-        self._config["default_axes"] = ["X", "Y", "t", "ADC"]
-        self._config["default_ranges"] = [
-            (0, 1800),
-            (0, 1800),
-            (68000, 74000),
-            (0, 500),
-        ]
+        self._binned = None
 
         self._dimensions = []
         self._coordinates = {}
@@ -87,6 +69,10 @@ class SedProcessor:
         return self._dataframe[val]
 
     @property
+    def config(self):
+        return self._config
+
+    @property
     def dimensions(self):
         return self._dimensions
 
@@ -105,6 +91,15 @@ class SedProcessor:
         self._coordinates = {}
         for k, v in coords.items():
             self._coordinates[k] = xr.DataArray(v)
+
+    @config.setter
+    def config(self, config: Union[dict, str]):
+        self._config = parse_config(config)
+        if "num_cores" in self._config["binning"].keys():
+            if self._config["binning"]["num_cores"] >= N_CPU:
+                self._config["binning"]["num_cores"] = N_CPU - 1
+        else:
+            self._config["binning"]["num_cores"] = N_CPU - 1
 
     def load(
         self,
@@ -187,17 +182,17 @@ class SedProcessor:
             self._dataframe is not None
         ), "dataframe needs to be loaded first!"
 
-        hist_mode = kwds.pop("hist_mode", self._config["hist_mode"])
-        mode = kwds.pop("mode", self._config["mode"])
-        pbar = kwds.pop("pbar", self._config["pbar"])
-        num_cores = kwds.pop("num_cores", self._config["num_cores"])
+        hist_mode = kwds.pop("hist_mode", self._config["binning"]["hist_mode"])
+        mode = kwds.pop("mode", self._config["binning"]["mode"])
+        pbar = kwds.pop("pbar", self._config["binning"]["pbar"])
+        num_cores = kwds.pop("num_cores", self._config["binning"]["num_cores"])
         threads_per_worker = kwds.pop(
             "threads_per_worker",
-            self._config["threads_per_worker"],
+            self._config["binning"]["threads_per_worker"],
         )
         threadpool_API = kwds.pop(
             "threadpool_API",
-            self._config["threadpool_API"],
+            self._config["binning"]["threadpool_API"],
         )
 
         self._binned = bin_dataframe(
@@ -222,7 +217,6 @@ class SedProcessor:
         bins: Sequence[int] = None,
         axes: Sequence[str] = None,
         ranges: Sequence[Tuple[float, float]] = None,
-        jittered: bool = False,
         backend: str = "bokeh",
         legend: bool = True,
         histkwds: dict = {},
@@ -251,51 +245,42 @@ class SedProcessor:
             TypeError: Raises when the input values are not of the correct type.
         """
         if bins is None:
-            bins = self._config["default_bins"]
+            bins = self._config["histogram"]["bins"]
         if axes is None:
-            axes = self._config["default_axes"]
+            axes = self._config["histogram"]["axes"]
         if ranges is None:
-            ranges = self._config["default_ranges"]
+            ranges = self._config["histogram"]["ranges"]
 
         input_types = map(type, [axes, bins, ranges])
         allowed_types = [list, tuple]
 
         df = self._dataframe
 
-        if jittered:
-            assert self._dataframe_jittered is not None, (
-                "jittered dataframe needs to be generated first, "
-                "use SedProcessor.gen_jittered_df(cols)!"
-            )
-            df = self._dataframe_jittered
-
-        if set(input_types).issubset(allowed_types):
-
-            # Read out the values for the specified groups
-            group_dict = {}
-            dfpart = df.get_partition(dfpid)
-            cols = dfpart.columns
-            for ax in axes:
-                group_dict[ax] = dfpart.values[:, cols.get_loc(ax)].compute()
-
-            # Plot multiple histograms in a grid
-            grid_histogram(
-                group_dict,
-                ncol=ncol,
-                rvs=axes,
-                rvbins=bins,
-                rvranges=ranges,
-                backend=backend,
-                legend=legend,
-                histkwds=histkwds,
-                legkwds=legkwds,
-                **kwds,
-            )
-
-        else:
+        if not set(input_types).issubset(allowed_types):
             raise TypeError(
                 "Inputs of axes, bins, ranges need to be list or tuple!",
             )
+
+        # Read out the values for the specified groups
+        group_dict = {}
+        dfpart = df.get_partition(dfpid)
+        cols = dfpart.columns
+        for ax in axes:
+            group_dict[ax] = dfpart.values[:, cols.get_loc(ax)].compute()
+
+        # Plot multiple histograms in a grid
+        grid_histogram(
+            group_dict,
+            ncol=ncol,
+            rvs=axes,
+            rvbins=bins,
+            rvranges=ranges,
+            backend=backend,
+            legend=legend,
+            histkwds=histkwds,
+            legkwds=legkwds,
+            **kwds,
+        )
 
     def add_dimension(self, name, range):
         if name in self._coordinates:
