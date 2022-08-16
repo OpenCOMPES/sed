@@ -35,6 +35,7 @@ def _simplify_binning_arguments(
     axes: Union[str, Sequence[str]] = None,
     ranges: Sequence[Tuple[float, float]] = None,
 ) -> tuple:
+    """TODO needs docstring"""
     if isinstance(
         bins,
         dict,
@@ -93,6 +94,45 @@ def _simplify_binning_arguments(
         )
 
     return bins, axes, ranges
+
+
+def bin_edges_to_bin_centers(bin_edges: np.array) -> np.array:
+    """Converts a list of bin edges into corresponding bin centers
+
+    Args:
+        bin_edges: 1d array of bin edges
+
+    Returns:
+        bin_centers: 1d array of bin centers
+    """
+
+    bin_centers = bin_edges[:-1] + np.diff(bin_edges) / 2
+
+    return bin_centers
+
+
+def bin_centers_to_bin_edges(bin_centers: np.ndarray) -> np.ndarray:
+    """Converts a list of bin centers into corresponding bin edges
+
+    Args:
+        bin_centers: 1d array of bin centers
+
+    Returns:
+        bin_edges: 1d array of bin edges
+    """
+    bin_edges = bin_centers[: len(bin_centers) - 1] - np.diff(bin_centers) / 2
+    bin_edges = np.append(
+        bin_edges,
+        bin_centers[len(bin_centers) - 1]
+        - np.diff(bin_centers)[len(bin_centers) - 2] / 2,
+    )
+    bin_edges = np.append(
+        bin_edges,
+        bin_centers[len(bin_centers) - 1]
+        + np.diff(bin_centers)[len(bin_centers) - 2] / 2,
+    )
+
+    return bin_edges
 
 
 def bin_partition(
