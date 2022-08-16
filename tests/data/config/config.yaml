@@ -1,0 +1,7 @@
+binning:
+  hist_mode: "numba"
+  mode: fast
+  pbar: True
+  num_cores: 20
+  threads_per_worker: 4
+  threadpool_API: "blas"
