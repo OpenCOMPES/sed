@@ -4,6 +4,7 @@ import pytest
 
 from .helpers import get_linear_bin_edges
 from sed.binning import _hist_from_bin_range
+from sed.binning import bin_centers_to_bin_edges
 from sed.binning import numba_histogramdd
 
 
@@ -70,3 +71,21 @@ def test_histdd_ranges_as_numpy(args):
     H1, _ = np.histogramdd(sample, bins, ranges)
     H2, _ = numba_histogramdd(sample, bins, ranges)
     return np.testing.assert_allclose(H1, H2)
+
+
+def test_bin_centers_to_bin_edges():
+    stepped_array = np.concatenate(
+        [
+            arrays[0],
+            arrays[1][1:] + arrays[0][-1] - arrays[1][0],
+            arrays[2][1:]
+            + arrays[0][-1]
+            + arrays[1][-1]
+            - arrays[2][0]
+            - arrays[1][0],
+        ],
+    )
+    bin_edges = bin_centers_to_bin_edges(stepped_array)
+    for i in range(0, (len(bin_edges) - 1)):
+        assert bin_edges[i] < stepped_array[i]
+        assert bin_edges[i + 1] > stepped_array[i]

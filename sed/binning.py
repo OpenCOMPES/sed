@@ -120,11 +120,13 @@ def bin_centers_to_bin_edges(bin_centers: np.ndarray) -> np.ndarray:
     Returns:
         bin_edges: 1d array of bin edges
     """
-    bin_edges = bin_centers[: len(bin_centers) - 1] - np.diff(bin_centers) / 2
-    bin_edges = np.append(
+    bin_edges = (
+        bin_centers[0 : len(bin_centers) - 1] + np.diff(bin_centers) / 2
+    )
+    bin_edges = np.insert(
         bin_edges,
-        bin_centers[len(bin_centers) - 1]
-        - np.diff(bin_centers)[len(bin_centers) - 2] / 2,
+        0,
+        bin_centers[0] - np.diff(bin_centers)[0] / 2,
     )
     bin_edges = np.append(
         bin_edges,
