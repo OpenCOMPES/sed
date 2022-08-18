@@ -73,6 +73,22 @@ def test_histdd_ranges_as_numpy(args):
     return np.testing.assert_allclose(H1, H2)
 
 
+@pytest.mark.parametrize(
+    "args",
+    [
+        (sample[:, :1], bins[:1], ranges[:1], arrays[:1], 1),
+        (sample[:, :2], bins[:2], ranges[:2], arrays[:2], 2),
+        (sample[:, :3], bins[:3], ranges[:3], arrays[:3], 3),
+    ],
+    ids=lambda x: f"ndim: {x[4]}",
+)
+def test_from_bins_equals_from_bin_range(args):
+    sample, bins, ranges, arrays, _ = args
+    H1, _ = numba_histogramdd(sample, bins, ranges)
+    H2, _ = numba_histogramdd(sample, arrays)
+    np.testing.assert_allclose(H1, H2)
+
+
 def test_bin_centers_to_bin_edges():
     stepped_array = np.concatenate(
         [

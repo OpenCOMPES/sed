@@ -1,5 +1,11 @@
-# manual ignore
-ignore_*
+# data files
+*.tiff
+*.tif
+*.h5
+*.hdf5
+*.nxs
+*.nx
+*.nxs
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
