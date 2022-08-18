@@ -25,11 +25,11 @@ jobs:
     - name: pycodestyle
       continue-on-error: true
       run: |
-        python -m pycodestyle --ignore=E501,W503 sed tests
+        python -m pycodestyle --ignore=E501,W503 sed tests 
     - name: pylint
       continue-on-error: true
       run: |
-        python -m pylint sed tests
+        python -m pylint sed tests 
     - name: mypy
       continue-on-error: true
       run: |
