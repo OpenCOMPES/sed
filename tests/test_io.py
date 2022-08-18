@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from sed.diagnostics import simulate_binned_data
+from tests.helpers import simulate_binned_data
 from sed.io import _sort_dims_for_imagej
 from sed.io import load_h5
 from sed.io import load_tiff
