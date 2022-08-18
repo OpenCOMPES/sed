@@ -6,8 +6,12 @@ from typing import Tuple
 import bokeh.plotting as pbk
 import matplotlib.pyplot as plt
 import numpy as np
+import xarray as xr
 from bokeh.io import output_notebook
 from bokeh.layouts import gridplot
+
+
+
 
 
 def plot_single_hist(

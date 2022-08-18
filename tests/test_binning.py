@@ -13,7 +13,7 @@ bins3d = (95, 34, 27)
 ranges1d = np.array([[1, 2]])
 ranges2d = np.array([[1, 2], [1, 2]])
 ranges3d = np.array([[1, 2], [1, 2], [1, 2]])
-arrays1d = np.linspace(*ranges1d[0], bins1d[0])
+arrays1d = [np.linspace(*ranges1d[0], bins1d[0])]
 arrays2d = [np.linspace(*ranges2d[i], bins2d[i]) for i in range(2)]
 arrays3d = [np.linspace(*ranges3d[i], bins3d[i]) for i in range(3)]
 
@@ -41,7 +41,17 @@ def test_hist_Nd_proper_results():
     np.testing.assert_allclose(H1, H2)
 
 
-def test_from_bins_equals_from_bin_range():
-    H1 = _hist_from_bin_range(sample3d, bins3d, ranges3d)
-    H2 = _hist_from_bins(sample3d, arrays3d, tuple(b.size for b in arrays3d))
+@pytest.mark.parametrize(
+    "args",
+    [
+        [sample1d, bins1d, ranges1d, arrays1d],
+        [sample2d, bins2d, ranges2d, arrays2d],
+        [sample3d, bins3d, ranges3d, arrays3d],
+    ],
+    ids=lambda x: f"dims: {len(x[1])}",
+)
+def test_from_bins_equals_from_bin_range(args):
+    sample, bins, ranges, arrays = args
+    H1 = _hist_from_bin_range(sample, bins, ranges)
+    H2 = _hist_from_bins(sample, arrays, tuple(b.size for b in arrays))
     np.testing.assert_allclose(H1, H2)
