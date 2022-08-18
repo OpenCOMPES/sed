@@ -1,6 +1,3 @@
-"""This module contains file input/output functions for the specsanalyzer module
-
-"""
 from pathlib import Path
 from typing import Any
 from typing import Mapping
@@ -12,6 +9,31 @@ import h5py
 import numpy as np
 import tifffile
 import xarray as xr
+
+_IMAGEJ_DIMS_ORDER = "TZCYXS"
+_IMAGEJ_DIMS_ALIAS = {
+    "T": [
+        "delayStage",
+        "pumpProbeTime",
+        "time",
+        "delay",
+        "T",
+    ],
+    "Z": [
+        "dldTime",
+        "t",
+        "energy",
+        "e",
+        "E",
+        "binding_energy",
+        "energies",
+        "binding_energies",
+    ],
+    "C": ["C"],
+    "Y": ["dldPosY", "ky", "y", "ypos", "Y"],
+    "X": ["dldPosX", "kx", "x", "xpos", "X"],
+    "S": ["S"],
+}
 
 
 def recursive_write_metadata(h5group: h5py.Group, node: dict):
@@ -196,35 +218,33 @@ def load_h5(faddr: str, mode: str = "r") -> xr.DataArray:
 def to_tiff(
     data: Union[xr.DataArray, np.ndarray],
     faddr: Union[Path, str],
-    axis_dict: dict = None,
-) -> list:
-    """Save an array as a  .tiff stack compatible with ImageJ
+    alias_dict: dict = None,
+) -> None:
+    """ Save an array as a .tiff stack compatible with ImageJ
 
     Args:
         data: data to be saved. If a np.ndarray, the order is retained. If it
-        is an xarray.DataArray, the order is inferred from axis_dict instead.
-         ImageJ likes tiff files with axis order as
-        TZCYXS. Therefore, best axis order in input should be: Time, Energy,
-        posY, posX. The channels 'C' and 'S' are automatically added and can
-        be ignored.
+            is an xarray.DataArray, the order is inferred from axis_dict instead.
+            ImageJ likes tiff files with axis order as
+            TZCYXS. Therefore, best axis order in input should be: Time, Energy,
+            posY, posX. The channels 'C' and 'S' are automatically added and can
+            be ignored.
         faddr: full path and name of file to save.
-        axis_dict: name pairs for correct axis ordering. Keys should be any of
-        T,Z,C,Y,X,S. The Corresponding value will be searched among the
-        dimensions of the xarray, and placed in the right order for imagej
-        stacks metadata. If None it tries to guess the order from the name of
-        the axes. Defaults to None
+        alias_dict: name pairs for correct axis ordering. Keys should be any of
+            T,Z,C,Y,X,S. The Corresponding value should be a dimension of the xarray or
+            the dimension number if a numpy array. This is used to sort the data in the
+            correct order for imagej standards. If None it tries to guess the order
+            from the name of the axes or assumes T,Z,C,Y,X,S order for numpy arrays.
+            Defaults to None
 
     Raise:
         AttributeError: if more than one axis corresponds to a single dimension
         NotImplementedError: if data is not 2,3 or 4 dimensional
         TypeError: if data is not a np.ndarray or an xarray.DataArray
-
-    Returns:
-        dims_order: The axis order of the saved array
     """
-    _imagej_axes_order = ["T", "Z", "C", "Y", "X", "S"]
 
     if isinstance(data, np.ndarray):
+        # TODO: add sorting by dictionary keys
         dim_expansions = {2: [0, 1, 2, 5], 3: [0, 2, 5], 4: [2, 5]}
         dims = {
             2: ["x", "y"],
@@ -233,69 +253,17 @@ def to_tiff(
         }
         try:
             out = np.expand_dims(data, dim_expansions[data.ndim])
-        except KeyError as exc:
+        except KeyError:
             raise NotImplementedError(
                 f"Only 2-3-4D arrays supported when data is a {type(data)}",
-            ) from exc
+            )
 
         dims_order = dims[data.ndim]
 
     elif isinstance(data, xr.DataArray):
-        dims_to_add = {"C": 1, "S": 1}
-        dims_order = []
-
-        if axis_dict is None:
-            axis_dict = {
-                "T": [
-                    "delayStage",
-                    "pumpProbeTime",
-                    "time",
-                    "delay",
-                ],
-                "Z": [
-                    "dldTime",
-                    "t",
-                    "energy",
-                    "e",
-                    "binding_energy",
-                    "energies",
-                    "binding_energies",
-                ],
-                "C": ["C"],
-                "Y": ["dldPosY", "ky", "y", "ypos", "Y"],
-                "X": ["dldPosX", "kx", "x", "xpos", "X"],
-                "S": ["S"],
-            }
-        else:
-            for key in _imagej_axes_order:
-                if key not in axis_dict.keys():
-                    axis_dict[key] = key
-
-        # Sort the dimensions in the correct order, and fill with one-point dimensions
-        # the missing axes.
-        for key in _imagej_axes_order:
-            axis_name_list = [
-                name for name in axis_dict[key] if name in data.dims
-            ]
-            if len(axis_name_list) > 1:
-                raise AttributeError(f"Too many dimensions for {key} axis.")
-            if len(axis_name_list) == 1:
-                dims_order.append(*axis_name_list)
-            else:
-                dims_to_add[key] = 1
-                dims_order.append(key)
-
-        out = data.expand_dims(dims_to_add)
-        out = out.transpose(*dims_order).values
-
-        # clean up the temporary axes names
-        for axis in _imagej_axes_order:
-            if axis not in data.dims:
-                try:
-                    dims_order.remove(axis)
-                except ValueError:
-                    pass
-
+        dims_order = _fill_missing_dims(data.dims, alias_dict=alias_dict)
+        out = data.expand_dims({dim: 1 for dim in dims_order if dim not in data.dims})
+        out = out.transpose(*dims_order)
     else:
         raise TypeError(f"Cannot handle data of type {data.type}")
 
@@ -304,7 +272,70 @@ def to_tiff(
     tifffile.imwrite(faddr, out.astype(np.float32), imagej=True)
 
     print(f"Successfully saved {faddr}\n Axes order: {dims_order}")
-    return dims_order
+    # return dims_order
+
+
+def _sort_dims_for_imagej(dims: list, alias_dict: dict = None) -> list:
+    """ Guess the order of the dimensions from the alias dictionary
+
+    Args:
+        dims: the list of dimensions to sort
+
+    Raises:
+        ValueError: for duplicate entries for a single imagej dimension
+        NameError: when a dimension cannot be found in the alias dictionary
+
+    Returns:
+        _description_
+    """
+    order = _fill_missing_dims(dims=dims, alias_dict=alias_dict)
+    return [d for d in order if d in dims]
+
+
+def _fill_missing_dims(dims: list, alias_dict: dict = None) -> list:
+    """ Guess the order of the dimensions from the alias dictionary
+
+    Args:
+        dims: the list of dimensions to sort
+
+    Raises:
+        ValueError: for duplicate entries for a single imagej dimension
+        NameError: when a dimension cannot be found in the alias dictionary
+
+    Returns:
+        _description_
+    """
+    order = []
+    # overwrite the default values with the provided dict
+    if alias_dict is None:
+        alias_dict = {}
+    else:
+        for k, v in alias_dict.items():
+            assert k in _IMAGEJ_DIMS_ORDER, 'keys must all be one of '\
+                f'{_IMAGEJ_DIMS_ALIAS}'
+            if not isinstance(v, (list, tuple)):
+                alias_dict[k] = [v]
+
+    alias_dict = {**_IMAGEJ_DIMS_ALIAS, **alias_dict}
+    added_dims = 0
+    for imgj_dim in _IMAGEJ_DIMS_ORDER:
+        found_one = False
+        for dim in dims:
+            if dim in alias_dict[imgj_dim]:
+                if found_one:
+                    raise ValueError(
+                        f'Duplicate entries for {imgj_dim}: {dim} and {order[-1]} ',
+                    )
+                order.append(dim)
+                found_one = True
+        if not found_one:
+            order.append(imgj_dim)
+            added_dims += 1
+    if len(order) != len(dims) + added_dims:
+        raise NameError(
+            f'Could not interpret dimensions {[d for d in dims if d not in order]}',
+        )
+    return order
 
 
 def load_tiff(
@@ -312,7 +343,7 @@ def load_tiff(
     coords: Union[Sequence[Tuple[Any, ...]], Mapping[Any, Any], None] = None,
     dims: Sequence = None,
     attrs: dict = None,
-) -> Union[np.ndarray, xr.DataArray]:
+) -> xr.DataArray:
     """Loads a tiff stack to an xarray.
 
     The .tiff format does not retain information on the axes, so these need to
@@ -328,17 +359,26 @@ def load_tiff(
         attrs: dictionary to add as attributes to the xarray.DataArray
 
     Returns:
-        data: a np.array or xarray representing the data loaded from the .tiff
+        data: an xarray representing the data loaded from the .tiff
         file
     """
-    data = tifffile.imread(faddr).squeeze()
+    data = tifffile.imread(faddr)
+
     if coords is None:
-        return data
+        coords = {
+            k.replace('_', ''): np.linspace(0, n, n) for k, n in zip(
+                _IMAGEJ_DIMS_ORDER,
+                data.shape,
+            ) if n > 1
+        }
+
+    data = data.squeeze()
 
     if dims is None:
         dims = list(coords.keys())
-    assert data.ndim == len(coords) == len(dims), (
-        f"Data dimension {data.ndim} must coincide number of coordinates"
+
+    assert data.ndim == len(dims), (
+        f"Data dimension {data.ndim} must coincide number of coordinates "
         f"{len(coords)} and dimensions {len(dims)} provided,"
     )
     return xr.DataArray(data=data, coords=coords, dims=dims, attrs=attrs)

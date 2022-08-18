@@ -1,12 +1,14 @@
 """This is a code that performs several tests for the input/output functions
 """
 import random
+from pathlib import Path
 
 import numpy as np
 import pytest
 import xarray as xr
 
 from sed.diagnostics import simulate_binned_data
+from sed.io import _sort_dims_for_imagej
 from sed.io import load_h5
 from sed.io import load_tiff
 from sed.io import to_h5
@@ -15,7 +17,7 @@ from sed.io import to_tiff
 shapes = []
 for n in range(4):
     shapes.append(tuple(np.random.randint(10) + 2 for i in range(n + 1)))
-axes_names = ["x", "y", "delay", "e"]
+axes_names = ["X", "Y", "T", "E"]
 random.shuffle(axes_names)
 binned_arrays = [simulate_binned_data(s, axes_names[: len(s)]) for s in shapes]
 
@@ -39,14 +41,26 @@ def test_save_and_load_tiff_array(_da):
     binned_arrays,
     ids=lambda x: f"ndims:{len(x.shape)}",
 )
+def test_save_xarr_to_tiff(_da):
+    to_tiff(_da, "test")
+    assert Path('test.tiff').is_file()
+
+
+@pytest.mark.parametrize(
+    "_da",
+    binned_arrays,
+    ids=lambda x: f"ndims:{len(x.shape)}",
+)
 def test_save_and_load_tiff_xarray(_da):
     """Test the tiff saving/loading function for xr.DataArrays."""
-    axes_order = to_tiff(_da, "test")
-    da_transposed = _da.transpose(*axes_order)
-    as_xarray = load_tiff("test.tiff", coords=_da.coords, dims=axes_order)
-    np.testing.assert_allclose(da_transposed, as_xarray)
-    for k, v in _da.coords.items():
-        np.testing.assert_allclose(as_xarray.coords[k], v)
+    to_tiff(_da, "test")
+    loaded = load_tiff("test.tiff")
+    dims_order = _sort_dims_for_imagej(_da.dims)
+    transposed = _da.transpose(*dims_order).astype(np.float32)
+    np.testing.assert_allclose(
+        transposed.values,
+        loaded.values,
+    )
 
 
 @pytest.mark.parametrize(
