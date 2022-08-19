@@ -35,19 +35,41 @@ def _simplify_binning_arguments(
     axes: Union[str, Sequence[str]] = None,
     ranges: Sequence[Tuple[float, float]] = None,
 ) -> tuple:
-    """TODO needs docstring"""
-    if isinstance(
-        bins,
-        dict,
-    ):  # bins is a dictionary: unravel to axes and bins
+    """ Convert the flexible input for defining bins into a 
+    simple "axes" "bins" "ranges" tuple.
+    
+    This allows to mimic the input used in numpy.histogramdd flexibility into the 
+    binning functions defined here.
+
+    Args:
+        bins: Definition of the bins. Can  be any of the following cases:
+            - an integer describing the number of bins in on all dimensions
+            - a tuple of 3 numbers describing start, end and step of the binning range
+            - a np.arrays defining the binning edges
+            - a list (NOT a tuple) of any of the above (int, tuple or np.ndarray)
+            - a dictionary made of the axes as keys and any of the above as values.
+            This takes priority over the axes and range arguments. Defaults to 100
+        axes: The names of the axes (columns) on which to calculate the histogram.
+            The order will be the order of the dimensions in the resulting array.
+            Defaults to None
+        ranges: list of tuples containing the start and end point of the binning range.
+            Defaults to None
+
+    Returns:
+        tuple containing axes, bins and ranges.
+    """
+    if isinstance(axes,str):
+        axes = [axes]
+    # if bins is a dictionary: unravel to axes and bins
+
+    if isinstance(bins, dict):  
         axes = []
         bins_ = []
         for k, v in bins.items():
             axes.append(k)
             bins_.append(v)
         bins = bins_
-
-    if isinstance(bins, (int, np.ndarray)):
+    elif isinstance(bins, (int, np.ndarray)):
         bins = [bins] * len(axes)
     elif isinstance(bins, tuple):
         if len(bins) == 3:
@@ -57,18 +79,14 @@ def _simplify_binning_arguments(
                 "Bins defined as tuples should only be used to define start "
                 / "stop and step of the bins. i.e. should always have lenght 3.",
             )
+    if not isinstance(bins, list):
+        raise TypeError(f"Cannot interpret bins of type {type(bins)}")
+    if axes is None:
+        raise AttributeError("Must define on which axes to bin")
+    if not all(isinstance(x, type(bins[0])) for x in bins):
+        raise TypeError("All elements in " "bins must be of the same type")
 
-    assert isinstance(
-        bins,
-        list,
-    ), f"Cannot interpret bins of type {type(bins)}"
-    assert axes is not None, "Must define on which axes to bin"
-    assert all(isinstance(x, type(bins[0])) for x in bins), (
-        "All elements in " "bins must be of the same type"
-    )
-    # TODO: could implement accepting heterogeneous input.
     bin = bins[0]
-
     if isinstance(bin, tuple):
         ranges = []
         bins_ = []
@@ -80,7 +98,9 @@ def _simplify_binning_arguments(
         raise TypeError(f"Could not interpret bins of type {type(bin)}")
 
     if ranges is not None:
-        if not (len(axes) == len(bins) == len(ranges)):
+        if (len(axes) == len(bins) == 1) and len(ranges) == 2:
+            pass
+        elif not (len(axes) == len(bins) == len(ranges)):
             raise AttributeError(
                 "axes and range and bins must have the same number of elements",
             )
