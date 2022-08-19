@@ -10,9 +10,9 @@ import pandas as pd
 import psutil
 import xarray as xr
 
+from .diagnostics import grid_histogram
 from sed.binning import bin_dataframe
 from sed.dfops import apply_jitter
-from sed.diagnostics import grid_histogram
 from sed.metadata import MetaHandler
 from sed.settings import parse_config
 
