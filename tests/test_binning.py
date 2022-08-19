@@ -1,57 +1,157 @@
 import numpy as np
+import pandas as pd
 import pytest
 
+from .helpers import get_linear_bin_edges
 from sed.binning import _hist_from_bin_range
-from sed.binning import _hist_from_bins
+from sed.binning import bin_centers_to_bin_edges
+from sed.binning import bin_edges_to_bin_centers
+from sed.binning import numba_histogramdd
+from sed.binning import _simplify_binning_arguments
 
-sample1d = np.random.randn(int(1e2), 1)
-sample2d = np.random.randn(int(1e2), 2)
-sample3d = np.random.randn(int(1e2), 3)
-bins1d = (95,)
-bins2d = (95, 34)
-bins3d = (95, 34, 27)
-ranges1d = np.array([[1, 2]])
-ranges2d = np.array([[1, 2], [1, 2]])
-ranges3d = np.array([[1, 2], [1, 2], [1, 2]])
-arrays1d = [np.linspace(*ranges1d[0], bins1d[0])]
-arrays2d = [np.linspace(*ranges2d[i], bins2d[i]) for i in range(2)]
-arrays3d = [np.linspace(*ranges3d[i], bins3d[i]) for i in range(3)]
+sample = np.random.randn(int(1e2), 3)
+columns = ["x", "y", "z"]
+sample_df = pd.DataFrame(sample, columns=columns)
+bins = tuple(np.random.randint(5, 50, size=3))
+ranges = 0.5 + np.random.rand(6).reshape(3, 2)
+ranges[:, 0] = -ranges[:, 0]
+ranges = tuple(tuple(r) for r in ranges)
+
+arrays = [
+    get_linear_bin_edges(np.linspace(r[0], r[1], b))
+    for r, b in zip(ranges, bins)
+]
 
 
 @pytest.mark.parametrize(
     "_samples",
-    [sample1d, sample2d, sample3d],
+    [sample[:, :1], sample[:, :2], sample[:, :3]],
     ids=lambda x: f"samples:{x.shape}",
 )
 @pytest.mark.parametrize(
     "_bins",
-    [bins1d, bins2d, bins3d],
+    # [tuple(bins[:i+1]) for i in range(3)],
+    [bins[:1], bins[:2], bins[:3]],
     ids=lambda x: f"bins:{len(x)}",
 )
-def test_hist_Nd_error_is_raised(_samples, _bins):
+def test_histdd_error_is_raised(_samples, _bins):
     with pytest.raises(ValueError):
         if _samples.shape[1] == len(_bins):
             pytest.skip("Not of interest")
-        _hist_from_bin_range(_samples, _bins, ranges1d)
 
-
-def test_hist_Nd_proper_results():
-    H1 = _hist_from_bin_range(sample3d, bins3d, ranges3d)
-    H2, _ = np.histogramdd(sample3d, bins3d, ranges3d)
-    np.testing.assert_allclose(H1, H2)
+        _hist_from_bin_range(_samples, _bins, np.array([ranges[0]]))
 
 
 @pytest.mark.parametrize(
     "args",
     [
-        [sample1d, bins1d, ranges1d, arrays1d],
-        [sample2d, bins2d, ranges2d, arrays2d],
-        [sample3d, bins3d, ranges3d, arrays3d],
+        (sample[:, :1], arrays[:1], 1),
+        (sample[:, :2], arrays[:2], 2),
+        (sample[:, :3], arrays[:3], 3),
     ],
-    ids=lambda x: f"dims: {len(x[1])}",
+    ids=lambda x: f"ndim: {x[2]}",
+)
+def test_histdd_bins_as_numpy(args):
+    sample, bins, _ = args
+    H1, _ = np.histogramdd(sample, bins)
+    H2, _ = numba_histogramdd(sample, bins)
+    return np.testing.assert_allclose(H1, H2)
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        (sample[:, :1], bins[:1], ranges[:1], 1),
+        (sample[:, :2], bins[:2], ranges[:2], 2),
+        (sample[:, :3], bins[:3], ranges[:3], 3),
+    ],
+    ids=lambda x: f"ndim: {x[3]}",
+)
+def test_histdd_ranges_as_numpy(args):
+    sample, bins, ranges, _ = args
+    H1, _ = np.histogramdd(sample, bins, ranges)
+    H2, _ = numba_histogramdd(sample, bins, ranges)
+    return np.testing.assert_allclose(H1, H2)
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        (sample[:, :1], bins[:1], ranges[:1], arrays[:1], 1),
+        (sample[:, :2], bins[:2], ranges[:2], arrays[:2], 2),
+        (sample[:, :3], bins[:3], ranges[:3], arrays[:3], 3),
+    ],
+    ids=lambda x: f"ndim: {x[4]}",
 )
 def test_from_bins_equals_from_bin_range(args):
-    sample, bins, ranges, arrays = args
-    H1 = _hist_from_bin_range(sample, bins, ranges)
-    H2 = _hist_from_bins(sample, arrays, tuple(b.size for b in arrays))
+    sample, bins, ranges, arrays, _ = args
+    H1, _ = numba_histogramdd(sample, bins, ranges)
+    H2, _ = numba_histogramdd(sample, arrays)
     np.testing.assert_allclose(H1, H2)
+
+
+def test_bin_centers_to_bin_edges():
+    stepped_array = np.concatenate(
+        [
+            arrays[0],
+            arrays[1][1:] + arrays[0][-1] - arrays[1][0],
+            arrays[2][1:]
+            + arrays[0][-1]
+            + arrays[1][-1]
+            - arrays[2][0]
+            - arrays[1][0],
+        ],
+    )
+    bin_edges = bin_centers_to_bin_edges(stepped_array)
+    for i in range(0, (len(bin_edges) - 1)):
+        assert bin_edges[i] < stepped_array[i]
+        assert bin_edges[i + 1] > stepped_array[i]
+
+
+def test_bin_edges_to_bin_centers():
+    stepped_array = np.concatenate(
+        [
+            arrays[0],
+            arrays[1][1:] + arrays[0][-1] - arrays[1][0],
+            arrays[2][1:]
+            + arrays[0][-1]
+            + arrays[1][-1]
+            - arrays[2][0]
+            - arrays[1][0],
+        ],
+    )
+    bin_centers = bin_edges_to_bin_centers(stepped_array)
+    for i in range(0, (len(bin_centers) - 1)):
+        assert stepped_array[i] < bin_centers[i]
+        assert stepped_array[i + 1] > bin_centers[i]
+
+
+bins = [10,20,30]
+axes = ['a','b','c']
+ranges = [[-1,1],[-2,2],[-3,3]]
+
+def test_simplify_binning_arguments_direct():
+    b, a, r = _simplify_binning_arguments(bins, axes, ranges)
+    assert b == bins
+    assert a == axes
+    assert r == ranges
+
+def test_simplify_binning_arguments_1D():
+    b, a, r = _simplify_binning_arguments(bins[0], axes[0], ranges[0])
+    assert b == [bins[0]]
+    assert a == [axes[0]]
+    assert r == ranges[0]
+
+def test_simplify_binning_arguments_edges():
+    bin_edges = [np.linspace(r[0], r[1], b) for r,b in zip(ranges, bins)]
+    b, a, r = _simplify_binning_arguments(bin_edges, axes)
+    (np.testing.assert_allclose(b_, bins_) for b_,bins_ in zip(b, bins))
+    assert a == axes
+    assert r == None
+    
+def test_simplify_binning_arguments_tuple():
+    bin_tuple = [tuple((r[0], r[1], b)) for r,b in zip(ranges, bins)]
+    b, a, r = _simplify_binning_arguments(bin_tuple, axes)
+    assert b == bins
+    assert a == axes
+    assert r == ranges
