@@ -2,7 +2,7 @@
 # See https://pre-commit.com/hooks.html for more hooks
 repos:
 -   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.1.0
+    rev: v4.3.0
     hooks:
     -   id: trailing-whitespace
     -   id: end-of-file-fixer
@@ -17,26 +17,25 @@ repos:
     -   id: black
         args: [--line-length=79]
 -   repo: https://github.com/PyCQA/flake8
-    rev: 4.0.1
+    rev: 5.0.4
     hooks:
     -   id: flake8
 -   repo: https://github.com/asottile/reorder_python_imports
-    rev: v2.7.1
+    rev: v3.8.2
     hooks:
     -   id: reorder-python-imports
         args: [--application-directories, '.:src', --py36-plus]
 -   repo: https://github.com/asottile/pyupgrade
-    rev: v2.31.0
+    rev: v2.37.3
     hooks:
     -   id: pyupgrade
         args: [--py36-plus]
 -   repo: https://github.com/asottile/add-trailing-comma
-    rev: v2.2.1
+    rev: v2.2.3
     hooks:
     -   id: add-trailing-comma
         args: [--py36-plus]
-- repo: https://gitlab.com/iamlikeme/nbhooks
-  rev: 1.0.0
-  hooks:
-  - id: nb-ensure-clean
-    args: [--meta, ExecuteTime]
+-   repo: https://github.com/kynan/nbstripout
+    rev: 0.6.0
+    hooks:
+    -   id: nbstripout
