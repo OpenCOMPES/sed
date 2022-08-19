@@ -1,7 +1,6 @@
-# Note: some of the functions presented here were 
+# Note: some of the functions presented here were
 # inspired by https://github.com/mpes-kit/mpes
 from functools import reduce
-from sqlite3 import InternalError
 from typing import List
 from typing import Sequence
 from typing import Tuple
@@ -36,38 +35,58 @@ def _simplify_binning_arguments(
     axes: Union[str, Sequence[str]] = None,
     ranges: Sequence[Tuple[float, float]] = None,
 ) -> tuple:
-    if isinstance(
-        bins,
-        dict,
-    ):  # bins is a dictionary: unravel to axes and bins
+    """ Convert the flexible input for defining bins into a 
+    simple "axes" "bins" "ranges" tuple.
+    
+    This allows to mimic the input used in numpy.histogramdd flexibility into the 
+    binning functions defined here.
+
+    Args:
+        bins: Definition of the bins. Can  be any of the following cases:
+            - an integer describing the number of bins in on all dimensions
+            - a tuple of 3 numbers describing start, end and step of the binning range
+            - a np.arrays defining the binning edges
+            - a list (NOT a tuple) of any of the above (int, tuple or np.ndarray)
+            - a dictionary made of the axes as keys and any of the above as values.
+            This takes priority over the axes and range arguments. Defaults to 100
+        axes: The names of the axes (columns) on which to calculate the histogram.
+            The order will be the order of the dimensions in the resulting array.
+            Defaults to None
+        ranges: list of tuples containing the start and end point of the binning range.
+            Defaults to None
+
+    Returns:
+        tuple containing axes, bins and ranges.
+    """
+    if isinstance(axes,str):
+        axes = [axes]
+    # if bins is a dictionary: unravel to axes and bins
+
+    if isinstance(bins, dict):  
         axes = []
         bins_ = []
         for k, v in bins.items():
             axes.append(k)
             bins_.append(v)
         bins = bins_
-
-    if isinstance(bins, (int, np.ndarray)):
+    elif isinstance(bins, (int, np.ndarray)):
         bins = [bins] * len(axes)
     elif isinstance(bins, tuple):
         if len(bins) == 3:
             bins = [bins]
         else:
             raise ValueError(
-                "Bins defined as tuples should only be used to define start stop and step of the bins. i.e. should always have lenght 3.",
+                "Bins defined as tuples should only be used to define start "
+                / "stop and step of the bins. i.e. should always have lenght 3.",
             )
+    if not isinstance(bins, list):
+        raise TypeError(f"Cannot interpret bins of type {type(bins)}")
+    if axes is None:
+        raise AttributeError("Must define on which axes to bin")
+    if not all(isinstance(x, type(bins[0])) for x in bins):
+        raise TypeError("All elements in " "bins must be of the same type")
 
-    assert isinstance(
-        bins,
-        list,
-    ), f"Cannot interpret bins of type {type(bins)}"
-    assert axes is not None, f"Must define on which axes to bin"
-    assert all(
-        type(x) == type(bins[0]) for x in bins
-    ), "All elements in bins must be of the same type"
-    # TODO: could implement accepting heterogeneous input.
     bin = bins[0]
-
     if isinstance(bin, tuple):
         ranges = []
         bins_ = []
@@ -79,7 +98,9 @@ def _simplify_binning_arguments(
         raise TypeError(f"Could not interpret bins of type {type(bin)}")
 
     if ranges is not None:
-        if not (len(axes) == len(bins) == len(ranges)):
+        if (len(axes) == len(bins) == 1) and len(ranges) == 2:
+            pass
+        elif not (len(axes) == len(bins) == len(ranges)):
             raise AttributeError(
                 "axes and range and bins must have the same number of elements",
             )
@@ -93,6 +114,50 @@ def _simplify_binning_arguments(
         )
 
     return bins, axes, ranges
+
+
+def bin_edges_to_bin_centers(bin_edges: np.array) -> np.array:
+    """Converts a list of bin edges into corresponding bin centers
+
+    Args:
+        bin_edges: 1d array of bin edges
+
+    Returns:
+        bin_centers: 1d array of bin centers
+    """
+
+    bin_centers = (bin_edges[1:] + bin_edges[:-1]) / 2
+
+    return bin_centers
+
+
+def bin_centers_to_bin_edges(bin_centers: np.ndarray) -> np.ndarray:
+    """Converts a list of bin centers into corresponding bin edges
+
+    Args:
+        bin_centers: 1d array of bin centers
+
+    Returns:
+        bin_edges: 1d array of bin edges
+    """
+    bin_edges = (bin_centers[1:] + bin_centers[:-1]) / 2
+
+    bin_edges = np.insert(
+        bin_edges,
+        0,
+        bin_centers[0] - (bin_centers[1] - bin_centers[0]) / 2,
+    )
+    bin_edges = np.append(
+        bin_edges,
+        bin_centers[len(bin_centers) - 1]
+        + (
+            bin_centers[len(bin_centers) - 1]
+            - bin_centers[len(bin_centers) - 2]
+        )
+        / 2,
+    )
+
+    return bin_edges
 
 
 def bin_partition(
@@ -131,14 +196,19 @@ def bin_partition(
             "numpy" which uses numpy.histogramdd, and "numba" which uses a
             numba powered similar method.
         jitter: a list of the axes on which to apply jittering.
-            To specify the jitter amplitude or method (normal or uniform noise) a dictionary can be passed.
+            To specify the jitter amplitude or method (normal or uniform noise)
+            a dictionary can be passed.
             This should look like jitter={'axis':{'amplitude':0.5,'mode':'uniform'}}.
-            This example also shows the default behaviour, in case None is passed in the dictionary, or jitter is a list of strings.
-            Warning: this is not the most performing approach. applying jitter on the dataframe before calling the binning is much faster.
+            This example also shows the default behaviour, in case None is
+            passed in the dictionary, or jitter is a list of strings.
+            Warning: this is not the most performing approach. applying jitter
+            on the dataframe before calling the binning is much faster.
         returnEdges: If true, returns a list of D arrays
             describing the bin edges for each dimension, similar to the
             behaviour of np.histogramdd.
-        skipTest: turns off input check and data transformation. Defaults to False as it is intended for internal use only. Warning: setting this True might make error tracking difficult.
+        skipTest: turns off input check and data transformation. Defaults to
+            False as it is intended for internal use only.
+            Warning: setting this True might make error tracking difficult.
 
     Raises:
         ValueError: When the method requested is not available.
@@ -253,11 +323,14 @@ def bin_dataframe(
             combined.
             Available modes are 'fast', 'lean' and 'legacy'.
         jitter: a list of the axes on which to apply jittering.
-            To specify the jitter amplitude or method (normal or uniform noise) a dictionary can be passed.
+            To specify the jitter amplitude or method (normal or uniform noise)
+            a dictionary can be passed.
             This should look like jitter={'axis':{'amplitude':0.5,'mode':'uniform'}}.
-            This example also shows the default behaviour, in case None is passed in the dictionary, or jitter is a list of strings.
+            This example also shows the default behaviour, in case None is
+            passed in the dictionary, or jitter is a list of strings.
         pbar: Allows to deactivate the tqdm progress bar.
-        nCores: Number of CPU cores to use for parallelization. Defaults to all but one of the available cores.
+        nCores: Number of CPU cores to use for parallelization. Defaults to
+            all but one of the available cores.
         nThreadsPerWorker: Limit the number of threads that
             multiprocessing can spawn.
         threadpoolAPI: The API to use for multiprocessing.
@@ -498,7 +571,9 @@ def binsearch(bins: np.ndarray, val: float) -> int:
     """
     low, high = 0, len(bins) - 1
     mid = high // 2
-    if (val < bins[low]) | (val >= bins[high]):
+    if val == bins[high]:
+        return high - 1
+    if (val < bins[low]) | (val > bins[high]):
         return -1
 
     while True:
@@ -523,8 +598,10 @@ def _hist_from_bins(
 
     Args:
         sample : the array of shape (N,D) on which to compute the histogram
-        bins : array of shape (N,D) defining the D bins on which to compute the histogram, i.e. the desired output axes
-        shape: shape of the resulting array. Workaround for the fact numba does not allow to create tuples
+        bins : array of shape (N,D) defining the D bins on which to compute
+            the histogram, i.e. the desired output axes.
+        shape: shape of the resulting array. Workaround for the fact numba
+            does not allow to create tuples.
     Returns:
         hist : the computed n-dimensional histogram
     """
@@ -573,7 +650,8 @@ def numba_histogramdd(
 
     Args:
         sample: The data to be histogrammed with shape N,D
-        bins: the number of bins for each dimension D, or a sequence of bins on which to calculate the histogram.
+        bins: the number of bins for each dimension D, or a sequence of bins
+        on which to calculate the histogram.
         range: The range to use for binning when bins is a list of integers.
 
     Raises:
@@ -599,21 +677,18 @@ def numba_histogramdd(
         sample = np.atleast_2d(sample).T
         N, D = sample.shape
 
-    if isinstance(bins, int):
+    if not isinstance(bins, (tuple, list)):
         bins = D * [bins]
+    Db = len(bins)
+    if isinstance(bins[0], (int, np.int_)):
         method = "int"
-        Db = len(bins)
-    try:
-        Db = len(bins)
-        if isinstance(bins[0], int):
-            method = "int"
-        elif isinstance(bins[0], np.ndarray):
-            method = "array"
-    except AttributeError:
-        # bins is a single integer
-        bins = D * [bins]
-        method = "int"
-        Db = len(bins)
+    elif isinstance(bins[0], np.ndarray):
+        method = "array"
+    else:
+        raise AttributeError(
+            f"bins must be int, np.ndarray or a sequence of the two. "
+            f"Found {type(bins[0])} instead",
+        )
 
     if Db != D:  # check number of dimensions
         raise ValueError(
@@ -624,14 +699,20 @@ def numba_histogramdd(
         hist = _hist_from_bins(
             sample,
             tuple(bins),
-            tuple(b.size for b in bins),
+            tuple(b.size - 1 for b in bins),
         )
         return hist, bins
 
     elif method == "int":
         # normalize the range argument
         if ranges is None:
-            ranges = (None,) * D
+            raise ValueError(
+                "must define a value for ranges when bins is"
+                " the number of bins",
+            )
+        #     ranges = (None,) * D
+        if D == 1 and isinstance(ranges[0], (int, float)):
+            ranges = (ranges,)
         elif len(ranges) != D:
             raise ValueError(
                 "range argument must have one entry per dimension",

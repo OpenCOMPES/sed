@@ -59,7 +59,7 @@ def test_load_config():
 
 def test_load_config_raise():
     with pytest.raises(TypeError):
-        load_config("sed/requirements.txt")
+        load_config(f"{package_dir}/../requirements.txt")
 
 
 def test_insert_default_config():
