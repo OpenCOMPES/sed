@@ -220,7 +220,7 @@ def to_tiff(
     faddr: Union[Path, str],
     alias_dict: dict = None,
 ) -> None:
-    """ Save an array as a .tiff stack compatible with ImageJ
+    """Save an array as a .tiff stack compatible with ImageJ
 
     Args:
         data: data to be saved. If a np.ndarray, the order is retained. If it
@@ -262,7 +262,9 @@ def to_tiff(
 
     elif isinstance(data, xr.DataArray):
         dims_order = _fill_missing_dims(data.dims, alias_dict=alias_dict)
-        out = data.expand_dims({dim: 1 for dim in dims_order if dim not in data.dims})
+        out = data.expand_dims(
+            {dim: 1 for dim in dims_order if dim not in data.dims},
+        )
         out = out.transpose(*dims_order)
     else:
         raise TypeError(f"Cannot handle data of type {data.type}")
@@ -272,11 +274,10 @@ def to_tiff(
     tifffile.imwrite(faddr, out.astype(np.float32), imagej=True)
 
     print(f"Successfully saved {faddr}\n Axes order: {dims_order}")
-    # return dims_order
 
 
 def _sort_dims_for_imagej(dims: list, alias_dict: dict = None) -> list:
-    """ Guess the order of the dimensions from the alias dictionary
+    """Guess the order of the dimensions from the alias dictionary
 
     Args:
         dims: the list of dimensions to sort
@@ -293,7 +294,7 @@ def _sort_dims_for_imagej(dims: list, alias_dict: dict = None) -> list:
 
 
 def _fill_missing_dims(dims: list, alias_dict: dict = None) -> list:
-    """ Guess the order of the dimensions from the alias dictionary
+    """Guess the order of the dimensions from the alias dictionary
 
     Args:
         dims: the list of dimensions to sort
@@ -311,8 +312,9 @@ def _fill_missing_dims(dims: list, alias_dict: dict = None) -> list:
         alias_dict = {}
     else:
         for k, v in alias_dict.items():
-            assert k in _IMAGEJ_DIMS_ORDER, 'keys must all be one of '\
-                f'{_IMAGEJ_DIMS_ALIAS}'
+            assert k in _IMAGEJ_DIMS_ORDER, (
+                "keys must all be one of " f"{_IMAGEJ_DIMS_ALIAS}"
+            )
             if not isinstance(v, (list, tuple)):
                 alias_dict[k] = [v]
 
@@ -324,7 +326,7 @@ def _fill_missing_dims(dims: list, alias_dict: dict = None) -> list:
             if dim in alias_dict[imgj_dim]:
                 if found_one:
                     raise ValueError(
-                        f'Duplicate entries for {imgj_dim}: {dim} and {order[-1]} ',
+                        f"Duplicate entries for {imgj_dim}: {dim} and {order[-1]} ",
                     )
                 order.append(dim)
                 found_one = True
@@ -333,7 +335,7 @@ def _fill_missing_dims(dims: list, alias_dict: dict = None) -> list:
             added_dims += 1
     if len(order) != len(dims) + added_dims:
         raise NameError(
-            f'Could not interpret dimensions {[d for d in dims if d not in order]}',
+            f"Could not interpret dimensions {[d for d in dims if d not in order]}",
         )
     return order
 
@@ -366,10 +368,12 @@ def load_tiff(
 
     if coords is None:
         coords = {
-            k.replace('_', ''): np.linspace(0, n, n) for k, n in zip(
+            k.replace("_", ""): np.linspace(0, n, n)
+            for k, n in zip(
                 _IMAGEJ_DIMS_ORDER,
                 data.shape,
-            ) if n > 1
+            )
+            if n > 1
         }
 
     data = data.squeeze()

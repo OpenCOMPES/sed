@@ -4,9 +4,9 @@ from pathlib import Path
 import pytest
 
 import sed
-from sed.settings import insert_default_config
-from sed.settings import load_config
-from sed.settings import parse_config
+from sed.config.settings import insert_default_config
+from sed.config.settings import load_config
+from sed.config.settings import parse_config
 
 package_dir = os.path.dirname(sed.__file__)
 default_config_keys = [
