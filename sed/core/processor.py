@@ -12,8 +12,8 @@ import xarray as xr
 
 from sed.binning import bin_dataframe
 from sed.config.settings import parse_config
+from sed.core.dfops import apply_jitter
 from sed.core.metadata import MetaHandler
-from sed.dfops import apply_jitter
 from sed.diagnostics import grid_histogram
 
 N_CPU = psutil.cpu_count()

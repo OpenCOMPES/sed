@@ -3,11 +3,11 @@ import pandas as pd
 import pytest
 
 from .helpers import get_linear_bin_edges
-from sed.binning import _hist_from_bin_range
-from sed.binning import bin_centers_to_bin_edges
-from sed.binning import bin_edges_to_bin_centers
-from sed.binning import numba_histogramdd
-from sed.binning import _simplify_binning_arguments
+from sed.binning.binning import _simplify_binning_arguments
+from sed.binning.binning import numba_histogramdd
+from sed.binning.numba_bin import _hist_from_bin_range
+from sed.binning.utils import bin_centers_to_bin_edges
+from sed.binning.utils import bin_edges_to_bin_centers
 
 sample = np.random.randn(int(1e2), 3)
 columns = ["x", "y", "z"]
@@ -126,9 +126,10 @@ def test_bin_edges_to_bin_centers():
         assert stepped_array[i + 1] > bin_centers[i]
 
 
-bins = [10,20,30]
-axes = ['a','b','c']
-ranges = [[-1,1],[-2,2],[-3,3]]
+bins = [10, 20, 30]
+axes = ["a", "b", "c"]
+ranges = [[-1, 1], [-2, 2], [-3, 3]]
+
 
 def test_simplify_binning_arguments_direct():
     b, a, r = _simplify_binning_arguments(bins, axes, ranges)
@@ -136,21 +137,24 @@ def test_simplify_binning_arguments_direct():
     assert a == axes
     assert r == ranges
 
+
 def test_simplify_binning_arguments_1D():
     b, a, r = _simplify_binning_arguments(bins[0], axes[0], ranges[0])
     assert b == [bins[0]]
     assert a == [axes[0]]
     assert r == ranges[0]
 
+
 def test_simplify_binning_arguments_edges():
-    bin_edges = [np.linspace(r[0], r[1], b) for r,b in zip(ranges, bins)]
+    bin_edges = [np.linspace(r[0], r[1], b) for r, b in zip(ranges, bins)]
     b, a, r = _simplify_binning_arguments(bin_edges, axes)
-    (np.testing.assert_allclose(b_, bins_) for b_,bins_ in zip(b, bins))
+    (np.testing.assert_allclose(b_, bins_) for b_, bins_ in zip(b, bins))
     assert a == axes
-    assert r == None
-    
+    assert r is None
+
+
 def test_simplify_binning_arguments_tuple():
-    bin_tuple = [tuple((r[0], r[1], b)) for r,b in zip(ranges, bins)]
+    bin_tuple = [tuple((r[0], r[1], b)) for r, b in zip(ranges, bins)]
     b, a, r = _simplify_binning_arguments(bin_tuple, axes)
     assert b == bins
     assert a == axes

@@ -7,12 +7,12 @@ import numpy as np
 import pytest
 import xarray as xr
 
+from sed.io.hdf5 import load_h5
+from sed.io.hdf5 import to_h5
+from sed.io.tiff import _sort_dims_for_imagej
+from sed.io.tiff import load_tiff
+from sed.io.tiff import to_tiff
 from tests.helpers import simulate_binned_data
-from sed.io import _sort_dims_for_imagej
-from sed.io import load_h5
-from sed.io import load_tiff
-from sed.io import to_h5
-from sed.io import to_tiff
 
 shapes = []
 for n in range(4):
@@ -43,7 +43,7 @@ def test_save_and_load_tiff_array(_da):
 )
 def test_save_xarr_to_tiff(_da):
     to_tiff(_da, "test")
-    assert Path('test.tiff').is_file()
+    assert Path("test.tiff").is_file()
 
 
 @pytest.mark.parametrize(
