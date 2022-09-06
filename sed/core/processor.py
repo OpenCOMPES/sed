@@ -11,10 +11,10 @@ import psutil
 import xarray as xr
 
 from sed.binning import bin_dataframe
-from sed.dfops import apply_jitter
+from sed.config.settings import parse_config
+from sed.core.dfops import apply_jitter
+from sed.core.metadata import MetaHandler
 from sed.diagnostics import grid_histogram
-from sed.metadata import MetaHandler
-from sed.settings import parse_config
 
 N_CPU = psutil.cpu_count()
 

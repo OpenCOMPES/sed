@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from sed.dfops import apply_jitter
+from sed.core.dfops import apply_jitter
 
 n_pts = 100
 cols = ["posx", "posy", "energy"]
