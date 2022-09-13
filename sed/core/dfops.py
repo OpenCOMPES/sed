@@ -60,3 +60,54 @@ def apply_jitter(
         df[col_jittered] = df[col] + amp * jitter
 
     return df
+
+
+def drop_column(df, column_name):
+    """Delete columns.
+
+    **Parameters**\n
+    colnames: str/list/tuple
+        List of column names to be dropped.
+    """
+
+    out_df = df.drop(column_name, axis=1)
+
+    return out_df
+
+
+def apply_filter(df, col, lower_bound=-np.inf, upper_bound=np.inf):
+    """Application of bound filters to a specified column (can be used consecutively).
+
+    **Parameters**\n
+    colname: str
+        Name of the column to filter.
+    lb, ub: numeric, numeric | -infinity, infinity
+        The lower and upper bounds used in the filtering.
+    update: str | 'replace'
+        Update option for the filtered dataframe.
+    ret: bool | False
+        Return option for the filtered dataframe.
+    """
+    out_df = df[(df[col] > lower_bound) & (df[col] < upper_bound)]
+
+    return out_df
+
+
+def map_columns_2d(df, map2D, x_column, y_column, **kwds):
+    """Apply a 2-dimensional mapping simultaneously to two dimensions.
+
+    **Parameters**\n
+    map2D: function
+        2D mapping function.
+    X, Y: series, series
+        The two columns of the dataframe to apply mapping to.
+    **kwds: keyword arguments
+        Additional arguments for the 2D mapping function.
+    """
+
+    newX = kwds.pop("newX", x_column)
+    newY = kwds.pop("newY", y_column)
+
+    (df[newX], df[newY]) = map2D(df[x_column], df[y_column], **kwds)
+
+    return df
