@@ -1,34 +1,41 @@
+import itertools as it
+import warnings as wn
+from functools import partial
+from typing import Sequence
+from typing import Tuple
+from typing import Union
+
+import bokeh.plotting as pbk
 import dask.dataframe
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from typing import Sequence
-from typing import Union
-from fastdtw import fastdtw
-from scipy.spatial import distance
-from scipy.signal import savgol_filter
-import scipy.io as sio
-import matplotlib.pyplot as plt
-import warnings as wn
-from lmfit import Minimizer, Parameters
-from lmfit.printfuncs import report_fit
-from numpy.linalg import norm, lstsq
-from scipy.sparse.linalg import lsqr
-from funcy import project
-from functools import reduce, partial
-import bokeh.plotting as pbk
 from bokeh.io import output_notebook
 from bokeh.palettes import Category10 as ColorCycle
-import itertools as it
+from fastdtw import fastdtw
+from funcy import project
+from lmfit import Minimizer
+from lmfit import Parameters
+from lmfit.printfuncs import report_fit
+from numpy.linalg import lstsq
+from scipy.signal import savgol_filter
+from scipy.sparse.linalg import lsqr
+from scipy.spatial import distance
 
 
-
-class EnergyCalibrator():
+class EnergyCalibrator:
     """
     Electron binding energy calibration workflow.
     """
 
-    def __init__(self, biases=None, traces=None, tof=None, config: dict = {}):
-        """ Initialization of the EnergyCalibrator class can follow different ways,
+    def __init__(
+        self,
+        biases: Sequence[float],
+        traces: Sequence[float],
+        tof: Sequence[float],
+        config: dict = {},
+    ):
+        """Initialization of the EnergyCalibrator class can follow different ways,
 
         1. Initialize with all the file paths in a list
         1a. Use an hdf5 file containing all binned traces and tof
@@ -40,9 +47,11 @@ class EnergyCalibrator():
 
         self.biases = biases
         self.tof = tof
-        self.featranges = [] # Value ranges for feature detection
+        self.featranges = []  # Value ranges for feature detection
 
         self._config = config
+        self.peaks = []
+        self.calibration = []
 
         if traces is not None:
             self.traces = traces
@@ -52,70 +61,43 @@ class EnergyCalibrator():
             self.traces_normed = []
 
     @property
-    def ntraces(self):
-        """ The number of loaded/calculated traces.
-        """
+    def ntraces(self) -> int:
+        """The number of loaded/calculated traces."""
 
         return len(self.traces)
 
     @property
-    def nranges(self):
-        """ The number of specified feature ranges.
-        """
+    def nranges(self) -> int:
+        """The number of specified feature ranges."""
 
         return len(self.featranges)
 
     @property
-    def dup(self):
-        """ The duplication number.
-        """
+    def dup(self) -> int:
+        """The duplication number."""
 
         return int(np.round(self.nranges / self.ntraces))
 
-    def read(self, form='h5', tracename='', tofname='ToF'):
-        """ Read traces (e.g. energy dispersion curves) from files.
-
-        **Parameters**\n
-        form: str | 'h5'
-            Format of the files ('h5' or 'mat').
-        tracename: str | ''
-            Name of the group/attribute corresponding to the trace.
-        tofname: str | 'ToF'
-            Name of the group/attribute corresponding to the time-of-flight.
-        """
-
-        if form == 'h5':
-
-            traces = []
-            for f in self.files:
-                traces = np.asarray(File(f).get(tracename))
-
-            tof = np.asarray(File(f).get(tofname))
-
-        elif form == 'mat':
-
-            for f in self.files:
-                traces = sio.loadmat(f)[tracename]
-            self.traces = np.array(traces)
-
-            self.tof = sio.loadmat(f)[tofname].ravel()
-
-    def bin_traces():
-        """TODO"""
-
-    def normalize(self, **kwds):
-        """ Normalize the spectra along an axis.
+    def normalize(self, **kwds: dict):
+        """Normalize the spectra along an axis.
 
         **Parameters**\n
         **kwds: keyword arguments
             See the keywords for ``mpes.utils.normspec()``.
         """
 
-        self.traces_normed = normspec(*self.traces, **kwds)
+        self.traces_normed = normspec(self.traces, **kwds)
 
-
-    def addFeatures(self, ranges, refid=0, traces=None, infer_others=True, mode='replace', **kwds):
-        """ Select or extract the equivalent landmarks (e.g. peaks) among all traces.
+    def add_features(
+        self,
+        ranges: Sequence[Tuple[float, float]],
+        refid: int = 0,
+        traces: Sequence[float] = None,
+        infer_others: bool = True,
+        mode: str = "replace",
+        **kwds,
+    ):
+        """Select or extract the equivalent landmarks (e.g. peaks) among all traces.
 
         **Parameters**\n
         ranges: list/tuple
@@ -126,11 +108,13 @@ class EnergyCalibrator():
         traces: 2D array | None
             Collection of energy dispersion curves (EDCs).
         infer_others: bool | True
-            Option to infer the feature detection range in other traces (EDCs) from a given one.
+            Option to infer the feature detection range in other traces (EDCs) from a
+            given one.
         mode: str | 'append'
             Specification on how to change the feature ranges ('append' or 'replace').
         **kwds: keyword arguments
-            Dictionarized keyword arguments for trace alignment (See ``self.findCorrespondence()``)
+            Dictionarized keyword arguments for trace alignment
+            (See ``self.findCorrespondence()``)
         """
 
         if traces is None:
@@ -138,28 +122,35 @@ class EnergyCalibrator():
 
         # Infer the corresponding feature detection range of other traces by alignment
         if infer_others:
-            method = kwds.pop('align_method', 'dtw')
             newranges = []
 
             for i in range(self.ntraces):
 
-                pathcorr = find_correspondence(traces[refid,:], traces[i,:], method=method, **kwds)
+                pathcorr = find_correspondence(
+                    traces[refid, :],
+                    traces[i, :],
+                    **kwds,
+                )
                 newranges.append(range_convert(self.tof, ranges, pathcorr))
 
         else:
-            if type(ranges) == list:
+            if isinstance(ranges, list):
                 newranges = ranges
             else:
                 newranges = [ranges]
 
-        if mode == 'append':
+        if mode == "append":
             self.featranges += newranges
-        elif mode == 'replace':
+        elif mode == "replace":
             self.featranges = newranges
 
-
-    def featureExtract(self, ranges=None, traces=None, **kwds):
-        """ Select or extract the equivalent landmarks (e.g. peaks) among all traces.
+    def feature_extract(
+        self,
+        ranges: Sequence[Tuple[float, float]] = None,
+        traces: Sequence[float] = None,
+        **kwds,
+    ):
+        """Select or extract the equivalent landmarks (e.g. peaks) among all traces.
 
         **Parameters**\n
         ranges: list/tuple | None
@@ -181,9 +172,14 @@ class EnergyCalibrator():
         # Run peak detection for each trace within the specified ranges
         self.peaks = peaksearch(traces_aug, self.tof, ranges=ranges, **kwds)
 
-
-    def calibrate(self, refid=0, ret=['coeffs'], method="lmfit", **kwds):
-        """ Calculate the functional mapping between time-of-flight and the energy
+    def calibrate(
+        self,
+        refid: int = 0,
+        ret: str = "coeffs",
+        method: str = "lmfit",
+        **kwds,
+    ) -> dict:
+        """Calculate the functional mapping between time-of-flight and the energy
         scale using optimization methods.
 
         **Parameters**\n
@@ -194,26 +190,45 @@ class EnergyCalibrator():
         method: str | lmfit
             Method for determining the energy calibration. "lmfit" or "poly"
         **kwds: keyword arguments
-            See available keywords for ``mpes.analysis.calibrateE()``.
+            See available keywords for ``poly_energy_calibration()``.
         """
 
-        landmarks = kwds.pop('landmarks', self.peaks[:, 0])
-        biases = kwds.pop('biases', self.biases)
-        calibret = kwds.pop('calib_ret', False)
+        landmarks = kwds.pop("landmarks", self.peaks[:, 0])
+        biases = kwds.pop("biases", self.biases)
         if method == "lmfit":
-            self.calibration = fit_energy_calibation(landmarks, biases, refid=refid, **kwds)
-        elif method == "lstsq" or method == "lsqr":
-            self.calibration = poly_energy_calibration(landmarks, biases, refid=refid, ret=ret, aug=self.dup, method=method, **kwds)
+            self.calibration = fit_energy_calibation(
+                landmarks,
+                biases,
+                refid=refid,
+                **kwds,
+            )
+        elif method in ("lstsq", "lsqr"):
+            self.calibration = poly_energy_calibration(
+                landmarks,
+                biases,
+                refid=refid,
+                ret=ret,
+                aug=self.dup,
+                method=method,
+                **kwds,
+            )
         else:
             raise NotImplementedError()
 
-        if calibret == True:
-            return self.calibration
-
-
-    def view(self, traces, segs=None, peaks=None, show_legend=True, ret=False, display=True,
-            backend='matplotlib', linekwds={}, linesegkwds={}, scatterkwds={}, legkwds={}, **kwds):
-        """ Display a plot showing line traces with annotation.
+    def view(
+        self,
+        traces: Sequence[float],
+        segs: Sequence[float] = None,
+        peaks: Sequence[float] = None,
+        show_legend: bool = True,
+        backend: str = "matplotlib",
+        linekwds: dict = {},
+        linesegkwds: dict = {},
+        scatterkwds: dict = {},
+        legkwds: dict = {},
+        **kwds,
+    ):
+        """Display a plot showing line traces with annotation.
 
         **Parameters**\n
         traces: 2d array
@@ -225,7 +240,8 @@ class EnergyCalibrator():
         ret: bool
             Return specification.
         backend: str | 'matplotlib'
-            Backend specification, choose between 'matplotlib' (static) or 'bokeh' (interactive).
+            Backend specification, choose between 'matplotlib' (static) or 'bokeh'
+            (interactive).
         linekwds: dict | {}
             Keyword arguments for line plotting (see ``matplotlib.pyplot.plot()``).
         scatterkwds: dict | {}
@@ -236,7 +252,6 @@ class EnergyCalibrator():
             ===============  ==========  ================================
             keyword          data type   meaning
             ===============  ==========  ================================
-            maincolor        str
             labels           list        Labels for each curve
             xaxis            1d array    x (horizontal) axis values
             title            str         Title of the plot
@@ -244,80 +259,119 @@ class EnergyCalibrator():
             ===============  ==========  ================================
         """
 
-        maincolor = kwds.pop('maincolor', 'None')
-        lbs = kwds.pop('labels', [str(b)+' V' for b in self.biases])
-        xaxis = kwds.pop('xaxis', self.tof)
-        ttl = kwds.pop('title', '')
+        lbs = kwds.pop("labels", [str(b) + " V" for b in self.biases])
+        xaxis = kwds.pop("xaxis", self.tof)
+        ttl = kwds.pop("title", "")
 
-        if backend == 'matplotlib':
+        if backend == "matplotlib":
 
-            figsize = kwds.pop('figsize', (12, 4))
-            f, ax = plt.subplots(figsize=figsize)
+            figsize = kwds.pop("figsize", (12, 4))
+            fig, ax = plt.subplots(figsize=figsize)
             for itr, trace in enumerate(traces):
-                ax.plot(xaxis, trace, ls='--', linewidth=1, label=lbs[itr], **linekwds)
+                ax.plot(
+                    xaxis,
+                    trace,
+                    ls="--",
+                    linewidth=1,
+                    label=lbs[itr],
+                    **linekwds,
+                )
 
                 # Emphasize selected EDC segments
                 if segs is not None:
                     seg = segs[itr]
                     cond = (self.tof >= seg[0]) & (self.tof <= seg[1])
                     tofseg, traceseg = self.tof[cond], trace[cond]
-                    ax.plot(tofseg, traceseg, color='k', linewidth=2, **linesegkwds)
+                    ax.plot(
+                        tofseg,
+                        traceseg,
+                        color="k",
+                        linewidth=2,
+                        **linesegkwds,
+                    )
                 # Emphasize extracted local maxima
                 if peaks is not None:
-                    ax.scatter(peaks[itr, 0], peaks[itr, 1], s=30, **scatterkwds)
+                    ax.scatter(
+                        peaks[itr, 0],
+                        peaks[itr, 1],
+                        s=30,
+                        **scatterkwds,
+                    )
 
             if show_legend:
                 try:
                     ax.legend(fontsize=12, **legkwds)
-                except:
+                except Exception:
                     pass
 
             ax.set_title(ttl)
 
-        elif backend == 'bokeh':
+        elif backend == "bokeh":
 
             output_notebook(hide_banner=True)
             colors = it.cycle(ColorCycle[10])
-            ttp = [('(x, y)', '($x, $y)')]
+            ttp = [("(x, y)", "($x, $y)")]
 
-            figsize = kwds.pop('figsize', (800, 300))
-            f = pbk.figure(title=ttl, plot_width=figsize[0], plot_height=figsize[1], tooltips=ttp)
+            figsize = kwds.pop("figsize", (800, 300))
+            fig = pbk.figure(
+                title=ttl,
+                plot_width=figsize[0],
+                plot_height=figsize[1],
+                tooltips=ttp,
+            )
             # Plotting the main traces
-            for itr, c in zip(range(len(traces)), colors):
+            for itr, color in zip(range(len(traces)), colors):
                 trace = traces[itr, :]
-                f.line(xaxis, trace, color=c, line_dash='solid', line_width=1,
-                        line_alpha=1, legend=lbs[itr], **kwds)
+                fig.line(
+                    xaxis,
+                    trace,
+                    color=color,
+                    line_dash="solid",
+                    line_width=1,
+                    line_alpha=1,
+                    legend=lbs[itr],
+                    **kwds,
+                )
 
                 # Emphasize selected EDC segments
                 if segs is not None:
                     seg = segs[itr]
                     cond = (self.tof >= seg[0]) & (self.tof <= seg[1])
                     tofseg, traceseg = self.tof[cond], trace[cond]
-                    f.line(tofseg, traceseg, color=c, line_width=3, **linekwds)
+                    fig.line(
+                        tofseg,
+                        traceseg,
+                        color=color,
+                        line_width=3,
+                        **linekwds,
+                    )
 
                 # Plot detected peaks
                 if peaks is not None:
-                    f.scatter(peaks[itr, 0], peaks[itr, 1], fill_color=c, fill_alpha=0.8,
-                                line_color=None, size=5, **scatterkwds)
+                    fig.scatter(
+                        peaks[itr, 0],
+                        peaks[itr, 1],
+                        fill_color=color,
+                        fill_alpha=0.8,
+                        line_color=None,
+                        size=5,
+                        **scatterkwds,
+                    )
 
             if show_legend:
-                f.legend.location = kwds.pop('legend_location', 'top_right')
-                f.legend.spacing = 0
-                f.legend.padding = 2
+                fig.legend.location = kwds.pop("legend_location", "top_right")
+                fig.legend.spacing = 0
+                fig.legend.padding = 2
 
-            if display:
-                pbk.show(f)
-
-        # ax.set_xlabel('Energy (eV)', fontsize=15)
-
-        if ret:
-            try:
-                return f, ax
-            except:
-                return f
+            pbk.show(fig)
 
 
-def normspec(*specs, smooth=False, span=13, order=1):
+def normspec(
+    specs: Sequence[float],
+    smooth: bool = False,
+    span: int = 7,
+    order: int = 1,
+) -> np.ndarray:
     """
     Normalize a series of 1D signals.
 
@@ -356,15 +410,16 @@ def normspec(*specs, smooth=False, span=13, order=1):
     return normalized_specs
 
 
-
-def find_correspondence(sig_still, sig_mov, method='dtw', **kwds):
-    """ Determine the correspondence between two 1D traces by alignment.
+def find_correspondence(
+    sig_still: Sequence[float],
+    sig_mov: Sequence[float],
+    **kwds,
+) -> np.ndarray:
+    """Determine the correspondence between two 1D traces by alignment.
 
     **Parameters**\n
     sig_still, sig_mov: 1D array, 1D array
         Input 1D signals.
-    method: str | 'dtw'
-        Method for 1D signal correspondence detection ('dtw' or 'ptw').
     **kwds: keyword arguments
         See available keywords for the following functions,
         (1) ``fastdtw.fastdtw()`` (when ``method=='dtw'``)
@@ -372,26 +427,22 @@ def find_correspondence(sig_still, sig_mov, method='dtw', **kwds):
 
     **Return**\n
     pathcorr: list
-        Pixel-wise path correspondences between two input 1D arrays (sig_still, sig_mov).
+        Pixel-wise path correspondences between two input 1D arrays
+        (sig_still, sig_mov).
     """
 
-    if method == 'dtw':
-
-        dist = kwds.pop('dist_metric', distance.euclidean)
-        rad = kwds.pop('radius', 1)
-        dst, pathcorr = fastdtw(sig_still, sig_mov, dist=dist, radius=rad)
-        return np.asarray(pathcorr)
-
-    else:
-        # from ptw import ptw
-
-        # w, siglim, a = ptw.timeWarp(sig_still, sig_mov)
-        # return a
-        raise NotImplementedError()
+    dist = kwds.pop("dist_metric", distance.euclidean)
+    rad = kwds.pop("radius", 1)
+    _, pathcorr = fastdtw(sig_still, sig_mov, dist=dist, radius=rad)
+    return np.asarray(pathcorr)
 
 
-def range_convert(x, xrng, pathcorr):
-    """ Convert value range using a pairwise path correspondence (e.g. obtained
+def range_convert(
+    x: Sequence[float],
+    xrng: Sequence[float],
+    pathcorr: Sequence[Tuple[float, float]],
+) -> tuple:
+    """Convert value range using a pairwise path correspondence (e.g. obtained
     from time warping techniques).
 
     **Parameters**\n
@@ -411,7 +462,7 @@ def range_convert(x, xrng, pathcorr):
     pathcorr = np.asarray(pathcorr)
     xrange_trans = []
 
-    for xval in xrng: # Transform each value in the range
+    for xval in xrng:  # Transform each value in the range
         xind = find_nearest(xval, x)
         xind_alt = find_nearest(xind, pathcorr[:, 0])
         xind_trans = pathcorr[xind_alt, 1]
@@ -420,7 +471,7 @@ def range_convert(x, xrng, pathcorr):
     return tuple(xrange_trans)
 
 
-def find_nearest(val, narray):
+def find_nearest(val: float, narray: np.ndarray) -> int:
     """
     Find the value closest to a given one in a 1D array.
 
@@ -438,7 +489,13 @@ def find_nearest(val, narray):
     return np.argmin(np.abs(narray - val))
 
 
-def peaksearch(traces, tof, ranges=None, method='range-limited', pkwindow=3, plot=False):
+def peaksearch(
+    traces: np.ndarray,
+    tof: np.ndarray,
+    ranges: Sequence[Tuple[float, float]] = None,
+    pkwindow: int = 3,
+    plot: bool = False,
+):
     """
     Detect a list of peaks in the corresponding regions of multiple EDCs
 
@@ -450,8 +507,6 @@ def peaksearch(traces, tof, ranges=None, method='range-limited', pkwindow=3, plo
     ranges: list of tuples/lists | None
         List of ranges for peak detection in the format
         [(LowerBound1, UpperBound1), (LowerBound2, UpperBound2), ....].
-    method: str | 'range-limited'
-        Method for peak-finding ('range-limited' or 'alignment').
     pkwindow: int | 3
         Window width of a peak (amounts to lookahead in ``peakdetect1d``).
     plot: bool | False
@@ -466,22 +521,18 @@ def peaksearch(traces, tof, ranges=None, method='range-limited', pkwindow=3, plo
     if plot:
         plt.figure(figsize=(10, 4))
 
-    if method == 'range-limited': # Peak detection within a specified range
-        for rg, trace in zip(ranges, traces.tolist()):
+    for rg, trace in zip(ranges, traces.tolist()):
 
-            cond = (tof >= rg[0]) & (tof <= rg[1])
-            trace = np.array(trace).ravel()
-            tofseg, trseg = tof[cond], trace[cond]
-            maxs, _ = peakdetect1d(trseg, tofseg, lookahead=pkwindow)
-            pkmaxs.append(maxs[0, :])
+        cond = (tof >= rg[0]) & (tof <= rg[1])
+        trace = np.array(trace).ravel()
+        tofseg, trseg = tof[cond], trace[cond]
+        maxs, _ = peakdetect1d(trseg, tofseg, lookahead=pkwindow)
+        pkmaxs.append(maxs[0, :])
 
-            if plot:
-                plt.plot(tof, trace, '--k', linewidth=1)
-                plt.plot(tofseg, trseg, linewidth=2)
-                plt.scatter(maxs[0, 0], maxs[0, 1], s=30)
-
-    elif method == 'alignment':
-        raise NotImplementedError
+        if plot:
+            plt.plot(tof, trace, "--k", linewidth=1)
+            plt.plot(tofseg, trseg, linewidth=2)
+            plt.scatter(maxs[0, 0], maxs[0, 1], s=30)
 
     pkmaxs = np.asarray(pkmaxs)
     return pkmaxs
@@ -489,7 +540,10 @@ def peaksearch(traces, tof, ranges=None, method='range-limited', pkwindow=3, plo
 
 # 1D peak detection algorithm adapted from Sixten Bergman
 # https://gist.github.com/sixtenbe/1178136#file-peakdetect-py
-def _datacheck_peakdetect(x_axis, y_axis):
+def _datacheck_peakdetect(
+    x_axis: Sequence[float],
+    y_axis: Sequence[float],
+) -> Tuple(np.ndarray, np.ndarray):
     """
     Input format checking
     """
@@ -498,7 +552,9 @@ def _datacheck_peakdetect(x_axis, y_axis):
         x_axis = range(len(y_axis))
 
     if len(y_axis) != len(x_axis):
-        raise ValueError("Input vectors y_axis and x_axis must have same length")
+        raise ValueError(
+            "Input vectors y_axis and x_axis must have same length",
+        )
 
     # Needs to be a numpy array
     y_axis = np.array(y_axis)
@@ -507,7 +563,12 @@ def _datacheck_peakdetect(x_axis, y_axis):
     return x_axis, y_axis
 
 
-def peakdetect1d(y_axis, x_axis = None, lookahead = 200, delta=0):
+def peakdetect1d(
+    y_axis: Sequence[float],
+    x_axis: Sequence[float] = None,
+    lookahead: int = 200,
+    delta: int = 0,
+) -> Tuple[Sequence[float], Sequence[float]]:
     """
     Function for detecting local maxima and minima in a signal.
     Discovers peaks by searching for values which are surrounded by lower
@@ -542,13 +603,12 @@ def peakdetect1d(y_axis, x_axis = None, lookahead = 200, delta=0):
 
     max_peaks = []
     min_peaks = []
-    dump = [] # Used to pop the first hit which almost always is false
+    dump = []  # Used to pop the first hit which almost always is false
 
     # Check input data
     x_axis, y_axis = _datacheck_peakdetect(x_axis, y_axis)
     # Store data length for later use
     length = len(y_axis)
-
 
     # Perform some checks
     if lookahead < 1:
@@ -557,12 +617,14 @@ def peakdetect1d(y_axis, x_axis = None, lookahead = 200, delta=0):
     if not (np.isscalar(delta) and delta >= 0):
         raise ValueError("delta must be a positive number")
 
-    #maxima and minima candidates are temporarily stored in
-    #mx and mn respectively
+    # maxima and minima candidates are temporarily stored in
+    # mx and mn respectively
     mn, mx = np.Inf, -np.Inf
 
     # Only detect peak if there is 'lookahead' amount of points after it
-    for index, (x, y) in enumerate(zip(x_axis[:-lookahead], y_axis[:-lookahead])):
+    for index, (x, y) in enumerate(
+        zip(x_axis[:-lookahead], y_axis[:-lookahead]),
+    ):
 
         if y > mx:
             mx = y
@@ -573,10 +635,10 @@ def peakdetect1d(y_axis, x_axis = None, lookahead = 200, delta=0):
             mnpos = x
 
         # Find local maxima
-        if y < mx-delta and mx != np.Inf:
+        if y < mx - delta and mx != np.Inf:
             # Maxima peak candidate found
             # look ahead in signal to ensure that this is a peak and not jitter
-            if y_axis[index:index+lookahead].max() < mx:
+            if y_axis[index : index + lookahead].max() < mx:
 
                 max_peaks.append([mxpos, mx])
                 dump.append(True)
@@ -584,19 +646,19 @@ def peakdetect1d(y_axis, x_axis = None, lookahead = 200, delta=0):
                 mx = np.Inf
                 mn = np.Inf
 
-                if index+lookahead >= length:
+                if index + lookahead >= length:
                     # The end is within lookahead no more peaks can be found
                     break
                 continue
-            #else:
+            # else:
             #    mx = ahead
             #    mxpos = x_axis[np.where(y_axis[index:index+lookahead]==mx)]
 
         # Find local minima
-        if y > mn+delta and mn != -np.Inf:
+        if y > mn + delta and mn != -np.Inf:
             # Minima peak candidate found
             # look ahead in signal to ensure that this is a peak and not jitter
-            if y_axis[index:index+lookahead].min() > mn:
+            if y_axis[index : index + lookahead].min() > mn:
 
                 min_peaks.append([mnpos, mn])
                 dump.append(False)
@@ -604,13 +666,12 @@ def peakdetect1d(y_axis, x_axis = None, lookahead = 200, delta=0):
                 mn = -np.Inf
                 mx = -np.Inf
 
-                if index+lookahead >= length:
+                if index + lookahead >= length:
                     # The end is within lookahead no more peaks can be found
                     break
-            #else:
+            # else:
             #    mn = ahead
             #    mnpos = x_axis[np.where(y_axis[index:index+lookahead]==mn)]
-
 
     # Remove the false hit on the first value of the y_axis
     try:
@@ -620,7 +681,7 @@ def peakdetect1d(y_axis, x_axis = None, lookahead = 200, delta=0):
             min_peaks.pop(0)
         del dump
 
-    except IndexError: # When no peaks have been found
+    except IndexError:  # When no peaks have been found
         pass
 
     max_peaks = np.asarray(max_peaks)
@@ -629,7 +690,14 @@ def peakdetect1d(y_axis, x_axis = None, lookahead = 200, delta=0):
     return max_peaks, min_peaks
 
 
-def fit_energy_calibation(pos, vals, refid=0, Eref=None, t=None, **kwds):
+def fit_energy_calibation(
+    pos: Sequence[float],
+    vals: Sequence[float],
+    refid: int = 0,
+    Eref: float = None,
+    t: Sequence[float] = None,
+    **kwds,
+) -> dict:
     """
     Energy calibration by nonlinear least squares fitting of spectral landmarks on
     a set of (energy dispersion curves (EDCs). This is done here by fitting to the
@@ -653,49 +721,80 @@ def fit_energy_calibation(pos, vals, refid=0, Eref=None, t=None, **kwds):
         :coeffs: Fitted function coefficents.
         :axis: Fitted energy axis.
     """
-    binwidth = kwds.pop('binwidth', 4.125e-12)
-    binning = kwds.pop('binning', 1)
+    binwidth = kwds.pop("binwidth", 4.125e-12)
+    binning = kwds.pop("binning", 1)
 
     vals = np.array(vals)
     nvals = vals.size
 
     if refid >= nvals:
-        wn.warn('Reference index (refid) cannot be larger than the number of traces!\
-                Reset to the largest allowed number.')
+        wn.warn(
+            "Reference index (refid) cannot be larger than the number of traces!\
+                Reset to the largest allowed number.",
+        )
         refid = nvals - 1
 
     def residual(pars, time, data, binwidth=binwidth, binning=binning):
-        model =  tof2ev(pars['d'], pars['t0'], pars['E0'], time, binwidth=binwidth, binning=binning)
+        model = tof2ev(
+            pars["d"],
+            pars["t0"],
+            pars["E0"],
+            time,
+            binwidth=binwidth,
+            binning=binning,
+        )
         if data is None:
             return model
-        return model-data
+        return model - data
 
     pars = Parameters()
-    pars.add(name="d", value=kwds.pop('d_init', 1))
-    pars.add(name="t0", value=kwds.pop('t0_init', 1E-6), max=(min(pos)-1)*binwidth*2**binning)
-    pars.add(name="E0", value=kwds.pop('E0_init',min(vals)))
+    pars.add(name="d", value=kwds.pop("d_init", 1))
+    pars.add(
+        name="t0",
+        value=kwds.pop("t0_init", 1e-6),
+        max=(min(pos) - 1) * binwidth * 2**binning,
+    )
+    pars.add(name="E0", value=kwds.pop("E0_init", min(vals)))
     fit = Minimizer(residual, pars, fcn_args=(pos, vals))
     result = fit.leastsq()
-    report_fit(result)  
+    report_fit(result)
 
     # Construct the calibrating function
-    pfunc = partial(tof2ev, result.params['d'].value, result.params['t0'].value, binwidth=binwidth, binning=binning)
+    pfunc = partial(
+        tof2ev,
+        result.params["d"].value,
+        result.params["t0"].value,
+        binwidth=binwidth,
+        binning=binning,
+    )
 
     # Return results according to specification
     ecalibdict = {}
-    ecalibdict['d'] = result.params['d'].value
-    ecalibdict['t0'] = result.params['t0'].value
-    ecalibdict['E0'] = result.params['E0'].value
-        
+    ecalibdict["d"] = result.params["d"].value
+    ecalibdict["t0"] = result.params["t0"].value
+    ecalibdict["E0"] = result.params["E0"].value
+
     if (Eref is not None) and (t is not None):
         E0 = -pfunc(-Eref, pos[refid])
-        ecalibdict['axis'] = pfunc(E0, t)
-        ecalibdict['E0'] = E0
+        ecalibdict["axis"] = pfunc(E0, t)
+        ecalibdict["E0"] = E0
 
-    return ecalibdict  
+    return ecalibdict
 
 
-def poly_energy_calibration(pos, vals, order=3, refid=0, ret='func', E0=None, Eref=None, t=None, aug=1, method='lstsq', **kwds):
+def poly_energy_calibration(
+    pos: Sequence[float],
+    vals: Sequence[float],
+    order: int = 3,
+    refid: int = 0,
+    ret: str = "func",
+    E0: float = None,
+    Eref: float = None,
+    t: Sequence[float] = None,
+    aug: int = 1,
+    method: str = "lstsq",
+    **kwds,
+) -> dict:
     """
     Energy calibration by nonlinear least squares fitting of spectral landmarks on
     a set of (energy dispersion curves (EDCs). This amounts to solving for the
@@ -724,7 +823,8 @@ def poly_energy_calibration(pos, vals, order=3, refid=0, ret='func', E0=None, Er
 
     **Returns**\n
     pfunc: partial function
-        Calibrating function with determined polynomial coefficients (except the constant offset).
+        Calibrating function with determined polynomial coefficients
+        (except the constant offset).
     ecalibdict: dict
         A dictionary of fitting parameters including the following,
         :coeffs: Fitted polynomial coefficients (the a's).
@@ -738,25 +838,27 @@ def poly_energy_calibration(pos, vals, order=3, refid=0, ret='func', E0=None, Er
     nvals = vals.size
 
     if refid >= nvals:
-        wn.warn('Reference index (refid) cannot be larger than the number of traces!\
-                Reset to the largest allowed number.')
+        wn.warn(
+            "Reference index (refid) cannot be larger than the number of traces!\
+                Reset to the largest allowed number.",
+        )
         refid = nvals - 1
 
     # Top-to-bottom ordering of terms in the T matrix
     termorder = np.delete(range(0, nvals, 1), refid)
     termorder = np.tile(termorder, aug)
     # Left-to-right ordering of polynomials in the T matrix
-    polyorder = np.linspace(order, 1, order, dtype='int')
+    polyorder = np.linspace(order, 1, order, dtype="int")
 
     # Construct the T (differential drift time) matrix, Tmat = Tmain - Tsec
-    Tmain = np.array([pos[refid]**p for p in polyorder])
+    Tmain = np.array([pos[refid] ** p for p in polyorder])
     # Duplicate to the same order as the polynomials
-    Tmain = np.tile(Tmain, (aug*(nvals-1), 1))
+    Tmain = np.tile(Tmain, (aug * (nvals - 1), 1))
 
     Tsec = []
 
     for to in termorder:
-        Tsec.append([pos[to]**p for p in polyorder])
+        Tsec.append([pos[to] ** p for p in polyorder])
     Tsec = np.asarray(Tsec)
     Tmat = Tmain - Tsec
 
@@ -765,9 +867,9 @@ def poly_energy_calibration(pos, vals, order=3, refid=0, ret='func', E0=None, Er
     bvec = np.tile(bvec, aug)
 
     # Solve for the a vector (polynomial coefficients) using least squares
-    if method == 'lstsq':
+    if method == "lstsq":
         sol = lstsq(Tmat, bvec, rcond=None)
-    elif method == 'lsqr':
+    elif method == "lsqr":
         sol = lsqr(Tmat, bvec, **kwds)
     a = sol[0]
 
@@ -776,31 +878,32 @@ def poly_energy_calibration(pos, vals, order=3, refid=0, ret='func', E0=None, Er
 
     # Return results according to specification
     ecalibdict = {}
-    ecalibdict['offset'] = np.asarray(pos).min()
-    ecalibdict['coeffs'] = a
-    ecalibdict['Tmat'] = Tmat
-    ecalibdict['bvec'] = bvec
+    ecalibdict["offset"] = np.asarray(pos).min()
+    ecalibdict["coeffs"] = a
+    ecalibdict["Tmat"] = Tmat
+    ecalibdict["bvec"] = bvec
     if (E0 is not None) and (t is not None):
-        ecalibdict['axis'] = pfunc(E0, t)
-        ecalibdict['E0'] = E0
-        
+        ecalibdict["axis"] = pfunc(E0, t)
+        ecalibdict["E0"] = E0
+
     elif (Eref is not None) and (t is not None):
         E0 = -pfunc(-Eref, pos[refid])
-        ecalibdict['axis'] = pfunc(E0, t)
-        ecalibdict['E0'] = E0
+        ecalibdict["axis"] = pfunc(E0, t)
+        ecalibdict["E0"] = E0
 
-    if ret == 'all':
+    if ret == "all":
         return ecalibdict
-    elif ret == 'func':
+    elif ret == "func":
         return pfunc
     else:
         return project(ecalibdict, ret)
 
 
-
-
-
-def apply_energy_correction(df:Union[pd.DataFrame, dask.dataframe.DataFrame], type:str, **kwds:dict)->Union[pd.DataFrame, dask.dataframe.DataFrame]:
+def apply_energy_correction(
+    df: Union[pd.DataFrame, dask.dataframe.DataFrame],
+    type: str,
+    **kwds,
+) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
     """Apply correction to the time-of-flight (TOF) axis of single-event data.
 
     :Parameters:
@@ -866,7 +969,7 @@ def apply_energy_correction(df:Union[pd.DataFrame, dask.dataframe.DataFrame], ty
                 gam**2
                 / ((df[X] - xcenter) ** 2 + (df[Y] - ycenter) ** 2 + gam**2)
             )
-        )
+        ) - amplitude / (gam * np.pi)
         return df
 
     elif type == "Gaussian":
@@ -901,7 +1004,11 @@ def apply_energy_correction(df:Union[pd.DataFrame, dask.dataframe.DataFrame], ty
         raise NotImplementedError
 
 
-def append_energy_axis(df, E0, **kwds):
+def append_energy_axis(
+    df: Union[pd.DataFrame, dask.dataframe.DataFrame],
+    E0: float,
+    **kwds,
+) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
     """Calculate and append the E axis to the events dataframe.
     This method can be reused.
 
@@ -938,7 +1045,14 @@ def append_energy_axis(df, E0, **kwds):
         raise NotImplementedError
 
 
-def tof2ev(d, t0, E0, t, binwidth=4.125e-12, binning=1):
+def tof2ev(
+    d: float,
+    t0: float,
+    E0: float,
+    t: Sequence[float],
+    binwidth: float = 4.125e-12,
+    binning: int = 1,
+) -> Sequence[float]:
     """
     d/(t-t0) expression of the time-of-flight to electron volt
     conversion formula.
@@ -964,7 +1078,11 @@ def tof2ev(d, t0, E0, t, binwidth=4.125e-12, binning=1):
     return E
 
 
-def tof2evpoly(a, E0, t):
+def tof2evpoly(
+    a: Sequence[float],
+    E0: float,
+    t: Sequence[float],
+) -> Sequence[float]:
     """
     Polynomial approximation of the time-of-flight to electron volt
     conversion formula.
