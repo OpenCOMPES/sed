@@ -17,6 +17,7 @@ from bokeh.colors import RGB
 from bokeh.io import output_notebook
 from bokeh.palettes import Category10 as ColorCycle
 from funcy import project
+from matplotlib import cm
 from numpy.linalg import norm
 from scipy.interpolate import griddata
 from symmetrize import pointops as po
@@ -959,10 +960,12 @@ def cm2palette(cmapName):
     """
 
     if cmapName in bp.all_palettes.keys():
-        palette = eval("bp." + cmapName)
+        palette_func = getattr(bp, cmapName)
+        palette = palette_func
 
     else:
-        mpl_cm_rgb = (255 * eval("cm." + cmapName)(range(256))).astype("int")
+        palette_func = getattr(cm, cmapName)
+        mpl_cm_rgb = (255 * palette_func)(range(256)).astype("int")
         palette = [RGB(*tuple(rgb)).to_hex() for rgb in mpl_cm_rgb]
 
     return palette

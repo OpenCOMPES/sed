@@ -543,7 +543,7 @@ def peaksearch(
 def _datacheck_peakdetect(
     x_axis: Sequence[float],
     y_axis: Sequence[float],
-) -> Tuple(np.ndarray, np.ndarray):
+) -> Tuple[np.ndarray, np.ndarray]:
     """
     Input format checking
     """
