@@ -33,7 +33,6 @@ class MomentumCorrector:
         self,
         image: np.ndarray,
         bin_ranges: List[Tuple[int, int]],
-        bin_steps: List[int],
         rotsym: int = 6,
         config: dict = {},
     ):
@@ -52,8 +51,7 @@ class MomentumCorrector:
         if self.imgndim == 2:
             self.slice = self.image
 
-        self.binranges = bin_ranges
-        self.binsteps = bin_steps
+        self.bin_ranges = bin_ranges
 
         self._config = config
 
@@ -62,8 +60,6 @@ class MomentumCorrector:
         self.arot = np.array([0] + [self.rotsym_angle] * (self.rotsym - 1))
         self.ascale = np.array([1.0] * self.rotsym)
         self.adjust_params = {}
-        self.binranges = []
-        self.binsteps = []
 
     @property
     def features(self) -> dict:
@@ -116,23 +112,6 @@ class MomentumCorrector:
 
         elif self.imgndim == 2:
             raise ValueError("Input image dimension is already 2!")
-
-    def import_binning_arameters(self, parp: object):
-        """Import parameters of binning used for correction image from
-        parallelHDF5Processor Class instance
-
-        Parameters:
-            parp: instance of the ``ParallelHDF5Processor`` class
-                Import parameters used for creation of the distortion-corrected image.
-        """
-
-        if hasattr(parp, "__class__"):
-            self.binranges = parp.binranges
-            self.binsteps = parp.binsteps
-        else:
-            raise ValueError(
-                "Not a valid parallelHDF5Processor class instance!",
-            )
 
     def feature_extract(
         self,
@@ -400,9 +379,7 @@ class MomentumCorrector:
         image: np.ndarray,
         axis: int,
         use_composite_transform: bool = False,
-        update: bool = False,
         use_deform_field: bool = False,
-        updatekwds: dict = {},
         **kwds,
     ) -> np.ndarray:
         """Apply a 2D transform to a stack of 2D images (3D) along a specific axis.
@@ -564,6 +541,11 @@ class MomentumCorrector:
         )
 
         if type == "translation":
+            if "xtrans" in kwds and "ytrans" in kwds:
+                tmp = kwds["ytrans"]
+                kwds["ytrans"] = kwds["xtrans"]
+                kwds["xtrans"] = tmp
+
             rdisp, cdisp = sym.translationDF(
                 coordmat,
                 stackaxis=stackax,
@@ -654,6 +636,7 @@ class MomentumCorrector:
                 order=interp_order,
                 **mapkwds,
             )
+            self.slice_transformed = slice_transformed
         else:
             # if external image is provided, apply only the new addional tranformation
             slice_transformed = ndi.map_coordinates(
@@ -683,6 +666,7 @@ class MomentumCorrector:
         backend: str = "matplotlib",
         imkwds: dict = {},
         scatterkwds: dict = {},
+        cross: bool = False,
         crosshair: bool = False,
         crosshair_radii: List[int] = [50, 100, 150],
         crosshair_thickness: int = 1,
@@ -720,7 +704,10 @@ class MomentumCorrector:
 
         if image is None:
             image = self.slice
-        nr, nc = image.shape
+        num_rows, num_cols = image.shape
+
+        if points is None:
+            points = self.features
 
         if annotated:
             tsr, tsc = kwds.pop("textshift", (3, 3))
@@ -728,22 +715,26 @@ class MomentumCorrector:
 
         if backend == "matplotlib":
             f, ax = plt.subplots(figsize=figsize)
-            ax.imshow(image, origin=origin, cmap=cmap, **imkwds)
+            ax.imshow(image.T, origin=origin, cmap=cmap, **imkwds)
+
+            if cross:
+                ax.axvline(x=256)
+                ax.axhline(y=256)
 
             # Add annotation to the figure
             if annotated:
                 for p_keys, p_vals in points.items():
 
                     try:
-                        ax.scatter(p_vals[:, 1], p_vals[:, 0], **scatterkwds)
+                        ax.scatter(p_vals[:, 0], p_vals[:, 1], **scatterkwds)
                     except IndexError:
-                        ax.scatter(p_vals[1], p_vals[0], **scatterkwds)
+                        ax.scatter(p_vals[0], p_vals[1], **scatterkwds)
 
                     if p_vals.size > 2:
                         for i_pval, pval in enumerate(p_vals):
                             ax.text(
-                                pval[1] + tsc,
-                                pval[0] + tsr,
+                                pval[0] + tsc,
+                                pval[1] + tsr,
                                 str(i_pval),
                                 fontsize=txtsize,
                             )
@@ -760,15 +751,15 @@ class MomentumCorrector:
                 plot_width=figsize[0],
                 plot_height=figsize[1],
                 tooltips=ttp,
-                x_range=(0, nc),
-                y_range=(0, nr),
+                x_range=(0, num_rows),
+                y_range=(0, num_cols),
             )
             f.image(
-                image=[image],
+                image=[image.T],
                 x=0,
                 y=0,
-                dw=nc,
-                dh=nr,
+                dw=num_rows,
+                dh=num_cols,
                 palette=palette,
                 **imkwds,
             )
@@ -777,7 +768,7 @@ class MomentumCorrector:
                 for p_keys, p_vals in points.items():
 
                     try:
-                        xcirc, ycirc = p_vals[:, 1], p_vals[:, 0]
+                        xcirc, ycirc = p_vals[:, 0], p_vals[:, 1]
                         f.scatter(
                             xcirc,
                             ycirc,
@@ -786,20 +777,21 @@ class MomentumCorrector:
                             **scatterkwds,
                         )
                     except IndexError:
-                        xcirc, ycirc = p_vals[1], p_vals[0]
-                        f.scatter(
-                            xcirc,
-                            ycirc,
-                            size=8,
-                            color=next(colors),
-                            **scatterkwds,
-                        )
+                        if len(p_vals):
+                            xcirc, ycirc = p_vals[0], p_vals[1]
+                            f.scatter(
+                                xcirc,
+                                ycirc,
+                                size=8,
+                                color=next(colors),
+                                **scatterkwds,
+                            )
 
             if crosshair:
                 for radius in crosshair_radii:
                     f.annulus(
-                        x=[self.pcent[1]],
-                        y=[self.pcent[0]],
+                        x=[self.pcent[0]],
+                        y=[self.pcent[1]],
                         inner_radius=radius - crosshair_thickness,
                         outer_radius=radius,
                         color="red",
@@ -816,7 +808,7 @@ class MomentumCorrector:
         image: np.ndarray = None,
         k_coord_a: Tuple[float, float] = None,
         k_coord_b: Tuple[float, float] = [0.0, 0.0],
-        equiscale: bool = False,
+        equiscale: bool = True,
     ) -> dict:
         """Momentum axes calibration using the pixel positions of two symmetry points
         (a and b) and the absolute coordinate of a single point (b), defaulted to
@@ -837,7 +829,7 @@ class MomentumCorrector:
         kcoordb: list/tuple/1D array | [0., 0.]
             Momentum coordinates of the symmetry point b (krow, kcol), default to
             k-space center.
-        equiscale: bool | False
+        equiscale: bool | True
             Option to adopt equal scale along both the row and column directions.
             :True: Use a uniform scale for both x and y directions in the image
             coordinate system. This applies to the situation where the points a and b
@@ -894,18 +886,22 @@ class MomentumCorrector:
         # Assemble into return dictionary
         self.calibration = {}
         self.calibration["axes"] = (k_row, k_col)
-        self.calibration["extent"] = (k_col[0], k_col[-1], k_row[0], k_row[-1])
+        self.calibration["extent"] = (k_row[0], k_row[-1], k_col[0], k_col[-1])
         self.calibration["coeffs"] = (yratio, xratio)
         self.calibration["grid"] = (k_rowgrid, k_colgrid)
         self.calibration["x_center"] = point_b[1] - k_coord_b[1] / xratio
         self.calibration["y_center"] = point_b[0] - k_coord_b[0] / yratio
         # copy parameters for applying calibration
         try:
-            self.calibration["rstart"] = self.binranges[0][0]
-            self.calibration["cstart"] = self.binranges[1][0]
-            self.calibration["rsteps"] = self.binsteps[0]
-            self.calibration["csteps"] = self.binsteps[1]
-        except (NameError, IndexError):
+            self.calibration["rstart"] = self.bin_ranges[0][0]
+            self.calibration["cstart"] = self.bin_ranges[1][0]
+            self.calibration["rstep"] = (
+                self.bin_ranges[0][1] - self.bin_ranges[0][0]
+            ) / nrows
+            self.calibration["cstep"] = (
+                self.bin_ranges[1][1] - self.bin_ranges[1][0]
+            ) / ncols
+        except (AttributeError, IndexError):
             pass
 
         return self.calibration
@@ -917,7 +913,7 @@ class MomentumCorrector:
         Y: str = "Y",
         newX: str = "Xm",
         newY: str = "Ym",
-        type: str = "mattrans",
+        type: str = "tps",
         **kwds: dict,
     ) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
         """Calculate and replace the X and Y values with their distortion-corrected
@@ -968,7 +964,7 @@ class MomentumCorrector:
             else:
                 try:
                     dfield = self.dfield
-                except NameError:
+                except AttributeError:
                     detector_ranges = [[0, 2048], [0, 2048]]
                     self.dfield = generate_dfield(
                         self.rdeform_field,
@@ -1054,7 +1050,7 @@ def cm2palette(cmapName):
 
     else:
         palette_func = getattr(cm, cmapName)
-        mpl_cm_rgb = (255 * palette_func)(range(256)).astype("int")
+        mpl_cm_rgb = (255 * palette_func(range(256))).astype("int")
         palette = [RGB(*tuple(rgb)).to_hex() for rgb in mpl_cm_rgb]
 
     return palette
@@ -1172,8 +1168,8 @@ def apply_dfield(
     y = df[Y]
 
     df[newX], df[newY] = (
-        dfield[0, np.int16(x), np.int16(y)],
-        dfield[1, np.int16(x), np.int16(y)],
+        dfield[0, np.int16(y), np.int16(x)],
+        dfield[1, np.int16(y), np.int16(x)],
     )
     return df
 
@@ -1197,7 +1193,7 @@ def generate_dfield(
             inverse 3D deformation field stacked along the first dimension
     """
     # Interpolate to 2048x2048 grid of the detector coordinates
-    dest_mesh_x, dest_mesh_y = np.meshgrid(
+    dest_mesh_r, dest_mesh_c = np.meshgrid(
         np.linspace(
             detector_ranges[0][0],
             cdeform_field.shape[0],
@@ -1206,50 +1202,48 @@ def generate_dfield(
         ),
         np.linspace(
             detector_ranges[1][0],
-            cdeform_field.shape[0],
+            cdeform_field.shape[1],
             detector_ranges[1][1],
             endpoint=False,
         ),
         sparse=False,
-        indexing="ij",
     )
-    source_mesh_x, source_mesh_y = np.meshgrid(
+    source_mesh_r, source_mesh_c = np.meshgrid(
         np.arange(0, cdeform_field.shape[0]),
-        np.arange(0, cdeform_field.shape[0]),
+        np.arange(0, cdeform_field.shape[1]),
         sparse=False,
-        indexing="ij",
     )
-    (x, y) = (
-        rdeform_field[source_mesh_x, source_mesh_y],
-        cdeform_field[source_mesh_x, source_mesh_y],
+    (r, c) = (
+        rdeform_field[source_mesh_r, source_mesh_c],
+        cdeform_field[source_mesh_r, source_mesh_c],
     )
-    xy_pos = [
-        (x, y) for (x, y) in zip(np.ndarray.flatten(x), np.ndarray.flatten(y))
+    rc_pos = [
+        (r, c) for (r, c) in zip(np.ndarray.flatten(r), np.ndarray.flatten(c))
     ]
     z_pos = [
         (detector_ranges[0][1] - detector_ranges[0][0])
         / cdeform_field.shape[0]
         * i
-        for i in np.ndarray.flatten(source_mesh_x)
+        for i in np.ndarray.flatten(source_mesh_r)
     ]
 
     inv_rdeform_field = griddata(
-        np.asarray(xy_pos),
+        np.asarray(rc_pos),
         z_pos,
-        (dest_mesh_x, dest_mesh_y),
+        (dest_mesh_r, dest_mesh_c),
     )
 
     z_pos = [
         (detector_ranges[1][1] - detector_ranges[1][0])
         / cdeform_field.shape[1]
         * i
-        for i in np.ndarray.flatten(source_mesh_x)
+        for i in np.ndarray.flatten(source_mesh_c)
     ]
 
     inv_cdeform_field = griddata(
-        np.asarray(xy_pos),
+        np.asarray(rc_pos),
         z_pos,
-        (dest_mesh_x, dest_mesh_y),
+        (dest_mesh_r, dest_mesh_c),
     )
 
     # TODO: what to do about the nans at the boundary? leave or fill with zeros?
