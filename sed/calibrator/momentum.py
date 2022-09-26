@@ -52,6 +52,7 @@ class MomentumCorrector:
             self.slice = self.image
 
         self.bin_ranges = bin_ranges
+        self.detector_ranges = [[0, 2048], [0, 2048]]
 
         self._config = config
 
@@ -657,6 +658,18 @@ class MomentumCorrector:
 
         return slice_transformed
 
+    def calc_dfield(self):
+        """Calculate the inverse dfield from the cdeform and rdeform fields"""
+
+        self.dfield = generate_dfield(
+            self.rdeform_field,
+            self.cdeform_field,
+            self.bin_ranges,
+            self.detector_ranges,
+        )
+
+        return self.dfield
+
     def view(
         self,
         image: np.ndarray = None,
@@ -967,11 +980,11 @@ class MomentumCorrector:
                 try:
                     dfield = self.dfield
                 except AttributeError:
-                    detector_ranges = [[0, 2048], [0, 2048]]
                     self.dfield = generate_dfield(
                         self.rdeform_field,
                         self.cdeform_field,
-                        detector_ranges,
+                        self.bin_ranges,
+                        self.detector_ranges,
                     )
                     dfield = self.dfield
 
@@ -1056,19 +1069,6 @@ def cm2palette(cmapName):
         palette = [RGB(*tuple(rgb)).to_hex() for rgb in mpl_cm_rgb]
 
     return palette
-
-
-def invert_map(F, P):
-    I = np.zeros_like(P)
-    I[:, :, 1], I[:, :, 0] = np.indices(P.shape)
-    P = np.copy(I)
-    epsilon = 1
-    while epsilon > 0.1:
-        X = I - ndi.map_coordinates(F, P)
-        epsilon = X.sum(axis=None)
-        print(epsilon)
-        P += X
-    return P
 
 
 def _rotate2d(image, center, angle, scale=1):
@@ -1192,6 +1192,7 @@ def apply_dfield(
 def generate_dfield(
     rdeform_field: np.ndarray,
     cdeform_field: np.ndarray,
+    bin_ranges: Tuple[Tuple[int, int], Tuple[int, int]],
     detector_ranges: Tuple[Tuple[int, int], Tuple[int, int]],
 ) -> np.ndarray:
     """
@@ -1225,6 +1226,9 @@ def generate_dfield(
         indexing="ij",
     )
 
+    bin_step = (
+        np.asarray(bin_ranges)[0:2][:, 1] - np.asarray(bin_ranges)[0:2][:, 0]
+    ) / cdeform_field.shape
     rc_position = []  # row/column position in c/rdeform_field
     r_dest = []  # destination pixel row position
     c_dest = []  # destination pixel column position
@@ -1233,16 +1237,17 @@ def generate_dfield(
             if not np.isnan(rdeform_field[i, j]) and not np.isnan(
                 cdeform_field[i, j],
             ):
-                rc_position.append([rdeform_field[i, j], cdeform_field[i, j]])
+                rc_position.append(
+                    [
+                        rdeform_field[i, j] + bin_ranges[0][0] / bin_step[0],
+                        cdeform_field[i, j] + bin_ranges[0][0] / bin_step[1],
+                    ],
+                )
                 r_dest.append(
-                    (detector_ranges[0][1] - detector_ranges[0][0])
-                    / cdeform_field.shape[0]
-                    * i,
+                    bin_step[0] * i + bin_ranges[0][0],
                 )
                 c_dest.append(
-                    (detector_ranges[1][1] - detector_ranges[1][0])
-                    / cdeform_field.shape[1]
-                    * j,
+                    bin_step[1] * j + bin_ranges[1][0],
                 )
 
     inv_rdeform_field = griddata(
