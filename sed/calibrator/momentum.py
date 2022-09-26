@@ -500,11 +500,13 @@ class MomentumCorrector:
             self.rdeform_field,
             [rdeform, cdeform],
             order=1,
+            cval=np.nan,
         )
         self.cdeform_field = ndi.map_coordinates(
             self.cdeform_field,
             [rdeform, cdeform],
             order=1,
+            cval=np.nan,
         )
 
     def coordinate_transform(
@@ -1056,6 +1058,19 @@ def cm2palette(cmapName):
     return palette
 
 
+def invert_map(F, P):
+    I = np.zeros_like(P)
+    I[:, :, 1], I[:, :, 0] = np.indices(P.shape)
+    P = np.copy(I)
+    epsilon = 1
+    while epsilon > 0.1:
+        X = I - ndi.map_coordinates(F, P)
+        epsilon = X.sum(axis=None)
+        print(epsilon)
+        P += X
+    return P
+
+
 def _rotate2d(image, center, angle, scale=1):
     """
     2D matrix scaled rotation carried out in the homogenous coordinate.
@@ -1168,8 +1183,8 @@ def apply_dfield(
     y = df[Y]
 
     df[newX], df[newY] = (
-        dfield[0, np.int16(y), np.int16(x)],
-        dfield[1, np.int16(y), np.int16(x)],
+        dfield[0, np.int16(x), np.int16(y)],
+        dfield[1, np.int16(x), np.int16(y)],
     )
     return df
 
@@ -1193,7 +1208,7 @@ def generate_dfield(
             inverse 3D deformation field stacked along the first dimension
     """
     # Interpolate to 2048x2048 grid of the detector coordinates
-    dest_mesh_r, dest_mesh_c = np.meshgrid(
+    r_mesh, c_mesh = np.meshgrid(
         np.linspace(
             detector_ranges[0][0],
             cdeform_field.shape[0],
@@ -1207,43 +1222,39 @@ def generate_dfield(
             endpoint=False,
         ),
         sparse=False,
+        indexing="ij",
     )
-    source_mesh_r, source_mesh_c = np.meshgrid(
-        np.arange(0, cdeform_field.shape[0]),
-        np.arange(0, cdeform_field.shape[1]),
-        sparse=False,
-    )
-    (r, c) = (
-        rdeform_field[source_mesh_r, source_mesh_c],
-        cdeform_field[source_mesh_r, source_mesh_c],
-    )
-    rc_pos = [
-        (r, c) for (r, c) in zip(np.ndarray.flatten(r), np.ndarray.flatten(c))
-    ]
-    z_pos = [
-        (detector_ranges[0][1] - detector_ranges[0][0])
-        / cdeform_field.shape[0]
-        * i
-        for i in np.ndarray.flatten(source_mesh_r)
-    ]
+
+    rc_position = []  # row/column position in c/rdeform_field
+    r_dest = []  # destination pixel row position
+    c_dest = []  # destination pixel column position
+    for i in np.arange(cdeform_field.shape[0]):
+        for j in np.arange(cdeform_field.shape[1]):
+            if not np.isnan(rdeform_field[i, j]) and not np.isnan(
+                cdeform_field[i, j],
+            ):
+                rc_position.append([rdeform_field[i, j], cdeform_field[i, j]])
+                r_dest.append(
+                    (detector_ranges[0][1] - detector_ranges[0][0])
+                    / cdeform_field.shape[0]
+                    * i,
+                )
+                c_dest.append(
+                    (detector_ranges[1][1] - detector_ranges[1][0])
+                    / cdeform_field.shape[1]
+                    * j,
+                )
 
     inv_rdeform_field = griddata(
-        np.asarray(rc_pos),
-        z_pos,
-        (dest_mesh_r, dest_mesh_c),
+        np.asarray(rc_position),
+        r_dest,
+        (r_mesh, c_mesh),
     )
 
-    z_pos = [
-        (detector_ranges[1][1] - detector_ranges[1][0])
-        / cdeform_field.shape[1]
-        * i
-        for i in np.ndarray.flatten(source_mesh_c)
-    ]
-
     inv_cdeform_field = griddata(
-        np.asarray(rc_pos),
-        z_pos,
-        (dest_mesh_r, dest_mesh_c),
+        np.asarray(rc_position),
+        c_dest,
+        (r_mesh, c_mesh),
     )
 
     # TODO: what to do about the nans at the boundary? leave or fill with zeros?
