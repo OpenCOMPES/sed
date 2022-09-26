@@ -1,5 +1,7 @@
-# Note: some of the functions presented here were
-# inspired by https://github.com/mpes-kit/mpes
+"""sed.calibrator.momentum module. Code for momentum calibration and distotion
+correction. Mostly ported from https://github.com/mpes-kit/mpes.
+"""
+# pylint: disable=too-many-lines
 import itertools as it
 from typing import List
 from typing import Tuple
@@ -24,12 +26,12 @@ from symmetrize import sym
 from symmetrize import tps
 
 
-class MomentumCorrector:
+class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
     """
     Momentum distortion correction and momentum calibration workflow.
     """
 
-    def __init__(
+    def __init__(  # pylint: disable=dangerous-default-value
         self,
         image: np.ndarray,
         bin_ranges: List[Tuple[int, int]],
@@ -105,20 +107,20 @@ class MomentumCorrector:
         """
 
         if self.imgndim > 2:
-            im = np.moveaxis(self.image, axis, 0)
+            immage = np.moveaxis(self.image, axis, 0)
             try:
-                self.slice = im[selector, ...].sum(axis=0)
-            except (AttributeError):
-                self.slice = im[selector, ...]
+                self.slice = immage[selector, ...].sum(axis=0)
+            except AttributeError:
+                self.slice = immage[selector, ...]
 
         elif self.imgndim == 2:
             raise ValueError("Input image dimension is already 2!")
 
-    def feature_extract(
+    def feature_extract(  # pylint: disable=too-many-arguments
         self,
         image: np.ndarray = None,
         direction: str = "ccw",
-        type: str = "points",
+        feature_type: str = "points",
         center_det: str = "centroidnn",
         symscores: bool = True,
         **kwds,
@@ -142,7 +144,7 @@ class MomentumCorrector:
         if image is None:
             image = self.slice
 
-        if type == "points":
+        if feature_type == "points":
 
             self.center_detection_method = center_det
             symtype = kwds.pop("symtype", "rotation")
@@ -179,7 +181,7 @@ class MomentumCorrector:
                     coords=self.pouter_ord,
                     coord_order="rc",
                 )
-            except BaseException:
+            except (AttributeError, IndexError):
                 pass
 
             # Calculate geometric distances
@@ -224,7 +226,7 @@ class MomentumCorrector:
 
         return csm
 
-    def lin_warp_estimate(
+    def lin_warp_estimate(  # pylint: disable=dangerous-default-value
         self,
         weights: Tuple[int, int, int] = (1, 1, 1),
         optfunc: str = "minimize",
@@ -510,9 +512,9 @@ class MomentumCorrector:
             cval=np.nan,
         )
 
-    def coordinate_transform(
+    def coordinate_transform(  # pylint: disable=dangerous-default-value, too-many-locals, too-many-branches
         self,
-        type: str,
+        transform_type: str,
         keep: bool = False,
         interp_order: int = 1,
         mapkwds: dict = {},
@@ -543,7 +545,7 @@ class MomentumCorrector:
             stackaxis=stackax,
         )
 
-        if type == "translation":
+        if transform_type == "translation":
             if "xtrans" in kwds and "ytrans" in kwds:
                 tmp = kwds["ytrans"]
                 kwds["ytrans"] = kwds["xtrans"]
@@ -555,7 +557,7 @@ class MomentumCorrector:
                 ret="displacement",
                 **kwds,
             )
-        elif type == "rotation":
+        elif transform_type == "rotation":
             rdisp, cdisp = sym.rotationDF(
                 coordmat,
                 stackaxis=stackax,
@@ -670,7 +672,7 @@ class MomentumCorrector:
 
         return self.dfield
 
-    def view(
+    def view(  # pylint: disable=dangerous-default-value, too-many-arguments, too-many-locals, too-many-branches
         self,
         image: np.ndarray = None,
         origin: str = "lower",
@@ -729,7 +731,7 @@ class MomentumCorrector:
             txtsize = kwds.pop("textsize", 12)
 
         if backend == "matplotlib":
-            f, ax = plt.subplots(figsize=figsize)
+            fig, ax = plt.subplots(figsize=figsize)
             ax.imshow(image.T, origin=origin, cmap=cmap, **imkwds)
 
             if cross:
@@ -738,7 +740,10 @@ class MomentumCorrector:
 
             # Add annotation to the figure
             if annotated:
-                for p_keys, p_vals in points.items():
+                for (
+                    p_keys,  # pylint: disable=unused-variable
+                    p_vals,
+                ) in points.items():
 
                     try:
                         ax.scatter(p_vals[:, 0], p_vals[:, 1], **scatterkwds)
@@ -753,7 +758,7 @@ class MomentumCorrector:
                                 str(i_pval),
                                 fontsize=txtsize,
                             )
-            f.show()
+            fig.show()
 
         elif backend == "bokeh":
 
@@ -762,14 +767,14 @@ class MomentumCorrector:
             ttp = [("(x, y)", "($x, $y)")]
             figsize = kwds.pop("figsize", (320, 300))
             palette = cm2palette(cmap)  # Retrieve palette colors
-            f = pbk.figure(
+            fig = pbk.figure(
                 plot_width=figsize[0],
                 plot_height=figsize[1],
                 tooltips=ttp,
                 x_range=(0, num_rows),
                 y_range=(0, num_cols),
             )
-            f.image(
+            fig.image(
                 image=[image.T],
                 x=0,
                 y=0,
@@ -784,7 +789,7 @@ class MomentumCorrector:
 
                     try:
                         xcirc, ycirc = p_vals[:, 0], p_vals[:, 1]
-                        f.scatter(
+                        fig.scatter(
                             xcirc,
                             ycirc,
                             size=8,
@@ -794,7 +799,7 @@ class MomentumCorrector:
                     except IndexError:
                         if len(p_vals):
                             xcirc, ycirc = p_vals[0], p_vals[1]
-                            f.scatter(
+                            fig.scatter(
                                 xcirc,
                                 ycirc,
                                 size=8,
@@ -804,7 +809,7 @@ class MomentumCorrector:
 
             if crosshair:
                 for radius in crosshair_radii:
-                    f.annulus(
+                    fig.annulus(
                         x=[self.pcent[0]],
                         y=[self.pcent[1]],
                         inner_radius=radius - crosshair_thickness,
@@ -813,9 +818,9 @@ class MomentumCorrector:
                         alpha=0.6,
                     )
 
-            pbk.show(f)
+            pbk.show(fig)
 
-    def calibrate(
+    def calibrate(  # pylint: disable=dangerous-default-value, too-many-arguments, too-many-locals
         self,
         point_a: Tuple[int, int],
         point_b: Tuple[int, int],
@@ -921,14 +926,14 @@ class MomentumCorrector:
 
         return self.calibration
 
-    def apply_distortion_correction(
+    def apply_distortion_correction(  # pylint:disable=too-many-arguments
         self,
         df: Union[pd.DataFrame, dask.dataframe.DataFrame],
-        X: str = "X",
-        Y: str = "Y",
-        newX: str = "Xm",
-        newY: str = "Ym",
-        type: str = "tps",
+        x_column: str = "X",
+        y_column: str = "Y",
+        new_x_column: str = "Xm",
+        new_y_column: str = "Ym",
+        transformation_type: str = "tps",
         **kwds: dict,
     ) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
         """Calculate and replace the X and Y values with their distortion-corrected
@@ -946,21 +951,21 @@ class MomentumCorrector:
             dataframe with added columns
         """
 
-        if type == "mattrans":  # Apply matrix transform
+        if transformation_type == "mattrans":  # Apply matrix transform
             if "warping" in kwds:
                 warping = kwds.pop("warping")
             else:
                 warping = self.linwarp
-            df[newX], df[newY] = perspective_transform(
-                df[X],
-                df[Y],
+            df[new_x_column], df[new_y_column] = perspective_transform(
+                df[x_column],
+                df[y_column],
                 warping,
                 **kwds,
             )
 
             return df
 
-        elif type in ("tps", "tps_matrix"):
+        if transformation_type in ("tps", "tps_matrix"):
             if "dfield" in kwds:
                 dfield = kwds.pop("dfield")
             elif "rdeform_field" in kwds and "cdeform_field" in kwds:
@@ -969,11 +974,11 @@ class MomentumCorrector:
                 print(
                     "Calculating inverse Deformation Field, might take a moment...",
                 )
-                detector_ranges = [[0, 2048], [0, 2048]]
                 self.dfield = generate_dfield(
                     rdeform_field,
                     cdeform_field,
-                    detector_ranges,
+                    self.bin_ranges,
+                    self.detector_ranges,
                 )
                 dfield = self.dfield
             else:
@@ -991,21 +996,23 @@ class MomentumCorrector:
             out_df = df.map_partitions(
                 apply_dfield,
                 dfield,
-                X=X,
-                Y=Y,
-                newX=newX,
-                newY=newY,
+                x_column=x_column,
+                y_column=y_column,
+                new_x_column=new_x_column,
+                new_y_column=new_y_column,
                 **kwds,
             )
             return out_df
 
-    def append_k_axis(
+        return df
+
+    def append_k_axis(  # pylint: disable=too-many-arguments
         self,
         df: Union[pd.DataFrame, dask.dataframe.DataFrame],
-        X: str = "Xm",
-        Y: str = "Ym",
-        newX: str = "kx",
-        newY: str = "ky",
+        x_column: str = "Xm",
+        y_column: str = "Ym",
+        new_x_column: str = "kx",
+        new_y_column: str = "ky",
         **kwds: dict,
     ) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
         """Calculate and append the k axis coordinates (kx, ky) to the events dataframe.
@@ -1025,33 +1032,39 @@ class MomentumCorrector:
         """
 
         try:
-            df[newX], df[newY] = detector_coordiantes_2_k_koordinates(
-                rdet=df[X],
-                cdet=df[Y],
-                rstart=self.calibration["rstart"],
-                cstart=self.calibration["cstart"],
-                r0=self.calibration["x_center"],
-                c0=self.calibration["y_center"],
-                fr=self.calibration["coeffs"][0],
-                fc=self.calibration["coeffs"][1],
-                rstep=self.calibration["rstep"],
-                cstep=self.calibration["cstep"],
+            (
+                df[new_x_column],
+                df[new_y_column],
+            ) = detector_coordiantes_2_k_koordinates(
+                r_det=df[x_column],
+                c_det=df[y_column],
+                r_start=self.calibration["rstart"],
+                c_start=self.calibration["cstart"],
+                r_center=self.calibration["x_center"],
+                c_center=self.calibration["y_center"],
+                r_conversion=self.calibration["coeffs"][0],
+                c_conversion=self.calibration["coeffs"][1],
+                r_step=self.calibration["rstep"],
+                c_step=self.calibration["cstep"],
             )
         except KeyError:
-            df[newX], df[newY] = detector_coordiantes_2_k_koordinates(
-                rdet=df[X],
-                cdet=df[Y],
+            (
+                df[new_x_column],
+                df[new_y_column],
+            ) = detector_coordiantes_2_k_koordinates(
+                r_det=df[x_column],
+                c_det=df[y_column],
                 **kwds,
             )
 
         return df
 
 
-def cm2palette(cmapName):
+def cm2palette(cmap_name):
     """Convert certain matplotlib colormap (cm) to bokeh palette.
 
     **Parameter**\n
-    cmapName: str
+    cmap_name: str
         Name of the colormap/palette.
 
     **Return**\n
@@ -1059,12 +1072,12 @@ def cm2palette(cmapName):
         List of colors in hex representation (a bokoeh palette).
     """
 
-    if cmapName in bp.all_palettes.keys():
-        palette_func = getattr(bp, cmapName)
+    if cmap_name in bp.all_palettes.keys():
+        palette_func = getattr(bp, cmap_name)
         palette = palette_func
 
     else:
-        palette_func = getattr(cm, cmapName)
+        palette_func = getattr(cm, cmap_name)
         mpl_cm_rgb = (255 * palette_func(range(256))).astype("int")
         palette = [RGB(*tuple(rgb)).to_hex() for rgb in mpl_cm_rgb]
 
@@ -1101,65 +1114,71 @@ def _rotate2d(image, center, angle, scale=1):
     return image_rot, rotmat
 
 
-def dictmerge(D, others):
+def dictmerge(
+    main_dict: dict,
+    other_entries: Union[List[dict], Tuple[dict], dict],
+) -> dict:
     """
     Merge a dictionary with other dictionaries.
 
     **Parameters**\n
-    D: dict
+    main_dict: dict
         Main dictionary.
     others: list/tuple/dict
         Other dictionary or composite dictionarized elements.
 
     **Return**\n
-    D: dict
+    Dmain_dict: dict
         Merged dictionary.
     """
 
-    if type(others) in (
-        list,
-        tuple,
-    ):  # Merge D with a list or tuple of dictionaries
-        for oth in others:
-            D = {**D, **oth}
+    if isinstance(
+        other_entries,
+        (
+            list,
+            tuple,
+        ),
+    ):  # Merge main_dict with a list or tuple of dictionaries
+        for oth in other_entries:
+            main_dict = {**main_dict, **oth}
 
-    elif type(others) == dict:  # Merge D with a single dictionary
-        D = {**D, **others}
+    elif isinstance(other_entries, dict):  # Merge D with a single dictionary
+        main_dict = {**main_dict, **other_entries}
 
-    return D
+    return main_dict
 
 
-def detector_coordiantes_2_k_koordinates(
-    rdet: float,
-    cdet: float,
-    rstart: float,
-    cstart: float,
-    r0: float,
-    c0: float,
-    fr: float,
-    fc: float,
-    rstep: float,
-    cstep: float,
+def detector_coordiantes_2_k_koordinates(  # pylint: disable=too-many-arguments
+    r_det: float,
+    c_det: float,
+    r_start: float,
+    c_start: float,
+    r_center: float,
+    c_center: float,
+    r_conversion: float,
+    c_conversion: float,
+    r_step: float,
+    c_step: float,
 ) -> Tuple[float, float]:
     """
     Conversion from detector coordinates (rdet, cdet) to momentum coordinates (kr, kc).
     """
 
-    rdet0 = rstart + rstep * r0
-    cdet0 = cstart + cstep * c0
-    kr = fr * ((rdet - rdet0) / rstep)
-    kc = fc * ((cdet - cdet0) / cstep)
+    r_det0 = r_start + r_step * r_center
+    c_det0 = c_start + c_step * c_center
+    k_r = r_conversion * ((r_det - r_det0) / r_step)
+    k_c = c_conversion * ((c_det - c_det0) / c_step)
 
-    return (kr, kc)
+    return (k_r, k_c)
 
 
-def apply_dfield(
+def apply_dfield(  # pylint: disable=too-many-arguments
     df: Union[pd.DataFrame, dask.dataframe.DataFrame],
     dfield: np.ndarray,
-    X: str,
-    Y: str,
-    newX: str,
-    newY: str,
+    x_column: str,
+    y_column: str,
+    new_x_column: str,
+    new_y_column: str,
 ) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
     """
     Application of the inverse displacement-field to the dataframe coordinates
@@ -1179,10 +1198,10 @@ def apply_dfield(
         dataframe with added columns
     """
 
-    x = df[X]
-    y = df[Y]
+    x = df[x_column]
+    y = df[y_column]
 
-    df[newX], df[newY] = (
+    df[new_x_column], df[new_y_column] = (
         dfield[0, np.int16(x), np.int16(y)],
         dfield[1, np.int16(x), np.int16(y)],
     )
@@ -1274,7 +1293,7 @@ def generate_dfield(
 def perspective_transform(
     x: float,
     y: float,
-    M: np.ndarray,
+    M: np.ndarray,  # pylint: disable=invalid-name
 ) -> Tuple[float, float]:
     """Implementation of the perspective transform (homography) in 2D.
 

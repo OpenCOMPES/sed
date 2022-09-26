@@ -29,7 +29,7 @@ jobs:
     - name: pylint
       continue-on-error: true
       run: |
-        python -m pylint --good-names=i,j,k,ex,x,y,k,v,ax sed tests
+        python -m pylint --good-names=i,j,k,ex,x,y,k,v,ax,df,X,Y sed tests
     - name: mypy
       continue-on-error: true
       run: |
