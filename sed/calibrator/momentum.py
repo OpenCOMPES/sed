@@ -889,11 +889,11 @@ class MomentumCorrector:
             kyb, kxb = k_coord_b
             kya, kxa = k_coord_a
             # Calculate the column- and row-wise conversion factor
-            xratio = (kxa - kxb) / (point_a[1] - point_b[1])
-            yratio = (kya - kyb) / (point_a[0] - point_b[0])
+            xratio = (kxa - kxb) / (point_a[0] - point_b[0])
+            yratio = (kya - kyb) / (point_a[1] - point_b[1])
 
-        k_row = rowdist * yratio + k_coord_b[0]
-        k_col = coldist * xratio + k_coord_b[1]
+        k_row = rowdist * xratio + k_coord_b[0]
+        k_col = coldist * yratio + k_coord_b[1]
 
         # Calculate other return parameters
         k_rowgrid, k_colgrid = np.meshgrid(k_row, k_col)
@@ -902,10 +902,10 @@ class MomentumCorrector:
         self.calibration = {}
         self.calibration["axes"] = (k_row, k_col)
         self.calibration["extent"] = (k_row[0], k_row[-1], k_col[0], k_col[-1])
-        self.calibration["coeffs"] = (yratio, xratio)
+        self.calibration["coeffs"] = (xratio, yratio)
         self.calibration["grid"] = (k_rowgrid, k_colgrid)
-        self.calibration["x_center"] = point_b[1] - k_coord_b[1] / xratio
-        self.calibration["y_center"] = point_b[0] - k_coord_b[0] / yratio
+        self.calibration["x_center"] = point_b[0] - k_coord_b[0] / xratio
+        self.calibration["y_center"] = point_b[1] - k_coord_b[1] / yratio
         # copy parameters for applying calibration
         try:
             self.calibration["rstart"] = self.bin_ranges[0][0]
