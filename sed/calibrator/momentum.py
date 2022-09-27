@@ -6,6 +6,9 @@ import itertools as it
 from typing import List
 from typing import Tuple
 from typing import Union
+from typing import Dict
+from typing import Any
+
 
 import bokeh.palettes as bp
 import bokeh.plotting as pbk
@@ -53,7 +56,7 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
             self.slice = self.image
 
         self.bin_ranges = bin_ranges
-        self.detector_ranges = [[0, 2048], [0, 2048]]
+        self.detector_ranges = [(0, 2048), (0, 2048)]
 
         self._config = config
 
@@ -61,25 +64,25 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
         self.rotsym_angle = int(360 / self.rotsym)
         self.arot = np.array([0] + [self.rotsym_angle] * (self.rotsym - 1))
         self.ascale = np.array([1.0] * self.rotsym)
-        self.adjust_params = {}
-        self.peaks = []
-        self.pouter = []
-        self.pcent = []
-        self.pouter_ord = []
-        self.prefs = []
-        self.ptargs = []
-        self.csm_original = np.nan
-        self.mdist = np.nan
-        self.mcvdist = np.nan
-        self.mvvdist = np.nan
-        self.cvdist = np.nan
-        self.vvdist = np.nan
-        self.slice_corrected = []
-        self.slice_transformed = []
-        self.rdeform_field = []
-        self.cdeform_field = []
-        self.inverse_dfield = []
-        self.calibration = {}
+        self.adjust_params: Dict[Any, Any] = {}
+        self.peaks: np.ndarray = None
+        self.pouter: np.ndarray = None
+        self.pcent: Tuple[float, ...] = None
+        self.pouter_ord: np.ndarray  = None
+        self.prefs: np.ndarray  = None
+        self.ptargs: np.ndarray  = None
+        self.csm_original: float = np.nan
+        self.mdist: float = np.nan
+        self.mcvdist: float = np.nan
+        self.mvvdist: float = np.nan
+        self.cvdist: float = np.nan
+        self.vvdist: float = np.nan
+        self.slice_corrected: np.ndarray = None
+        self.slice_transformed: np.ndarray = None
+        self.rdeform_field: np.ndarray = None
+        self.cdeform_field: np.ndarray = None
+        self.inverse_dfield: np.ndarray = None
+        self.calibration: Dict[Any, Any] = {}
 
     @property
     def features(self) -> dict:
@@ -237,7 +240,7 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
 
     def spline_warp_estimate(
         self,
-        image: np.array = None,
+        image: np.ndarray = None,
         include_center: bool = True,
         fixed_center: bool = True,
         interp_order: int = 1,
@@ -271,6 +274,9 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
         if image is None:
             image = self.slice
 
+        if self.pouter_ord is None:
+            self.pouter_ord = po.pointset_order(self.pouter)
+        
         self.prefs = kwds.pop("landmarks", self.pouter_ord)
         self.ptargs = kwds.pop("targets", [])
 
@@ -351,7 +357,7 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
         """
 
         if dfield is None:
-            dfield = (np.asarray([self.rdeform_field, self.cdeform_field]),)
+            dfield = np.asarray([self.rdeform_field, self.cdeform_field])
 
         image_corrected = sym.applyWarping(
             image,
@@ -708,12 +714,12 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
 
     def calibrate(  # pylint: disable=W0102, R0913, R0914
         self,
-        point_a: Tuple[int, int],
-        point_b: Tuple[int, int],
+        point_a: Union[np.ndarray, List[int]],
+        point_b: Union[np.ndarray, List[int]],
         k_distance: float = None,
         image: np.ndarray = None,
-        k_coord_a: Tuple[float, float] = None,
-        k_coord_b: Tuple[float, float] = [0.0, 0.0],
+        k_coord_a: Union[np.ndarray, List[float]] = None,
+        k_coord_b: Union[np.ndarray, List[float]] = [0.0, 0.0],
         equiscale: bool = True,
     ) -> dict:
         """Momentum axes calibration using the pixel positions of two symmetry points
@@ -835,11 +841,12 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
         :Return:
             dataframe with added columns
         """
+
         if "dfield" in kwds:
-            dfield = kwds.pop("dfield")
+            dfield = np.asarray(kwds.pop("dfield"))
         elif "rdeform_field" in kwds and "cdeform_field" in kwds:
-            rdeform_field = kwds.pop("rdeform_field")
-            cdeform_field = kwds.pop("cdeform_field")
+            rdeform_field = np.asarray(kwds.pop("rdeform_field"))
+            cdeform_field = np.asarray(kwds.pop("cdeform_field"))
             dfield = generate_inverse_dfield(
                 rdeform_field,
                 cdeform_field,
@@ -876,7 +883,7 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
         y_column: str = "Ym",
         new_x_column: str = "kx",
         new_y_column: str = "ky",
-        **kwds: dict,
+        **kwds,
     ) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
         """Calculate and append the k axis coordinates (kx, ky) to the events dataframe.
 
@@ -1044,8 +1051,8 @@ def apply_dfield(  # pylint: disable=too-many-arguments
 def generate_inverse_dfield(
     rdeform_field: np.ndarray,
     cdeform_field: np.ndarray,
-    bin_ranges: Tuple[Tuple[int, int], Tuple[int, int]],
-    detector_ranges: Tuple[Tuple[int, int], Tuple[int, int]],
+    bin_ranges: List[Tuple[int, int]],
+    detector_ranges: List[Tuple[int, int]],
 ) -> np.ndarray:
     """
     Generate inverse deformation field using inperpolation with griddata.
