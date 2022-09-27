@@ -10,7 +10,8 @@ pandas>=1.4.1
 psutil>=5.9.0
 pyyaml>=6.0
 six>=1.16.0
+symmetrize
 threadpoolctl>=3.1.0
+tifffile>=2022.2.9
 tqdm>=4.63.0
 xarray>=0.20.2
-tifffile>=2022.2.9

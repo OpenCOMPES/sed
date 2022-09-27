@@ -9,7 +9,6 @@ from typing import Union
 
 import bokeh.palettes as bp
 import bokeh.plotting as pbk
-import cv2
 import dask.dataframe
 import matplotlib.pyplot as plt
 import numpy as np
@@ -63,6 +62,24 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
         self.arot = np.array([0] + [self.rotsym_angle] * (self.rotsym - 1))
         self.ascale = np.array([1.0] * self.rotsym)
         self.adjust_params = {}
+        self.peaks = []
+        self.pouter = []
+        self.pcent = []
+        self.pouter_ord = []
+        self.prefs = []
+        self.ptargs = []
+        self.csm_original = np.nan
+        self.mdist = np.nan
+        self.mcvdist = np.nan
+        self.mvvdist = np.nan
+        self.cvdist = np.nan
+        self.vvdist = np.nan
+        self.slice_corrected = []
+        self.slice_transformed = []
+        self.rdeform_field = []
+        self.cdeform_field = []
+        self.inverse_dfield = []
+        self.calibration = {}
 
     @property
     def features(self) -> dict:
@@ -146,7 +163,6 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
 
         if feature_type == "points":
 
-            self.center_detection_method = center_det
             symtype = kwds.pop("symtype", "rotation")
 
             # Detect the point landmarks
@@ -176,13 +192,6 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
                 self.pouter,
                 direction=direction,
             )
-            try:
-                self.area_old = po.polyarea(
-                    coords=self.pouter_ord,
-                    coord_order="rc",
-                )
-            except (AttributeError, IndexError):
-                pass
 
             # Calculate geometric distances
             self.calc_geometric_distances()
@@ -209,7 +218,7 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
         self.vvdist = po.vvdist(self.pouter_ord)
         self.mvvdist = self.vvdist.mean()
 
-    def calc_symmetry_scores(self, symtype: str = "rotation"):
+    def calc_symmetry_scores(self, symtype: str = "rotation") -> float:
         """Calculate the symmetry scores from geometric quantities.
 
         **Paramters**\n
@@ -225,70 +234,6 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
         )
 
         return csm
-
-    def lin_warp_estimate(  # pylint: disable=dangerous-default-value
-        self,
-        weights: Tuple[int, int, int] = (1, 1, 1),
-        optfunc: str = "minimize",
-        optmethod: str = "Nelder-Mead",
-        warpkwds: dict = {},
-        **kwds,
-    ) -> np.ndarray:
-        """Estimate the homography-based deformation field using landmark
-        correspondences.
-
-        **Parameters**\n
-        weights: tuple/list/array | (1, 1, 1)
-            Weights added to the terms in the optimizer. The terms are assigned
-            to the cost functions of (1) centeredness, (2) center-vertex symmetry,
-            (3) vertex-vertex symmetry, respectively.
-        optfunc, optmethod: str/func, str | 'minimize', 'Nelder-Mead'
-            Name of the optimizer function and the optimization method.
-            See description in ``mpes.analysis.sym.target_set_optimize()``.
-        ret: bool | True
-            Specify if returning the corrected image slice.
-        warpkwds: dictionary | {}
-            Additional arguments passed to ``symmetrize.sym.imgWarping()``.
-        **kwds: keyword arguments
-            ========= ========== =============================================
-            keyword   data type  meaning
-            ========= ========== =============================================
-            niter     int        Maximum number of iterations
-            landmarks list/array Symmetry landmarks selected for registration
-            fitinit   tuple/list Initial conditions for fitting
-            ========= ========== =============================================
-
-        **Return**\n
-            Corrected 2D image slice (when ``ret=True`` is specified in the arguments).
-        """
-
-        landmarks = kwds.pop("landmarks", self.pouter_ord)
-        # Set up the initial condition for the optimization for symmetrization
-        fitinit = np.asarray([self.arot, self.ascale]).ravel()
-        self.init = kwds.pop("fitinit", fitinit)
-
-        self.ptargs, _ = sym.target_set_optimize(
-            self.init,
-            landmarks,
-            self.pcent,
-            self.mcvdist,
-            self.mvvdist,
-            direction=1,
-            weights=weights,
-            optfunc=optfunc,
-            optmethod=optmethod,
-            **kwds,
-        )
-
-        # Calculate warped image and landmark positions
-        self.slice_corrected, self.linwarp = sym.imgWarping(
-            self.slice,
-            landmarks=landmarks,
-            targs=self.ptargs,
-            **warpkwds,
-        )
-
-        return self.slice_corrected
 
     def spline_warp_estimate(
         self,
@@ -358,7 +303,7 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
                 ).T
 
         # Non-iterative estimation of deformation field
-        self.slice_corrected, self.splinewarp = tps.tpsWarping(
+        self.slice_corrected, splinewarp = tps.tpsWarping(
             self.prefs,
             self.ptargs,
             image,
@@ -371,8 +316,8 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
         self.reset_deformation(image=image, coordtype="cartesian")
 
         self.update_deformation(
-            self.splinewarp[0],
-            self.splinewarp[1],
+            splinewarp[0],
+            splinewarp[1],
         )
 
         return self.slice_corrected
@@ -381,9 +326,7 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
         self,
         image: np.ndarray,
         axis: int,
-        use_composite_transform: bool = False,
-        use_deform_field: bool = False,
-        **kwds,
+        dfield: np.ndarray = None,
     ) -> np.ndarray:
         """Apply a 2D transform to a stack of 2D images (3D) along a specific axis.
 
@@ -407,74 +350,17 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
                 ======= ========== =================================
         """
 
-        if use_deform_field is True:
-            dfield = kwds.pop(
-                "dfield",
-                [self.rdeform_field, self.cdeform_field],
-            )
-            image_corrected = sym.applyWarping(
-                image,
-                axis,
-                warptype="deform_field",
-                dfield=dfield,
-            )
+        if dfield is None:
+            dfield = (np.asarray([self.rdeform_field, self.cdeform_field]),)
 
-        else:
-            if use_composite_transform is True:
-                hgmat = kwds.pop("warping", self.composite_linwarp)
-            else:
-                hgmat = kwds.pop("warping", self.linwarp)
-            image_corrected = sym.applyWarping(
-                image,
-                axis,
-                warptype="matrix",
-                hgmat=hgmat,
-            )
+        image_corrected = sym.applyWarping(
+            image,
+            axis,
+            warptype="deform_field",
+            dfield=dfield,
+        )
 
         return image_corrected
-
-    def rotate(self, angle: str = "auto", **kwds):
-        """Rotate 2D image in the homogeneous coordinate.
-
-        Parameters:
-        angle: float/str
-            Angle of rotation (specify 'auto' to use automated estimation).
-        **kwds: keyword arguments
-            ======= ========== =======================================
-            keyword data type  meaning
-            ======= ========== =======================================
-            image   2d array   2D image for correction
-            center  tuple/list pixel coordinates of the image center
-            scale   float      scaling factor in rotation
-            ======= ========== =======================================
-            See ``symmetrize.sym.sym_pose_estimate()`` for other keywords.
-        """
-
-        image = kwds.pop("image", self.slice)
-        center = kwds.pop("center", self.pcent)
-        scale = kwds.pop("scale", 1)
-
-        # Automatic determination of the best pose based on grid search within an
-        # angular range
-        if angle == "auto":
-            center = tuple(np.asarray(center).astype("int"))
-            angle_auto, _ = sym.sym_pose_estimate(
-                image / image.max(),
-                center,
-                **kwds,
-            )
-            self.image_rot, rotmat = _rotate2d(
-                image,
-                center,
-                angle_auto,
-                scale,
-            )
-        # Rotate image by the specified angle
-        else:
-            self.image_rot, rotmat = _rotate2d(image, center, angle, scale)
-
-        # Compose the rotation matrix with the previously determined warping matrix
-        self.composite_linwarp = np.dot(rotmat, self.linwarp)
 
     def reset_deformation(self, **kwds):
         """Reset the deformation field."""
@@ -512,7 +398,7 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
             cval=np.nan,
         )
 
-    def coordinate_transform(  # pylint: disable=dangerous-default-value, too-many-locals, too-many-branches
+    def coordinate_transform(  # pylint: disable=W0102, R0912, R0914
         self,
         transform_type: str,
         keep: bool = False,
@@ -660,19 +546,19 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
 
         return slice_transformed
 
-    def calc_dfield(self):
+    def calc_inverse_dfield(self):
         """Calculate the inverse dfield from the cdeform and rdeform fields"""
 
-        self.dfield = generate_dfield(
+        self.inverse_dfield = generate_inverse_dfield(
             self.rdeform_field,
             self.cdeform_field,
             self.bin_ranges,
             self.detector_ranges,
         )
 
-        return self.dfield
+        return self.inverse_dfield
 
-    def view(  # pylint: disable=dangerous-default-value, too-many-arguments, too-many-locals, too-many-branches
+    def view(  # pylint: disable=W0102, R0912, R0913, R0914
         self,
         image: np.ndarray = None,
         origin: str = "lower",
@@ -820,7 +706,7 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
 
             pbk.show(fig)
 
-    def calibrate(  # pylint: disable=dangerous-default-value, too-many-arguments, too-many-locals
+    def calibrate(  # pylint: disable=W0102, R0913, R0914
         self,
         point_a: Tuple[int, int],
         point_b: Tuple[int, int],
@@ -933,7 +819,6 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
         y_column: str = "Y",
         new_x_column: str = "Xm",
         new_y_column: str = "Ym",
-        transformation_type: str = "tps",
         **kwds: dict,
     ) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
         """Calculate and replace the X and Y values with their distortion-corrected
@@ -950,61 +835,39 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
         :Return:
             dataframe with added columns
         """
-
-        if transformation_type == "mattrans":  # Apply matrix transform
-            if "warping" in kwds:
-                warping = kwds.pop("warping")
-            else:
-                warping = self.linwarp
-            df[new_x_column], df[new_y_column] = perspective_transform(
-                df[x_column],
-                df[y_column],
-                warping,
-                **kwds,
+        if "dfield" in kwds:
+            dfield = kwds.pop("dfield")
+        elif "rdeform_field" in kwds and "cdeform_field" in kwds:
+            rdeform_field = kwds.pop("rdeform_field")
+            cdeform_field = kwds.pop("cdeform_field")
+            dfield = generate_inverse_dfield(
+                rdeform_field,
+                cdeform_field,
+                self.bin_ranges,
+                self.detector_ranges,
             )
-
-            return df
-
-        if transformation_type in ("tps", "tps_matrix"):
-            if "dfield" in kwds:
-                dfield = kwds.pop("dfield")
-            elif "rdeform_field" in kwds and "cdeform_field" in kwds:
-                rdeform_field = kwds.pop("rdeform_field")
-                cdeform_field = kwds.pop("cdeform_field")
-                print(
-                    "Calculating inverse Deformation Field, might take a moment...",
-                )
-                self.dfield = generate_dfield(
-                    rdeform_field,
-                    cdeform_field,
+        else:
+            try:
+                dfield = self.inverse_dfield
+            except AttributeError:
+                self.inverse_dfield = generate_inverse_dfield(
+                    self.rdeform_field,
+                    self.cdeform_field,
                     self.bin_ranges,
                     self.detector_ranges,
                 )
-                dfield = self.dfield
-            else:
-                try:
-                    dfield = self.dfield
-                except AttributeError:
-                    self.dfield = generate_dfield(
-                        self.rdeform_field,
-                        self.cdeform_field,
-                        self.bin_ranges,
-                        self.detector_ranges,
-                    )
-                    dfield = self.dfield
+                dfield = self.inverse_dfield
 
-            out_df = df.map_partitions(
-                apply_dfield,
-                dfield,
-                x_column=x_column,
-                y_column=y_column,
-                new_x_column=new_x_column,
-                new_y_column=new_y_column,
-                **kwds,
-            )
-            return out_df
-
-        return df
+        out_df = df.map_partitions(
+            apply_dfield,
+            dfield,
+            x_column=x_column,
+            y_column=y_column,
+            new_x_column=new_x_column,
+            new_y_column=new_y_column,
+            **kwds,
+        )
+        return out_df
 
     def append_k_axis(  # pylint: disable=too-many-arguments
         self,
@@ -1082,36 +945,6 @@ def cm2palette(cmap_name):
         palette = [RGB(*tuple(rgb)).to_hex() for rgb in mpl_cm_rgb]
 
     return palette
-
-
-def _rotate2d(image, center, angle, scale=1):
-    """
-    2D matrix scaled rotation carried out in the homogenous coordinate.
-
-    **Parameters**\n
-    image: 2d array
-        Image matrix.
-    center: tuple/list
-        Center of the image (row pixel, column pixel).
-    angle: numeric
-        Angle of image rotation.
-    scale: numeric | 1
-        Scale of image rotation.
-
-    **Returns**\n
-    image_rot: 2d array
-        Rotated image matrix.
-    rotmat: 2d array
-        Rotation matrix in the homogeneous coordinate system.
-    """
-
-    rotmat = cv2.getRotationMatrix2D(center, angle=angle, scale=scale)
-    # Construct rotation matrix in homogeneous coordinate
-    rotmat = np.concatenate((rotmat, np.array([0, 0, 1], ndmin=2)), axis=0)
-
-    image_rot = cv2.warpPerspective(image, rotmat, image.shape)
-
-    return image_rot, rotmat
 
 
 def dictmerge(
@@ -1208,7 +1041,7 @@ def apply_dfield(  # pylint: disable=too-many-arguments
     return df
 
 
-def generate_dfield(
+def generate_inverse_dfield(
     rdeform_field: np.ndarray,
     cdeform_field: np.ndarray,
     bin_ranges: Tuple[Tuple[int, int], Tuple[int, int]],
@@ -1227,6 +1060,11 @@ def generate_dfield(
         dfield:
             inverse 3D deformation field stacked along the first dimension
     """
+
+    print(
+        "Calculating inverse deformation field, this might take a moment...",
+    )
+
     # Interpolate to 2048x2048 grid of the detector coordinates
     r_mesh, c_mesh = np.meshgrid(
         np.linspace(
@@ -1281,35 +1119,6 @@ def generate_dfield(
         (r_mesh, c_mesh),
     )
 
-    # TODO: what to do about the nans at the boundary? leave or fill with zeros?
-    # inv_rdeform_field = np.nan_to_num(inv_rdeform_field)
-    # inv_rdeform_field = np.nan_to_num(inv_cdeform_field)
+    inverse_dfield = np.asarray([inv_rdeform_field, inv_cdeform_field])
 
-    dfield = np.asarray([inv_rdeform_field, inv_cdeform_field])
-
-    return dfield
-
-
-def perspective_transform(
-    x: float,
-    y: float,
-    M: np.ndarray,  # pylint: disable=invalid-name
-) -> Tuple[float, float]:
-    """Implementation of the perspective transform (homography) in 2D.
-
-    :Parameters:
-        x, y: numeric, numeric
-            Pixel coordinates of the original point.
-        M: 2d array
-            Perspective transform matrix.
-
-    :Return:
-        xtrans, ytrans: numeric, numeric
-            Pixel coordinates after projective/perspective transform.
-    """
-
-    denom = M[2, 0] * x + M[2, 1] * y + M[2, 2]
-    xtrans = (M[0, 0] * x + M[0, 1] * y + M[0, 2]) / denom
-    ytrans = (M[1, 0] * x + M[1, 1] * y + M[1, 2]) / denom
-
-    return xtrans, ytrans
+    return inverse_dfield
