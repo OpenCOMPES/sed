@@ -3,12 +3,11 @@ correction. Mostly ported from https://github.com/mpes-kit/mpes.
 """
 # pylint: disable=too-many-lines
 import itertools as it
+from typing import Any
+from typing import Dict
 from typing import List
 from typing import Tuple
 from typing import Union
-from typing import Dict
-from typing import Any
-
 
 import bokeh.palettes as bp
 import bokeh.plotting as pbk
@@ -68,9 +67,9 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
         self.peaks: np.ndarray = None
         self.pouter: np.ndarray = None
         self.pcent: Tuple[float, ...] = None
-        self.pouter_ord: np.ndarray  = None
-        self.prefs: np.ndarray  = None
-        self.ptargs: np.ndarray  = None
+        self.pouter_ord: np.ndarray = None
+        self.prefs: np.ndarray = None
+        self.ptargs: np.ndarray = None
         self.csm_original: float = np.nan
         self.mdist: float = np.nan
         self.mcvdist: float = np.nan
@@ -276,7 +275,7 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
 
         if self.pouter_ord is None:
             self.pouter_ord = po.pointset_order(self.pouter)
-        
+
         self.prefs = kwds.pop("landmarks", self.pouter_ord)
         self.ptargs = kwds.pop("targets", [])
 
