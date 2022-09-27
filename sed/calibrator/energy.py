@@ -1,3 +1,7 @@
+"""sed.calibrator.energy module. Code for energy calibration and
+correction. Mostly ported from https://github.com/mpes-kit/mpes.
+"""
+# pylint: disable=too-many-lines
 import itertools as it
 import warnings as wn
 from functools import partial
@@ -13,7 +17,6 @@ import pandas as pd
 from bokeh.io import output_notebook
 from bokeh.palettes import Category10 as ColorCycle
 from fastdtw import fastdtw
-from funcy import project
 from lmfit import Minimizer
 from lmfit import Parameters
 from lmfit.printfuncs import report_fit
@@ -23,12 +26,12 @@ from scipy.sparse.linalg import lsqr
 from scipy.spatial import distance
 
 
-class EnergyCalibrator:
+class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
     """
     Electron binding energy calibration workflow.
     """
 
-    def __init__(
+    def __init__(  # pylint: disable=dangerous-default-value
         self,
         biases: Sequence[float],
         traces: Sequence[float],
@@ -53,12 +56,19 @@ class EnergyCalibrator:
         self.peaks = []
         self.calibration = []
 
-        if traces is not None:
-            self.traces = traces
-            self.traces_normed = traces
-        else:
-            self.traces = []
-            self.traces_normed = []
+        self.traces = traces
+        self.traces_normed = traces
+
+        self.tof_column = "t"
+        self.energy_column = "E"
+        self.x_column = "X"
+        self.y_column = "Y"
+
+        self.binwidth: float = 4.125e-12
+        self.binning: int = 1
+
+        self.center = (650, 650)
+        self.amplitude = -1
 
     @property
     def ntraces(self) -> int:
@@ -88,7 +98,7 @@ class EnergyCalibrator:
 
         self.traces_normed = normspec(self.traces, **kwds)
 
-    def add_features(
+    def add_features(  # pylint: disable=too-many-arguments
         self,
         ranges: Sequence[Tuple[float, float]],
         refid: int = 0,
@@ -148,7 +158,7 @@ class EnergyCalibrator:
         self,
         ranges: Sequence[Tuple[float, float]] = None,
         traces: Sequence[float] = None,
-        **kwds,
+        peak_window: int = 7,
     ):
         """Select or extract the equivalent landmarks (e.g. peaks) among all traces.
 
@@ -157,8 +167,8 @@ class EnergyCalibrator:
             Range in each trace to look for the peak feature, [start, end].
         traces: 2D array | None
             Collection of 1D spectra to use for calibration.
-        **kwds: keyword arguments
-            See available keywords in ``mpes.analysis.peaksearch()``.
+        peak_window:
+            area around a peak to check for other peaks.
         """
 
         if ranges is None:
@@ -170,12 +180,16 @@ class EnergyCalibrator:
         # Augment the content of the calibration data
         traces_aug = np.tile(traces, (self.dup, 1))
         # Run peak detection for each trace within the specified ranges
-        self.peaks = peaksearch(traces_aug, self.tof, ranges=ranges, **kwds)
+        self.peaks = peaksearch(
+            traces_aug,
+            self.tof,
+            ranges=ranges,
+            pkwindow=peak_window,
+        )
 
     def calibrate(
         self,
-        refid: int = 0,
-        ret: str = "coeffs",
+        ref_id: int = 0,
         method: str = "lmfit",
         **kwds,
     ) -> dict:
@@ -199,15 +213,14 @@ class EnergyCalibrator:
             self.calibration = fit_energy_calibation(
                 landmarks,
                 biases,
-                refid=refid,
+                ref_id=ref_id,
                 **kwds,
             )
         elif method in ("lstsq", "lsqr"):
             self.calibration = poly_energy_calibration(
                 landmarks,
                 biases,
-                refid=refid,
-                ret=ret,
+                ref_id=ref_id,
                 aug=self.dup,
                 method=method,
                 **kwds,
@@ -215,7 +228,7 @@ class EnergyCalibrator:
         else:
             raise NotImplementedError()
 
-    def view(
+    def view(  # pylint: disable=W0102, R0913, R0914
         self,
         traces: Sequence[float],
         segs: Sequence[float] = None,
@@ -301,7 +314,7 @@ class EnergyCalibrator:
             if show_legend:
                 try:
                     ax.legend(fontsize=12, **legkwds)
-                except Exception:
+                except TypeError:
                     pass
 
             ax.set_title(ttl)
@@ -364,6 +377,199 @@ class EnergyCalibrator:
                 fig.legend.padding = 2
 
             pbk.show(fig)
+
+    def append_energy_axis(
+        self,
+        df: Union[pd.DataFrame, dask.dataframe.DataFrame],
+        tof_column: str = None,
+        energy_column: str = None,
+        **kwds,
+    ) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
+        """Calculate and append the E axis to the events dataframe.
+        This method can be reused.
+
+        **Parameter**\n
+        ...
+        """
+
+        if tof_column is None:
+            tof_column = self.tof_column
+
+        if energy_column is None:
+            energy_column = self.energy_column
+
+        binwidth = kwds.pop("binwidth", self.binwidth)
+        binning = kwds.pop("binning", self.binning)
+
+        calib_type = ""
+
+        if "t0" in kwds and "d" in kwds and "E0" in kwds:
+            time_offset = kwds.pop("t0")
+            drift_distance = kwds.pop("d")
+            energy_offset = kwds.pop("E0")
+            calib_type = "fit"
+
+        elif "a" in kwds and "E0" in kwds:
+            poly_a = kwds.pop("a")
+            energy_offset = kwds.pop("E0")
+            calib_type = "poly"
+
+        elif "t0" in kwds and "d" in kwds and "E0" in self.calibration:
+            time_offset = self.calibration["t0"]
+            drift_distance = self.calibration["d"]
+            energy_offset = self.calibration["E0"]
+            calib_type = "fit"
+        elif "a" in kwds and "E0" in self.calibration:
+            poly_a = self.calibration["a"]
+            energy_offset = self.calibration["E0"]
+            calib_type = "poly"
+
+        if calib_type == "fit":
+            df[energy_column] = tof2ev(
+                drift_distance,
+                time_offset,
+                energy_offset,
+                df[tof_column].astype("float64"),
+                binwidth=binwidth,
+                binning=binning,
+            )
+        elif calib_type == "poly":
+            df[energy_column] = tof2evpoly(
+                poly_a,
+                energy_offset,
+                df[tof_column].astype("float64"),
+            )
+        else:
+            raise NotImplementedError
+
+        return df
+
+    def apply_energy_correction(  # pylint: disable=R0913, R0914
+        self,
+        df: Union[pd.DataFrame, dask.dataframe.DataFrame],
+        tof_column: str = None,
+        x_column: str = None,
+        y_column: str = None,
+        correction_type: str = "Lorentzian",
+        center: Tuple[int] = None,
+        amplitude: float = None,
+        **kwds,
+    ) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
+        """Apply correction to the time-of-flight (TOF) axis of single-event data.
+
+        :Parameters:
+            type: str
+                Type of correction to apply to the TOF axis.
+            **kwds: keyword arguments
+                Additional parameters to use for the correction.
+                :corraxis: str | 't'
+                    String name of the axis to correct.
+                :center: list/tuple | (650, 650)
+                    Image center pixel positions in (row, column) format.
+                :amplitude: numeric | -1
+                    Amplitude of the time-of-flight correction term
+                    (negative sign meaning subtracting the curved wavefront).
+                :d: numeric | 0.9
+                    Field-free drift distance.
+                :t0: numeric | 0.06
+                    Time zero position corresponding to the tip of the valence band.
+                :gamma: numeric
+                    Linewidth value for correction using a 2D Lorentz profile.
+                :sigma: numeric
+                    Standard deviation for correction using a 2D Gaussian profile.
+                :gam2: numeric
+                    Linewidth value for correction using an asymmetric 2D Lorentz
+                    profile, X-direction.
+                :amplitude2: numeric
+                    Amplitude value for correction using an asymmetric 2D Lorentz
+                    profile, X-direction.
+
+        :Return:
+
+        """
+
+        if tof_column is None:
+            tof_column = self.tof_column
+        if x_column is None:
+            x_column = self.x_column
+        if y_column is None:
+            y_column = self.y_column
+        if center is None:
+            center = self.center
+
+        if amplitude is None:
+            amplitude = self.amplitude
+
+        if correction_type == "spherical":
+            diameter = kwds.pop("d", 0.9)
+            time_offset = kwds.pop("t0", 0.06)
+            df[tof_column] += (
+                (
+                    np.sqrt(
+                        1
+                        + (
+                            (df[x_column] - center[0]) ** 2
+                            + (df[y_column] - center[1]) ** 2
+                        )
+                        / diameter**2,
+                    )
+                    - 1
+                )
+                * time_offset
+                * amplitude
+            )
+
+        elif correction_type == "Lorentzian":
+            gam = kwds.pop("gamma", 300)
+            df[tof_column] += (
+                amplitude
+                / (gam * np.pi)
+                * (
+                    gam**2
+                    / (
+                        (df[x_column] - center[0]) ** 2
+                        + (df[y_column] - center[1]) ** 2
+                        + gam**2
+                    )
+                )
+            ) - amplitude / (gam * np.pi)
+
+        elif correction_type == "Gaussian":
+            sigma = kwds.pop("sigma", 300)
+            df[tof_column] += (
+                amplitude
+                / np.sqrt(2 * np.pi * sigma**2)
+                * np.exp(
+                    -(
+                        (df[x_column] - center[0]) ** 2
+                        + (df[y_column] - center[1]) ** 2
+                    )
+                    / (2 * sigma**2),
+                )
+            )
+
+        elif correction_type == "Lorentzian_asymmetric":
+            gamma = kwds.pop("gamma", 300)
+            gamma2 = kwds.pop("gamma2", 300)
+            amplitude2 = kwds.pop("amplitude2", -1)
+            df[tof_column] += (
+                amplitude
+                / (gamma * np.pi)
+                * (gamma**2 / ((df[y_column] - center[1]) ** 2 + gamma**2))
+            )
+            df[tof_column] += (
+                amplitude2
+                / (gamma2 * np.pi)
+                * (
+                    gamma2**2
+                    / ((df[x_column] - center[0]) ** 2 + gamma2**2)
+                )
+            )
+
+        else:
+            raise NotImplementedError
+
+        return df
 
 
 def normspec(
@@ -521,9 +727,9 @@ def peaksearch(
     if plot:
         plt.figure(figsize=(10, 4))
 
-    for rg, trace in zip(ranges, traces.tolist()):
+    for rng, trace in zip(ranges, traces.tolist()):
 
-        cond = (tof >= rg[0]) & (tof <= rg[1])
+        cond = (tof >= rng[0]) & (tof <= rng[1])
         trace = np.array(trace).ravel()
         tofseg, trseg = tof[cond], trace[cond]
         maxs, _ = peakdetect1d(trseg, tofseg, lookahead=pkwindow)
@@ -563,7 +769,7 @@ def _datacheck_peakdetect(
     return x_axis, y_axis
 
 
-def peakdetect1d(
+def peakdetect1d(  # pylint: disable=too-many-branches
     y_axis: Sequence[float],
     x_axis: Sequence[float] = None,
     lookahead: int = 200,
@@ -619,32 +825,32 @@ def peakdetect1d(
 
     # maxima and minima candidates are temporarily stored in
     # mx and mn respectively
-    mn, mx = np.Inf, -np.Inf
+    _min, _max = np.Inf, -np.Inf
 
     # Only detect peak if there is 'lookahead' amount of points after it
     for index, (x, y) in enumerate(
         zip(x_axis[:-lookahead], y_axis[:-lookahead]),
     ):
 
-        if y > mx:
-            mx = y
-            mxpos = x
+        if y > _max:
+            _max = y
+            _max_pos = x
 
-        if y < mn:
-            mn = y
-            mnpos = x
+        if y < _min:
+            _min = y
+            _min_pos = x
 
         # Find local maxima
-        if y < mx - delta and mx != np.Inf:
+        if y < _max - delta and _max != np.Inf:
             # Maxima peak candidate found
             # look ahead in signal to ensure that this is a peak and not jitter
-            if y_axis[index : index + lookahead].max() < mx:
+            if y_axis[index : index + lookahead].max() < _max:
 
-                max_peaks.append([mxpos, mx])
+                max_peaks.append([_max_pos, _max])
                 dump.append(True)
                 # Set algorithm to only find minima now
-                mx = np.Inf
-                mn = np.Inf
+                _max = np.Inf
+                _min = np.Inf
 
                 if index + lookahead >= length:
                     # The end is within lookahead no more peaks can be found
@@ -655,16 +861,16 @@ def peakdetect1d(
             #    mxpos = x_axis[np.where(y_axis[index:index+lookahead]==mx)]
 
         # Find local minima
-        if y > mn + delta and mn != -np.Inf:
+        if y > _min + delta and _min != -np.Inf:
             # Minima peak candidate found
             # look ahead in signal to ensure that this is a peak and not jitter
-            if y_axis[index : index + lookahead].min() > mn:
+            if y_axis[index : index + lookahead].min() > _min:
 
-                min_peaks.append([mnpos, mn])
+                min_peaks.append([_min_pos, _min])
                 dump.append(False)
                 # Set algorithm to only find maxima now
-                mn = -np.Inf
-                mx = -np.Inf
+                _min = -np.Inf
+                _max = -np.Inf
 
                 if index + lookahead >= length:
                     # The end is within lookahead no more peaks can be found
@@ -690,11 +896,11 @@ def peakdetect1d(
     return max_peaks, min_peaks
 
 
-def fit_energy_calibation(
+def fit_energy_calibation(  # pylint: disable=too-many-locals
     pos: Sequence[float],
     vals: Sequence[float],
-    refid: int = 0,
-    Eref: float = None,
+    ref_id: int = 0,
+    ref_energy: float = None,
     t: Sequence[float] = None,
     **kwds,
 ) -> dict:
@@ -727,12 +933,12 @@ def fit_energy_calibation(
     vals = np.array(vals)
     nvals = vals.size
 
-    if refid >= nvals:
+    if ref_id >= nvals:
         wn.warn(
             "Reference index (refid) cannot be larger than the number of traces!\
                 Reset to the largest allowed number.",
         )
-        refid = nvals - 1
+        ref_id = nvals - 1
 
     def residual(pars, time, data, binwidth=binwidth, binning=binning):
         model = tof2ev(
@@ -774,22 +980,20 @@ def fit_energy_calibation(
     ecalibdict["t0"] = result.params["t0"].value
     ecalibdict["E0"] = result.params["E0"].value
 
-    if (Eref is not None) and (t is not None):
-        E0 = -pfunc(-Eref, pos[refid])
-        ecalibdict["axis"] = pfunc(E0, t)
-        ecalibdict["E0"] = E0
+    if (ref_energy is not None) and (t is not None):
+        energy_offset = -pfunc(-ref_energy, pos[ref_id])
+        ecalibdict["axis"] = pfunc(energy_offset, t)
+        ecalibdict["E0"] = energy_offset
 
     return ecalibdict
 
 
-def poly_energy_calibration(
+def poly_energy_calibration(  # pylint: disable=R0913, R0914
     pos: Sequence[float],
     vals: Sequence[float],
     order: int = 3,
-    refid: int = 0,
-    ret: str = "func",
-    E0: float = None,
-    Eref: float = None,
+    ref_id: int = 0,
+    ref_energy: float = None,
     t: Sequence[float] = None,
     aug: int = 1,
     method: str = "lstsq",
@@ -837,218 +1041,64 @@ def poly_energy_calibration(
     vals = np.array(vals)
     nvals = vals.size
 
-    if refid >= nvals:
+    if ref_id >= nvals:
         wn.warn(
             "Reference index (refid) cannot be larger than the number of traces!\
                 Reset to the largest allowed number.",
         )
-        refid = nvals - 1
+        ref_id = nvals - 1
 
     # Top-to-bottom ordering of terms in the T matrix
-    termorder = np.delete(range(0, nvals, 1), refid)
+    termorder = np.delete(range(0, nvals, 1), ref_id)
     termorder = np.tile(termorder, aug)
     # Left-to-right ordering of polynomials in the T matrix
     polyorder = np.linspace(order, 1, order, dtype="int")
 
     # Construct the T (differential drift time) matrix, Tmat = Tmain - Tsec
-    Tmain = np.array([pos[refid] ** p for p in polyorder])
+    t_main = np.array([pos[ref_id] ** p for p in polyorder])
     # Duplicate to the same order as the polynomials
-    Tmain = np.tile(Tmain, (aug * (nvals - 1), 1))
+    t_main = np.tile(t_main, (aug * (nvals - 1), 1))
 
-    Tsec = []
+    t_sec = []
 
-    for to in termorder:
-        Tsec.append([pos[to] ** p for p in polyorder])
-    Tsec = np.asarray(Tsec)
-    Tmat = Tmain - Tsec
+    for term in termorder:
+        t_sec.append([pos[term] ** p for p in polyorder])
+    t_sec = np.asarray(t_sec)
+    t_mat = t_main - t_sec
 
     # Construct the b vector (differential bias)
-    bvec = vals[refid] - np.delete(vals, refid)
+    bvec = vals[ref_id] - np.delete(vals, ref_id)
     bvec = np.tile(bvec, aug)
 
     # Solve for the a vector (polynomial coefficients) using least squares
     if method == "lstsq":
-        sol = lstsq(Tmat, bvec, rcond=None)
+        sol = lstsq(t_mat, bvec, rcond=None)
     elif method == "lsqr":
-        sol = lsqr(Tmat, bvec, **kwds)
-    a = sol[0]
+        sol = lsqr(t_mat, bvec, **kwds)
+    poly_a = sol[0]
 
     # Construct the calibrating function
-    pfunc = partial(tof2evpoly, a)
+    pfunc = partial(tof2evpoly, poly_a)
 
     # Return results according to specification
     ecalibdict = {}
     ecalibdict["offset"] = np.asarray(pos).min()
-    ecalibdict["coeffs"] = a
-    ecalibdict["Tmat"] = Tmat
+    ecalibdict["coeffs"] = poly_a
+    ecalibdict["Tmat"] = t_mat
     ecalibdict["bvec"] = bvec
-    if (E0 is not None) and (t is not None):
-        ecalibdict["axis"] = pfunc(E0, t)
-        ecalibdict["E0"] = E0
 
-    elif (Eref is not None) and (t is not None):
-        E0 = -pfunc(-Eref, pos[refid])
-        ecalibdict["axis"] = pfunc(E0, t)
-        ecalibdict["E0"] = E0
+    if ref_energy is not None and t is not None:
+        energy_offset = -pfunc(-ref_energy, pos[ref_id])
+        ecalibdict["axis"] = pfunc(energy_offset, t)
+        ecalibdict["E0"] = energy_offset
 
-    if ret == "all":
-        return ecalibdict
-    elif ret == "func":
-        return pfunc
-    else:
-        return project(ecalibdict, ret)
+    return ecalibdict
 
 
-def apply_energy_correction(
-    df: Union[pd.DataFrame, dask.dataframe.DataFrame],
-    type: str,
-    **kwds,
-) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
-    """Apply correction to the time-of-flight (TOF) axis of single-event data.
-
-    :Parameters:
-        type: str
-            Type of correction to apply to the TOF axis.
-        **kwds: keyword arguments
-            Additional parameters to use for the correction.
-            :corraxis: str | 't'
-                String name of the axis to correct.
-            :center: list/tuple | (650, 650)
-                Image center pixel positions in (row, column) format.
-            :amplitude: numeric | -1
-                Amplitude of the time-of-flight correction term
-                (negative sign meaning subtracting the curved wavefront).
-            :d: numeric | 0.9
-                Field-free drift distance.
-            :t0: numeric | 0.06
-                Time zero position corresponding to the tip of the valence band.
-            :gamma: numeric
-                Linewidth value for correction using a 2D Lorentz profile.
-            :sigma: numeric
-                Standard deviation for correction using a 2D Gaussian profile.
-            :gam2: numeric
-                Linewidth value for correction using an asymmetric 2D Lorentz profile,
-                X-direction.
-            :amplitude2: numeric
-                Amplitude value for correction using an asymmetric 2D Lorentz profile,
-                X-direction.
-
-    :Return:
-
-    """
-
-    corraxis = kwds.pop("corraxis", "t")
-    ycenter, xcenter = kwds.pop("center", (650, 650))
-    amplitude = kwds.pop("amplitude", -1)
-    X = kwds.pop("X", "X")
-    Y = kwds.pop("Y", "Y")
-
-    if type == "spherical":
-        d = kwds.pop("d", 0.9)
-        t0 = kwds.pop("t0", 0.06)
-        df[corraxis] += (
-            (
-                np.sqrt(
-                    1
-                    + ((df[X] - xcenter) ** 2 + (df[Y] - ycenter) ** 2)
-                    / d**2,
-                )
-                - 1
-            )
-            * t0
-            * amplitude
-        )
-        return df
-
-    elif type == "Lorentzian":
-        gam = kwds.pop("gamma", 300)
-        df[corraxis] += (
-            amplitude
-            / (gam * np.pi)
-            * (
-                gam**2
-                / ((df[X] - xcenter) ** 2 + (df[Y] - ycenter) ** 2 + gam**2)
-            )
-        ) - amplitude / (gam * np.pi)
-        return df
-
-    elif type == "Gaussian":
-        sig = kwds.pop("sigma", 300)
-        df[corraxis] += (
-            amplitude
-            / np.sqrt(2 * np.pi * sig**2)
-            * np.exp(
-                -((df[X] - xcenter) ** 2 + (df[Y] - ycenter) ** 2)
-                / (2 * sig**2),
-            )
-        )
-        return df
-
-    elif type == "Lorentzian_asymmetric":
-        gam = kwds.pop("gamma", 300)
-        gam2 = kwds.pop("gamma2", 300)
-        amplitude2 = kwds.pop("amplitude2", -1)
-        df[corraxis] += (
-            amplitude
-            / (gam * np.pi)
-            * (gam**2 / ((df[Y] - ycenter) ** 2 + gam**2))
-        )
-        df[corraxis] += (
-            amplitude2
-            / (gam2 * np.pi)
-            * (gam2**2 / ((df[X] - xcenter) ** 2 + gam2**2))
-        )
-        return df
-
-    else:
-        raise NotImplementedError
-
-
-def append_energy_axis(
-    df: Union[pd.DataFrame, dask.dataframe.DataFrame],
-    E0: float,
-    **kwds,
-) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
-    """Calculate and append the E axis to the events dataframe.
-    This method can be reused.
-
-    **Parameter**\n
-    E0: numeric
-        Time-of-flight offset.
-    """
-
-    tof_column = kwds.pop("tof_column", "t")
-    energy_column = kwds.pop("energy_column", "E")
-
-    if ("t0" in kwds) and ("d" in kwds):
-        t0 = kwds.pop("t0")
-        d = kwds.pop("d")
-        df[energy_column] = tof2ev(
-            d,
-            t0,
-            E0,
-            df[tof_column].astype("float64"),
-            **kwds,
-        )
-        return df
-
-    elif "a" in kwds:
-        poly_a = kwds.pop("a")
-        df[energy_column] = tof2evpoly(
-            poly_a,
-            E0,
-            df[tof_column].astype("float64"),
-            **kwds,
-        )
-        return df
-    else:
-        raise NotImplementedError
-
-
-def tof2ev(
-    d: float,
-    t0: float,
-    E0: float,
+def tof2ev(  # pylint: disable=too-many-arguments
+    tof_distance: float,
+    time_offset: float,
+    energy_offset: float,
     t: Sequence[float],
     binwidth: float = 4.125e-12,
     binning: int = 1,
@@ -1072,15 +1122,19 @@ def tof2ev(
         Converted energy
     """
 
-    #    m_e/2 [eV]            bin width [s]
-    E = 2.84281e-12 * (d / (t * binwidth * 2**binning - t0)) ** 2 + E0
+    #         m_e/2 [eV]                      bin width [s]
+    energy = (
+        2.84281e-12
+        * (tof_distance / (t * binwidth * 2**binning - time_offset)) ** 2
+        + energy_offset
+    )
 
-    return E
+    return energy
 
 
 def tof2evpoly(
-    a: Sequence[float],
-    E0: float,
+    poly_a: Sequence[float],
+    energy_offset: float,
     t: Sequence[float],
 ) -> Sequence[float]:
     """
@@ -1100,12 +1154,12 @@ def tof2evpoly(
         Converted energy
     """
 
-    odr = len(a)  # Polynomial order
-    a = a[::-1]
-    E = 0
+    odr = len(poly_a)  # Polynomial order
+    poly_a = poly_a[::-1]
+    energy = 0
 
-    for i, d in enumerate(range(1, odr + 1)):
-        E += a[i] * t**d
-    E += E0
+    for i, order in enumerate(range(1, odr + 1)):
+        energy += poly_a[i] * t**order
+    energy += energy_offset
 
-    return E
+    return energy

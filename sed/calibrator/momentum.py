@@ -1,4 +1,4 @@
-"""sed.calibrator.momentum module. Code for momentum calibration and distotion
+"""sed.calibrator.momentum module. Code for momentum calibration and distortion
 correction. Mostly ported from https://github.com/mpes-kit/mpes.
 """
 # pylint: disable=too-many-lines
