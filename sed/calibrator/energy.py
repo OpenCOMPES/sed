@@ -5,7 +5,9 @@ correction. Mostly ported from https://github.com/mpes-kit/mpes.
 import itertools as it
 import warnings as wn
 from functools import partial
-from typing import Sequence
+from typing import Any
+from typing import Dict
+from typing import List
 from typing import Tuple
 from typing import Union
 
@@ -33,9 +35,9 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
 
     def __init__(  # pylint: disable=dangerous-default-value
         self,
-        biases: Sequence[float],
-        traces: Sequence[float],
-        tof: Sequence[float],
+        biases: np.ndarray,
+        traces: np.ndarray,
+        tof: np.ndarray,
         config: dict = {},
     ):
         """Initialization of the EnergyCalibrator class can follow different ways,
@@ -50,11 +52,11 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
 
         self.biases = biases
         self.tof = tof
-        self.featranges = []  # Value ranges for feature detection
+        self.featranges: List[Tuple] = []  # Value ranges for feature detection
 
         self._config = config
-        self.peaks = []
-        self.calibration = []
+        self.peaks: np.ndarray = np.asarray([])
+        self.calibration: Dict[Any, Any] = {}
 
         self.traces = traces
         self.traces_normed = traces
@@ -88,7 +90,7 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
 
         return int(np.round(self.nranges / self.ntraces))
 
-    def normalize(self, **kwds: dict):
+    def normalize(self, **kwds):
         """Normalize the spectra along an axis.
 
         **Parameters**\n
@@ -100,9 +102,9 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
 
     def add_features(  # pylint: disable=too-many-arguments
         self,
-        ranges: Sequence[Tuple[float, float]],
+        ranges: Union[List[Tuple], Tuple],
         refid: int = 0,
-        traces: Sequence[float] = None,
+        traces: np.ndarray = None,
         infer_others: bool = True,
         mode: str = "replace",
         **kwds,
@@ -132,7 +134,8 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
 
         # Infer the corresponding feature detection range of other traces by alignment
         if infer_others:
-            newranges = []
+            assert isinstance(ranges, tuple)
+            newranges: List[Tuple] = []
 
             for i in range(self.ntraces):
 
@@ -156,8 +159,8 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
 
     def feature_extract(
         self,
-        ranges: Sequence[Tuple[float, float]] = None,
-        traces: Sequence[float] = None,
+        ranges: List[Tuple] = None,
+        traces: np.ndarray = None,
         peak_window: int = 7,
     ):
         """Select or extract the equivalent landmarks (e.g. peaks) among all traces.
@@ -228,11 +231,13 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
         else:
             raise NotImplementedError()
 
+        return self.calibration
+
     def view(  # pylint: disable=W0102, R0913, R0914
         self,
-        traces: Sequence[float],
-        segs: Sequence[float] = None,
-        peaks: Sequence[float] = None,
+        traces: np.ndarray,
+        segs: List[Tuple[float, float]] = None,
+        peaks: np.ndarray = None,
         show_legend: bool = True,
         backend: str = "matplotlib",
         linekwds: dict = {},
@@ -451,7 +456,7 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
         x_column: str = None,
         y_column: str = None,
         correction_type: str = "Lorentzian",
-        center: Tuple[int] = None,
+        center: Tuple[int, int] = None,
         amplitude: float = None,
         **kwds,
     ) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
@@ -573,7 +578,7 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
 
 
 def normspec(
-    specs: Sequence[float],
+    specs: np.ndarray,
     smooth: bool = False,
     span: int = 7,
     order: int = 1,
@@ -617,8 +622,8 @@ def normspec(
 
 
 def find_correspondence(
-    sig_still: Sequence[float],
-    sig_mov: Sequence[float],
+    sig_still: np.ndarray,
+    sig_mov: np.ndarray,
     **kwds,
 ) -> np.ndarray:
     """Determine the correspondence between two 1D traces by alignment.
@@ -644,10 +649,10 @@ def find_correspondence(
 
 
 def range_convert(
-    x: Sequence[float],
-    xrng: Sequence[float],
-    pathcorr: Sequence[Tuple[float, float]],
-) -> tuple:
+    x: np.ndarray,
+    xrng: Tuple,
+    pathcorr: np.ndarray,
+) -> Tuple:
     """Convert value range using a pairwise path correspondence (e.g. obtained
     from time warping techniques).
 
@@ -692,13 +697,13 @@ def find_nearest(val: float, narray: np.ndarray) -> int:
         Array index of the value nearest to the given one.
     """
 
-    return np.argmin(np.abs(narray - val))
+    return int(np.argmin(np.abs(narray - val)))
 
 
 def peaksearch(
     traces: np.ndarray,
     tof: np.ndarray,
-    ranges: Sequence[Tuple[float, float]] = None,
+    ranges: List[Tuple] = None,
     pkwindow: int = 3,
     plot: bool = False,
 ):
@@ -740,22 +745,21 @@ def peaksearch(
             plt.plot(tofseg, trseg, linewidth=2)
             plt.scatter(maxs[0, 0], maxs[0, 1], s=30)
 
-    pkmaxs = np.asarray(pkmaxs)
-    return pkmaxs
+    return np.asarray(pkmaxs)
 
 
 # 1D peak detection algorithm adapted from Sixten Bergman
 # https://gist.github.com/sixtenbe/1178136#file-peakdetect-py
 def _datacheck_peakdetect(
-    x_axis: Sequence[float],
-    y_axis: Sequence[float],
+    x_axis: np.ndarray,
+    y_axis: np.ndarray,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Input format checking
     """
 
     if x_axis is None:
-        x_axis = range(len(y_axis))
+        x_axis = np.arange(len(y_axis))
 
     if len(y_axis) != len(x_axis):
         raise ValueError(
@@ -763,18 +767,18 @@ def _datacheck_peakdetect(
         )
 
     # Needs to be a numpy array
-    y_axis = np.array(y_axis)
-    x_axis = np.array(x_axis)
+    y_axis = np.asarray(y_axis)
+    x_axis = np.asarray(x_axis)
 
     return x_axis, y_axis
 
 
 def peakdetect1d(  # pylint: disable=too-many-branches
-    y_axis: Sequence[float],
-    x_axis: Sequence[float] = None,
+    y_axis: np.ndarray,
+    x_axis: np.ndarray = None,
     lookahead: int = 200,
     delta: int = 0,
-) -> Tuple[Sequence[float], Sequence[float]]:
+) -> Tuple[np.ndarray, np.ndarray]:
     """
     Function for detecting local maxima and minima in a signal.
     Discovers peaks by searching for values which are surrounded by lower
@@ -890,18 +894,15 @@ def peakdetect1d(  # pylint: disable=too-many-branches
     except IndexError:  # When no peaks have been found
         pass
 
-    max_peaks = np.asarray(max_peaks)
-    min_peaks = np.asarray(min_peaks)
-
-    return max_peaks, min_peaks
+    return (np.asarray(max_peaks), np.asarray(min_peaks))
 
 
 def fit_energy_calibation(  # pylint: disable=too-many-locals
-    pos: Sequence[float],
-    vals: Sequence[float],
+    pos: Union[List[float], np.ndarray],
+    vals: Union[List[float], np.ndarray],
     ref_id: int = 0,
     ref_energy: float = None,
-    t: Sequence[float] = None,
+    t: Union[List[float], np.ndarray] = None,
     **kwds,
 ) -> dict:
     """
@@ -930,7 +931,7 @@ def fit_energy_calibation(  # pylint: disable=too-many-locals
     binwidth = kwds.pop("binwidth", 4.125e-12)
     binning = kwds.pop("binning", 1)
 
-    vals = np.array(vals)
+    vals = np.asarray(vals)
     nvals = vals.size
 
     if ref_id >= nvals:
@@ -981,20 +982,20 @@ def fit_energy_calibation(  # pylint: disable=too-many-locals
     ecalibdict["E0"] = result.params["E0"].value
 
     if (ref_energy is not None) and (t is not None):
-        energy_offset = -pfunc(-ref_energy, pos[ref_id])
-        ecalibdict["axis"] = pfunc(energy_offset, t)
-        ecalibdict["E0"] = energy_offset
+        energy_offset = pfunc(-1 * ref_energy, pos[ref_id])
+        ecalibdict["axis"] = pfunc(-energy_offset, t)
+        ecalibdict["E0"] = -energy_offset
 
     return ecalibdict
 
 
 def poly_energy_calibration(  # pylint: disable=R0913, R0914
-    pos: Sequence[float],
-    vals: Sequence[float],
+    pos: Union[List[float], np.ndarray],
+    vals: Union[List[float], np.ndarray],
     order: int = 3,
     ref_id: int = 0,
     ref_energy: float = None,
-    t: Sequence[float] = None,
+    t: Union[List[float], np.ndarray] = None,
     aug: int = 1,
     method: str = "lstsq",
     **kwds,
@@ -1038,7 +1039,7 @@ def poly_energy_calibration(  # pylint: disable=R0913, R0914
         :axis: Fitted energy axis.
     """
 
-    vals = np.array(vals)
+    vals = np.asarray(vals)
     nvals = vals.size
 
     if ref_id >= nvals:
@@ -1063,8 +1064,8 @@ def poly_energy_calibration(  # pylint: disable=R0913, R0914
 
     for term in termorder:
         t_sec.append([pos[term] ** p for p in polyorder])
-    t_sec = np.asarray(t_sec)
-    t_mat = t_main - t_sec
+
+    t_mat = t_main - np.asarray(t_sec)
 
     # Construct the b vector (differential bias)
     bvec = vals[ref_id] - np.delete(vals, ref_id)
@@ -1088,9 +1089,9 @@ def poly_energy_calibration(  # pylint: disable=R0913, R0914
     ecalibdict["bvec"] = bvec
 
     if ref_energy is not None and t is not None:
-        energy_offset = -pfunc(-ref_energy, pos[ref_id])
-        ecalibdict["axis"] = pfunc(energy_offset, t)
-        ecalibdict["E0"] = energy_offset
+        energy_offset = pfunc(-1 * ref_energy, pos[ref_id])
+        ecalibdict["axis"] = pfunc(-energy_offset, t)
+        ecalibdict["E0"] = -energy_offset
 
     return ecalibdict
 
@@ -1099,10 +1100,10 @@ def tof2ev(  # pylint: disable=too-many-arguments
     tof_distance: float,
     time_offset: float,
     energy_offset: float,
-    t: Sequence[float],
+    t: Union[List[float], np.ndarray],
     binwidth: float = 4.125e-12,
     binning: int = 1,
-) -> Sequence[float]:
+) -> np.ndarray:
     """
     d/(t-t0) expression of the time-of-flight to electron volt
     conversion formula.
@@ -1121,6 +1122,7 @@ def tof2ev(  # pylint: disable=too-many-arguments
     E: numeric array
         Converted energy
     """
+    t = np.asarray(t)
 
     #         m_e/2 [eV]                      bin width [s]
     energy = (
@@ -1133,10 +1135,10 @@ def tof2ev(  # pylint: disable=too-many-arguments
 
 
 def tof2evpoly(
-    poly_a: Sequence[float],
+    poly_a: Union[List[float], np.ndarray],
     energy_offset: float,
-    t: Sequence[float],
-) -> Sequence[float]:
+    t: Union[float, List[float], np.ndarray],
+) -> np.ndarray:
     """
     Polynomial approximation of the time-of-flight to electron volt
     conversion formula.
@@ -1153,10 +1155,11 @@ def tof2evpoly(
     E: numeric array
         Converted energy
     """
+    t = np.asarray(t)
 
     odr = len(poly_a)  # Polynomial order
     poly_a = poly_a[::-1]
-    energy = 0
+    energy = np.zeros_like(t)
 
     for i, order in enumerate(range(1, odr + 1)):
         energy += poly_a[i] * t**order
