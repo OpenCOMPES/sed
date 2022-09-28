@@ -738,7 +738,11 @@ def peaksearch(
         trace = np.array(trace).ravel()
         tofseg, trseg = tof[cond], trace[cond]
         maxs, _ = peakdetect1d(trseg, tofseg, lookahead=pkwindow)
-        pkmaxs.append(maxs[0, :])
+        try:
+            pkmaxs.append(maxs[0, :])
+        except IndexError:  # No peak found for this range
+            print(f"No peak detected in range {rng}.")
+            raise
 
         if plot:
             plt.plot(tof, trace, "--k", linewidth=1)
