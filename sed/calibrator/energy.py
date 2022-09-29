@@ -25,7 +25,6 @@ from lmfit.printfuncs import report_fit
 from numpy.linalg import lstsq
 from scipy.signal import savgol_filter
 from scipy.sparse.linalg import lsqr
-from scipy.spatial import distance
 
 
 class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
@@ -233,7 +232,7 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
 
         return self.calibration
 
-    def view(  # pylint: disable=W0102, R0913, R0914
+    def view(  # pylint: disable=W0102, R0912, R0913, R0914
         self,
         traces: np.ndarray,
         segs: List[Tuple[float, float]] = None,
@@ -274,26 +273,42 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
             xaxis            1d array    x (horizontal) axis values
             title            str         Title of the plot
             legend_location  str         Location of the plot legend
+            align            bool        Option to shift traces by bias voltage
             ===============  ==========  ================================
         """
 
         lbs = kwds.pop("labels", [str(b) + " V" for b in self.biases])
         xaxis = kwds.pop("xaxis", self.tof)
         ttl = kwds.pop("title", "")
+        align = kwds.pop("align", False)
 
         if backend == "matplotlib":
 
             figsize = kwds.pop("figsize", (12, 4))
             fig, ax = plt.subplots(figsize=figsize)
             for itr, trace in enumerate(traces):
-                ax.plot(
-                    xaxis,
-                    trace,
-                    ls="--",
-                    linewidth=1,
-                    label=lbs[itr],
-                    **linekwds,
-                )
+                if align:
+                    ax.plot(
+                        xaxis
+                        - (
+                            self.biases[itr]
+                            - self.biases[self.calibration["refid"]]
+                        ),
+                        trace,
+                        ls="--",
+                        linewidth=1,
+                        label=lbs[itr],
+                        **linekwds,
+                    )
+                else:
+                    ax.plot(
+                        xaxis,
+                        trace,
+                        ls="--",
+                        linewidth=1,
+                        label=lbs[itr],
+                        **linekwds,
+                    )
 
                 # Emphasize selected EDC segments
                 if segs is not None:
@@ -340,16 +355,32 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
             # Plotting the main traces
             for itr, color in zip(range(len(traces)), colors):
                 trace = traces[itr, :]
-                fig.line(
-                    xaxis,
-                    trace,
-                    color=color,
-                    line_dash="solid",
-                    line_width=1,
-                    line_alpha=1,
-                    legend=lbs[itr],
-                    **kwds,
-                )
+                if align:
+                    fig.line(
+                        xaxis
+                        - (
+                            self.biases[itr]
+                            - self.biases[self.calibration["refid"]]
+                        ),
+                        trace,
+                        color=color,
+                        line_dash="solid",
+                        line_width=1,
+                        line_alpha=1,
+                        legend=lbs[itr],
+                        **kwds,
+                    )
+                else:
+                    fig.line(
+                        xaxis,
+                        trace,
+                        color=color,
+                        line_dash="solid",
+                        line_width=1,
+                        line_alpha=1,
+                        legend=lbs[itr],
+                        **kwds,
+                    )
 
                 # Emphasize selected EDC segments
                 if segs is not None:
@@ -419,13 +450,17 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
             energy_offset = kwds.pop("E0")
             calib_type = "poly"
 
-        elif "t0" in kwds and "d" in kwds and "E0" in self.calibration:
+        elif (
+            "t0" in self.calibration
+            and "d" in self.calibration
+            and "E0" in self.calibration
+        ):
             time_offset = self.calibration["t0"]
             drift_distance = self.calibration["d"]
             energy_offset = self.calibration["E0"]
             calib_type = "fit"
-        elif "a" in kwds and "E0" in self.calibration:
-            poly_a = self.calibration["a"]
+        elif "coeffs" in self.calibration and "E0" in self.calibration:
+            poly_a = self.calibration["coeffs"]
             energy_offset = self.calibration["E0"]
             calib_type = "poly"
 
@@ -642,7 +677,7 @@ def find_correspondence(
         (sig_still, sig_mov).
     """
 
-    dist = kwds.pop("dist_metric", distance.euclidean)
+    dist = kwds.pop("dist_metric", None)
     rad = kwds.pop("radius", 1)
     _, pathcorr = fastdtw(sig_still, sig_mov, dist=dist, radius=rad)
     return np.asarray(pathcorr)
@@ -989,6 +1024,7 @@ def fit_energy_calibation(  # pylint: disable=too-many-locals
         energy_offset = pfunc(-1 * ref_energy, pos[ref_id])
         ecalibdict["axis"] = pfunc(-energy_offset, t)
         ecalibdict["E0"] = -energy_offset
+        ecalibdict["refid"] = ref_id
 
     return ecalibdict
 
@@ -1096,6 +1132,7 @@ def poly_energy_calibration(  # pylint: disable=R0913, R0914
         energy_offset = pfunc(-1 * ref_energy, pos[ref_id])
         ecalibdict["axis"] = pfunc(-energy_offset, t)
         ecalibdict["E0"] = -energy_offset
+        ecalibdict["refid"] = ref_id
 
     return ecalibdict
 
@@ -1104,10 +1141,10 @@ def tof2ev(  # pylint: disable=too-many-arguments
     tof_distance: float,
     time_offset: float,
     energy_offset: float,
-    t: Union[List[float], np.ndarray],
+    t: float,
     binwidth: float = 4.125e-12,
     binning: int = 1,
-) -> np.ndarray:
+) -> float:
     """
     d/(t-t0) expression of the time-of-flight to electron volt
     conversion formula.
@@ -1126,8 +1163,6 @@ def tof2ev(  # pylint: disable=too-many-arguments
     E: numeric array
         Converted energy
     """
-    t = np.asarray(t)
-
     #         m_e/2 [eV]                      bin width [s]
     energy = (
         2.84281e-12
@@ -1141,8 +1176,8 @@ def tof2ev(  # pylint: disable=too-many-arguments
 def tof2evpoly(
     poly_a: Union[List[float], np.ndarray],
     energy_offset: float,
-    t: Union[float, List[float], np.ndarray],
-) -> np.ndarray:
+    t: float,
+) -> float:
     """
     Polynomial approximation of the time-of-flight to electron volt
     conversion formula.
@@ -1159,11 +1194,10 @@ def tof2evpoly(
     E: numeric array
         Converted energy
     """
-    t = np.asarray(t)
 
     odr = len(poly_a)  # Polynomial order
     poly_a = poly_a[::-1]
-    energy = np.zeros_like(t)
+    energy = 0.0
 
     for i, order in enumerate(range(1, odr + 1)):
         energy += poly_a[i] * t**order
