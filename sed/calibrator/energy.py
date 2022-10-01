@@ -122,7 +122,7 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
         self.tof = tof
         self.traces = self.traces_normed = traces
 
-    def bin_data(
+    def bin_data(  # pylint: disable=too-many-arguments
         self,
         data_files: List[str],
         axes: List[str] = None,
@@ -772,9 +772,8 @@ def save_class_attributes(clss, form, save_addr):
     if form == "mat":
         sio.savemat(save_addr, clss.__dict__)
     elif form in ("dmp", "dump"):
-        fh = open(save_addr, "wb")
-        pickle.dump(clss, fh)
-        fh.close()
+        with open(save_addr, "wb") as file_handle:
+            pickle.dump(clss, file_handle)
     elif form in ("h5", "hdf5"):
         dictcopy = deepcopy(clss.__dict__)
         dictcopy["featranges"] = np.asarray(dictcopy["featranges"])
@@ -798,11 +797,11 @@ def extract_bias(file: str, bias_key: str) -> float:
     Returns:
         bias value
     """
-    with h5py.File(file, "r") as f:
+    with h5py.File(file, "r") as file_handle:
         if bias_key[0] == "@":
-            bias = f.attrs[bias_key[1:]]
+            bias = file_handle.attrs[bias_key[1:]]
         else:
-            bias = f[bias_key]
+            bias = file_handle[bias_key]
 
     return -round(bias, 2)
 
