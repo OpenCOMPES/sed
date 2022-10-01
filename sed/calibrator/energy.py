@@ -3,6 +3,7 @@ correction. Mostly ported from https://github.com/mpes-kit/mpes.
 """
 # pylint: disable=too-many-lines
 import itertools as it
+import os
 import pickle
 import warnings as wn
 from copy import deepcopy
@@ -16,6 +17,7 @@ from typing import Union
 import bokeh.plotting as pbk
 import dask.dataframe
 import deepdish.io as dio
+import h5py
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -26,10 +28,13 @@ from fastdtw import fastdtw
 from lmfit import Minimizer
 from lmfit import Parameters
 from lmfit.printfuncs import report_fit
+from mpes import fprocessing as fp
 from numpy.linalg import lstsq
 from scipy.signal import savgol_filter
 from scipy.sparse.linalg import lsqr
 from silx.io import dictdump
+
+from sed.binning import bin_dataframe
 
 
 class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
@@ -39,9 +44,9 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
 
     def __init__(  # pylint: disable=dangerous-default-value
         self,
-        biases: np.ndarray,
-        traces: np.ndarray,
-        tof: np.ndarray,
+        biases: np.ndarray = None,
+        traces: np.ndarray = None,
+        tof: np.ndarray = None,
         config: dict = {},
     ):
         """Initialization of the EnergyCalibrator class can follow different ways,
@@ -54,22 +59,28 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
         3. Initialize with the binned traces and the time-of-flight
         """
 
-        self.biases = biases
-        self.tof = tof
-        self.featranges: List[Tuple] = []  # Value ranges for feature detection
-
+        if biases is not None:
+            self.biases = biases
+        else:
+            self.biases = np.asarray([])
+        if tof is not None:
+            self.tof = tof
+        else:
+            self.tof = np.asarray([])
+        if traces is not None:
+            self.traces = self.traces_normed = traces
+        else:
+            self.traces = self.traces_normed = np.asarray([])
         self._config = config
+
+        self.featranges: List[Tuple] = []  # Value ranges for feature detection
         self.peaks: np.ndarray = np.asarray([])
         self.calibration: Dict[Any, Any] = {}
-
-        self.traces = traces
-        self.traces_normed = traces
 
         self.tof_column = "t"
         self.energy_column = "E"
         self.x_column = "X"
         self.y_column = "Y"
-
         self.binwidth: float = 4.125e-12
         self.binning: int = 1
 
@@ -93,6 +104,96 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
         """The duplication number."""
 
         return int(np.round(self.nranges / self.ntraces))
+
+    def load_data(
+        self,
+        biases: np.ndarray = None,
+        traces: np.ndarray = None,
+        tof: np.ndarray = None,
+    ):
+        """Load data to the class
+
+        Parameters:
+            biases: Bias voltages used
+            traces: TOF-Data traces corresponding to the bias values
+            tof: TOF-values for the data traces
+        """
+        self.biases = biases
+        self.tof = tof
+        self.traces = self.traces_normed = traces
+
+    def bin_data(
+        self,
+        data_files: List[str],
+        axes: List[str] = None,
+        bins: List[int] = None,
+        ranges: List[Tuple[int, int]] = None,
+        biases: np.ndarray = None,
+        bias_key: str = None,
+        **kwds,
+    ):
+        """Load and bin data from single-event files
+
+        Parameters:
+            data_files: list of file names to bin
+            axes: bin axes | _config["energy"]["axes"]
+            bins: number of bins | _config["energy"]["bins"]
+            ranges: bin ranges | _config["energy"]["ranges"]
+            biases: Bias voltages used
+            bias_key: hdf5 path where bias values are stored.
+                    | _config["energy"]["bias_key"]
+            tof: TOF-values for the data traces
+        """
+        if axes is None:
+            axes = self._config["energy"]["axes"]
+        if bins is None:
+            bins = self._config["energy"]["bins"]
+        if ranges is None:
+            ranges = self._config["energy"]["ranges"]
+
+        #        hist_mode = kwds.pop("hist_mode", self._config["binning"]["hist_mode"])
+        #        mode = kwds.pop("mode", self._config["binning"]["mode"])
+        #        pbar = kwds.pop("pbar", self._config["binning"]["pbar"])
+        #        num_cores = kwds.pop("num_cores", self._config["binning"]["num_cores"])
+        #        threads_per_worker = kwds.pop(
+        #            "threads_per_worker",
+        #            self._config["binning"]["threads_per_worker"],
+        #        )
+        #        threadpool_API = kwds.pop(
+        #            "threadpool_API",
+        #            self._config["binning"]["threadpool_API"],
+        #        )
+
+        traces = []
+        read_biases = False
+        if biases is None:
+            biases = []
+            read_biases = True
+
+        for file in data_files:
+            folder = os.path.dirname(file)
+            dfp = fp.dataframeProcessor(datafolder=folder, datafiles=[file])
+            dfp.read(source="files", ftype="h5")
+            data = bin_dataframe(
+                dfp.edf,
+                bins=bins,
+                axes=axes,
+                ranges=ranges,
+                # histMode=hist_mode,
+                # mode=mode,
+                # pbar=pbar,
+                # nCores=num_cores,
+                # nThreadsPerWorker=threads_per_worker,
+                # threadpoolAPI=threadpool_API,
+                **kwds,
+            )
+            traces.append(data.data)
+            if read_biases:
+                biases.append(extract_bias(file, bias_key))
+        tof = data.coords[(axes[0])]
+        self.traces = np.asarray(traces)
+        self.tof = np.asarray(tof)
+        self.biases = np.asarray(biases)
 
     def normalize(self, **kwds):
         """Normalize the spectra along an axis.
@@ -684,6 +785,26 @@ def save_class_attributes(clss, form, save_addr):
 
     else:
         raise NotImplementedError
+
+
+def extract_bias(file: str, bias_key: str) -> float:
+    """
+    Read bias value from hdf5 file
+
+    Parameters:
+        file: filename
+        bias_key: hdf5 path to the bias value
+
+    Returns:
+        bias value
+    """
+    with h5py.File(file, "r") as f:
+        if bias_key[0] == "@":
+            bias = f.attrs[bias_key[1:]]
+        else:
+            bias = f[bias_key]
+
+    return -round(bias, 2)
 
 
 def normspec(
