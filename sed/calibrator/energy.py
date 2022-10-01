@@ -3,7 +3,9 @@ correction. Mostly ported from https://github.com/mpes-kit/mpes.
 """
 # pylint: disable=too-many-lines
 import itertools as it
+import pickle
 import warnings as wn
+from copy import deepcopy
 from functools import partial
 from typing import Any
 from typing import Dict
@@ -13,9 +15,11 @@ from typing import Union
 
 import bokeh.plotting as pbk
 import dask.dataframe
+import deepdish.io as dio
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import scipy.io as sio
 from bokeh.io import output_notebook
 from bokeh.palettes import Category10 as ColorCycle
 from fastdtw import fastdtw
@@ -25,6 +29,7 @@ from lmfit.printfuncs import report_fit
 from numpy.linalg import lstsq
 from scipy.signal import savgol_filter
 from scipy.sparse.linalg import lsqr
+from silx.io import dictdump
 
 
 class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
@@ -610,6 +615,75 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
             raise NotImplementedError
 
         return df
+
+    def save_class_parameters(
+        self,
+        form: str = "dmp",
+        save_addr: str = "./energy",
+    ):
+        """
+        Save all the attributes of the workflow instance for later use
+        (e.g. energy scale conversion).
+
+        Parameters:
+            form: str | 'dmp'
+                The file format to save the attributes in
+                ('h5'/'hdf5', 'mat' or 'dmp'/'dump').
+            save_addr: str | './energy'
+                The filename to save the files with.
+        """
+        save_addr = append_extension(save_addr, form)
+
+        save_class_attributes(self, form, save_addr)
+
+
+def append_extension(filepath: str, extension: str) -> str:
+    """
+    Append an extension to the end of a file path.
+
+    **Parameters**\n
+    filepath: str
+        File path of interest.
+    extension: str
+        File extension
+    """
+
+    format_string = "." + extension
+    if filepath:
+        if not filepath.endswith(format_string):
+            filepath += format_string
+
+    return filepath
+
+
+def save_class_attributes(clss, form, save_addr):
+    """Save class attributes.
+
+    **Parameters**\n
+    clss: instance
+        Handle of the instance to be saved.
+    form: str
+        Format to save in ('h5'/'hdf5', 'mat', or 'dmp'/'dump').
+    save_addr: str
+        The address to save the attributes in.
+    """
+    # Modify the data type for HDF5-convertibility (temporary fix)
+    if form == "mat":
+        sio.savemat(save_addr, clss.__dict__)
+    elif form in ("dmp", "dump"):
+        fh = open(save_addr, "wb")
+        pickle.dump(clss, fh)
+        fh.close()
+    elif form in ("h5", "hdf5"):
+        dictcopy = deepcopy(clss.__dict__)
+        dictcopy["featranges"] = np.asarray(dictcopy["featranges"])
+        try:
+            dictdump.dicttoh5(dictcopy, save_addr)
+        except KeyError:
+            dio.save(save_addr, dictcopy, compression=None)
+
+    else:
+        raise NotImplementedError
 
 
 def normspec(
