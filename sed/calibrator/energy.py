@@ -22,6 +22,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scipy.io as sio
+import xarray as xr
 from bokeh.io import output_notebook
 from bokeh.palettes import Category10 as ColorCycle
 from fastdtw import fastdtw
@@ -84,8 +85,20 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
         self.binwidth: float = 4.125e-12
         self.binning: int = 1
 
-        self.center = (650, 650)
+        self.center = (750, 750)
         self.amplitude = -1
+        self.tof_fermi = 132250
+        self.x_width = (-20, 20)
+        self.y_width = (-20, 20)
+        self.tof_width = (-300, 500)
+        self.color_clip = 300
+
+        self.correction: Dict[Any, Any] = {
+            "correction_type": "Lorentzian",
+            "amplitude": 800000,
+            "center": (750, 730),
+            "kwds": {"sigma": 920},
+        }
 
     @property
     def ntraces(self) -> int:
@@ -590,13 +603,109 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
 
         return df
 
+    def view_energy_correction(  # pylint: disable=R0913, R0914
+        self,
+        image: xr.DataArray,
+        keep: bool = False,
+        correction_type: str = None,
+        center: Tuple[int, int] = None,
+        amplitude: float = None,
+        **kwds,
+    ):
+        """
+
+        Args:
+            image (xr.DataArray): _description_
+            correction_type (str, optional): _description_. Defaults to "Lorentzian".
+            center (Tuple[int, int], optional): _description_. Defaults to None.
+            amplitude (float, optional): _description_. Defaults to None.
+        """
+
+        if correction_type is None:
+            correction_type = self.correction["correction_type"]
+
+        if center is None:
+            center = self.correction["center"]
+
+        if amplitude is None:
+            amplitude = self.correction["amplitude"]
+
+        kwds = {**(self.correction["kwds"]), **kwds}
+
+        x_column = kwds.pop("x_column", self.x_column)
+        y_column = kwds.pop("y_column", self.y_column)
+        tof_column = kwds.pop("tof_column", self.tof_column)
+        x_width = kwds.pop("x_width", self.x_width)
+        y_width = kwds.pop("y_width", self.y_width)
+        tof_fermi = kwds.pop("tof_fermi", self.tof_fermi)
+        tof_width = kwds.pop("tof_width", self.tof_width)
+        color_clip = kwds.pop("color_clip", self.color_clip)
+
+        x = image.coords[x_column]
+        y = image.coords[y_column]
+
+        x_center = center[0]
+        y_center = center[1]
+
+        correction_x = tof_fermi - correction_function(
+            x=x,
+            y=y_center,
+            correction_type=correction_type,
+            center=center,
+            amplitude=amplitude,
+            **kwds,
+        )
+        correction_y = tof_fermi - correction_function(
+            x=x_center,
+            y=y,
+            correction_type=correction_type,
+            center=center,
+            amplitude=amplitude,
+            **kwds,
+        )
+        plt.subplot(2, 1, 1)
+        image.loc[
+            {
+                y_column: slice(y_center + y_width[0], y_center + y_width[1]),
+                tof_column: slice(
+                    tof_fermi + tof_width[0],
+                    tof_fermi + tof_width[1],
+                ),
+            }
+        ].sum(dim=y_column).T.plot(
+            cmap="terrain_r",
+            vmax=color_clip,
+            yincrease=False,
+        )
+        plt.plot(x, correction_x)
+        plt.axvline(x=center[0])
+        plt.subplot(2, 1, 2)
+        image.loc[
+            {
+                x_column: slice(x_center + x_width[0], x_center + x_width[1]),
+                tof_column: slice(
+                    tof_fermi + tof_width[0],
+                    tof_fermi + tof_width[1],
+                ),
+            }
+        ].sum(dim=x_column).T.plot(
+            cmap="terrain_r",
+            vmax=color_clip,
+            yincrease=False,
+        )
+        plt.plot(y, correction_y)
+        plt.axvline(x=center[1])
+
+        if keep:
+            self.correction["amplitude"] = amplitude
+            self.correction["center"] = center
+            self.correction["correction_type"] = correction_type
+            self.correction["kwds"] = kwds
+
     def apply_energy_correction(  # pylint: disable=R0913, R0914
         self,
         df: Union[pd.DataFrame, dask.dataframe.DataFrame],
-        tof_column: str = None,
-        x_column: str = None,
-        y_column: str = None,
-        correction_type: str = "Lorentzian",
+        correction_type: str = None,
         center: Tuple[int, int] = None,
         amplitude: float = None,
         **kwds,
@@ -634,86 +743,29 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
 
         """
 
-        if tof_column is None:
-            tof_column = self.tof_column
-        if x_column is None:
-            x_column = self.x_column
-        if y_column is None:
-            y_column = self.y_column
+        if correction_type is None:
+            correction_type = self.correction["correction_type"]
+
         if center is None:
-            center = self.center
+            center = self.correction["center"]
 
         if amplitude is None:
-            amplitude = self.amplitude
+            amplitude = self.correction["amplitude"]
 
-        if correction_type == "spherical":
-            diameter = kwds.pop("d", 0.9)
-            time_offset = kwds.pop("t0", 0.06)
-            df[tof_column] += (
-                (
-                    np.sqrt(
-                        1
-                        + (
-                            (df[x_column] - center[0]) ** 2
-                            + (df[y_column] - center[1]) ** 2
-                        )
-                        / diameter**2,
-                    )
-                    - 1
-                )
-                * time_offset
-                * amplitude
-            )
+        kwds = {**(self.correction["kwds"]), **kwds}
 
-        elif correction_type == "Lorentzian":
-            gam = kwds.pop("gamma", 300)
-            df[tof_column] += (
-                amplitude
-                / (gam * np.pi)
-                * (
-                    gam**2
-                    / (
-                        (df[x_column] - center[0]) ** 2
-                        + (df[y_column] - center[1]) ** 2
-                        + gam**2
-                    )
-                )
-            ) - amplitude / (gam * np.pi)
+        x_column = kwds.pop("x_column", self.x_column)
+        y_column = kwds.pop("y_column", self.y_column)
+        tof_column = kwds.pop("tof_column", self.tof_column)
 
-        elif correction_type == "Gaussian":
-            sigma = kwds.pop("sigma", 300)
-            df[tof_column] += (
-                amplitude
-                / np.sqrt(2 * np.pi * sigma**2)
-                * np.exp(
-                    -(
-                        (df[x_column] - center[0]) ** 2
-                        + (df[y_column] - center[1]) ** 2
-                    )
-                    / (2 * sigma**2),
-                )
-            )
-
-        elif correction_type == "Lorentzian_asymmetric":
-            gamma = kwds.pop("gamma", 300)
-            gamma2 = kwds.pop("gamma2", 300)
-            amplitude2 = kwds.pop("amplitude2", -1)
-            df[tof_column] += (
-                amplitude
-                / (gamma * np.pi)
-                * (gamma**2 / ((df[y_column] - center[1]) ** 2 + gamma**2))
-            )
-            df[tof_column] += (
-                amplitude2
-                / (gamma2 * np.pi)
-                * (
-                    gamma2**2
-                    / ((df[x_column] - center[0]) ** 2 + gamma2**2)
-                )
-            )
-
-        else:
-            raise NotImplementedError
+        df[tof_column] += correction_function(
+            x=df[x_column],
+            y=df[y_column],
+            correction_type=correction_type,
+            center=center,
+            amplitude=amplitude,
+            **kwds,
+        )
 
         return df
 
@@ -804,6 +856,87 @@ def extract_bias(file: str, bias_key: str) -> float:
             bias = file_handle[bias_key]
 
     return -round(bias, 2)
+
+
+def correction_function(
+    x: float,
+    y: float,
+    correction_type: str,
+    center: Tuple[int, int],
+    amplitude: float,
+    **kwds,
+) -> float:
+    """_summary_
+
+    Args:
+        x (float): _description_
+        y (float): _description_
+        correction_type (str): _description_.
+        center (Tuple[int, int]): _description_
+        amplitude (float): _description_
+
+    Returns:
+        float: _description_
+    """
+    if correction_type == "spherical":
+        diameter = kwds.pop("d", 0.9)
+        correction = -(
+            (
+                np.sqrt(
+                    1
+                    + ((x - center[0]) ** 2 + (y - center[1]) ** 2)
+                    / diameter**2,
+                )
+                - 1
+            )
+            * amplitude
+        )
+
+    elif correction_type == "Lorentzian":
+        gam = kwds.pop("gamma", 900)
+        correction = (
+            amplitude
+            / (gam * np.pi)
+            * (
+                gam**2
+                / ((x - center[0]) ** 2 + (y - center[1]) ** 2 + gam**2)
+                - 1
+            )
+        )
+
+    elif correction_type == "Gaussian":
+        sigma = kwds.pop("sigma", 400)
+        correction = (
+            amplitude
+            / np.sqrt(2 * np.pi * sigma**2)
+            * (
+                np.exp(
+                    -((x - center[0]) ** 2 + (y - center[1]) ** 2)
+                    / (2 * sigma**2),
+                )
+                - 1
+            )
+        )
+
+    elif correction_type == "Lorentzian_asymmetric":
+        gamma = kwds.pop("gamma", 900)
+        gamma2 = kwds.pop("gamma2", gamma)
+        amplitude2 = kwds.pop("amplitude2", amplitude)
+        correction = (
+            amplitude
+            / (gamma * np.pi)
+            * (gamma**2 / ((y - center[1]) ** 2 + gamma**2) - 1)
+        )
+        correction += (
+            amplitude2
+            / (gamma2 * np.pi)
+            * (gamma2**2 / ((x - center[0]) ** 2 + gamma2**2) - 1)
+        )
+
+    else:
+        raise NotImplementedError
+
+    return correction
 
 
 def normspec(
