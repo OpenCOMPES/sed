@@ -608,29 +608,65 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
         image: xr.DataArray,
         keep: bool = False,
         correction_type: str = None,
-        center: Tuple[int, int] = None,
         amplitude: float = None,
         **kwds,
     ):
-        """
+        """Visualize the energy correction function ontop of the TOF/X/Y graphs.
 
-        Args:
-            image (xr.DataArray): _description_
-            correction_type (str, optional): _description_. Defaults to "Lorentzian".
-            center (Tuple[int, int], optional): _description_. Defaults to None.
-            amplitude (float, optional): _description_. Defaults to None.
+        :Parameters:
+            image: xarray
+                Image data cube (x, y, tof) of binned data to plot
+            keep: bool | False
+                whether to store the provided parameters within the class
+            correction_type: str
+                Type of correction to apply to the TOF axis. Defaults to config value.
+            :amplitude: numeric | config
+                Amplitude of the time-of-flight correction term
+            **kwds: keyword arguments
+                Additional parameters to use for the correction.
+                :x_column: str | config
+                    String name of the x axis.
+                :y_column: str | config
+                    String name of the y axis.
+                :tof_column: str | config
+                    String name of the tof axis to correct.
+                :center: list/tuple | config
+                    Image center pixel positions in (x, y) format.
+                :x_width: (int, int):
+                    x range to integrate around the center
+                :y_width: (int, int):
+                    y range to integrate around the center
+                :tof_fermi: int:
+                    TOF value of the Fermi level
+                :tof_width: (int, int):
+                    TOF range to plot around tof_fermi
+                :color_clip: int:
+                    highest value to plot in the color range
+                *** Additional parameters for correction functions: ***
+                :d: numeric | 0.9
+                    Field-free drift distance.
+                :gamma: numeric
+                    Linewidth value for correction using a 2D Lorentz profile.
+                :sigma: numeric
+                    Standard deviation for correction using a 2D Gaussian profile.
+                :gamma2: numeric
+                    Linewidth value for correction using an asymmetric 2D Lorentz
+                    profile, X-direction.
+                :amplitude2: numeric
+                    Amplitude value for correction using an asymmetric 2D Lorentz
+                    profile, X-direction.
+
         """
 
         if correction_type is None:
             correction_type = self.correction["correction_type"]
 
-        if center is None:
-            center = self.correction["center"]
-
         if amplitude is None:
             amplitude = self.correction["amplitude"]
 
         kwds = {**(self.correction["kwds"]), **kwds}
+
+        center = kwds.pop("center", self.correction["center"])
 
         x_column = kwds.pop("x_column", self.x_column)
         y_column = kwds.pop("y_column", self.y_column)
@@ -706,53 +742,51 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
         self,
         df: Union[pd.DataFrame, dask.dataframe.DataFrame],
         correction_type: str = None,
-        center: Tuple[int, int] = None,
         amplitude: float = None,
         **kwds,
     ) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
         """Apply correction to the time-of-flight (TOF) axis of single-event data.
 
         :Parameters:
-            type: str
-                Type of correction to apply to the TOF axis.
+            df: The dataframe where to apply the energy correction to
+            correction_type: str
+                Type of correction to apply to the TOF axis. Defaults to config value.
+            :amplitude: numeric | config
+                Amplitude of the time-of-flight correction term
             **kwds: keyword arguments
                 Additional parameters to use for the correction.
-                :corraxis: str | 't'
-                    String name of the axis to correct.
-                :center: list/tuple | (650, 650)
-                    Image center pixel positions in (row, column) format.
-                :amplitude: numeric | -1
-                    Amplitude of the time-of-flight correction term
-                    (negative sign meaning subtracting the curved wavefront).
+                :x_column: str | config
+                    String name of the x axis.
+                :y_column: str | config
+                    String name of the y axis.
+                :tof_column: str | config
+                    String name of the tof axis to correct.
+                :center: list/tuple | config
+                    Image center pixel positions in (x, y) format.
                 :d: numeric | 0.9
                     Field-free drift distance.
-                :t0: numeric | 0.06
-                    Time zero position corresponding to the tip of the valence band.
                 :gamma: numeric
                     Linewidth value for correction using a 2D Lorentz profile.
                 :sigma: numeric
                     Standard deviation for correction using a 2D Gaussian profile.
-                :gam2: numeric
+                :gamma2: numeric
                     Linewidth value for correction using an asymmetric 2D Lorentz
                     profile, X-direction.
                 :amplitude2: numeric
                     Amplitude value for correction using an asymmetric 2D Lorentz
                     profile, X-direction.
 
-        :Return:
-
         """
 
         if correction_type is None:
             correction_type = self.correction["correction_type"]
 
-        if center is None:
-            center = self.correction["center"]
-
         if amplitude is None:
             amplitude = self.correction["amplitude"]
 
         kwds = {**(self.correction["kwds"]), **kwds}
+
+        center = kwds.pop("center", self.correction["center"])
 
         x_column = kwds.pop("x_column", self.x_column)
         y_column = kwds.pop("y_column", self.y_column)
@@ -866,17 +900,31 @@ def correction_function(
     amplitude: float,
     **kwds,
 ) -> float:
-    """_summary_
+    """Calculate the TOF correction based on the given X/Y coordinates and a model
 
     Args:
-        x (float): _description_
-        y (float): _description_
-        correction_type (str): _description_.
-        center (Tuple[int, int]): _description_
-        amplitude (float): _description_
+        x (float): x coordinate
+        y (float): y coordinate
+        correction_type (str): type of correction. One of
+            "spherical", "Lorentzian", "Gaussian", or "Lorentzian_asymmetric"
+        center (Tuple[int, int]): center position of the distribution (x,y)
+        amplitude (float): Amplitude of the correction
+        **kwds: Keyword arguments:
+            :d: numeric | 0.9
+                Field-free drift distance.
+            :gamma: numeric
+                Linewidth value for correction using a 2D Lorentz profile.
+            :sigma: numeric
+                Standard deviation for correction using a 2D Gaussian profile.
+            :gam2: numeric
+                Linewidth value for correction using an asymmetric 2D Lorentz
+                profile, X-direction.
+            :amplitude2: numeric
+                Amplitude value for correction using an asymmetric 2D Lorentz
+                profile, X-direction.
 
     Returns:
-        float: _description_
+        float: calculated correction value
     """
     if correction_type == "spherical":
         diameter = kwds.pop("d", 0.9)
