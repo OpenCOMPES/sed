@@ -11,10 +11,14 @@ import psutil
 import xarray as xr
 
 from sed.binning import bin_dataframe
+from sed.calibrator.energy import EnergyCalibrator
 from sed.config.settings import parse_config
 from sed.core.dfops import apply_jitter
 from sed.core.metadata import MetaHandler
 from sed.diagnostics import grid_histogram
+from sed.loader.mirrorutil import CopyTool
+
+# from sed.calibrator.momentum import MomentumCorrector
 
 N_CPU = psutil.cpu_count()
 
@@ -30,11 +34,10 @@ class SedProcessor:
     ):
 
         self._config = parse_config(config)
-        if "num_cores" in self._config["binning"].keys():
-            if self._config["binning"]["num_cores"] >= N_CPU:
-                self._config["binning"]["num_cores"] = N_CPU - 1
-        else:
-            self._config["binning"]["num_cores"] = N_CPU - 1
+        num_cores = self._config.get("binning", {}).get("num_cores", N_CPU - 1)
+        if num_cores >= N_CPU:
+            num_cores = N_CPU - 1
+        self._config["binning"]["num_cores"] = num_cores
 
         self._dataframe = df
 
@@ -43,6 +46,21 @@ class SedProcessor:
         self._dimensions = []
         self._coordinates = {}
         self._attributes = MetaHandler(meta=metadata)
+        self.ec = EnergyCalibrator(config=self._config)
+        # self.mc = MomentumCorrector(config=self._config)
+
+        self.use_copy_tool = self._config.get("core", {}).get(
+            "use_copy_tool",
+            False,
+        )
+        if self.use_copy_tool:
+            try:
+                self.ct = CopyTool(
+                    source=self._config["core"]["copy_tool_source"],
+                    dest=self._config["core"]["copy_tool_dest"],
+                )
+            except KeyError:
+                self.use_copy_tool = False
 
     def __repr__(self):
         if self._dataframe is None:
@@ -95,11 +113,31 @@ class SedProcessor:
     @config.setter
     def config(self, config: Union[dict, str]):
         self._config = parse_config(config)
-        if "num_cores" in self._config["binning"].keys():
-            if self._config["binning"]["num_cores"] >= N_CPU:
-                self._config["binning"]["num_cores"] = N_CPU - 1
-        else:
-            self._config["binning"]["num_cores"] = N_CPU - 1
+        num_cores = self._config.get("binning", {}).get("num_cores", N_CPU - 1)
+        if num_cores >= N_CPU:
+            num_cores = N_CPU - 1
+        self._config["binning"]["num_cores"] = num_cores
+
+    def cpy(self, path: Union[str, List[str]]) -> Union[str, List[str]]:
+        """Returns either the original or the copied path to the given path.
+
+        Args:
+            path (Union[str, List[str]]): Source path or path list
+
+        Returns:
+            Union[str, List[str]]: Source or destination path or path list.
+        """
+        if self.use_copy_tool:
+            if isinstance(path, list):
+                path_out = []
+                for file in path:
+                    path_out.append(self.ct.copy(file))
+            else:
+                path_out = self.ct.copy(path)
+
+            return path_out
+
+        return path
 
     def load(
         self,
@@ -115,6 +153,56 @@ class SedProcessor:
             None
         """
         self._dataframe = data
+
+    # Energy calibrator workflow
+    def load_bias_series(
+        self,
+        data_files: List[str],
+        axes: List[str] = None,
+        bins: List = None,
+        ranges: List[Tuple[int, int]] = None,
+        biases: np.ndarray = None,
+        bias_key: str = None,
+        normalize: bool = None,
+        span: int = None,
+        order: int = None,
+    ):
+        """Load and bin data from single-event files
+
+        Parameters:
+            data_files: list of file names to bin
+            axes: bin axes | _config["dataframe"]["tof_column"]
+            bins: number of bins | _config["energy"]["bins"]
+            ranges: bin ranges | _config["energy"]["ranges"]
+            biases: Bias voltages used
+            bias_key: hdf5 path where bias values are stored.
+                    | _config["energy"]["bias_key"]
+        """
+
+        self.ec.bin_data(
+            data_files=self.cpy(data_files),
+            axes=axes,
+            bins=bins,
+            ranges=ranges,
+            biases=biases,
+            bias_key=bias_key,
+        )
+        if not (
+            normalize is not None and normalize is False
+        ) and self._config.get("energy", {}).get("normalize", True):
+            if span is None:
+                span = self._config.get("energy", {}).get("normalize_span", 7)
+            if order is None:
+                order = self._config.get("energy", {}).get(
+                    "normalize_order",
+                    1,
+                )
+            self.ec.normalize(smooth=True, span=span, order=order)
+        self.ec.view(
+            traces=self.ec.traces_normed,
+            xaxis=self.ec.tof,
+            backend="bokeh",
+        )
 
     def add_jitter(self, cols: Sequence[str] = None) -> None:
         """Add jitter to the selected dataframe columns.

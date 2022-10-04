@@ -78,27 +78,46 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
         self.peaks: np.ndarray = np.asarray([])
         self.calibration: Dict[Any, Any] = {}
 
-        self.tof_column = "t"
-        self.energy_column = "E"
-        self.x_column = "X"
-        self.y_column = "Y"
-        self.binwidth: float = 4.125e-12
-        self.binning: int = 1
+        self.tof_column = self._config.get("dataframe", {}).get(
+            "tof_column",
+            "t",
+        )
+        self.energy_column = self._config.get("dataframe", {}).get(
+            "energy_column",
+            "E",
+        )
+        self.x_column = self._config.get("dataframe", {}).get("x_column", "X")
+        self.y_column = self._config.get("dataframe", {}).get("y_column", "Y")
+        self.binwidth: float = self._config.get("dataframe", {}).get(
+            "tof_binwidth",
+            4.125e-12,
+        )
+        self.binning: int = self._config.get("dataframe", {}).get(
+            "tof_binning",
+            1,
+        )
 
-        self.center = (750, 750)
-        self.amplitude = -1
-        self.tof_fermi = 132250
-        self.x_width = (-20, 20)
-        self.y_width = (-20, 20)
-        self.tof_width = (-300, 500)
-        self.color_clip = 300
+        self.tof_fermi = self._config.get("energy", {}).get(
+            "tof_fermi",
+            132250,
+        )
+        self.x_width = self._config.get("energy", {}).get("x_width", (-20, 20))
+        self.y_width = self._config.get("energy", {}).get("y_width", (-20, 20))
+        self.tof_width = self._config.get("energy", {}).get(
+            "tof_width",
+            (-300, 500),
+        )
+        self.color_clip = self._config.get("energy", {}).get("color_clip", 300)
 
-        self.correction: Dict[Any, Any] = {
-            "correction_type": "Lorentzian",
-            "amplitude": 800000,
-            "center": (750, 730),
-            "kwds": {"sigma": 920},
-        }
+        self.correction: Dict[Any, Any] = self._config.get("energy", {}).get(
+            "correction",
+            {
+                "correction_type": "Lorentzian",
+                "amplitude": 800000,
+                "center": (750, 730),
+                "kwds": {"sigma": 920},
+            },
+        )
 
     @property
     def ntraces(self) -> int:
@@ -158,11 +177,14 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
             tof: TOF-values for the data traces
         """
         if axes is None:
-            axes = self._config["energy"]["axes"]
+            axes = [self._config.get("dataframe", {}).get("tof_column", "t")]
         if bins is None:
-            bins = self._config["energy"]["bins"]
+            bins = [self._config.get("energy", {}).get("bins", 1000)]
         if ranges is None:
-            ranges = self._config["energy"]["ranges"]
+            ranges_ = [
+                self._config.get("energy", {}).get("ranges", [128000, 138000]),
+            ]
+            ranges = [tuple(v) for v in ranges_]
 
         #        hist_mode = kwds.pop("hist_mode", self._config["binning"]["hist_mode"])
         #        mode = kwds.pop("mode", self._config["binning"]["mode"])
@@ -182,6 +204,8 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
         if biases is None:
             bias_list = []
             read_biases = True
+            if bias_key is None:
+                bias_key = self._config.get("energy", {}).get("bias_key", "")
 
         for file in data_files:
             folder = os.path.dirname(file)
@@ -205,7 +229,7 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
             if read_biases:
                 bias_list.append(extract_bias(file, bias_key))
         tof = data.coords[(axes[0])]
-        self.traces = np.asarray(traces)
+        self.traces = self.traces_normed = np.asarray(traces)
         self.tof = np.asarray(tof)
         if read_biases:
             self.biases = np.asarray(bias_list)
@@ -1003,7 +1027,7 @@ def normspec(
         Collection of 1D signals.
     smooth: bool | False
         Option to smooth the signals before normalization.
-    span, order: int, int | 13, 1
+    span, order: int, int | 7, 1
         Smoothing parameters of the LOESS method (see ``scipy.signal.savgol_filter()``).
 
     **Return**\n

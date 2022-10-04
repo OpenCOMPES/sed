@@ -1,7 +1,50 @@
+core:
+  use_copy_tool: True
+  copy_tool_source: "/mnt/pcshare/"
+  copy_tool_dest: "/scratch/localDataStore/"
+
+dataframe:
+  x_colum: "X"
+  y_column: "Y"
+  tof_colum: "t"
+  energy_column: "E"
+  x_corrected_column: "Xm"
+  y_corrected_column: "Ym"
+  kx_column: "kx"
+  ky_column: "ky"
+  tof_binwidth: 4.125e-12
+  tof_binning: 1
+
+energy:
+  bins: 1000
+  ranges: [128000, 138000]
+  bias_key: "@KTOF:Lens:Sample:V"
+  normalize: True
+  normalize_span: 7
+  normalize_order: 1
+  tof_fermi: 132250
+  x_width: [-20, 20]
+  y_width: [-20, 20]
+  tof_width: [-300, 500]
+  color_clip: 300
+  correction:
+    correction_type: "Lorentzian"
+    amplitude: 800000
+    center: [750, 730]
+    kwds:
+      sigma: 920
+
+momentum:
+
 binning:
   hist_mode: "numba"
-  mode: fast
+  mode: "fast"
   pbar: True
   num_cores: 20
   threads_per_worker: 4
   threadpool_API: "blas"
+
+histogram:
+  bins: [80, 80, 80, 80]
+  axes: ["X", "Y", "t", "ADC"]
+  ranges: [[0, 1800], [0, 1800], [65000, 69000], [0, 500], ]
