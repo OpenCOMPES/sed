@@ -8,6 +8,7 @@ import errno
 import os
 import shutil
 from datetime import datetime
+from typing import List
 
 import dask as d
 from dask.diagnostics import ProgressBar
@@ -16,7 +17,13 @@ from dask.diagnostics import ProgressBar
 class CopyTool:
     """File collecting and sorting class."""
 
-    def __init__(self, source="/", dest="/", ntasks=None, **kwds):
+    def __init__(
+        self,
+        source: str = "/",
+        dest: str = "/",
+        ntasks: int = None,
+        **kwds,
+    ):
 
         self.source = source
         self.dest = dest
@@ -26,6 +33,7 @@ class CopyTool:
         )  # Default 500 GB safety margin
         self.pbenv = kwds.pop("pbenv", "classic")
         self.gid = kwds.pop("gid", 5050)
+        self.scheduler = kwds.pop("scheduler", "threads")
 
         if (ntasks is None) or (ntasks < 0):
             # Default to 25 concurrent copy tasks
@@ -35,12 +43,23 @@ class CopyTool:
 
     def copy(  # pylint: disable=R0912, R0914
         self,
-        source,
-        force_copy=False,
-        scheduler="threads",
+        source: str,
+        force_copy: bool = False,
         **compute_kwds,
-    ):
-        """Local file copying method."""
+    ) -> str:
+        """Local file copying method.
+
+        Args:
+            source (str): source path
+            force_copy (bool, optional): re-copy all files. Defaults to False.
+
+        Raises:
+            FileNotFoundError: Raised if the source path is not found or empty.
+            OSError: Raised if the target disk is full.
+
+        Returns:
+            str: Path of the copied source directory mapped into the target tree
+        """
 
         if not os.path.exists(source):
             raise FileNotFoundError("Source not found!")
@@ -148,7 +167,7 @@ class CopyTool:
             with ProgressBar():
                 d.compute(
                     *copy_tasks,
-                    scheduler=scheduler,
+                    scheduler=self.scheduler,
                     num_workers=self.ntasks,
                     **compute_kwds,
                 )
@@ -159,24 +178,43 @@ class CopyTool:
 
         return dest_file
 
-    def size(self, sdir):
-        """Calculate file size."""
+    def size(self, sdir: str) -> int:
+        """Calculate file size.
 
+        Args:
+            sdir (str): Path to source directory
+
+        Returns:
+            int: Size of files in source path
+        """
+
+        size = 0
         for path, dirs, filenames in os.walk(  # pylint: disable=W0612
             sdir,
         ):
             # Check space left
-            size = 0
             for sfile in filenames:
                 size += os.path.getsize(os.path.join(sdir, sfile))
-            return size
+
+        return size
 
     def cleanup_oldest_scan(  # pylint: disable=R0912
         self,
-        force=False,
-        report=False,
+        force: bool = False,
+        report: bool = False,
     ):
-        """Remove scans in old directories."""
+        """Remove scans in old directories. Looks for the directory with the oldest
+            ctime and queries the user to confirm for its deletion.
+
+        Args:
+            force (bool, optional): Forces to automatically remove the oldest scan.
+                Defaults to False.
+            report (bool, optional): Print a report with all directories in dest,
+                sorted by age. Defaults to False.
+
+        Raises:
+            FileNotFoundError: Raised if no scans to remove are found.
+        """
 
         # get list of all Scan directories (leaf directories)
         scan_dirs = []
@@ -237,15 +275,31 @@ class CopyTool:
 
 
 # private Functions
-def get_target_dir(
-    sdir,
-    source,
-    dest,
-    gid,
-    mode,
-    create=False,
-):  # pylint: disable=R0913
-    """Retrieve target directories."""
+def get_target_dir(  # pylint: disable=R0913
+    sdir: str,
+    source: str,
+    dest: str,
+    gid: int,
+    mode: int,
+    create: bool = False,
+) -> str:
+    """Retrieve target directory.
+
+    Args:
+        sdir (str): Source directory to copy
+        source (str): source root path
+        dest (str): destination root path
+        gid (int): Group id
+        mode (int): Unix mode
+        create (bool, optional): Wether to create directories. Defaults to False.
+
+    Raises:
+        NotADirectoryError: Raised if sdir is not a directory
+        ValueError: Raised if sdir not inside of source
+
+    Returns:
+        str: The mapped targed directory inside dest
+    """
 
     if not os.path.isdir(sdir):
         raise NotADirectoryError("Only works for directories!")
@@ -270,8 +324,17 @@ def get_target_dir(
 
 
 # replacement for os.makedirs, which is independent of umask
-def mymakedirs(path, mode, gid):
-    """Create directories."""
+def mymakedirs(path: str, mode: int, gid: int) -> List[str]:
+    """Creates a directory path iteratively from its root
+
+    Args:
+        path (str): Path of the directory to create
+        mode (int): Unix access mode of created directories
+        gid (int): Group id of created directories
+
+    Returns:
+        str: Path of created directories
+    """
 
     if not path or os.path.exists(path):
         return []
@@ -280,12 +343,21 @@ def mymakedirs(path, mode, gid):
     os.mkdir(path)
     os.chmod(path, mode)
     os.chown(path, -1, gid)
-    res += [path]
+    res.append(path)
     return res
 
 
-def mycopy(source, dest, gid, mode, replace=False):
-    """Copy function with option to delete the target file firs (to take ownership)."""
+def mycopy(source: str, dest: str, gid: int, mode: int, replace: bool = False):
+    """Copy function with option to delete the target file firs (to take ownership).
+
+    Args:
+        source (str): Path to the source file
+        dest (str): Path to the destination file
+        gid (int): Group id to be set for the destination file
+        mode (int): Unix access mode to be set for the destination file
+        replace (bool, optional): Option to replace an existing file.
+            Defaults to False.
+    """
 
     if replace:
         if os.path.exists(dest):
