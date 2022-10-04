@@ -135,7 +135,7 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
         self.tof = tof
         self.traces = self.traces_normed = traces
 
-    def bin_data(  # pylint: disable=too-many-arguments
+    def bin_data(  # pylint: disable=R0913, R0914
         self,
         data_files: List[str],
         axes: List[str] = None,
@@ -180,11 +180,12 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
         traces = []
         read_biases = False
         if biases is None:
-            biases = []
+            bias_list = []
             read_biases = True
 
         for file in data_files:
             folder = os.path.dirname(file)
+            # TODO replace loader, and implement parallelized version
             dfp = fp.dataframeProcessor(datafolder=folder, datafiles=[file])
             dfp.read(source="files", ftype="h5")
             data = bin_dataframe(
@@ -202,11 +203,12 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
             )
             traces.append(data.data)
             if read_biases:
-                biases.append(extract_bias(file, bias_key))
+                bias_list.append(extract_bias(file, bias_key))
         tof = data.coords[(axes[0])]
         self.traces = np.asarray(traces)
         self.tof = np.asarray(tof)
-        self.biases = np.asarray(biases)
+        if read_biases:
+            self.biases = np.asarray(bias_list)
 
     def normalize(self, **kwds):
         """Normalize the spectra along an axis.
@@ -677,8 +679,8 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
         tof_width = kwds.pop("tof_width", self.tof_width)
         color_clip = kwds.pop("color_clip", self.color_clip)
 
-        x = image.coords[x_column]
-        y = image.coords[y_column]
+        x = image.coords[x_column].values
+        y = image.coords[y_column].values
 
         x_center = center[0]
         y_center = center[1]
@@ -893,13 +895,13 @@ def extract_bias(file: str, bias_key: str) -> float:
 
 
 def correction_function(
-    x: float,
-    y: float,
+    x: Union[float, np.ndarray],
+    y: Union[float, np.ndarray],
     correction_type: str,
     center: Tuple[int, int],
     amplitude: float,
     **kwds,
-) -> float:
+) -> Union[float, np.ndarray]:
     """Calculate the TOF correction based on the given X/Y coordinates and a model
 
     Args:
