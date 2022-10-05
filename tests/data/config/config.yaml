@@ -22,6 +22,9 @@ energy:
   normalize: True
   normalize_span: 7
   normalize_order: 1
+  fastdtw_radius: 2
+  peak_window: 7
+  calibration_method: "lmfit"
   tof_fermi: 132250
   x_width: [-20, 20]
   y_width: [-20, 20]

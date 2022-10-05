@@ -162,19 +162,24 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
         ranges: List[Tuple[int, int]] = None,
         biases: np.ndarray = None,
         bias_key: str = None,
+        negate_bias: bool = None,
         **kwds,
     ):
         """Load and bin data from single-event files
 
         Parameters:
             data_files: list of file names to bin
-            axes: bin axes | _config["energy"]["axes"]
-            bins: number of bins | _config["energy"]["bins"]
-            ranges: bin ranges | _config["energy"]["ranges"]
+            axes: bin axes | _config["dataframe"]["tof_column"] / "t"
+            bins: number of bins | _config["energy"]["bins"] / 1000
+            ranges: bin ranges | _config["energy"]["ranges"] / [128000, 138000]
             biases: Bias voltages used
             bias_key: hdf5 path where bias values are stored.
                     | _config["energy"]["bias_key"]
-            tof: TOF-values for the data traces
+            negate_bias: Option to multiply bias values by -1, in order to produce
+                positively increasing energy values.
+                    | _config["energy"]["negate_bias"] / True
+            **kwds: Keyword parameters for bin_dataframe
+
         """
         if axes is None:
             axes = [self._config.get("dataframe", {}).get("tof_column", "t")]
@@ -206,6 +211,11 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
             read_biases = True
             if bias_key is None:
                 bias_key = self._config.get("energy", {}).get("bias_key", "")
+            if negate_bias is None:
+                negate_bias = self._config.get("energy", {}).get(
+                    "negate_bias",
+                    True,
+                )
 
         for file in data_files:
             folder = os.path.dirname(file)
@@ -247,7 +257,7 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
     def add_features(  # pylint: disable=too-many-arguments
         self,
         ranges: Union[List[Tuple], Tuple],
-        refid: int = 0,
+        ref_id: int = 0,
         traces: np.ndarray = None,
         infer_others: bool = True,
         mode: str = "replace",
@@ -259,7 +269,7 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
         ranges: list/tuple
             Collection of feature detection ranges, within which an algorithm
             (i.e. 1D peak detector) with look for the feature.
-        refid: int | 0
+        ref_id: int | 0
             Index of the reference trace (EDC).
         traces: 2D array | None
             Collection of energy dispersion curves (EDCs).
@@ -284,7 +294,7 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
             for i in range(self.ntraces):
 
                 pathcorr = find_correspondence(
-                    traces[refid, :],
+                    traces[ref_id, :],
                     traces[i, :],
                     **kwds,
                 )
@@ -356,11 +366,16 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
 
         landmarks = kwds.pop("landmarks", self.peaks[:, 0])
         biases = kwds.pop("biases", self.biases)
+        if "t" in kwds:
+            t = kwds.pop("t")
+        else:
+            t = self.tof
         if method == "lmfit":
             self.calibration = fit_energy_calibation(
                 landmarks,
                 biases,
                 ref_id=ref_id,
+                t=t,
                 **kwds,
             )
         elif method in ("lstsq", "lsqr"):
@@ -370,6 +385,7 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
                 ref_id=ref_id,
                 aug=self.dup,
                 method=method,
+                t=t,
                 **kwds,
             )
         else:
@@ -1343,6 +1359,8 @@ def fit_energy_calibation(  # pylint: disable=too-many-locals
     ref_id: int = 0,
     ref_energy: float = None,
     t: Union[List[float], np.ndarray] = None,
+    binwidth: float = 4.125e-12,
+    binning: int = 1,
     **kwds,
 ) -> dict:
     """
@@ -1361,6 +1379,10 @@ def fit_energy_calibation(  # pylint: disable=too-many-locals
         Energy of the reference value.
     t: numeric array | None
         Drift time.
+    binwidth: float | 4.125e-12
+        time width in ns of a TOF bin
+    binning: int | 1
+        exponent of binning steps in TOF (i.e. 1 bin=binwidth*2^binning)
 
     **Returns**\n
     ecalibdict: dict
@@ -1368,8 +1390,6 @@ def fit_energy_calibation(  # pylint: disable=too-many-locals
         :coeffs: Fitted function coefficents.
         :axis: Fitted energy axis.
     """
-    binwidth = kwds.pop("binwidth", 4.125e-12)
-    binning = kwds.pop("binning", 1)
 
     vals = np.asarray(vals)
     nvals = vals.size

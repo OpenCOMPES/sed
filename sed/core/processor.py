@@ -5,6 +5,7 @@ from typing import Tuple
 from typing import Union
 
 import dask.dataframe
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import psutil
@@ -155,6 +156,7 @@ class SedProcessor:
         self._dataframe = data
 
     # Energy calibrator workflow
+    # 1. Load and normalize data
     def load_bias_series(
         self,
         data_files: List[str],
@@ -187,9 +189,10 @@ class SedProcessor:
             biases=biases,
             bias_key=bias_key,
         )
-        if not (
-            normalize is not None and normalize is False
-        ) and self._config.get("energy", {}).get("normalize", True):
+        if (normalize is not None and normalize is True) or (
+            normalize is None
+            and self._config.get("energy", {}).get("normalize", True)
+        ):
             if span is None:
                 span = self._config.get("energy", {}).get("normalize_span", 7)
             if order is None:
@@ -203,6 +206,106 @@ class SedProcessor:
             xaxis=self.ec.tof,
             backend="bokeh",
         )
+
+    # 2. extract ranges and get peak positions
+    def find_bias_peaks(  # pylint: disable=too-many-arguments
+        self,
+        ranges: Union[List[Tuple], Tuple],
+        ref_id: int = 0,
+        infer_others: bool = True,
+        mode: str = "replace",
+        radius: int = None,
+        peak_window: int = None,
+    ):
+        """_summary_
+
+        Args:
+            ranges (Union[List[Tuple], Tuple]): _description_
+            refid (int, optional): _description_. Defaults to 0.
+            infer_others (bool, optional): _description_. Defaults to True.
+            mode (str, optional): _description_. Defaults to "replace".
+            radius (int, optional): _description_. Defaults to None.
+            peak_window (int, optional): _description_. Defaults to None.
+        """
+        if radius is None:
+            radius = self._config.get("energy", {}).get("fastdtw_radius", 2)
+        self.ec.add_features(
+            ranges=ranges,
+            ref_id=ref_id,
+            infer_others=infer_others,
+            mode=mode,
+            radius=radius,
+        )
+        self.ec.view(
+            traces=self.ec.traces_normed,
+            segs=self.ec.featranges,
+            xaxis=self.ec.tof,
+            backend="bokeh",
+        )
+        print(self.ec.featranges)
+        if peak_window is None:
+            peak_window = self._config.get("energy", {}).get("peak_window", 7)
+        try:
+            self.ec.feature_extract(peak_window=peak_window)
+            self.ec.view(
+                traces=self.ec.traces_normed,
+                peaks=self.ec.peaks,
+                backend="bokeh",
+            )
+        except IndexError:
+            print("Could not determine all peaks!")
+            raise
+
+    # 3. Fit the energy calibration reation, and apply it to the data frame
+    def calibrate_energy_axis(
+        self,
+        ref_id: int,
+        ref_energy: float,
+        method: str = None,
+        apply: bool = True,
+    ):
+        """_summary_
+
+        Args:
+            ref_id (int): _description_
+            ref_energy (float): _description_
+            method (str, optional): _description_. Defaults to None.
+            apply (bool, optional): _description_. Defaults to True.
+        """
+        if method is None:
+            method = self._config.get("energy", {}).get(
+                "calibration_method",
+                "lmfit",
+            )
+        self.ec.calibrate(ref_id=ref_id, ref_energy=ref_energy, method=method)
+        print("Quality of Calibration:")
+        self.ec.view(
+            traces=self.ec.traces_normed,
+            xaxis=self.ec.calibration["axis"],
+            align=True,
+            backend="bokeh",
+        )
+        print("E/TOF relationship:")
+        self.ec.view(
+            traces=self.ec.calibration["axis"][None, :],
+            xaxis=self.ec.tof,
+            backend="matplotlib",
+            show_legend=False,
+        )
+        plt.scatter(
+            self.ec.peaks[:, 0],
+            self.ec.biases - self.ec.biases[ref_id] + ref_energy,
+            s=50,
+            c="k",
+        )
+        plt.xlabel("Time-of-flight", fontsize=15)
+        plt.ylabel("Energy (eV)", fontsize=15)
+        plt.show()
+
+        if apply and self._dataframe is not None:
+            print("Adding energy columng to dataframe:")
+            self._dataframe = self.ec.append_energy_axis(self._dataframe)
+            print(self._dataframe.head(10))
 
     def add_jitter(self, cols: Sequence[str] = None) -> None:
         """Add jitter to the selected dataframe columns.
