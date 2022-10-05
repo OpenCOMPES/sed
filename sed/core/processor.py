@@ -24,10 +24,10 @@ from sed.loader.mirrorutil import CopyTool
 N_CPU = psutil.cpu_count()
 
 
-class SedProcessor:
+class SedProcessor:  # pylint: disable=R0902
     """[summary]"""
 
-    def __init__(
+    def __init__(  # pylint: disable=W0102
         self,
         df: Union[pd.DataFrame, dask.dataframe.DataFrame] = None,
         metadata: dict = {},
@@ -47,7 +47,9 @@ class SedProcessor:
         self._dimensions = []
         self._coordinates = {}
         self._attributes = MetaHandler(meta=metadata)
-        self.ec = EnergyCalibrator(config=self._config)
+        self.ec = EnergyCalibrator(
+            config=self._config,
+        )  # pylint: disable=invalid-name
         # self.mc = MomentumCorrector(config=self._config)
 
         self.use_copy_tool = self._config.get("core", {}).get(
@@ -56,7 +58,7 @@ class SedProcessor:
         )
         if self.use_copy_tool:
             try:
-                self.ct = CopyTool(
+                self.ct = CopyTool(  # pylint: disable=invalid-name
                     source=self._config["core"]["copy_tool_source"],
                     dest=self._config["core"]["copy_tool_dest"],
                 )
@@ -157,7 +159,7 @@ class SedProcessor:
 
     # Energy calibrator workflow
     # 1. Load and normalize data
-    def load_bias_series(
+    def load_bias_series(  # pylint: disable=R0913
         self,
         data_files: List[str],
         axes: List[str] = None,

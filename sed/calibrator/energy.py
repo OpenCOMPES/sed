@@ -1353,7 +1353,7 @@ def peakdetect1d(  # pylint: disable=too-many-branches
     return (np.asarray(max_peaks), np.asarray(min_peaks))
 
 
-def fit_energy_calibation(  # pylint: disable=too-many-locals
+def fit_energy_calibation(  # pylint: disable=too-many-locals, too-many-arguments
     pos: Union[List[float], np.ndarray],
     vals: Union[List[float], np.ndarray],
     ref_id: int = 0,
