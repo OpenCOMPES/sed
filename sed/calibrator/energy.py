@@ -159,7 +159,7 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
         data_files: List[str],
         axes: List[str] = None,
         bins: List[int] = None,
-        ranges: List[Tuple[int, int]] = None,
+        ranges: List[Tuple] = None,
         biases: np.ndarray = None,
         bias_key: str = None,
         **kwds,
@@ -419,7 +419,7 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
     def view(  # pylint: disable=W0102, R0912, R0913, R0914
         self,
         traces: np.ndarray,
-        segs: List[Tuple[float, float]] = None,
+        segs: List[Tuple] = None,
         peaks: np.ndarray = None,
         show_legend: bool = True,
         backend: str = "matplotlib",

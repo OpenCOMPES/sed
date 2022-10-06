@@ -121,7 +121,7 @@ class SedProcessor:  # pylint: disable=R0902
             num_cores = N_CPU - 1
         self._config["binning"]["num_cores"] = num_cores
 
-    def cpy(self, path: Union[str, List[str]]) -> Union[str, List[str]]:
+    def cpy(self, path: Union[str, List[str]]) -> List[str]:
         """Returns either the original or the copied path to the given path.
 
         Args:
@@ -131,16 +131,19 @@ class SedProcessor:  # pylint: disable=R0902
             Union[str, List[str]]: Source or destination path or path list.
         """
         if self.use_copy_tool:
+            path_out = []
             if isinstance(path, list):
-                path_out = []
                 for file in path:
                     path_out.append(self.ct.copy(file))
             else:
-                path_out = self.ct.copy(path)
+                path_out.append(self.ct.copy(path))
 
             return path_out
 
-        return path
+        if isinstance(path, list):
+            return path
+        else:
+            return [path]
 
     def load(
         self,
@@ -164,7 +167,7 @@ class SedProcessor:  # pylint: disable=R0902
         data_files: List[str],
         axes: List[str] = None,
         bins: List = None,
-        ranges: List[Tuple[int, int]] = None,
+        ranges: List[Tuple] = None,
         biases: np.ndarray = None,
         bias_key: str = None,
         normalize: bool = None,
