@@ -47,9 +47,9 @@ class SedProcessor:  # pylint: disable=R0902
         self._dimensions = []
         self._coordinates = {}
         self._attributes = MetaHandler(meta=metadata)
-        self.ec = EnergyCalibrator(
+        self.ec = EnergyCalibrator(  # pylint: disable=invalid-name
             config=self._config,
-        )  # pylint: disable=invalid-name
+        )
         # self.mc = MomentumCorrector(config=self._config)
 
         self.use_copy_tool = self._config.get("core", {}).get(
@@ -219,15 +219,31 @@ class SedProcessor:  # pylint: disable=R0902
         radius: int = None,
         peak_window: int = None,
     ):
-        """_summary_
+        """find a peak within a given range for the indicated reference trace,
+        and tries to find the same peak for all other traces. Uses fast_dtw to
+        align curves, which might not be too good if the shape of curves changes
+        qualitatively. Ideally, choose a reference trace in the middle of the set,
+        and don't choose the range too narrow around the peak.
+        Alternatively, a list of ranges for all traces can be given.
 
         Args:
-            ranges (Union[List[Tuple], Tuple]): _description_
-            refid (int, optional): _description_. Defaults to 0.
-            infer_others (bool, optional): _description_. Defaults to True.
-            mode (str, optional): _description_. Defaults to "replace".
-            radius (int, optional): _description_. Defaults to None.
-            peak_window (int, optional): _description_. Defaults to None.
+            ranges (Union[List[Tuple], Tuple]):
+                Tuple of TOF values indicating a range. Alternatively, a list of
+                ranges for all traces can be given.
+            refid (int, optional):
+                The id of the trace the range refers to. Defaults to 0.
+
+            infer_others (bool, optional):
+                Whether to determine the range for the other traces. Defaults to True.
+            mode (str, optional):
+                whether to "add" or "replace" existing ranges. Defaults to "replace".
+            radius (int, optional):
+                Radius parameter for fast_dtw. Defaults to
+                _config["energy"]["fastdtw_radius"].
+            peak_window (int, optional):
+                peak_window parameter for the peak detection algorthm. amount of points
+                that have to have to behave monotoneously around a peak. Defaults to
+                _config["energy"]["peak_window"].
         """
         if radius is None:
             radius = self._config.get("energy", {}).get("fastdtw_radius", 2)
@@ -259,32 +275,61 @@ class SedProcessor:  # pylint: disable=R0902
             raise
 
     # 3. Fit the energy calibration reation, and apply it to the data frame
-    def calibrate_energy_axis(
+    def calibrate_energy_axis(  # pylint: disable=R0913
         self,
         ref_id: int,
         ref_energy: float,
         method: str = None,
+        energy_scale: str = None,
         apply: bool = True,
+        **kwds,
     ):
-        """_summary_
+        """Calculate the calibration function for the energy axis,
+        and apply it to the dataframe. Two approximations are implemented,
+        a (normally 3rd order) polynomial approximation, and a d^2/(t-t0)^2
+        relation.
 
         Args:
-            ref_id (int): _description_
-            ref_energy (float): _description_
-            method (str, optional): _description_. Defaults to None.
-            apply (bool, optional): _description_. Defaults to True.
+            ref_id (int):
+                id of the trace at the bias where the reference energy is given.
+            ref_energy (float):
+                absolute energy of the detected feature at the bias of ref_id
+            method (str, optional):
+                The calibration method to use. Possible values are
+                "lmfit", "lstsq", "lsqr".
+                Defaults to _config["energy"]["calibration_method"]
+            energy_scale (str, optional):
+                which energy scale to use. Possible values are
+                "kinetic" and "binding"
+                Defaults to _config["energy"]["energy_scale"]
+            apply (bool, optional):
+                Whether to apply the calibration to the dataframe. Defaults to True.
         """
         if method is None:
             method = self._config.get("energy", {}).get(
                 "calibration_method",
                 "lmfit",
             )
-        self.ec.calibrate(ref_id=ref_id, ref_energy=ref_energy, method=method)
+
+        if energy_scale is None:
+            energy_scale = self._config.get("energy", {}).get(
+                "energy_scale",
+                "kinetic",
+            )
+
+        self.ec.calibrate(
+            ref_id=ref_id,
+            ref_energy=ref_energy,
+            method=method,
+            energy_scale=energy_scale,
+            **kwds,
+        )
         print("Quality of Calibration:")
         self.ec.view(
             traces=self.ec.traces_normed,
             xaxis=self.ec.calibration["axis"],
             align=True,
+            energy_scale=energy_scale,
             backend="bokeh",
         )
         print("E/TOF relationship:")
@@ -294,12 +339,25 @@ class SedProcessor:  # pylint: disable=R0902
             backend="matplotlib",
             show_legend=False,
         )
-        plt.scatter(
-            self.ec.peaks[:, 0],
-            self.ec.biases - self.ec.biases[ref_id] + ref_energy,
-            s=50,
-            c="k",
-        )
+        if energy_scale == "kinetic":
+            plt.scatter(
+                self.ec.peaks[:, 0],
+                -(self.ec.biases - self.ec.biases[ref_id]) + ref_energy,
+                s=50,
+                c="k",
+            )
+        elif energy_scale == "binding":
+            plt.scatter(
+                self.ec.peaks[:, 0],
+                self.ec.biases - self.ec.biases[ref_id] + ref_energy,
+                s=50,
+                c="k",
+            )
+        else:
+            raise ValueError(
+                'energy_scale needs to be either "binding" or "kinetic"',
+                f", got {energy_scale}.",
+            )
         plt.xlabel("Time-of-flight", fontsize=15)
         plt.ylabel("Energy (eV)", fontsize=15)
         plt.show()

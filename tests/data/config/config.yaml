@@ -25,6 +25,7 @@ energy:
   fastdtw_radius: 2
   peak_window: 7
   calibration_method: "lmfit"
+  energy_scale: "kinetic"
   tof_fermi: 132250
   x_width: [-20, 20]
   y_width: [-20, 20]

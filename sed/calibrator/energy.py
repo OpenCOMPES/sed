@@ -162,7 +162,6 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
         ranges: List[Tuple[int, int]] = None,
         biases: np.ndarray = None,
         bias_key: str = None,
-        negate_bias: bool = None,
         **kwds,
     ):
         """Load and bin data from single-event files
@@ -175,14 +174,11 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
             biases: Bias voltages used
             bias_key: hdf5 path where bias values are stored.
                     | _config["energy"]["bias_key"]
-            negate_bias: Option to multiply bias values by -1, in order to produce
-                positively increasing energy values.
-                    | _config["energy"]["negate_bias"] / True
             **kwds: Keyword parameters for bin_dataframe
 
         """
         if axes is None:
-            axes = [self._config.get("dataframe", {}).get("tof_column", "t")]
+            axes = [self.tof_column]
         if bins is None:
             bins = [self._config.get("energy", {}).get("bins", 1000)]
         if ranges is None:
@@ -211,11 +207,6 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
             read_biases = True
             if bias_key is None:
                 bias_key = self._config.get("energy", {}).get("bias_key", "")
-            if negate_bias is None:
-                negate_bias = self._config.get("energy", {}).get(
-                    "negate_bias",
-                    True,
-                )
 
         for file in data_files:
             folder = os.path.dirname(file)
@@ -244,15 +235,23 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
         if read_biases:
             self.biases = np.asarray(bias_list)
 
-    def normalize(self, **kwds):
+    def normalize(self, smooth: bool = False, span: int = 7, order: int = 1):
         """Normalize the spectra along an axis.
 
         **Parameters**\n
-        **kwds: keyword arguments
-            See the keywords for ``mpes.utils.normspec()``.
+        smooth: bool | False
+            Option to smooth the signals before normalization.
+        span, order: int, int | 7, 1
+            Smoothing parameters of the LOESS method
+            (see ``scipy.signal.savgol_filter()``).
         """
 
-        self.traces_normed = normspec(self.traces, **kwds)
+        self.traces_normed = normspec(
+            self.traces,
+            smooth=smooth,
+            span=span,
+            order=order,
+        )
 
     def add_features(  # pylint: disable=too-many-arguments
         self,
@@ -344,10 +343,14 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
             pkwindow=peak_window,
         )
 
-    def calibrate(
+    def calibrate(  # pylint: disable=R0913
         self,
         ref_id: int = 0,
         method: str = "lmfit",
+        energy_scale: str = "kinetic",
+        landmarks: np.ndarray = None,
+        biases: np.ndarray = None,
+        t: np.ndarray = None,
         **kwds,
     ) -> dict:
         """Calculate the functional mapping between time-of-flight and the energy
@@ -359,29 +362,49 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
         ret: list | ['coeffs']
             Options for return values (see ``mpes.analysis.calibrateE()``).
         method: str | lmfit
-            Method for determining the energy calibration. "lmfit" or "poly"
+            Method for determining the energy calibration. "lmfit" or "lstsq", "lsqr"
+        energy_scale: str | kinetic
+            Direction of increasing energy scale. "kinetic" (decreasing TOF) or
+            "binding" (increasing TOF).
         **kwds: keyword arguments
-            See available keywords for ``poly_energy_calibration()``.
+            See available keywords for ``poly_energy_calibration()`` and
+            ``fit_energy_calibation()``
         """
 
-        landmarks = kwds.pop("landmarks", self.peaks[:, 0])
-        biases = kwds.pop("biases", self.biases)
-        if "t" in kwds:
-            t = kwds.pop("t")
-        else:
+        if landmarks is None:
+            landmarks = self.peaks[:, 0]
+        if biases is None:
+            biases = self.biases
+        if t is None:
             t = self.tof
+        if energy_scale == "kinetic":
+            sign = -1
+        elif energy_scale == "binding":
+            sign = 1
+        else:
+            raise ValueError(
+                'energy_scale needs to be either "binding" or "kinetic"',
+                f", got {energy_scale}.",
+            )
+
+        binwidth = kwds.pop("binwidth", self.binwidth)
+        binning = kwds.pop("binning", self.binning)
+
         if method == "lmfit":
             self.calibration = fit_energy_calibation(
                 landmarks,
-                biases,
+                sign * biases,
+                binwidth,
+                binning,
                 ref_id=ref_id,
                 t=t,
+                energy_scale=energy_scale,
                 **kwds,
             )
         elif method in ("lstsq", "lsqr"):
             self.calibration = poly_energy_calibration(
                 landmarks,
-                biases,
+                sign * biases,
                 ref_id=ref_id,
                 aug=self.dup,
                 method=method,
@@ -442,6 +465,9 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
         xaxis = kwds.pop("xaxis", self.tof)
         ttl = kwds.pop("title", "")
         align = kwds.pop("align", False)
+        energy_scale = kwds.pop("energy_scale", "kinetic")
+
+        sign = -1 if energy_scale == "kinetic" else 1
 
         if backend == "matplotlib":
 
@@ -451,7 +477,8 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
                 if align:
                     ax.plot(
                         xaxis
-                        - (
+                        + sign
+                        * (
                             self.biases[itr]
                             - self.biases[self.calibration["refid"]]
                         ),
@@ -519,7 +546,8 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
                 if align:
                     fig.line(
                         xaxis
-                        - (
+                        + sign
+                        * (
                             self.biases[itr]
                             - self.biases[self.calibration["refid"]]
                         ),
@@ -604,6 +632,7 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
             time_offset = kwds.pop("t0")
             drift_distance = kwds.pop("d")
             energy_offset = kwds.pop("E0")
+            energy_scale = kwds.pop("energy_scale", "kinetic")
             calib_type = "fit"
 
         elif "a" in kwds and "E0" in kwds:
@@ -615,10 +644,12 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
             "t0" in self.calibration
             and "d" in self.calibration
             and "E0" in self.calibration
+            and "energy_scale" in self.calibration
         ):
             time_offset = self.calibration["t0"]
             drift_distance = self.calibration["d"]
             energy_offset = self.calibration["E0"]
+            energy_scale = self.calibration["energy_scale"]
             calib_type = "fit"
         elif "coeffs" in self.calibration and "E0" in self.calibration:
             poly_a = self.calibration["coeffs"]
@@ -629,10 +660,11 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
             df[energy_column] = tof2ev(
                 drift_distance,
                 time_offset,
+                binwidth,
+                binning,
+                energy_scale,
                 energy_offset,
                 df[tof_column].astype("float64"),
-                binwidth=binwidth,
-                binning=binning,
             )
         elif calib_type == "poly":
             df[energy_column] = tof2evpoly(
@@ -931,7 +963,7 @@ def extract_bias(file: str, bias_key: str) -> float:
         else:
             bias = file_handle[bias_key]
 
-    return -round(bias, 2)
+    return round(bias, 2)
 
 
 def correction_function(
@@ -1038,7 +1070,7 @@ def normspec(
     """
     Normalize a series of 1D signals.
 
-    **Parameters**\n
+    Parameters:
     *specs: list/2D array
         Collection of 1D signals.
     smooth: bool | False
@@ -1356,11 +1388,12 @@ def peakdetect1d(  # pylint: disable=too-many-branches
 def fit_energy_calibation(  # pylint: disable=too-many-locals, too-many-arguments
     pos: Union[List[float], np.ndarray],
     vals: Union[List[float], np.ndarray],
+    binwidth: float,
+    binning: int,
     ref_id: int = 0,
     ref_energy: float = None,
     t: Union[List[float], np.ndarray] = None,
-    binwidth: float = 4.125e-12,
-    binning: int = 1,
+    energy_scale: str = "kinetic",
     **kwds,
 ) -> dict:
     """
@@ -1401,14 +1434,15 @@ def fit_energy_calibation(  # pylint: disable=too-many-locals, too-many-argument
         )
         ref_id = nvals - 1
 
-    def residual(pars, time, data, binwidth=binwidth, binning=binning):
+    def residual(pars, time, data, binwidth, binning, energy_scale):
         model = tof2ev(
             pars["d"],
             pars["t0"],
+            binwidth,
+            binning,
+            energy_scale,
             pars["E0"],
             time,
-            binwidth=binwidth,
-            binning=binning,
         )
         if data is None:
             return model
@@ -1422,7 +1456,11 @@ def fit_energy_calibation(  # pylint: disable=too-many-locals, too-many-argument
         max=(min(pos) - 1) * binwidth * 2**binning,
     )
     pars.add(name="E0", value=kwds.pop("E0_init", min(vals)))
-    fit = Minimizer(residual, pars, fcn_args=(pos, vals))
+    fit = Minimizer(
+        residual,
+        pars,
+        fcn_args=(pos, vals, binwidth, binning, energy_scale),
+    )
     result = fit.leastsq()
     report_fit(result)
 
@@ -1431,8 +1469,9 @@ def fit_energy_calibation(  # pylint: disable=too-many-locals, too-many-argument
         tof2ev,
         result.params["d"].value,
         result.params["t0"].value,
-        binwidth=binwidth,
-        binning=binning,
+        binwidth,
+        binning,
+        energy_scale,
     )
 
     # Return results according to specification
@@ -1440,6 +1479,7 @@ def fit_energy_calibation(  # pylint: disable=too-many-locals, too-many-argument
     ecalibdict["d"] = result.params["d"].value
     ecalibdict["t0"] = result.params["t0"].value
     ecalibdict["E0"] = result.params["E0"].value
+    ecalibdict["energy_scale"] = energy_scale
 
     if (ref_energy is not None) and (t is not None):
         energy_offset = pfunc(-1 * ref_energy, pos[ref_id])
@@ -1561,21 +1601,22 @@ def poly_energy_calibration(  # pylint: disable=R0913, R0914
 def tof2ev(  # pylint: disable=too-many-arguments
     tof_distance: float,
     time_offset: float,
+    binwidth: float,
+    binning: int,
+    energy_scale: str,
     energy_offset: float,
     t: float,
-    binwidth: float = 4.125e-12,
-    binning: int = 1,
 ) -> float:
     """
-    d/(t-t0) expression of the time-of-flight to electron volt
+    (d/(t-t0))**2 expression of the time-of-flight to electron volt
     conversion formula.
 
-    **Parameters**\n
-    d: float
+    Parameters:
+    tof_distance: float
         Drift distance
-    t0: float
+    time_offset: float
         time offset
-    E0: float
+    energy_offset: float
         Energy offset.
     t: numeric array
         Drift time of electron.
@@ -1584,9 +1625,13 @@ def tof2ev(  # pylint: disable=too-many-arguments
     E: numeric array
         Converted energy
     """
+
+    sign = 1 if energy_scale == "kinetic" else -1
+
     #         m_e/2 [eV]                      bin width [s]
     energy = (
         2.84281e-12
+        * sign
         * (tof_distance / (t * binwidth * 2**binning - time_offset)) ** 2
         + energy_offset
     )
