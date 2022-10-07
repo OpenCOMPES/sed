@@ -4,9 +4,9 @@ core:
   copy_tool_dest: "/scratch/localDataStore/"
 
 dataframe:
-  x_colum: "X"
+  x_column: "X"
   y_column: "Y"
-  tof_colum: "t"
+  tof_column: "t"
   energy_column: "E"
   x_corrected_column: "Xm"
   y_corrected_column: "Ym"
@@ -39,6 +39,10 @@ energy:
       sigma: 920
 
 momentum:
+  axes: ["@x_column", "@y_column", "@tof_column"]
+  bins: [512, 512, 300]
+  ranges: [[-256, 1792], [-256, 1792], [128000, 138000]]
+  detector_ranges: [[0, 2048], [0, 2048]]
 
 binning:
   hist_mode: "numba"

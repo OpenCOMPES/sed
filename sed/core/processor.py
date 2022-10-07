@@ -13,13 +13,12 @@ import xarray as xr
 
 from sed.binning import bin_dataframe
 from sed.calibrator.energy import EnergyCalibrator
+from sed.calibrator.momentum import MomentumCorrector
 from sed.config.settings import parse_config
 from sed.core.dfops import apply_jitter
 from sed.core.metadata import MetaHandler
 from sed.diagnostics import grid_histogram
 from sed.loader.mirrorutil import CopyTool
-
-# from sed.calibrator.momentum import MomentumCorrector
 
 N_CPU = psutil.cpu_count()
 
@@ -42,7 +41,8 @@ class SedProcessor:  # pylint: disable=R0902
 
         self._dataframe = df
 
-        self._binned = None
+        self._binned: xr.DataArray = None
+        self._pre_binned: xr.DataArray = None
 
         self._dimensions = []
         self._coordinates = {}
@@ -50,7 +50,7 @@ class SedProcessor:  # pylint: disable=R0902
         self.ec = EnergyCalibrator(  # pylint: disable=invalid-name
             config=self._config,
         )
-        # self.mc = MomentumCorrector(config=self._config)
+        self.mc = MomentumCorrector(config=self._config)
 
         self.use_copy_tool = self._config.get("core", {}).get(
             "use_copy_tool",
@@ -159,6 +159,73 @@ class SedProcessor:  # pylint: disable=R0902
             None
         """
         self._dataframe = data
+
+    # Momentum calibration workflow
+    # 1. Bin raw detector data for distortion correction
+    def bin_and_load_momentum_calibration(
+        self,
+        df_partitions: int = 100,
+        rotation_symmetry: int = 6,
+        axes: List[str] = None,
+        bins: List[int] = None,
+        ranges: List[Tuple] = None,
+        **kwds,
+    ):
+        if axes is None:
+            axes = self._config.get("momentum", {}).get(
+                "axes",
+                ["@x_column, @y_column, @tof_column"],
+            )
+        for loc, axis in enumerate(axes):
+            if axis.startswith("@"):
+                axes[loc] = self._config.get("dataframe").get(axis.strip("@"))
+
+        if bins is None:
+            bins = self._config.get("momentum", {}).get(
+                "bins",
+                [512, 512, 300],
+            )
+        if ranges is None:
+            ranges_ = self._config.get("momentum", {}).get(
+                "ranges",
+                [[-256, 1792], [-256, 1792], [128000, 138000]],
+            )
+            ranges = [tuple(v) for v in ranges_]
+
+        assert (
+            self._dataframe is not None
+        ), "dataframe needs to be loaded first!"
+
+        hist_mode = kwds.pop("hist_mode", self._config["binning"]["hist_mode"])
+        mode = kwds.pop("mode", self._config["binning"]["mode"])
+        pbar = kwds.pop("pbar", self._config["binning"]["pbar"])
+        num_cores = kwds.pop("num_cores", self._config["binning"]["num_cores"])
+        threads_per_worker = kwds.pop(
+            "threads_per_worker",
+            self._config["binning"]["threads_per_worker"],
+        )
+        threadpool_API = kwds.pop(
+            "threadpool_API",
+            self._config["binning"]["threadpool_API"],
+        )
+
+        df_partitions = min(df_partitions, self._dataframe.npartitions)
+        self._pre_binned = bin_dataframe(
+            df=self._dataframe.partitions[0:df_partitions],
+            bins=bins,
+            axes=axes,
+            ranges=ranges,
+            histMode=hist_mode,
+            mode=mode,
+            pbar=pbar,
+            nCores=num_cores,
+            nThreadsPerWorker=threads_per_worker,
+            threadpoolAPI=threadpool_API,
+            **kwds,
+        )
+
+        self.mc.load_data(data=self._pre_binned, rotsym=rotation_symmetry)
+        self.mc.select_slicer()
 
     # Energy calibrator workflow
     # 1. Load and normalize data

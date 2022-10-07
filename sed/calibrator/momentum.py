@@ -12,10 +12,13 @@ from typing import Union
 import bokeh.palettes as bp
 import bokeh.plotting as pbk
 import dask.dataframe
+import ipywidgets as ipw
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scipy.ndimage as ndi
+import xarray as xr
 from bokeh.colors import RGB
 from bokeh.io import output_notebook
 from bokeh.palettes import Category10 as ColorCycle
@@ -34,8 +37,8 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
 
     def __init__(  # pylint: disable=dangerous-default-value
         self,
-        image: np.ndarray,
-        bin_ranges: List[Tuple[int, int]],
+        data: Union[xr.DataArray, np.ndarray] = None,
+        bin_ranges: List[Tuple] = None,
         rotsym: int = 6,
         config: dict = {},
     ):
@@ -46,18 +49,36 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
             rotsym: int | 6
                 Order of rotational symmetry.
         """
+        self.image: np.ndarray = None
+        self.img_ndim: int = None
+        self.slice: np.ndarray = None
+        self.bin_ranges: List[Tuple] = []
 
-        self.image = np.squeeze(image)
-        self.imgndim = image.ndim
-        if (self.imgndim > 3) or (self.imgndim < 2):
-            raise ValueError("The input image dimension need to be 2 or 3!")
-        if self.imgndim == 2:
-            self.slice = self.image
+        if data is not None:
+            if isinstance(data, xr.DataArray):
+                self.image = np.squeeze(data.data)
+                self.bin_ranges = []
+                for axis in data.coords:
+                    self.bin_ranges.append((axis[0], axis[-1]))
+            else:
+                assert bin_ranges is not None
+                self.image = np.squeeze(data)
+                self.bin_ranges = bin_ranges
 
-        self.bin_ranges = bin_ranges
-        self.detector_ranges = [(0, 2048), (0, 2048)]
+            self.img_ndim = self.image.ndim
+            if (self.img_ndim > 3) or (self.img_ndim < 2):
+                raise ValueError(
+                    "The input image dimension need to be 2 or 3!",
+                )
+            if self.img_ndim == 2:
+                self.slice = self.image
 
         self._config = config
+
+        self.detector_ranges = self._config.get("momentum", {}).get(
+            "detector_ranges",
+            [[0, 2048], [0, 2048]],
+        )
 
         self.rotsym = int(rotsym)
         self.rotsym_angle = int(360 / self.rotsym)
@@ -108,6 +129,75 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
         }
 
         return sym_dict
+
+    def load_data(
+        self,
+        data: Union[xr.DataArray, np.ndarray] = None,
+        bin_ranges: List[Tuple] = None,
+        rotsym: int = 6,
+    ):
+        if isinstance(data, xr.DataArray):
+            self.image = np.squeeze(data.data)
+            self.bin_ranges = []
+            for axis in data.coords:
+                self.bin_ranges.append((axis[0], axis[-1]))
+        else:
+            assert bin_ranges is not None
+            self.image = np.squeeze(data)
+            self.bin_ranges = bin_ranges
+
+        self.img_ndim = self.image.ndim
+        if (self.img_ndim > 3) or (self.img_ndim < 2):
+            raise ValueError("The input image dimension need to be 2 or 3!")
+        if self.img_ndim == 2:
+            self.slice = self.image
+
+        self.rotsym = int(rotsym)
+        self.rotsym_angle = int(360 / self.rotsym)
+        self.arot = np.array([0] + [self.rotsym_angle] * (self.rotsym - 1))
+        self.ascale = np.array([1.0] * self.rotsym)
+
+    def select_slicer(self, width: int = 5, axis: int = 2):
+        matplotlib.use("module://ipympl.backend_nbagg")
+
+        assert self.img_ndim == 3
+        selector = slice(170, 170 + width)
+        immage = np.moveaxis(self.image, axis, 0)
+        try:
+            self.slice = immage[selector, ...].sum(axis=0)
+        except AttributeError:
+            self.slice = immage[selector, ...]
+
+        fig, ax = plt.subplots(1, 1)
+        img = ax.imshow(self.slice.T, origin="lower", cmap="terrain_r")
+
+        def update(plane: int, width: int):
+            selector = slice(plane, plane + width)
+            try:
+                self.slice = immage[selector, ...].sum(axis=0)
+            except AttributeError:
+                self.slice = immage[selector, ...]
+            img.set_data(self.slice.T)
+            axmin = np.min(self.slice, axis=(0, 1))
+            axmax = np.max(self.slice, axis=(0, 1))
+            if axmin < axmax:
+                img.set_clim(axmin, axmax)
+            ax.set_title(f"Plane[{plane}:{plane+width}]")
+            fig.canvas.draw_idle()
+
+        update(0, width)
+
+        ipw.interact(
+            update,
+            plane=ipw.widgets.IntSlider(
+                value=0,
+                min=0,
+                max=self.image.shape[2] - width,
+                step=1,
+            ),
+            width=ipw.widgets.IntSlider(value=5, min=1, max=20, step=1),
+        )
+        plt.show()
 
     def select_slice(
         self,
