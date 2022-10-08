@@ -41,8 +41,12 @@ energy:
 momentum:
   axes: ["@x_column", "@y_column", "@tof_column"]
   bins: [512, 512, 300]
-  ranges: [[-256, 1792], [-256, 1792], [128000, 138000]]
+  ranges: [[-256, 1792], [-256, 1792], [128000, 136000]]
   detector_ranges: [[0, 2048], [0, 2048]]
+  sigma: 5
+  fwhm: 8
+  sigma_radius: 1
+  center_det: "centroidnn"
 
 binning:
   hist_mode: "numba"

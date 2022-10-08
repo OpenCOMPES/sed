@@ -225,6 +225,52 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
         elif self.imgndim == 2:
             raise ValueError("Input image dimension is already 2!")
 
+    def add_features(
+        self,
+        peaks: np.ndarray,
+        center_det: str = "centroidnn",
+        direction: str = "ccw",
+        symscores: bool = False,
+        **kwds,
+    ):
+        if center_det is None:
+            if peaks.shape[0] != self.rotsym:
+                raise ValueError(
+                    f"Found '{peaks.shape[0]}' points, ",
+                    f"but '{self.rotsym}' required.",
+                )
+            self.pouter = peaks
+            self.pcent = None
+        else:
+            if peaks.shape[0] != self.rotsym + 1:
+                raise ValueError(
+                    f"Found '{peaks.shape[0]}' points, ",
+                    f"but '{self.rotsym+1}' required",
+                )
+            self.pcent, self.pouter = po.pointset_center(
+                peaks,
+                method=center_det,
+                ret="cnc",
+            )
+            self.pcent = tuple(val.item() for val in self.pcent)
+        # Order the point landmarks
+        self.pouter_ord = po.pointset_order(
+            self.pouter,
+            direction=direction,
+        )
+
+        # Calculate geometric distances
+        self.calc_geometric_distances()
+
+        if symscores is True:
+            symtype = kwds.pop("symtype", "rotation")
+            self.csm_original = self.calc_symmetry_scores(symtype=symtype)
+
+        if self.rotsym == 6:
+            self.mdist = (self.mcvdist + self.mvvdist) / 2
+            self.mcvdist = self.mdist
+            self.mvvdist = self.mdist
+
     def feature_extract(  # pylint: disable=too-many-arguments
         self,
         image: np.ndarray = None,
@@ -255,47 +301,16 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
 
         if feature_type == "points":
 
-            symtype = kwds.pop("symtype", "rotation")
-
             # Detect the point landmarks
             self.peaks = po.peakdetect2d(image, **kwds)
-            if center_det is None:
-                if self.peaks.shape[0] != self.rotsym:
-                    print(
-                        f"Found '{self.peaks.shape[0]}' points, ",
-                        f"but '{self.rotsym}' required.",
-                    )
-                self.pouter = self.peaks
-                self.pcent = None
-            else:
-                if self.peaks.shape[0] != self.rotsym + 1:
-                    print(
-                        f"Found '{self.peaks.shape[0]}' points, ",
-                        f"but '{self.rotsym+1}' required",
-                    )
-                self.pcent, self.pouter = po.pointset_center(
-                    self.peaks,
-                    method=center_det,
-                    ret="cnc",
-                )
-                self.pcent = tuple(self.pcent)
-            # Order the point landmarks
-            self.pouter_ord = po.pointset_order(
-                self.pouter,
+
+            self.add_features(
+                peaks=self.peaks,
+                center_det=center_det,
                 direction=direction,
+                symscores=symscores,
+                **kwds,
             )
-
-            # Calculate geometric distances
-            self.calc_geometric_distances()
-
-            if symscores is True:
-                self.csm_original = self.calc_symmetry_scores(symtype=symtype)
-
-            if self.rotsym == 6:
-                self.mdist = (self.mcvdist + self.mvvdist) / 2
-                self.mcvdist = self.mdist
-                self.mvvdist = self.mdist
-
         else:
             raise NotImplementedError
 
@@ -368,6 +383,8 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
 
         self.prefs = kwds.pop("landmarks", self.pouter_ord)
         self.ptargs = kwds.pop("targets", [])
+
+        include_center = include_center and self.pcent is not None
 
         # Generate the target point set
         if not self.ptargs:

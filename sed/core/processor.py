@@ -227,6 +227,76 @@ class SedProcessor:  # pylint: disable=R0902
         self.mc.load_data(data=self._pre_binned, rotsym=rotation_symmetry)
         self.mc.select_slicer()
 
+    # 2. Autoselect features, or input features from bokeh view.
+    def add_momentum_features(
+        self,
+        features: np.ndarray = None,
+        auto_detect: bool = False,
+        use_center: bool = False,
+        **kwds,
+    ):
+        center_det = kwds.pop(
+            "center_det",
+            self._config.get("momentum", {}).get("center_det", "centroidnn"),
+        )
+        if auto_detect:  # automatic feature selection
+            sigma = kwds.pop(
+                "sigma",
+                self._config.get("momentum", {}).get("sigma", 5),
+            )
+            fwhm = kwds.pop(
+                "fwhm",
+                self._config.get("momentum", {}).get("fwhm", 8),
+            )
+            sigma_radius = kwds.pop(
+                "sigma_radius",
+                self._config.get("momentum", {}).get("sigma_radius", 1),
+            )
+            if use_center:
+                self.mc.feature_extract(
+                    sigma=sigma,
+                    fwhm=fwhm,
+                    sigma_radius=sigma_radius,
+                    center_det=center_det,
+                    **kwds,
+                )
+            else:
+                self.mc.feature_extract(
+                    sigma=sigma,
+                    fwhm=fwhm,
+                    sigma_radius=sigma_radius,
+                    center_det=None,
+                    **kwds,
+                )
+        else:  # Manual feature selection
+            assert features is not None
+            if use_center:
+                self.mc.add_features(features, center_det=center_det, **kwds)
+            else:
+                self.mc.add_features(features, center_det=None, **kwds)
+
+        print("Original slice with reference features")
+        self.mc.view(annotated=True, backend="bokeh", crosshair=True)
+
+        self.mc.spline_warp_estimate(include_center=use_center, **kwds)
+
+        print("Corrected slice with target features")
+        self.mc.view(
+            image=self.mc.slice_corrected,
+            annotated=True,
+            points={"feats": self.mc.ptargs},
+            backend="bokeh",
+            crosshair=True,
+        )
+
+        print("Original slice with target features")
+        self.mc.view(
+            image=self.mc.slice,
+            points={"feats": self.mc.ptargs},
+            annotated=True,
+            backend="bokeh",
+        )
+
     # Energy calibrator workflow
     # 1. Load and normalize data
     def load_bias_series(  # pylint: disable=R0913
