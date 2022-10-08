@@ -22,6 +22,7 @@ import xarray as xr
 from bokeh.colors import RGB
 from bokeh.io import output_notebook
 from bokeh.palettes import Category10 as ColorCycle
+from IPython.display import display
 from matplotlib import cm
 from numpy.linalg import norm
 from scipy.interpolate import griddata
@@ -102,6 +103,7 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
         self.rdeform_field: np.ndarray = None
         self.cdeform_field: np.ndarray = None
         self.inverse_dfield: np.ndarray = None
+        self.transformations: Dict[Any, Any] = {}
         self.calibration: Dict[Any, Any] = {}
 
     @property
@@ -162,11 +164,11 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
 
         assert self.img_ndim == 3
         selector = slice(170, 170 + width)
-        immage = np.moveaxis(self.image, axis, 0)
+        image = np.moveaxis(self.image, axis, 0)
         try:
-            self.slice = immage[selector, ...].sum(axis=0)
+            self.slice = image[selector, ...].sum(axis=0)
         except AttributeError:
-            self.slice = immage[selector, ...]
+            self.slice = image[selector, ...]
 
         fig, ax = plt.subplots(1, 1)
         img = ax.imshow(self.slice.T, origin="lower", cmap="terrain_r")
@@ -174,9 +176,9 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
         def update(plane: int, width: int):
             selector = slice(plane, plane + width)
             try:
-                self.slice = immage[selector, ...].sum(axis=0)
+                self.slice = image[selector, ...].sum(axis=0)
             except AttributeError:
-                self.slice = immage[selector, ...]
+                self.slice = image[selector, ...]
             img.set_data(self.slice.T)
             axmin = np.min(self.slice, axis=(0, 1))
             axmax = np.max(self.slice, axis=(0, 1))
@@ -562,7 +564,7 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
                 ret="displacement",
                 **kwds,
             )
-        elif type == "rotation_auto":
+        elif transform_type == "rotation_auto":
             center = kwds.pop("center", self.pcent)
             # Estimate the optimal rotation angle using intensity symmetry
             angle_auto, _ = sym.sym_pose_estimate(
@@ -580,23 +582,25 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
                 ret="displacement",
                 angle=angle_auto,
             )
-        elif type == "scaling":
+        elif transform_type == "scaling":
             rdisp, cdisp = sym.scalingDF(
                 coordmat,
                 stackaxis=stackax,
                 ret="displacement",
                 **kwds,
             )
-        elif type == "scaling_auto":  # Compare scaling to a reference image
+        elif (
+            transform_type == "scaling_auto"
+        ):  # Compare scaling to a reference image
             pass
-        elif type == "shearing":
+        elif transform_type == "shearing":
             rdisp, cdisp = sym.shearingDF(
                 coordmat,
                 stackaxis=stackax,
                 ret="displacement",
                 **kwds,
             )
-        elif type == "homography":
+        elif transform_type == "homography":
             transform = kwds.pop("transform", np.eye(3))
             rdisp, cdisp = sym.compose_deform_field(
                 coordmat,
@@ -657,6 +661,109 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
             )
 
         return slice_transformed
+
+    def pose_adjustment(self):
+        matplotlib.use("module://ipympl.backend_nbagg")
+        source_image = self.slice_corrected
+
+        transformed_image = source_image
+
+        fig, ax = plt.subplots(1, 1)
+        img = ax.imshow(transformed_image.T, origin="lower", cmap="terrain_r")
+        ax.axvline(x=256)
+        ax.axhline(y=256)
+
+        def update(scale: float, xtrans: float, ytrans: float, angle: float):
+            transformed_image = source_image
+            if scale != 1:
+                self.transformations["scale"] = scale
+                transformed_image = self.coordinate_transform(
+                    image=transformed_image,
+                    transform_type="scaling",
+                    xscale=scale,
+                    yscale=scale,
+                )
+            if xtrans != 0 and ytrans != 0:
+                self.transformations["xtrans"] = xtrans
+                self.transformations["ytrans"] = ytrans
+                transformed_image = self.coordinate_transform(
+                    image=transformed_image,
+                    transform_type="translation",
+                    xtrans=xtrans,
+                    ytrans=ytrans,
+                )
+            if angle != 0:
+                self.transformations["angle"] = angle
+                transformed_image = self.coordinate_transform(
+                    image=transformed_image,
+                    transform_type="rotation",
+                    angle=angle,
+                    center=(256, 256),
+                )
+            img.set_data(transformed_image.T)
+            axmin = np.min(transformed_image, axis=(0, 1))
+            axmax = np.max(transformed_image, axis=(0, 1))
+            if axmin < axmax:
+                img.set_clim(axmin, axmax)
+            fig.canvas.draw_idle()
+
+        update(1, 0, 0, 0)
+
+        ipw.interact(
+            update,
+            scale=ipw.widgets.FloatSlider(
+                value=1,
+                min=0.8,
+                max=1.2,
+                step=0.01,
+            ),
+            xtrans=ipw.widgets.FloatSlider(value=0, min=-200, max=200, step=1),
+            ytrans=ipw.widgets.FloatSlider(value=0, min=-200, max=200, step=1),
+            angle=ipw.widgets.FloatSlider(value=0, min=-180, max=180, step=1),
+        )
+
+        def apply(clicked: bool):
+            if self.transformations.get("scale", 1) != 1:
+                self.coordinate_transform(
+                    transform_type="scaling",
+                    xscale=self.transformations["scale"],
+                    yscale=self.transformations["scale"],
+                    keep=True,
+                )
+            if (
+                self.transformations.get("xtrans", 0) != 0
+                and self.transformations.get("ytrans", 0) != 0
+            ):
+                self.coordinate_transform(
+                    transform_type="translation",
+                    xtrans=self.transformations["xtrans"],
+                    ytrans=self.transformations["ytrans"],
+                    keep=True,
+                )
+            if self.transformations.get("angle", 0) != 0:
+                self.coordinate_transform(
+                    transform_type="rotation",
+                    angle=self.transformations["angle"],
+                    center=(256, 256),
+                    keep=True,
+                )
+
+            plt.figure()
+            subs = 20
+            plt.scatter(
+                self.rdeform_field[::subs, ::subs].ravel(),
+                self.cdeform_field[::subs, ::subs].ravel(),
+                c="b",
+            )
+            plt.show()
+
+            self.view(image=self.slice_transformed, backend="bokeh")
+
+        apply_button = ipw.widgets.Button(description="apply")
+        display(apply_button)
+        apply_button.on_click(apply)
+
+        plt.show()
 
     def calc_inverse_dfield(self):
         """Calculate the inverse dfield from the cdeform and rdeform fields"""

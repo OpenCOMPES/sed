@@ -227,8 +227,9 @@ class SedProcessor:  # pylint: disable=R0902
         self.mc.load_data(data=self._pre_binned, rotsym=rotation_symmetry)
         self.mc.select_slicer()
 
-    # 2. Autoselect features, or input features from bokeh view.
-    def add_momentum_features(
+    # 2. Generate the splin warp correction from momentum features.
+    # Either autoselect features, or input features from view above.
+    def generate_splinewarp(
         self,
         features: np.ndarray = None,
         auto_detect: bool = False,
@@ -296,6 +297,11 @@ class SedProcessor:  # pylint: disable=R0902
             annotated=True,
             backend="bokeh",
         )
+
+    # 3. Pose corrections. Provide interactive interface for correcting
+    # scaling, shift and rotation
+    def pose_adjustment(self):
+        self.mc.pose_adjustment()
 
     # Energy calibrator workflow
     # 1. Load and normalize data
