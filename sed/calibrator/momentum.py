@@ -60,7 +60,12 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
                 self.image = np.squeeze(data.data)
                 self.bin_ranges = []
                 for axis in data.coords:
-                    self.bin_ranges.append((axis[0], axis[-1]))
+                    self.bin_ranges.append(
+                        (
+                            data.coords[axis][0].values,
+                            data.coords[axis][-1].values,
+                        ),
+                    )
             else:
                 assert bin_ranges is not None
                 self.image = np.squeeze(data)
@@ -156,7 +161,12 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
             self.image = np.squeeze(data.data)
             self.bin_ranges = []
             for axis in data.coords:
-                self.bin_ranges.append((axis[0], axis[-1]))
+                self.bin_ranges.append(
+                    (
+                        data.coords[axis][0].values,
+                        data.coords[axis][-1].values,
+                    ),
+                )
         else:
             assert bin_ranges is not None
             self.image = np.squeeze(data)
@@ -343,7 +353,8 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
                 method=center_det,
                 ret="cnc",
             )
-            self.pcent = tuple(val.item() for val in self.pcent)
+            if isinstance(self.pcent, np.ndarray):
+                self.pcent = tuple(val.item() for val in self.pcent)
         # Order the point landmarks
         self.pouter_ord = po.pointset_order(
             self.pouter,
@@ -903,7 +914,7 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
         plt.show()
 
         if apply:
-            apply(True)
+            apply_func(True)
 
     def calc_inverse_dfield(self):
         """Calculate the inverse dfield from the cdeform and rdeform fields"""
@@ -1404,8 +1415,8 @@ def apply_dfield(  # pylint: disable=too-many-arguments
 def generate_inverse_dfield(
     rdeform_field: np.ndarray,
     cdeform_field: np.ndarray,
-    bin_ranges: List[Tuple[int, int]],
-    detector_ranges: List[Tuple[int, int]],
+    bin_ranges: List[Tuple],
+    detector_ranges: List[Tuple],
 ) -> np.ndarray:
     """
     Generate inverse deformation field using inperpolation with griddata.

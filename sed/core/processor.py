@@ -95,6 +95,14 @@ class SedProcessor:  # pylint: disable=R0902
     def config(self):
         return self._config
 
+    @config.setter
+    def config(self, config: Union[dict, str]):
+        self._config = parse_config(config)
+        num_cores = self._config.get("binning", {}).get("num_cores", N_CPU - 1)
+        if num_cores >= N_CPU:
+            num_cores = N_CPU - 1
+        self._config["binning"]["num_cores"] = num_cores
+
     @property
     def dimensions(self):
         return self._dimensions
@@ -114,14 +122,6 @@ class SedProcessor:  # pylint: disable=R0902
         self._coordinates = {}
         for k, v in coords.items():
             self._coordinates[k] = xr.DataArray(v)
-
-    @config.setter
-    def config(self, config: Union[dict, str]):
-        self._config = parse_config(config)
-        num_cores = self._config.get("binning", {}).get("num_cores", N_CPU - 1)
-        if num_cores >= N_CPU:
-            num_cores = N_CPU - 1
-        self._config["binning"]["num_cores"] = num_cores
 
     def cpy(self, path: Union[str, List[str]]) -> List[str]:
         """Returns either the original or the copied path to the given path.
