@@ -134,10 +134,24 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
 
     def load_data(
         self,
-        data: Union[xr.DataArray, np.ndarray] = None,
+        data: Union[xr.DataArray, np.ndarray],
         bin_ranges: List[Tuple] = None,
         rotsym: int = 6,
     ):
+        """Load binned data into the momentum calibrator class
+
+        Args:
+            data (Union[xr.DataArray, np.ndarray]):
+                2D or 3D data array, either as np.ndarray or xr.DataArray.
+            bin_ranges (List[Tuple], optional):
+                Binning ranges. Needs to be provided in case the data are given
+                as np.ndarray. Otherwise, they are determined from the coords of
+                the xr.DataArray Defaults to None.
+            rotsym (int, optional): Rotational symmetry of the data. Defaults to 6.
+
+        Raises:
+            ValueError: Raised if the dimensions of the input data do not fit.
+        """
         if isinstance(data, xr.DataArray):
             self.image = np.squeeze(data.data)
             self.bin_ranges = []
@@ -159,22 +173,69 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
         self.arot = np.array([0] + [self.rotsym_angle] * (self.rotsym - 1))
         self.ascale = np.array([1.0] * self.rotsym)
 
-    def select_slicer(self, width: int = 5, axis: int = 2):
+    def select_slicer(self, plane: int = 0, width: int = 5, axis: int = 2):
+        """Interactive panel to select (hyper)slice from a (hyper)volume.
+
+        Parameters:
+            plane: int
+                initial value of the plane slider. Defaults to 0.
+            width: int
+                initial value of the width slider. Defaults to 5.
+            axis: int
+                Axis along which to slice the image. Defaults to 2.
+        """
         matplotlib.use("module://ipympl.backend_nbagg")
 
         assert self.img_ndim == 3
-        selector = slice(170, 170 + width)
+        selector = slice(plane, plane + width)
         image = np.moveaxis(self.image, axis, 0)
         try:
-            self.slice = image[selector, ...].sum(axis=0)
+            img_slice = image[selector, ...].sum(axis=0)
         except AttributeError:
-            self.slice = image[selector, ...]
+            img_slice = image[selector, ...]
 
         fig, ax = plt.subplots(1, 1)
-        img = ax.imshow(self.slice.T, origin="lower", cmap="terrain_r")
+        img = ax.imshow(img_slice.T, origin="lower", cmap="terrain_r")
 
         def update(plane: int, width: int):
             selector = slice(plane, plane + width)
+            try:
+                img_slice = image[selector, ...].sum(axis=0)
+            except AttributeError:
+                img_slice = image[selector, ...]
+            img.set_data(img_slice.T)
+            axmin = np.min(img_slice, axis=(0, 1))
+            axmax = np.max(img_slice, axis=(0, 1))
+            if axmin < axmax:
+                img.set_clim(axmin, axmax)
+            ax.set_title(f"Plane[{plane}:{plane+width}]")
+            fig.canvas.draw_idle()
+
+        update(plane, width)
+
+        plane_slider = ipw.IntSlider(
+            value=plane,
+            min=0,
+            max=self.image.shape[2] - width,
+            step=1,
+        )
+        width_slider = ipw.IntSlider(value=width, min=1, max=20, step=1)
+
+        ipw.interact(
+            update,
+            plane=plane_slider,
+            width=width_slider,
+        )
+
+        def apply(button: ipw.Button):
+
+            start = plane_slider.value
+            stop = plane_slider.value + width_slider.value
+
+            selector = slice(
+                start,
+                stop,
+            )
             try:
                 self.slice = image[selector, ...].sum(axis=0)
             except AttributeError:
@@ -184,21 +245,19 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
             axmax = np.max(self.slice, axis=(0, 1))
             if axmin < axmax:
                 img.set_clim(axmin, axmax)
-            ax.set_title(f"Plane[{plane}:{plane+width}]")
+            ax.set_title(
+                f"Plane[{start}:{stop}]",
+            )
             fig.canvas.draw_idle()
 
-        update(0, width)
+            plane_slider.close()
+            width_slider.close()
+            apply_button.close()
 
-        ipw.interact(
-            update,
-            plane=ipw.widgets.IntSlider(
-                value=0,
-                min=0,
-                max=self.image.shape[2] - width,
-                step=1,
-            ),
-            width=ipw.widgets.IntSlider(value=5, min=1, max=20, step=1),
-        )
+        apply_button = ipw.Button(description="apply")
+        display(apply_button)
+        apply_button.on_click(apply)
+
         plt.show()
 
     def select_slice(
@@ -662,7 +721,31 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
 
         return slice_transformed
 
-    def pose_adjustment(self):
+    def pose_adjustment(
+        self,
+        scale: float = 1,
+        xtrans: float = 0,
+        ytrans: float = 0,
+        angle: float = 0,
+        apply: bool = False,
+    ):
+        """Interactive panel to adjust transformations that are applied to the image.
+        Applies first a scaling, next a x/y translation, and last a rotation around
+        the center of the image (pixel 256/256).
+
+        Args:
+            scale (float, optional):
+                Initial value of the scaling slider. Defaults to 1.
+            xtrans (float, optional):
+                Initial value of the xtrans slider. Defaults to 0.
+            ytrans (float, optional):
+                Initial value of the ytrans slider. Defaults to 0.
+            angle (float, optional):
+                Initial value of the angle slider. Defaults to 0.
+            apply (bool, optional):
+                Option to directly apply the provided transformations.
+                Defaults to False.
+        """
         matplotlib.use("module://ipympl.backend_nbagg")
         source_image = self.slice_corrected
 
@@ -709,20 +792,34 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
 
         update(1, 0, 0, 0)
 
+        scale_slider = ipw.FloatSlider(
+            value=scale,
+            min=0.8,
+            max=1.2,
+            step=0.01,
+        )
+        xtrans_slider = ipw.FloatSlider(
+            value=xtrans,
+            min=-200,
+            max=200,
+            step=1,
+        )
+        ytrans_slider = ipw.FloatSlider(
+            value=ytrans,
+            min=-200,
+            max=200,
+            step=1,
+        )
+        angle_slider = ipw.FloatSlider(value=angle, min=-180, max=180, step=1)
         ipw.interact(
             update,
-            scale=ipw.widgets.FloatSlider(
-                value=1,
-                min=0.8,
-                max=1.2,
-                step=0.01,
-            ),
-            xtrans=ipw.widgets.FloatSlider(value=0, min=-200, max=200, step=1),
-            ytrans=ipw.widgets.FloatSlider(value=0, min=-200, max=200, step=1),
-            angle=ipw.widgets.FloatSlider(value=0, min=-180, max=180, step=1),
+            scale=scale_slider,
+            xtrans=xtrans_slider,
+            ytrans=ytrans_slider,
+            angle=angle_slider,
         )
 
-        def apply(clicked: bool):
+        def apply_func(apply: bool):
             if self.transformations.get("scale", 1) != 1:
                 self.coordinate_transform(
                     transform_type="scaling",
@@ -748,6 +845,13 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
                     keep=True,
                 )
 
+            img.set_data(self.slice_transformed.T)
+            axmin = np.min(self.slice_transformed, axis=(0, 1))
+            axmax = np.max(self.slice_transformed, axis=(0, 1))
+            if axmin < axmax:
+                img.set_clim(axmin, axmax)
+            fig.canvas.draw_idle()
+
             plt.figure()
             subs = 20
             plt.scatter(
@@ -756,14 +860,20 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
                 c="b",
             )
             plt.show()
+            scale_slider.close()
+            xtrans_slider.close()
+            ytrans_slider.close()
+            angle_slider.close()
+            apply_button.close()
 
-            self.view(image=self.slice_transformed, backend="bokeh")
-
-        apply_button = ipw.widgets.Button(description="apply")
+        apply_button = ipw.Button(description="apply")
         display(apply_button)
-        apply_button.on_click(apply)
+        apply_button.on_click(apply_func)
 
         plt.show()
+
+        if apply:
+            apply(True)
 
     def calc_inverse_dfield(self):
         """Calculate the inverse dfield from the cdeform and rdeform fields"""
