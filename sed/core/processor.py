@@ -50,7 +50,9 @@ class SedProcessor:  # pylint: disable=R0902
         self.ec = EnergyCalibrator(  # pylint: disable=invalid-name
             config=self._config,
         )
-        self.mc = MomentumCorrector(config=self._config)
+        self.mc = MomentumCorrector(  # pylint: disable=invalid-name
+            config=self._config,
+        )
 
         self.use_copy_tool = self._config.get("core", {}).get(
             "use_copy_tool",
@@ -142,8 +144,8 @@ class SedProcessor:  # pylint: disable=R0902
 
         if isinstance(path, list):
             return path
-        else:
-            return [path]
+
+        return [path]
 
     def load(
         self,
@@ -162,15 +164,45 @@ class SedProcessor:  # pylint: disable=R0902
 
     # Momentum calibration workflow
     # 1. Bin raw detector data for distortion correction
-    def bin_and_load_momentum_calibration(
+    def bin_and_load_momentum_calibration(  # pylint: disable=R0913, R0914
         self,
         df_partitions: int = 100,
         rotation_symmetry: int = 6,
         axes: List[str] = None,
         bins: List[int] = None,
         ranges: List[Tuple] = None,
+        plane: int = 0,
+        width: int = 5,
+        apply: bool = False,
         **kwds,
     ):
+        """Function to do an initial binning of the dataframe loaded to the class,
+        slice a plane from it using an interactive view, and load it into the
+        momentum corrector class.
+
+        Args:
+            df_partitions (int, optional):
+                Number of dataframe partitions to use for the initial binning.
+                Defaults to 100.
+            rotation_symmetry (int, optional):
+                Number of rotational symmetry axes. Defaults to 6.
+            axes (List[str], optional):
+                Axes to bin. Defaults to _config["momentum"]["axes"].
+            bins (List[int], optional):
+                Bin numbers to use for binning.
+                Defaults to _config["momentum"]["bins"].
+            ranges (List[Tuple], optional):
+                Ranges to use for binning. Defaults to _config["momentum"]["ranges"].
+            plane (int, optional):
+                Initial value for the plane slider. Defaults to 0.
+            width (int, optional):
+                Initial value for the width slider. Defaults to 5.
+            apply (bool, optional):
+                Option to directly apply the values and select the slice.
+                Defaults to False.
+            **kwds:
+                Keyword argument passed to the bin_dataframe function.
+        """
         if axes is None:
             axes = self._config.get("momentum", {}).get(
                 "axes",
@@ -204,7 +236,7 @@ class SedProcessor:  # pylint: disable=R0902
             "threads_per_worker",
             self._config["binning"]["threads_per_worker"],
         )
-        threadpool_API = kwds.pop(
+        threadpool_api = kwds.pop(
             "threadpool_API",
             self._config["binning"]["threadpool_API"],
         )
@@ -220,12 +252,12 @@ class SedProcessor:  # pylint: disable=R0902
             pbar=pbar,
             nCores=num_cores,
             nThreadsPerWorker=threads_per_worker,
-            threadpoolAPI=threadpool_API,
+            threadpoolAPI=threadpool_api,
             **kwds,
         )
 
         self.mc.load_data(data=self._pre_binned, rotsym=rotation_symmetry)
-        self.mc.select_slicer()
+        self.mc.select_slicer(plane=plane, width=width, apply=apply)
 
     # 2. Generate the splin warp correction from momentum features.
     # Either autoselect features, or input features from view above.
@@ -236,6 +268,18 @@ class SedProcessor:  # pylint: disable=R0902
         use_center: bool = False,
         **kwds,
     ):
+        """Detects or assigns the provided feature points, and generates the
+        splinewarp correction.
+
+        Args:
+            features (np.ndarray, optional):
+                np.ndarray of features. Defaults to None.
+            auto_detect (bool, optional):
+                Whether to auto-detect the features. Defaults to False.
+            use_center (bool, optional):
+                Whether the features include a point at the center.
+                Defaults to False.
+        """
         center_det = kwds.pop(
             "center_det",
             self._config.get("momentum", {}).get("center_det", "centroidnn"),
@@ -300,8 +344,38 @@ class SedProcessor:  # pylint: disable=R0902
 
     # 3. Pose corrections. Provide interactive interface for correcting
     # scaling, shift and rotation
-    def pose_adjustment(self):
-        self.mc.pose_adjustment()
+    def pose_adjustment(  # pylint: disable=R0913
+        self,
+        scale: float = 1,
+        xtrans: float = 0,
+        ytrans: float = 0,
+        angle: float = 0,
+        apply: bool = False,
+    ):
+        """Interactive panel to adjust transformations that are applied to the image.
+        Applies first a scaling, next a x/y translation, and last a rotation around
+        the center of the image (pixel 256/256).
+
+        Args:
+            scale (float, optional):
+                Initial value of the scaling slider. Defaults to 1.
+            xtrans (float, optional):
+                Initial value of the xtrans slider. Defaults to 0.
+            ytrans (float, optional):
+                Initial value of the ytrans slider. Defaults to 0.
+            angle (float, optional):
+                Initial value of the angle slider. Defaults to 0.
+            apply (bool, optional):
+                Option to directly apply the provided transformations.
+                Defaults to False.
+        """
+        self.mc.pose_adjustment(
+            scale=scale,
+            xtrans=xtrans,
+            ytrans=ytrans,
+            angle=angle,
+            apply=apply,
+        )
 
     # Energy calibrator workflow
     # 1. Load and normalize data

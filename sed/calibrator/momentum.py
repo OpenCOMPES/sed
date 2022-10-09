@@ -173,7 +173,13 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
         self.arot = np.array([0] + [self.rotsym_angle] * (self.rotsym - 1))
         self.ascale = np.array([1.0] * self.rotsym)
 
-    def select_slicer(self, plane: int = 0, width: int = 5, axis: int = 2):
+    def select_slicer(  # pylint: disable=R0914
+        self,
+        plane: int = 0,
+        width: int = 5,
+        axis: int = 2,
+        apply: bool = False,
+    ):
         """Interactive panel to select (hyper)slice from a (hyper)volume.
 
         Parameters:
@@ -183,6 +189,8 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
                 initial value of the width slider. Defaults to 5.
             axis: int
                 Axis along which to slice the image. Defaults to 2.
+            apply: bool
+                Option to directly apply the values and select the slice.
         """
         matplotlib.use("module://ipympl.backend_nbagg")
 
@@ -227,7 +235,7 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
             width=width_slider,
         )
 
-        def apply(button: ipw.Button):
+        def apply_fun(apply: bool):  # pylint: disable=unused-argument
 
             start = plane_slider.value
             stop = plane_slider.value + width_slider.value
@@ -256,9 +264,12 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
 
         apply_button = ipw.Button(description="apply")
         display(apply_button)
-        apply_button.on_click(apply)
+        apply_button.on_click(apply_fun)
 
         plt.show()
+
+        if apply:
+            apply_fun(True)
 
     def select_slice(
         self,
@@ -276,14 +287,14 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
                 Axis along which to select the image.
         """
 
-        if self.imgndim > 2:
+        if self.img_ndim > 2:
             immage = np.moveaxis(self.image, axis, 0)
             try:
                 self.slice = immage[selector, ...].sum(axis=0)
             except AttributeError:
                 self.slice = immage[selector, ...]
 
-        elif self.imgndim == 2:
+        elif self.img_ndim == 2:
             raise ValueError("Input image dimension is already 2!")
 
     def add_features(
@@ -294,6 +305,25 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
         symscores: bool = False,
         **kwds,
     ):
+        """Add features as reference points provided as np.ndarray. If provided,
+        detects the center of the points and orders the points.
+
+        Args:
+            peaks (np.ndarray):
+                Array of peaks, possibly including a center peak. Its shape should be
+                (nx2), where n is equal to the rotation symmetry, or the rotation
+                symmetry+1, if the center is included
+            center_det (str, optional):
+                Method to use for detecting the center. Defaults to "centroidnn".
+                If no center is included, set center_det to None.
+            direction (str, optional):
+                Direction for ordering the points. Defaults to "ccw".
+            symscores (bool, optional):
+                Option to calculate symmetry scores. Defaults to False.
+
+        Raises:
+            ValueError: Raised if the number of points does not match the rotsym.
+        """
         if center_det is None:
             if peaks.shape[0] != self.rotsym:
                 raise ValueError(
@@ -721,7 +751,7 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
 
         return slice_transformed
 
-    def pose_adjustment(
+    def pose_adjustment(  # pylint: disable=R0913, R0914, R0915
         self,
         scale: float = 1,
         xtrans: float = 0,
@@ -819,7 +849,7 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
             angle=angle_slider,
         )
 
-        def apply_func(apply: bool):
+        def apply_func(apply: bool):  # pylint: disable=unused-argument
             if self.transformations.get("scale", 1) != 1:
                 self.coordinate_transform(
                     transform_type="scaling",
