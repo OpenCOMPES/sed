@@ -377,6 +377,82 @@ class SedProcessor:  # pylint: disable=R0902
             apply=apply,
         )
 
+    # 4. Calculate momentum calibration and apply correction and calibration
+    # to the dataframe
+    def calibrate_momentum_axes(
+        self,
+        point_a: Union[np.ndarray, List[int]],
+        point_b: Union[np.ndarray, List[int]] = None,
+        k_distance: float = None,
+        k_coord_a: Union[np.ndarray, List[float]] = None,
+        k_coord_b: Union[np.ndarray, List[float]] = [0.0, 0.0],
+        equiscale: bool = True,
+        apply=True,
+    ):
+        """Calibrate momentum axes and apply distortion correction and
+        momentum calibration to dataframe. One can either provide pixel coordinates
+        of a high-symmetry point and its distance to the BZ center, or the
+        k-coordinates of two points in the BZ.
+
+        Args:
+            point_a (Union[np.ndarray, List[int]]):
+                Pixel coordinates of the first point used for momentum calibration.
+            point_b (Union[np.ndarray, List[int]], optional):
+                Pixel coordinates of the second point used for momentum calibration.
+                Defaults to the center pixel, _config["momentum"]["center_pixel".
+            k_distance (float, optional):
+                Momentum distance between point a and b. Needs to be provided if no
+                specific k-koordinates for the two points are given. Defaults to None.
+            k_coord_a (Union[np.ndarray, List[float]], optional):
+                Momentum coordinate of the first point used for calibration.
+                Used if equiscale is False. Defaults to None.
+            k_coord_b (Union[np.ndarray, List[float]], optional):
+                Momentum coordinate of the second point used for calibration.
+                Defaults to [0.0, 0.0].
+            equiscale (bool, optional):
+                Option to apply different scales to kx and ky. If True, the distance
+                between points a and b, and the absolute position of point a are used
+                for defining the scale. If False, the scale is calculated from the k-
+                positions of both points a and b. Defaults to True.
+            apply (bool, optional):
+                Option to apply the Distortion correction and momentum calibration to
+                the dataframe. Defaults to True.
+        """
+        if point_b is None:
+            point_b = self._config.get("momentum", {}).get(
+                "center_pixel",
+                [256, 256],
+            )
+
+        calibration = self.mc.calibrate(
+            point_a=point_a,
+            point_b=point_b,
+            k_distance=k_distance,
+            k_coord_a=k_coord_a,
+            k_coord_b=k_coord_b,
+            equiscale=equiscale,
+        )
+
+        self.mc.view(
+            image=self.mc.slice_transformed,
+            imkwds={"extent": calibration["extent"]},
+        )
+        plt.title("Momentum calibrated data")
+        plt.xlabel("$k_x$", fontsize=15)
+        plt.ylabel("$k_y$", fontsize=15)
+        plt.axhline(0)
+        plt.axvline(0)
+        plt.show()
+
+        if apply and self._dataframe is not None:
+            print("Adding corrected X/Y columns to dataframe:")
+            self._dataframe = self.mc.apply_distortion_correction(
+                self._dataframe,
+            )
+            print("Adding kx/ky columns to dataframe:")
+            self._dataframe = self.mc.append_k_axis(self._dataframe)
+            print(self._dataframe.head(10))
+
     # Energy calibrator workflow
     # 1. Load and normalize data
     def load_bias_series(  # pylint: disable=R0913
@@ -583,7 +659,7 @@ class SedProcessor:  # pylint: disable=R0902
         plt.show()
 
         if apply and self._dataframe is not None:
-            print("Adding energy columng to dataframe:")
+            print("Adding energy column to dataframe:")
             self._dataframe = self.ec.append_energy_axis(self._dataframe)
             print(self._dataframe.head(10))
 

@@ -795,8 +795,12 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
 
         fig, ax = plt.subplots(1, 1)
         img = ax.imshow(transformed_image.T, origin="lower", cmap="terrain_r")
-        ax.axvline(x=256)
-        ax.axhline(y=256)
+        center = self._config.get("momentum", {}).get(
+            "center_pixel",
+            [256, 256],
+        )
+        ax.axvline(x=center[0])
+        ax.axhline(y=center[1])
 
         def update(scale: float, xtrans: float, ytrans: float, angle: float):
             transformed_image = source_image
@@ -823,7 +827,7 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
                     image=transformed_image,
                     transform_type="rotation",
                     angle=angle,
-                    center=(256, 256),
+                    center=center,
                 )
             img.set_data(transformed_image.T)
             axmin = np.min(transformed_image, axis=(0, 1))
@@ -883,7 +887,7 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
                 self.coordinate_transform(
                     transform_type="rotation",
                     angle=self.transformations["angle"],
-                    center=(256, 256),
+                    center=center,
                     keep=True,
                 )
 
@@ -993,8 +997,12 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
             ax.imshow(image.T, origin=origin, cmap=cmap, **imkwds)
 
             if cross:
-                ax.axvline(x=256)
-                ax.axhline(y=256)
+                center = self._config.get("momentum", {}).get(
+                    "center_pixel",
+                    [256, 256],
+                )
+                ax.axvline(x=center[0])
+                ax.axhline(y=center[1])
 
             # Add annotation to the figure
             if annotated:
@@ -1018,7 +1026,6 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
                                 str(i_pval),
                                 fontsize=txtsize,
                             )
-            fig.show()
 
         elif backend == "bokeh":
 
@@ -1223,9 +1230,9 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
                 self.detector_ranges,
             )
         else:
-            try:
+            if self.inverse_dfield is not None:
                 dfield = self.inverse_dfield
-            except AttributeError:
+            else:
                 self.inverse_dfield = generate_inverse_dfield(
                     self.rdeform_field,
                     self.cdeform_field,
