@@ -362,13 +362,14 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
         )
 
         # Calculate geometric distances
-        self.calc_geometric_distances()
+        if self.pcent is not None:
+            self.calc_geometric_distances()
 
         if symscores is True:
             symtype = kwds.pop("symtype", "rotation")
             self.csm_original = self.calc_symmetry_scores(symtype=symtype)
 
-        if self.rotsym == 6:
+        if self.rotsym == 6 and self.pcent is not None:
             self.mdist = (self.mcvdist + self.mvvdist) / 2
             self.mcvdist = self.mdist
             self.mvvdist = self.mdist
@@ -807,7 +808,7 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
                     xscale=scale,
                     yscale=scale,
                 )
-            if xtrans != 0 and ytrans != 0:
+            if xtrans != 0 or ytrans != 0:
                 self.transformations["xtrans"] = xtrans
                 self.transformations["ytrans"] = ytrans
                 transformed_image = self.coordinate_transform(
@@ -870,7 +871,7 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
                 )
             if (
                 self.transformations.get("xtrans", 0) != 0
-                and self.transformations.get("ytrans", 0) != 0
+                or self.transformations.get("ytrans", 0) != 0
             ):
                 self.coordinate_transform(
                     transform_type="translation",
@@ -895,6 +896,7 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
 
             plt.figure()
             subs = 20
+            plt.title("Deformation field")
             plt.scatter(
                 self.rdeform_field[::subs, ::subs].ravel(),
                 self.cdeform_field[::subs, ::subs].ravel(),
@@ -1000,11 +1002,13 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
                     p_keys,  # pylint: disable=unused-variable
                     p_vals,
                 ) in points.items():
-
                     try:
                         ax.scatter(p_vals[:, 0], p_vals[:, 1], **scatterkwds)
                     except IndexError:
-                        ax.scatter(p_vals[0], p_vals[1], **scatterkwds)
+                        try:
+                            ax.scatter(p_vals[0], p_vals[1], **scatterkwds)
+                        except IndexError:
+                            pass
 
                     if p_vals.size > 2:
                         for i_pval, pval in enumerate(p_vals):
@@ -1053,7 +1057,7 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
                             **scatterkwds,
                         )
                     except IndexError:
-                        if len(p_vals):
+                        try:
                             xcirc, ycirc = p_vals[0], p_vals[1]
                             fig.scatter(
                                 xcirc,
@@ -1062,8 +1066,9 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
                                 color=next(colors),
                                 **scatterkwds,
                             )
-
-            if crosshair:
+                        except IndexError:
+                            pass
+            if crosshair and self.pcent is not None:
                 for radius in crosshair_radii:
                     fig.annulus(
                         x=[self.pcent[0]],
