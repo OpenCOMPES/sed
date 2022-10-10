@@ -379,7 +379,7 @@ class SedProcessor:  # pylint: disable=R0902
 
     # 4. Calculate momentum calibration and apply correction and calibration
     # to the dataframe
-    def calibrate_momentum_axes(
+    def calibrate_momentum_axes(  # pylint: disable=W0102, R0913
         self,
         point_a: Union[np.ndarray, List[int]],
         point_b: Union[np.ndarray, List[int]] = None,
