@@ -680,7 +680,7 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
 
         return df
 
-    def adjust_energy_correction(  # pylint: disable=R0913, R0914
+    def adjust_energy_correction(  # pylint: disable=R0913, R0914, R0915
         self,
         image: xr.DataArray,
         correction_type: str = None,
@@ -881,7 +881,7 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
                 diameter=diameter_slider,
             )
 
-            def apply_func(apply: bool):
+            def apply_func(apply: bool):  # pylint: disable=unused-argument
                 self.correction["amplitude"] = amplitude_slider.value
                 self.correction["center"] = (
                     x_center_slider.value,
@@ -941,7 +941,7 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
                 gamma=gamma_slider,
             )
 
-            def apply_func(apply: bool):
+            def apply_func(apply: bool):  # pylint: disable=unused-argument
                 self.correction["amplitude"] = amplitude_slider.value
                 self.correction["center"] = (
                     x_center_slider.value,
@@ -1001,7 +1001,7 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
                 sigma=sigma_slider,
             )
 
-            def apply_func(apply: bool):
+            def apply_func(apply: bool):  # pylint: disable=unused-argument
                 self.correction["amplitude"] = amplitude_slider.value
                 self.correction["center"] = (
                     x_center_slider.value,
@@ -1090,7 +1090,7 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
                 gamma2=gamma2_slider,
             )
 
-            def apply_func(apply: bool):
+            def apply_func(apply: bool):  # pylint: disable=unused-argument
                 self.correction["amplitude"] = amplitude_slider.value
                 self.correction["center"] = (
                     x_center_slider.value,
