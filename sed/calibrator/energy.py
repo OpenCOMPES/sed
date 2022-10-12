@@ -836,35 +836,35 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
             step=1,
         )
 
+        def update(amplitude, x_center, y_center, **kwds):
+            correction_x = tof_fermi - correction_function(
+                x=x,
+                y=y_center,
+                correction_type=correction_type,
+                center=(x_center, y_center),
+                amplitude=amplitude,
+                **kwds,
+            )
+            correction_y = tof_fermi - correction_function(
+                x=x_center,
+                y=y,
+                correction_type=correction_type,
+                center=(x_center, y_center),
+                amplitude=amplitude,
+                **kwds,
+            )
+
+            trace1.set_ydata(correction_x)
+            line1.set_xdata(x=x_center)
+            trace2.set_ydata(correction_y)
+            line2.set_xdata(x=y_center)
+
+            fig.canvas.draw_idle()
+
         if correction_type == "spherical":
-            diameter = kwds.pop("d", 50)
+            diameter = kwds.pop("diameter", 50)
 
-            def update(amplitude, x_center, y_center, diameter):
-                correction_x = tof_fermi - correction_function(
-                    x=x,
-                    y=y_center,
-                    correction_type=correction_type,
-                    center=(x_center, y_center),
-                    amplitude=amplitude,
-                    d=diameter,
-                )
-                correction_y = tof_fermi - correction_function(
-                    x=x_center,
-                    y=y,
-                    correction_type=correction_type,
-                    center=(x_center, y_center),
-                    amplitude=amplitude,
-                    d=diameter,
-                )
-
-                trace1.set_ydata(correction_x)
-                line1.set_xdata(x=x_center)
-                trace2.set_ydata(correction_y)
-                line2.set_xdata(x=y_center)
-
-                fig.canvas.draw_idle()
-
-            update(amplitude, x_center, y_center, diameter)
+            update(amplitude, x_center, y_center, d=diameter)
 
             diameter_slider = ipw.FloatSlider(
                 value=diameter,
@@ -888,7 +888,7 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
                     y_center_slider.value,
                 )
                 self.correction["correction_type"] = correction_type
-                kwds["d"] = diameter_slider.value
+                kwds["diameter"] = diameter_slider.value
                 self.correction["kwds"] = kwds
                 amplitude_slider.close()
                 x_center_slider.close()
@@ -899,32 +899,7 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
         elif correction_type == "Lorentzian":
             gamma = kwds.pop("gamma", 700)
 
-            def update(amplitude, x_center, y_center, gamma):
-                correction_x = tof_fermi - correction_function(
-                    x=x,
-                    y=y_center,
-                    correction_type=correction_type,
-                    center=(x_center, y_center),
-                    amplitude=amplitude,
-                    gamma=gamma,
-                )
-                correction_y = tof_fermi - correction_function(
-                    x=x_center,
-                    y=y,
-                    correction_type=correction_type,
-                    center=(x_center, y_center),
-                    amplitude=amplitude,
-                    gamma=gamma,
-                )
-
-                trace1.set_ydata(correction_x)
-                line1.set_xdata(x=x_center)
-                trace2.set_ydata(correction_y)
-                line2.set_xdata(x=y_center)
-
-                fig.canvas.draw_idle()
-
-            update(amplitude, x_center, y_center, gamma)
+            update(amplitude, x_center, y_center, gamma=gamma)
 
             gamma_slider = ipw.FloatSlider(
                 value=gamma,
@@ -959,32 +934,7 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
         elif correction_type == "Gaussian":
             sigma = kwds.pop("sigma", 400)
 
-            def update(amplitude, x_center, y_center, sigma):
-                correction_x = tof_fermi - correction_function(
-                    x=x,
-                    y=y_center,
-                    correction_type=correction_type,
-                    center=(x_center, y_center),
-                    amplitude=amplitude,
-                    sigma=sigma,
-                )
-                correction_y = tof_fermi - correction_function(
-                    x=x_center,
-                    y=y,
-                    correction_type=correction_type,
-                    center=(x_center, y_center),
-                    amplitude=amplitude,
-                    sigma=sigma,
-                )
-
-                trace1.set_ydata(correction_x)
-                line1.set_xdata(x=x_center)
-                trace2.set_ydata(correction_y)
-                line2.set_xdata(x=y_center)
-
-                fig.canvas.draw_idle()
-
-            update(amplitude, x_center, y_center, sigma)
+            update(amplitude, x_center, y_center, sigma=sigma)
 
             sigma_slider = ipw.FloatSlider(
                 value=sigma,
@@ -1021,43 +971,14 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
             amplitude2 = kwds.pop("amplitude2", amplitude)
             gamma2 = kwds.pop("gamma2", gamma)
 
-            def update(
+            update(
                 amplitude,
                 x_center,
                 y_center,
-                gamma,
-                amplitude2,
-                gamma2,
-            ):
-                correction_x = tof_fermi - correction_function(
-                    x=x,
-                    y=y_center,
-                    correction_type=correction_type,
-                    center=(x_center, y_center),
-                    amplitude=amplitude,
-                    gamma=gamma,
-                    amplitude2=amplitude2,
-                    gamma2=gamma2,
-                )
-                correction_y = tof_fermi - correction_function(
-                    x=x_center,
-                    y=y,
-                    correction_type=correction_type,
-                    center=(x_center, y_center),
-                    amplitude=amplitude,
-                    gamma=gamma,
-                    amplitude2=amplitude2,
-                    gamma2=gamma2,
-                )
-
-                trace1.set_ydata(correction_x)
-                line1.set_xdata(x=x_center)
-                trace2.set_ydata(correction_y)
-                line2.set_xdata(x=y_center)
-
-                fig.canvas.draw_idle()
-
-            update(amplitude, x_center, y_center, gamma, amplitude2, gamma2)
+                gamma=gamma,
+                amplitude2=amplitude2,
+                gamma2=gamma2,
+            )
 
             gamma_slider = ipw.FloatSlider(
                 value=gamma,
@@ -1144,7 +1065,7 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
                     String name of the tof axis to correct.
                 :center: list/tuple | config
                     Image center pixel positions in (x, y) format.
-                :d: numeric | 0.9
+                :diameter: numeric | 0.9
                     Field-free drift distance.
                 :gamma: numeric
                     Linewidth value for correction using a 2D Lorentz profile.
@@ -1291,7 +1212,7 @@ def correction_function(
         center (Tuple[int, int]): center position of the distribution (x,y)
         amplitude (float): Amplitude of the correction
         **kwds: Keyword arguments:
-            :d: numeric | 0.9
+            :diameter: numeric | 0.9
                 Field-free drift distance.
             :gamma: numeric
                 Linewidth value for correction using a 2D Lorentz profile.
@@ -1308,7 +1229,7 @@ def correction_function(
         float: calculated correction value
     """
     if correction_type == "spherical":
-        diameter = kwds.pop("d", 50)
+        diameter = kwds.pop("diameter", 50)
         correction = -(
             (
                 np.sqrt(
@@ -1322,14 +1243,14 @@ def correction_function(
         )
 
     elif correction_type == "Lorentzian":
-        gam = kwds.pop("gamma", 700)
+        gamma = kwds.pop("gamma", 700)
         correction = (
             100000
             * amplitude
-            / (gam * np.pi)
+            / (gamma * np.pi)
             * (
-                gam**2
-                / ((x - center[0]) ** 2 + (y - center[1]) ** 2 + gam**2)
+                gamma**2
+                / ((x - center[0]) ** 2 + (y - center[1]) ** 2 + gamma**2)
                 - 1
             )
         )
