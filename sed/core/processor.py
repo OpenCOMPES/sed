@@ -453,6 +453,56 @@ class SedProcessor:  # pylint: disable=R0902
             self._dataframe = self.mc.append_k_axis(self._dataframe)
             print(self._dataframe.head(10))
 
+    # Energy correction workflow
+    # 1. Adjust the energy correction parameters
+    def adjust_energy_correction(
+        self,
+        correction_type: str = None,
+        amplitude: float = None,
+        center: Tuple[float, float] = None,
+        apply=False,
+        **kwds,
+    ):
+        """Present an interactive plot to adjust the parameters for the TOF/energy
+        correction. Also pre-bins the data if they are not present yet.
+
+        Args:
+            correction_type (str, optional):
+                Type of correction to use. Possible values are:
+                "sperical", "Lorentzian", "Gaussian", "Lorentzian_asymmetric".
+                Defaults to _config["energy"]["correction"]["correction_type"].
+            amplitude (float, optional):
+                Amplitude of the correction.
+                Defaults to _config["energy"]["correction"]["amplitude"].
+            center (Tuple[float, float], optional):
+                Center X/Y coordinates for the correction.
+                Defaults to _config["energy"]["correction"]["center"].
+            apply (bool, optional):
+                Option to directly apply the provided or default correction
+                parameters. Defaults to False.
+        """
+        if self._pre_binned is None:
+            print(
+                "Pre-binned data not present, binning using defaults from config...",
+            )
+            self.bin_and_load_momentum_calibration()
+
+        self.ec.adjust_energy_correction(
+            self._pre_binned,
+            correction_type=correction_type,
+            amplitude=amplitude,
+            center=center,
+            apply=apply,
+            **kwds,
+        )
+
+    # 2. Apply energy correction to dataframe
+    def apply_energy_correction(self):
+        """Apply the enery correction parameters stored in the class to the
+        dataframe. Per default it is directly applied to the TOF column.
+        """
+        self._dataframe = self.ec.apply_energy_correction(self._dataframe)
+
     # Energy calibrator workflow
     # 1. Load and normalize data
     def load_bias_series(  # pylint: disable=R0913

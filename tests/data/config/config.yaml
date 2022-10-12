@@ -33,16 +33,17 @@ energy:
   color_clip: 300
   correction:
     correction_type: "Lorentzian"
-    amplitude: 800000
+    amplitude: 8
     center: [750, 730]
     kwds:
-      sigma: 920
+      sigma: 900
 
 momentum:
   axes: ["@x_column", "@y_column", "@tof_column"]
   bins: [512, 512, 300]
   ranges: [[-256, 1792], [-256, 1792], [128000, 136000]]
   detector_ranges: [[0, 2048], [0, 2048]]
+  center_pixel: [256, 256]
   sigma: 5
   fwhm: 8
   sigma_radius: 1

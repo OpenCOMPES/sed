@@ -18,6 +18,8 @@ import bokeh.plotting as pbk
 import dask.dataframe
 import deepdish.io as dio
 import h5py
+import ipywidgets as ipw
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -26,6 +28,7 @@ import xarray as xr
 from bokeh.io import output_notebook
 from bokeh.palettes import Category10 as ColorCycle
 from fastdtw import fastdtw
+from IPython.display import display
 from lmfit import Minimizer
 from lmfit import Parameters
 from lmfit.printfuncs import report_fit
@@ -113,7 +116,7 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
             "correction",
             {
                 "correction_type": "Lorentzian",
-                "amplitude": 800000,
+                "amplitude": 8,
                 "center": (750, 730),
                 "kwds": {"sigma": 920},
             },
@@ -677,12 +680,13 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
 
         return df
 
-    def view_energy_correction(  # pylint: disable=R0913, R0914
+    def adjust_energy_correction(  # pylint: disable=R0913, R0914
         self,
         image: xr.DataArray,
-        keep: bool = False,
         correction_type: str = None,
         amplitude: float = None,
+        center: Tuple[float, float] = None,
+        apply=False,
         **kwds,
     ):
         """Visualize the energy correction function ontop of the TOF/X/Y graphs.
@@ -690,12 +694,12 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
         :Parameters:
             image: xarray
                 Image data cube (x, y, tof) of binned data to plot
-            keep: bool | False
-                whether to store the provided parameters within the class
             correction_type: str
                 Type of correction to apply to the TOF axis. Defaults to config value.
             :amplitude: numeric | config
                 Amplitude of the time-of-flight correction term
+            apply: bool | False
+                whether to store the provided parameters within the class
             **kwds: keyword arguments
                 Additional parameters to use for the correction.
                 :x_column: str | config
@@ -731,16 +735,16 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
                     profile, X-direction.
 
         """
-
+        matplotlib.use("module://ipympl.backend_nbagg")
         if correction_type is None:
             correction_type = self.correction["correction_type"]
 
         if amplitude is None:
             amplitude = self.correction["amplitude"]
+        if center is None:
+            center = self.correction["center"]
 
         kwds = {**(self.correction["kwds"]), **kwds}
-
-        center = kwds.pop("center", self.correction["center"])
 
         x_column = kwds.pop("x_column", self.x_column)
         y_column = kwds.pop("y_column", self.y_column)
@@ -773,7 +777,7 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
             amplitude=amplitude,
             **kwds,
         )
-        plt.subplot(2, 1, 1)
+        fig, ax = plt.subplots(2, 1)
         image.loc[
             {
                 y_column: slice(y_center + y_width[0], y_center + y_width[1]),
@@ -783,13 +787,11 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
                 ),
             }
         ].sum(dim=y_column).T.plot(
+            ax=ax[0],
             cmap="terrain_r",
             vmax=color_clip,
             yincrease=False,
         )
-        plt.plot(x, correction_x)
-        plt.axvline(x=center[0])
-        plt.subplot(2, 1, 2)
         image.loc[
             {
                 x_column: slice(x_center + x_width[0], x_center + x_width[1]),
@@ -799,18 +801,323 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
                 ),
             }
         ].sum(dim=x_column).T.plot(
+            ax=ax[1],
             cmap="terrain_r",
             vmax=color_clip,
             yincrease=False,
         )
-        plt.plot(y, correction_y)
-        plt.axvline(x=center[1])
+        (trace1,) = ax[0].plot(x, correction_x)
+        line1 = ax[0].axvline(x=center[0])
+        (trace2,) = ax[1].plot(y, correction_y)
+        line2 = ax[1].axvline(x=center[1])
 
-        if keep:
-            self.correction["amplitude"] = amplitude
-            self.correction["center"] = center
-            self.correction["correction_type"] = correction_type
-            self.correction["kwds"] = kwds
+        amplitude_slider = ipw.FloatSlider(
+            value=amplitude,
+            min=0,
+            max=10,
+            step=0.1,
+        )
+        x_center_slider = ipw.FloatSlider(
+            value=x_center,
+            min=0,
+            max=self._config.get("momentum", {}).get(
+                "detector_ranges",
+                [[0, 2048], [0, 2048]],
+            )[0][1],
+            step=1,
+        )
+        y_center_slider = ipw.FloatSlider(
+            value=x_center,
+            min=0,
+            max=self._config.get("momentum", {}).get(
+                "detector_ranges",
+                [[0, 2048], [0, 2048]],
+            )[1][1],
+            step=1,
+        )
+
+        if correction_type == "spherical":
+            diameter = kwds.pop("d", 50)
+
+            def update(amplitude, x_center, y_center, diameter):
+                correction_x = tof_fermi - correction_function(
+                    x=x,
+                    y=y_center,
+                    correction_type=correction_type,
+                    center=(x_center, y_center),
+                    amplitude=amplitude,
+                    d=diameter,
+                )
+                correction_y = tof_fermi - correction_function(
+                    x=x_center,
+                    y=y,
+                    correction_type=correction_type,
+                    center=(x_center, y_center),
+                    amplitude=amplitude,
+                    d=diameter,
+                )
+
+                trace1.set_ydata(correction_x)
+                line1.set_xdata(x=x_center)
+                trace2.set_ydata(correction_y)
+                line2.set_xdata(x=y_center)
+
+                fig.canvas.draw_idle()
+
+            update(amplitude, x_center, y_center, diameter)
+
+            diameter_slider = ipw.FloatSlider(
+                value=diameter,
+                min=0,
+                max=100,
+                step=1,
+            )
+
+            ipw.interact(
+                update,
+                amplitude=amplitude_slider,
+                x_center=x_center_slider,
+                y_center=y_center_slider,
+                diameter=diameter_slider,
+            )
+
+            def apply_func(apply: bool):
+                self.correction["amplitude"] = amplitude_slider.value
+                self.correction["center"] = (
+                    x_center_slider.value,
+                    y_center_slider.value,
+                )
+                self.correction["correction_type"] = correction_type
+                kwds["d"] = diameter_slider.value
+                self.correction["kwds"] = kwds
+                amplitude_slider.close()
+                x_center_slider.close()
+                y_center_slider.close()
+                diameter_slider.close()
+                apply_button.close()
+
+        elif correction_type == "Lorentzian":
+            gamma = kwds.pop("gamma", 700)
+
+            def update(amplitude, x_center, y_center, gamma):
+                correction_x = tof_fermi - correction_function(
+                    x=x,
+                    y=y_center,
+                    correction_type=correction_type,
+                    center=(x_center, y_center),
+                    amplitude=amplitude,
+                    gamma=gamma,
+                )
+                correction_y = tof_fermi - correction_function(
+                    x=x_center,
+                    y=y,
+                    correction_type=correction_type,
+                    center=(x_center, y_center),
+                    amplitude=amplitude,
+                    gamma=gamma,
+                )
+
+                trace1.set_ydata(correction_x)
+                line1.set_xdata(x=x_center)
+                trace2.set_ydata(correction_y)
+                line2.set_xdata(x=y_center)
+
+                fig.canvas.draw_idle()
+
+            update(amplitude, x_center, y_center, gamma)
+
+            gamma_slider = ipw.FloatSlider(
+                value=gamma,
+                min=0,
+                max=2000,
+                step=1,
+            )
+
+            ipw.interact(
+                update,
+                amplitude=amplitude_slider,
+                x_center=x_center_slider,
+                y_center=y_center_slider,
+                gamma=gamma_slider,
+            )
+
+            def apply_func(apply: bool):
+                self.correction["amplitude"] = amplitude_slider.value
+                self.correction["center"] = (
+                    x_center_slider.value,
+                    y_center_slider.value,
+                )
+                self.correction["correction_type"] = correction_type
+                kwds["gamma"] = gamma_slider.value
+                self.correction["kwds"] = kwds
+                amplitude_slider.close()
+                x_center_slider.close()
+                y_center_slider.close()
+                gamma_slider.close()
+                apply_button.close()
+
+        elif correction_type == "Gaussian":
+            sigma = kwds.pop("sigma", 400)
+
+            def update(amplitude, x_center, y_center, sigma):
+                correction_x = tof_fermi - correction_function(
+                    x=x,
+                    y=y_center,
+                    correction_type=correction_type,
+                    center=(x_center, y_center),
+                    amplitude=amplitude,
+                    sigma=sigma,
+                )
+                correction_y = tof_fermi - correction_function(
+                    x=x_center,
+                    y=y,
+                    correction_type=correction_type,
+                    center=(x_center, y_center),
+                    amplitude=amplitude,
+                    sigma=sigma,
+                )
+
+                trace1.set_ydata(correction_x)
+                line1.set_xdata(x=x_center)
+                trace2.set_ydata(correction_y)
+                line2.set_xdata(x=y_center)
+
+                fig.canvas.draw_idle()
+
+            update(amplitude, x_center, y_center, sigma)
+
+            sigma_slider = ipw.FloatSlider(
+                value=sigma,
+                min=0,
+                max=1000,
+                step=1,
+            )
+
+            ipw.interact(
+                update,
+                amplitude=amplitude_slider,
+                x_center=x_center_slider,
+                y_center=y_center_slider,
+                sigma=sigma_slider,
+            )
+
+            def apply_func(apply: bool):
+                self.correction["amplitude"] = amplitude_slider.value
+                self.correction["center"] = (
+                    x_center_slider.value,
+                    y_center_slider.value,
+                )
+                self.correction["correction_type"] = correction_type
+                kwds["sigma"] = sigma_slider.value
+                self.correction["kwds"] = kwds
+                amplitude_slider.close()
+                x_center_slider.close()
+                y_center_slider.close()
+                sigma_slider.close()
+                apply_button.close()
+
+        elif correction_type == "Lorentzian_asymmetric":
+            gamma = kwds.pop("gamma", 700)
+            amplitude2 = kwds.pop("amplitude2", amplitude)
+            gamma2 = kwds.pop("gamma2", gamma)
+
+            def update(
+                amplitude,
+                x_center,
+                y_center,
+                gamma,
+                amplitude2,
+                gamma2,
+            ):
+                correction_x = tof_fermi - correction_function(
+                    x=x,
+                    y=y_center,
+                    correction_type=correction_type,
+                    center=(x_center, y_center),
+                    amplitude=amplitude,
+                    gamma=gamma,
+                    amplitude2=amplitude2,
+                    gamma2=gamma2,
+                )
+                correction_y = tof_fermi - correction_function(
+                    x=x_center,
+                    y=y,
+                    correction_type=correction_type,
+                    center=(x_center, y_center),
+                    amplitude=amplitude,
+                    gamma=gamma,
+                    amplitude2=amplitude2,
+                    gamma2=gamma2,
+                )
+
+                trace1.set_ydata(correction_x)
+                line1.set_xdata(x=x_center)
+                trace2.set_ydata(correction_y)
+                line2.set_xdata(x=y_center)
+
+                fig.canvas.draw_idle()
+
+            update(amplitude, x_center, y_center, gamma, amplitude2, gamma2)
+
+            gamma_slider = ipw.FloatSlider(
+                value=gamma,
+                min=0,
+                max=2000,
+                step=1,
+            )
+
+            amplitude2_slider = ipw.FloatSlider(
+                value=amplitude,
+                min=0,
+                max=10,
+                step=0.1,
+            )
+
+            gamma2_slider = ipw.FloatSlider(
+                value=gamma2,
+                min=0,
+                max=2000,
+                step=1,
+            )
+
+            ipw.interact(
+                update,
+                amplitude=amplitude_slider,
+                x_center=x_center_slider,
+                y_center=y_center_slider,
+                gamma=gamma_slider,
+                amplitude2=amplitude2_slider,
+                gamma2=gamma2_slider,
+            )
+
+            def apply_func(apply: bool):
+                self.correction["amplitude"] = amplitude_slider.value
+                self.correction["center"] = (
+                    x_center_slider.value,
+                    y_center_slider.value,
+                )
+                self.correction["correction_type"] = correction_type
+                kwds["gamma"] = gamma_slider.value
+                kwds["amplitude2"] = amplitude2_slider.value
+                kwds["gamma2"] = gamma2_slider.value
+                self.correction["kwds"] = kwds
+                amplitude_slider.close()
+                x_center_slider.close()
+                y_center_slider.close()
+                gamma_slider.close()
+                amplitude2_slider.close()
+                gamma2_slider.close()
+                apply_button.close()
+
+        else:
+            raise NotImplementedError
+
+        apply_button = ipw.Button(description="apply")
+        display(apply_button)
+        apply_button.on_click(apply_func)
+
+        if apply:
+            apply_func(True)
 
     def apply_energy_correction(  # pylint: disable=R0913, R0914
         self,
@@ -970,7 +1277,7 @@ def correction_function(
     x: Union[float, np.ndarray],
     y: Union[float, np.ndarray],
     correction_type: str,
-    center: Tuple[int, int],
+    center: Tuple[float, float],
     amplitude: float,
     **kwds,
 ) -> Union[float, np.ndarray]:
@@ -1001,7 +1308,7 @@ def correction_function(
         float: calculated correction value
     """
     if correction_type == "spherical":
-        diameter = kwds.pop("d", 0.9)
+        diameter = kwds.pop("d", 50)
         correction = -(
             (
                 np.sqrt(
@@ -1015,9 +1322,10 @@ def correction_function(
         )
 
     elif correction_type == "Lorentzian":
-        gam = kwds.pop("gamma", 900)
+        gam = kwds.pop("gamma", 700)
         correction = (
-            amplitude
+            100000
+            * amplitude
             / (gam * np.pi)
             * (
                 gam**2
@@ -1029,7 +1337,8 @@ def correction_function(
     elif correction_type == "Gaussian":
         sigma = kwds.pop("sigma", 400)
         correction = (
-            amplitude
+            20000
+            * amplitude
             / np.sqrt(2 * np.pi * sigma**2)
             * (
                 np.exp(
@@ -1041,16 +1350,18 @@ def correction_function(
         )
 
     elif correction_type == "Lorentzian_asymmetric":
-        gamma = kwds.pop("gamma", 900)
+        gamma = kwds.pop("gamma", 700)
         gamma2 = kwds.pop("gamma2", gamma)
         amplitude2 = kwds.pop("amplitude2", amplitude)
         correction = (
-            amplitude
+            100000
+            * amplitude
             / (gamma * np.pi)
             * (gamma**2 / ((y - center[1]) ** 2 + gamma**2) - 1)
         )
         correction += (
-            amplitude2
+            100000
+            * amplitude2
             / (gamma2 * np.pi)
             * (gamma2**2 / ((x - center[0]) ** 2 + gamma2**2) - 1)
         )
