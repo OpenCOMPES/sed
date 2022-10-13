@@ -12,6 +12,7 @@ import psutil
 import xarray as xr
 
 from sed.binning import bin_dataframe
+from sed.calibrator.delay import DelayyCalibrator
 from sed.calibrator.energy import EnergyCalibrator
 from sed.calibrator.momentum import MomentumCorrector
 from sed.config.settings import parse_config
@@ -51,6 +52,9 @@ class SedProcessor:  # pylint: disable=R0902
             config=self._config,
         )
         self.mc = MomentumCorrector(  # pylint: disable=invalid-name
+            config=self._config,
+        )
+        self.dc = DelayyCalibrator(  # pylint: disable=invalid-name
             config=self._config,
         )
 
@@ -501,7 +505,9 @@ class SedProcessor:  # pylint: disable=R0902
         """Apply the enery correction parameters stored in the class to the
         dataframe. Per default it is directly applied to the TOF column.
         """
-        self._dataframe = self.ec.apply_energy_correction(self._dataframe)
+        if self._dataframe is not None:
+            print("Applying energy correction to dataframe...")
+            self._dataframe = self.ec.apply_energy_correction(self._dataframe)
 
     # Energy calibrator workflow
     # 1. Load and normalize data
@@ -713,6 +719,43 @@ class SedProcessor:  # pylint: disable=R0902
             self._dataframe = self.ec.append_energy_axis(self._dataframe)
             print(self._dataframe.head(10))
 
+    # Delay calibration function
+    def calibrate_delay_axis(
+        self,
+        delay_range: Tuple[float, float] = None,
+        datafile: str = None,
+        **kwds,
+    ):
+        """Append delay column to dataframe. Either provide delay ranges, or read
+        them from a file.
+
+        Args:
+            delay_range (Tuple[float, float], optional):
+                The scanned delay range in picoseconds. Defaults to None.
+            datafile (str, optional):
+                The file from which to read the delay ranges. Defaults to None.
+            **kwds:
+                Keyword args passed to DelayCalibrator.append_delay_axis.
+        """
+        if self._dataframe is not None:
+            print("Adding delay column to dataframe:")
+
+            if delay_range is not None:
+                self._dataframe = self.dc.append_delay_axis(
+                    self._dataframe,
+                    delay_range=delay_range,
+                    **kwds,
+                )
+            else:
+                # TODO: get 1st filename from metadata from new loader...
+                self._dataframe = self.dc.append_delay_axis(
+                    self._dataframe,
+                    datafile=datafile,
+                    **kwds,
+                )
+
+            print(self._dataframe.head(10))
+
     def add_jitter(self, cols: Sequence[str] = None) -> None:
         """Add jitter to the selected dataframe columns.
 
@@ -725,10 +768,10 @@ class SedProcessor:  # pylint: disable=R0902
             None
         """
         if cols is None:
-            try:
-                cols = self._config["jitter_cols"]
-            except KeyError:
-                cols = self._dataframe.columns  # jitter all columns
+            cols = self._config.get("dataframe", {}).get(
+                "jitter_cols",
+                self._dataframe.columns,
+            )  # jitter all columns
 
         self._dataframe = self._dataframe.map_partitions(
             apply_jitter,

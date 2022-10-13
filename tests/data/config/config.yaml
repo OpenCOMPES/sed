@@ -4,20 +4,23 @@ core:
   copy_tool_dest: "/scratch/localDataStore/"
 
 dataframe:
+  jitter_cols: ["X", "Y", "t", "ADC"]
   x_column: "X"
   y_column: "Y"
   tof_column: "t"
+  adc_column: "ADC"
   energy_column: "E"
   x_corrected_column: "Xm"
   y_corrected_column: "Ym"
   kx_column: "kx"
   ky_column: "ky"
+  delay_column: "delay"
   tof_binwidth: 4.125e-12
-  tof_binning: 1
+  tof_binning: 2
 
 energy:
   bins: 1000
-  ranges: [128000, 138000]
+  ranges: [64000, 69000]
   bias_key: "@KTOF:Lens:Sample:V"
   normalize: True
   normalize_span: 7
@@ -41,13 +44,20 @@ energy:
 momentum:
   axes: ["@x_column", "@y_column", "@tof_column"]
   bins: [512, 512, 300]
-  ranges: [[-256, 1792], [-256, 1792], [128000, 136000]]
+  ranges: [[-256, 1792], [-256, 1792], [66000, 68000]]
   detector_ranges: [[0, 2048], [0, 2048]]
   center_pixel: [256, 256]
   sigma: 5
   fwhm: 8
   sigma_radius: 1
   center_det: "centroidnn"
+
+delay:
+  adc_range: [2600, 27600]
+  adc_binning: 2
+  p1_key: "@trARPES:DelayStage:p1"
+  p2_key: "@trARPES:DelayStage:p2"
+  t0_key: "@trARPES:DelayStage:t0"
 
 binning:
   hist_mode: "numba"
@@ -60,4 +70,4 @@ binning:
 histogram:
   bins: [80, 80, 80, 80]
   axes: ["X", "Y", "t", "ADC"]
-  ranges: [[0, 1800], [0, 1800], [65000, 69000], [0, 500], ]
+  ranges: [[0, 1800], [0, 1800], [65000, 69000], [0, 9000], ]
