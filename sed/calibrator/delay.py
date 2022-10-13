@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 
 
-class DelayyCalibrator:  # pylint: disable=too-many-instance-attributes
+class DelayyCalibrator:  # pylint: disable=too-few-public-methods
     """
     Pump-Probe delay calibration methods.
     """
@@ -33,7 +33,7 @@ class DelayyCalibrator:  # pylint: disable=too-many-instance-attributes
             "delay",
         )
 
-    def append_delay_axis(  # pylint: disable=R0913
+    def append_delay_axis(  # pylint: disable=R0912, R0913
         self,
         df: Union[pd.DataFrame, dask.dataframe.DataFrame],
         adc_column: str = None,
