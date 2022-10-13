@@ -1,7 +1,7 @@
 """sed.calibrator.delay module. Code for delay calibration.
 """
 # pylint: disable=too-many-lines
-from typing import Sequence
+from typing import List
 from typing import Tuple
 from typing import Union
 
@@ -38,10 +38,10 @@ class DelayyCalibrator:  # pylint: disable=too-few-public-methods
         df: Union[pd.DataFrame, dask.dataframe.DataFrame],
         adc_column: str = None,
         delay_column: str = None,
-        adc_range: Tuple[int, int] = None,
-        delay_range: Tuple[float, float] = None,
+        adc_range: Union[Tuple, List, np.ndarray] = None,
+        delay_range: Union[Tuple, List, np.ndarray] = None,
         time0: float = None,
-        delay_range_mm: Tuple[float, float] = None,
+        delay_range_mm: Union[Tuple, List, np.ndarray] = None,
         datafile: str = None,
         p1_key: str = None,
         p2_key: str = None,
@@ -53,15 +53,12 @@ class DelayyCalibrator:  # pylint: disable=too-few-public-methods
         ...
         """
         if adc_range is None:
-            adc_range = tuple(
-                np.asarray(
-                    self._config.get("delay", {}).get(
-                        "adc_range",
-                        [2600, 27600],
-                    ),
-                )
-                / self._config.get("delay", {}).get("adc_binning", 2),
-            )
+            adc_range = np.asarray(
+                self._config.get("delay", {}).get(
+                    "adc_range",
+                    [2600, 27600],
+                ),
+            ) / self._config.get("delay", {}).get("adc_binning", 2)
 
         if adc_column is None:
             adc_column = self.adc_column
@@ -90,13 +87,14 @@ class DelayyCalibrator:  # pylint: disable=too-few-public-methods
                         raise ValueError(
                             "Delay stage values not found in file",
                         ) from exc
-                    delay_range_mm = tuple(ret[0], ret[1])
+                    delay_range_mm = (ret[0], ret[1])
                     time0 = ret[2]
-                    delay_range = mm_to_ps(delay_range_mm, time0)
                 else:
                     raise NotImplementedError
 
-            delay_range = mm_to_ps(delay_range_mm, time0)
+            delay_range = np.asarray(
+                mm_to_ps(np.asarray(delay_range_mm), time0),
+            )
 
         if delay_range is not None:
             df[delay_column] = delay_range[0] + (
@@ -115,7 +113,7 @@ def extract_delay_stage_parameters(
     p1_key: str,
     p2_key: str,
     t0_key: str,
-) -> Tuple[float, float, float]:
+) -> Tuple:
     """
     Read delay stage ranges from hdf5 file
 
@@ -140,9 +138,9 @@ def extract_delay_stage_parameters(
 
 
 def mm_to_ps(
-    delay_mm: Union[float, Sequence[float]],
-    time0_mm,
-) -> Union[float, Sequence[float]]:
+    delay_mm: Union[float, np.ndarray],
+    time0_mm: float,
+) -> Union[float, np.ndarray]:
     """Converts a delaystage position in mm into a relative delay in picoseconds
     (double pass).
 
