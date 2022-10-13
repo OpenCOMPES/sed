@@ -237,6 +237,8 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
         self.tof = np.asarray(tof)
         if read_biases:
             self.biases = np.asarray(bias_list)
+        else:
+            self.biases = np.asarray(biases)
 
     def normalize(self, smooth: bool = False, span: int = 7, order: int = 1):
         """Normalize the spectra along an axis.
@@ -470,7 +472,7 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
         align = kwds.pop("align", False)
         energy_scale = kwds.pop("energy_scale", "kinetic")
 
-        sign = -1 if energy_scale == "kinetic" else 1
+        sign = 1 if energy_scale == "kinetic" else -1
 
         if backend == "matplotlib":
 
