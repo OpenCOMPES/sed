@@ -58,7 +58,7 @@ class DelayyCalibrator:  # pylint: disable=too-few-public-methods
                     "adc_range",
                     [2600, 27600],
                 ),
-            ) / self._config.get("delay", {}).get("adc_binning", 2)
+            ) / 2 ** self._config.get("delay", {}).get("adc_binning", 2)
 
         if adc_column is None:
             adc_column = self.adc_column
@@ -89,12 +89,14 @@ class DelayyCalibrator:  # pylint: disable=too-few-public-methods
                         ) from exc
                     delay_range_mm = (ret[0], ret[1])
                     time0 = ret[2]
+                    print(f"Extract delay range from file '{datafile}'.")
                 else:
                     raise NotImplementedError
 
             delay_range = np.asarray(
                 mm_to_ps(np.asarray(delay_range_mm), time0),
             )
+            print(f"delay_range (ps) = {delay_range}")
 
         if delay_range is not None:
             df[delay_column] = delay_range[0] + (
