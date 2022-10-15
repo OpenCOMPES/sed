@@ -263,13 +263,13 @@ class SedProcessor:  # pylint: disable=R0902
         self.mc.load_data(data=self._pre_binned, rotsym=rotation_symmetry)
         self.mc.select_slicer(plane=plane, width=width, apply=apply)
 
-    # 2. Generate the splin warp correction from momentum features.
+    # 2. Generate the spline warp correction from momentum features.
     # Either autoselect features, or input features from view above.
     def generate_splinewarp(
         self,
         features: np.ndarray = None,
         auto_detect: bool = False,
-        use_center: bool = False,
+        use_center: bool = True,
         **kwds,
     ):
         """Detects or assigns the provided feature points, and generates the
@@ -281,7 +281,7 @@ class SedProcessor:  # pylint: disable=R0902
             auto_detect (bool, optional):
                 Whether to auto-detect the features. Defaults to False.
             use_center (bool, optional):
-                Whether the features include a point at the center.
+                Option to fix the position of the center point for the correction.
                 Defaults to False.
         """
         center_det = kwds.pop(
