@@ -53,7 +53,7 @@ momentum:
   center_det: "centroidnn"
 
 delay:
-  adc_range: [2600, 27600]
+  adc_range: [1900, 25600]
   adc_binning: 2
   p1_key: "@trARPES:DelayStage:p1"
   p2_key: "@trARPES:DelayStage:p2"
