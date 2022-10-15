@@ -78,10 +78,10 @@ class CopyTool:
                 mode=0o775,
                 create=True,
             )
-            filenames.append(source)
+            filenames.append(os.path.realpath(source))
 
         elif os.path.isdir(source):
-            sdir = source
+            sdir = os.path.realpath(source)
             ddir = get_target_dir(
                 sdir,
                 self.source,
