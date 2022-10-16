@@ -68,6 +68,7 @@ class MpesLoader:  # pylint: disable=R0902, too-few-public-methods
         """
 
         if folder is not None:
+            folder = os.path.realpath(folder)
             files = gather_files(
                 folder=folder,
                 extension=ftype,
@@ -80,6 +81,7 @@ class MpesLoader:  # pylint: disable=R0902, too-few-public-methods
                 raise ValueError(
                     "Either the folder or file path should be provided!",
                 )
+            files = [os.path.realpath(file) for file in files]
 
         self.files = files
 

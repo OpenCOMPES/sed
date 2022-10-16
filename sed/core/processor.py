@@ -4,7 +4,7 @@ from typing import Sequence
 from typing import Tuple
 from typing import Union
 
-import dask.dataframe
+import dask.dataframe as ddf
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -20,6 +20,7 @@ from sed.core.dfops import apply_jitter
 from sed.core.metadata import MetaHandler
 from sed.diagnostics import grid_histogram
 from sed.loader.mirrorutil import CopyTool
+from sed.loader.mpes import MpesLoader
 
 N_CPU = psutil.cpu_count()
 
@@ -29,9 +30,12 @@ class SedProcessor:  # pylint: disable=R0902
 
     def __init__(  # pylint: disable=W0102
         self,
-        df: Union[pd.DataFrame, dask.dataframe.DataFrame] = None,
         metadata: dict = {},
         config: Union[dict, str] = {},
+        dataframe: Union[pd.DataFrame, ddf.DataFrame] = None,
+        files: List[str] = None,
+        folder: str = None,
+        **kwds,
     ):
 
         self._config = parse_config(config)
@@ -40,7 +44,8 @@ class SedProcessor:  # pylint: disable=R0902
             num_cores = N_CPU - 1
         self._config["binning"]["num_cores"] = num_cores
 
-        self._dataframe = df
+        self._dataframe: Union[pd.DataFrame, ddf.DataFrame] = None
+        self._files: List[str] = []
 
         self._binned: xr.DataArray = None
         self._pre_binned: xr.DataArray = None
@@ -57,6 +62,9 @@ class SedProcessor:  # pylint: disable=R0902
         self.dc = DelayyCalibrator(  # pylint: disable=invalid-name
             config=self._config,
         )
+        self.ml = MpesLoader(  # pylint: disable=invalid-name
+            config=self._config,
+        )
 
         self.use_copy_tool = self._config.get("core", {}).get(
             "use_copy_tool",
@@ -70,6 +78,10 @@ class SedProcessor:  # pylint: disable=R0902
                 )
             except KeyError:
                 self.use_copy_tool = False
+
+        # Load data if provided:
+        if dataframe is not None or files is not None or folder is not None:
+            self.load(dataframe=dataframe, files=files, folder=folder, **kwds)
 
     def __repr__(self):
         if self._dataframe is None:
@@ -127,7 +139,7 @@ class SedProcessor:  # pylint: disable=R0902
         for k, v in coords.items():
             self._coordinates[k] = xr.DataArray(v)
 
-    def cpy(self, path: Union[str, List[str]]) -> List[str]:
+    def cpy(self, path: Union[str, List[str]]) -> Union[str, List[str]]:
         """Returns either the original or the copied path to the given path.
 
         Args:
@@ -137,34 +149,50 @@ class SedProcessor:  # pylint: disable=R0902
             Union[str, List[str]]: Source or destination path or path list.
         """
         if self.use_copy_tool:
-            path_out = []
             if isinstance(path, list):
+                path_out = []
                 for file in path:
                     path_out.append(self.ct.copy(file))
-            else:
-                path_out.append(self.ct.copy(path))
+                return path_out
 
-            return path_out
+            return self.ct.copy(path)
 
         if isinstance(path, list):
             return path
 
-        return [path]
+        return path
 
     def load(
         self,
-        data: Union[pd.DataFrame, dask.dataframe.DataFrame],
-    ) -> None:
+        dataframe: Union[pd.DataFrame, ddf.DataFrame] = None,
+        files: List[str] = None,
+        folder: str = None,
+        **kwds,
+    ):
         """Load tabular data of Single Events
 
         Args:
-            data: data in tabular format. Accepts anything which
+            dataframe: data in tabular format. Accepts anything which
                 can be interpreted by pd.DataFrame as an input
-
-        Returns:
-            None
         """
-        self._dataframe = data
+        if dataframe is not None:
+            self._dataframe = dataframe
+        elif folder is not None:
+            self._dataframe = self.ml.read_dataframe(
+                folder=self.cpy(folder),
+                **kwds,
+            )
+            self._files = self.ml.files
+        elif files is not None:
+            self._dataframe = self.ml.read_dataframe(
+                files=self.cpy(files),
+                **kwds,
+            )
+            self._files = self.ml.files
+        else:
+            raise ValueError(
+                "Either 'dataframe', 'files' or 'folder' needs to be privided!",
+            )
 
     # Momentum calibration workflow
     # 1. Bin raw detector data for distortion correction
@@ -205,58 +233,14 @@ class SedProcessor:  # pylint: disable=R0902
                 Option to directly apply the values and select the slice.
                 Defaults to False.
             **kwds:
-                Keyword argument passed to the bin_dataframe function.
+                Keyword argument passed to the pre_binning function.
         """
-        if axes is None:
-            axes = self._config.get("momentum", {}).get(
-                "axes",
-                ["@x_column, @y_column, @tof_column"],
-            )
-        for loc, axis in enumerate(axes):
-            if axis.startswith("@"):
-                axes[loc] = self._config.get("dataframe").get(axis.strip("@"))
 
-        if bins is None:
-            bins = self._config.get("momentum", {}).get(
-                "bins",
-                [512, 512, 300],
-            )
-        if ranges is None:
-            ranges_ = self._config.get("momentum", {}).get(
-                "ranges",
-                [[-256, 1792], [-256, 1792], [128000, 138000]],
-            )
-            ranges = [tuple(v) for v in ranges_]
-
-        assert (
-            self._dataframe is not None
-        ), "dataframe needs to be loaded first!"
-
-        hist_mode = kwds.pop("hist_mode", self._config["binning"]["hist_mode"])
-        mode = kwds.pop("mode", self._config["binning"]["mode"])
-        pbar = kwds.pop("pbar", self._config["binning"]["pbar"])
-        num_cores = kwds.pop("num_cores", self._config["binning"]["num_cores"])
-        threads_per_worker = kwds.pop(
-            "threads_per_worker",
-            self._config["binning"]["threads_per_worker"],
-        )
-        threadpool_api = kwds.pop(
-            "threadpool_API",
-            self._config["binning"]["threadpool_API"],
-        )
-
-        df_partitions = min(df_partitions, self._dataframe.npartitions)
-        self._pre_binned = bin_dataframe(
-            df=self._dataframe.partitions[0:df_partitions],
-            bins=bins,
+        self._pre_binned = self.pre_binning(
+            df_partitions=df_partitions,
             axes=axes,
+            bins=bins,
             ranges=ranges,
-            histMode=hist_mode,
-            mode=mode,
-            pbar=pbar,
-            nCores=num_cores,
-            nThreadsPerWorker=threads_per_worker,
-            threadpoolAPI=threadpool_api,
             **kwds,
         )
 
@@ -489,7 +473,7 @@ class SedProcessor:  # pylint: disable=R0902
             print(
                 "Pre-binned data not present, binning using defaults from config...",
             )
-            self.bin_and_load_momentum_calibration()
+            self.pre_binning()
 
         self.ec.adjust_energy_correction(
             self._pre_binned,
@@ -779,6 +763,63 @@ class SedProcessor:  # pylint: disable=R0902
             cols_jittered=cols,
         )
 
+    def pre_binning(  # pylint: disable=R0913, R0914
+        self,
+        df_partitions: int = 100,
+        axes: List[str] = None,
+        bins: List[int] = None,
+        ranges: List[Tuple] = None,
+        **kwds,
+    ) -> xr.DataArray:
+        """Function to do an initial binning of the dataframe loaded to the class.
+
+        Args:
+            df_partitions (int, optional):
+                Number of dataframe partitions to use for the initial binning.
+                Defaults to 100.
+            axes (List[str], optional):
+                Axes to bin. Defaults to _config["momentum"]["axes"].
+            bins (List[int], optional):
+                Bin numbers to use for binning.
+                Defaults to _config["momentum"]["bins"].
+            ranges (List[Tuple], optional):
+                Ranges to use for binning. Defaults to _config["momentum"]["ranges"].
+            **kwds:
+                Keyword argument passed to the compute function.
+        """
+        if axes is None:
+            axes = self._config.get("momentum", {}).get(
+                "axes",
+                ["@x_column, @y_column, @tof_column"],
+            )
+        for loc, axis in enumerate(axes):
+            if axis.startswith("@"):
+                axes[loc] = self._config.get("dataframe").get(axis.strip("@"))
+
+        if bins is None:
+            bins = self._config.get("momentum", {}).get(
+                "bins",
+                [512, 512, 300],
+            )
+        if ranges is None:
+            ranges_ = self._config.get("momentum", {}).get(
+                "ranges",
+                [[-256, 1792], [-256, 1792], [128000, 138000]],
+            )
+            ranges = [tuple(v) for v in ranges_]
+
+        assert (
+            self._dataframe is not None
+        ), "dataframe needs to be loaded first!"
+
+        return self.compute(
+            bins=bins,
+            axes=axes,
+            ranges=ranges,
+            df_partitions=df_partitions,
+            **kwds,
+        )
+
     def compute(
         self,
         bins: Union[
@@ -834,9 +875,16 @@ class SedProcessor:  # pylint: disable=R0902
             "threadpool_API",
             self._config["binning"]["threadpool_API"],
         )
+        df_partitions = kwds.pop("df_partitions", None)
+        if df_partitions is not None:
+            dataframe = self._dataframe.partitions[
+                0 : min(df_partitions, self._dataframe.npartitions)
+            ]
+        else:
+            dataframe = self._dataframe
 
         self._binned = bin_dataframe(
-            df=self._dataframe,
+            df=dataframe,
             bins=bins,
             axes=axes,
             ranges=ranges,

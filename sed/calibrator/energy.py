@@ -3,7 +3,6 @@ correction. Mostly ported from https://github.com/mpes-kit/mpes.
 """
 # pylint: disable=too-many-lines
 import itertools as it
-import os
 import pickle
 import warnings as wn
 from copy import deepcopy
@@ -32,13 +31,13 @@ from IPython.display import display
 from lmfit import Minimizer
 from lmfit import Parameters
 from lmfit.printfuncs import report_fit
-from mpes import fprocessing as fp
 from numpy.linalg import lstsq
 from scipy.signal import savgol_filter
 from scipy.sparse.linalg import lsqr
 from silx.io import dictdump
 
 from sed.binning import bin_dataframe
+from sed.loader.mpes import MpesLoader
 
 
 class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
@@ -211,13 +210,12 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
             if bias_key is None:
                 bias_key = self._config.get("energy", {}).get("bias_key", "")
 
+        loader = MpesLoader(config=self._config)
         for file in data_files:
-            folder = os.path.dirname(file)
-            # TODO replace loader, and implement parallelized version
-            dfp = fp.dataframeProcessor(datafolder=folder, datafiles=[file])
-            dfp.read(source="files", ftype="h5")
+            # TODO implement parallelized version and move loading into processor class
+            dataframe = loader.read_dataframe(files=[file])
             data = bin_dataframe(
-                dfp.edf,
+                dataframe,
                 bins=bins,
                 axes=axes,
                 ranges=ranges,
@@ -561,7 +559,7 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
                         line_dash="solid",
                         line_width=1,
                         line_alpha=1,
-                        legend=lbs[itr],
+                        legend_label=lbs[itr],
                         **kwds,
                     )
                 else:
