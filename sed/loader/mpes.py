@@ -5,6 +5,7 @@ Mostly ported from https://github.com/mpes-kit/mpes.
 """
 import os
 from glob import glob
+from typing import cast
 from typing import Dict
 from typing import List
 from typing import Tuple
@@ -19,10 +20,10 @@ from natsort import natsorted
 from sed.core.metadata import MetaHandler
 
 
-class MpesLoader:  # pylint: disable=R0902
+class MpesLoader:  # pylint: disable=R0902, too-few-public-methods
     """MpesLoader class, holding configuation and parameters for the file loader."""
 
-    def __init__(  # pylint: disable=W0102, too-few-public-methods
+    def __init__(  # pylint: disable=W0102
         self,
         metadata: dict = {},
         config: dict = {},
@@ -34,7 +35,7 @@ class MpesLoader:  # pylint: disable=R0902
             False,
         )
 
-        self.files = []
+        self.files: List[str] = []
 
     def read_dataframe(
         self,
@@ -79,6 +80,8 @@ class MpesLoader:  # pylint: disable=R0902
                 raise ValueError(
                     "Either the folder or file path should be provided!",
                 )
+
+        self.files = files
 
         if ftype == "parquet":
             return ddf.read_parquet(files, **kwds)
@@ -140,7 +143,7 @@ def gather_files(  # pylint: disable=R0913
         files = glob(folder + "/*." + extension)
 
         if file_sorting:
-            files = natsorted(files)
+            files = cast(List[str], natsorted(files))
 
         if f_start is not None and f_end is not None:
             files = files[slice(f_start, f_end, f_step)]
@@ -259,7 +262,7 @@ def get_groups_and_aliases(
 
 def hdf5_to_array(
     h5file: h5py.File,
-    group_names: str,
+    group_names: List[str],
     data_type: str = "float32",
     time_stamps=False,
 ) -> np.ndarray:
