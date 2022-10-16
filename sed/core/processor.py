@@ -1,4 +1,5 @@
 from typing import Any
+from typing import cast
 from typing import List
 from typing import Sequence
 from typing import Tuple
@@ -179,13 +180,13 @@ class SedProcessor:  # pylint: disable=R0902
             self._dataframe = dataframe
         elif folder is not None:
             self._dataframe = self.ml.read_dataframe(
-                folder=self.cpy(folder),
+                folder=cast(str, self.cpy(folder)),
                 **kwds,
             )
             self._files = self.ml.files
         elif files is not None:
             self._dataframe = self.ml.read_dataframe(
-                files=self.cpy(files),
+                files=cast(List[str], self.cpy(files)),
                 **kwds,
             )
             self._files = self.ml.files
@@ -520,7 +521,7 @@ class SedProcessor:  # pylint: disable=R0902
         """
 
         self.ec.bin_data(
-            data_files=self.cpy(data_files),
+            data_files=cast(List[str], self.cpy(data_files)),
             axes=axes,
             bins=bins,
             ranges=ranges,
