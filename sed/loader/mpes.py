@@ -22,23 +22,13 @@ from sed.core.metadata import MetaHandler
 class MpesLoader:  # pylint: disable=R0902
     """MpesLoader class, holding configuation and parameters for the file loader."""
 
-    def __init__(  # pylint: disable=W0102
+    def __init__(  # pylint: disable=W0102, too-few-public-methods
         self,
         metadata: dict = {},
         config: dict = {},
     ):
         self._config = config
         self._attributes = MetaHandler(meta=metadata)
-        self.tof_column = self._config.get("dataframe", {}).get(
-            "tof_column",
-            "t",
-        )
-        self.energy_column = self._config.get("dataframe", {}).get(
-            "energy_column",
-            "E",
-        )
-        self.x_column = self._config.get("dataframe", {}).get("x_column", "X")
-        self.y_column = self._config.get("dataframe", {}).get("y_column", "Y")
         self.read_timestamps = self._config.get("dataframe", {}).get(
             "read_timestamps",
             False,
@@ -93,7 +83,7 @@ class MpesLoader:  # pylint: disable=R0902
         if ftype == "parquet":
             return ddf.read_parquet(files, **kwds)
 
-        elif ftype in ("h5", "hdf5"):
+        if ftype in ("h5", "hdf5"):
             hdf5_groupnames = kwds.pop(
                 "hdf5_groupnames",
                 self._config.get("dataframe", {}).get("hdf5_groupnames", []),
@@ -110,22 +100,21 @@ class MpesLoader:  # pylint: disable=R0902
                 **kwds,
             )
 
-        elif ftype == "json":
+        if ftype == "json":
             return ddf.read_json(files, **kwds)
 
-        elif ftype == "csv":
+        if ftype == "csv":
             return ddf.read_csv(files, **kwds)
 
-        else:
-            try:
-                return ddf.read_table(files, **kwds)
-            except (TypeError, ValueError, NotImplementedError) as exc:
-                raise Exception(
-                    "The file format cannot be understood!",
-                ) from exc
+        try:
+            return ddf.read_table(files, **kwds)
+        except (TypeError, ValueError, NotImplementedError) as exc:
+            raise Exception(
+                "The file format cannot be understood!",
+            ) from exc
 
 
-def gather_files(
+def gather_files(  # pylint: disable=R0913
     folder: str,
     extension: str = "*.h5",
     f_start: int = None,
@@ -163,7 +152,7 @@ def gather_files(
     return files
 
 
-def hdf5_to_dataframe(
+def hdf5_to_dataframe(  # pylint: disable=W0102
     files: List[str],
     group_names: List[str] = [],
     alias_dict: Dict[str, str] = {},
@@ -273,7 +262,6 @@ def hdf5_to_array(
     group_names: str,
     data_type: str = "float32",
     time_stamps=False,
-    **kwds,
 ) -> np.ndarray:
     """Reads the content of the given groups in an hdf5 file, and returns a
     2-dimensional array with the corresponding values.
@@ -317,7 +305,7 @@ def hdf5_to_array(
         # the modification time points to the time when the file was finished, so we
         # need to correct for the length it took to write the file
         start_time -= len(ms_marker)
-        for n in range(len(ms_marker) - 1):
+        for i in range(len(ms_marker) - 1):
             # linear interpolation between ms: Disabled, because it takes a lot of
             # time, and external signals are anyway not better synchronized than 1 ms
             # time_stamp_data[ms_marker[n] : ms_marker[n + 1]] = np.linspace(
@@ -325,7 +313,7 @@ def hdf5_to_array(
             #     start_time + n + 1,
             #     ms_marker[n + 1] - ms_marker[n],
             # )
-            time_stamp_data[ms_marker[n] : ms_marker[n + 1]] = start_time + n
+            time_stamp_data[ms_marker[i] : ms_marker[i + 1]] = start_time + i
         # fill any remaining points
         time_stamp_data[
             ms_marker[len(ms_marker) - 1] : len(time_stamp_data)
@@ -336,11 +324,22 @@ def hdf5_to_array(
     return np.asarray(data_list)
 
 
-def get_attribute(h5file: h5py.Group, attribute: str) -> str:
+def get_attribute(h5group: h5py.Group, attribute: str) -> str:
+    """Reads, decodes and returns an attrubute from an hdf5 group
+
+    Args:
+        h5group (h5py.Group):
+            The hdf5 group to read from
+        attribute (str):
+            The name of the attribute
+
+    Returns:
+        str: The parsed attribute data
+    """
     try:
-        content = h5file.attrs[attribute].decode("utf-8")
+        content = h5group.attrs[attribute].decode("utf-8")
     except AttributeError:  # No need to decode
-        content = h5file.attrs[attribute]
+        content = h5group.attrs[attribute]
     except KeyError:  # No such attribute
         print(f"Attribute '{attribute}' not found!")
         raise
