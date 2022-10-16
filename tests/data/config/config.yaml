@@ -4,6 +4,12 @@ core:
   copy_tool_dest: "/scratch/localDataStore/"
 
 dataframe:
+  hdf5_groupnames: ["Stream_0", "Stream_1", "Stream_2", "Stream_4"]
+  hdf5_aliases:
+    Stream_0: "X"
+    Stream_1: "Y"
+    Stream_2: "t"
+    Stream_4: "ADC"
   jitter_cols: ["X", "Y", "t", "ADC"]
   x_column: "X"
   y_column: "Y"
