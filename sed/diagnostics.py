@@ -38,7 +38,7 @@ def plot_single_hist(
         right=edges[1:],
         line_color="white",
         alpha=0.8,
-        legend=legend,
+        legend_label=legend,
         **kwds,
     )
 
@@ -153,7 +153,7 @@ def grid_histogram(
             gridplot(
                 plots,
                 ncols=ncol,
-                plot_width=figsz[0] * 30,
-                plot_height=figsz[1] * 28,
+                width=figsz[0] * 30,
+                height=figsz[1] * 28,
             ),
         )

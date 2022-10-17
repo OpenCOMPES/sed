@@ -570,7 +570,7 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
                         line_dash="solid",
                         line_width=1,
                         line_alpha=1,
-                        legend=lbs[itr],
+                        legend_label=lbs[itr],
                         **kwds,
                     )
 
