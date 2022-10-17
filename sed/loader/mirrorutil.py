@@ -21,7 +21,6 @@ class CopyTool:
         self,
         source: str = "/",
         dest: str = "/",
-        ntasks: int = None,
         **kwds,
     ):
 
@@ -31,15 +30,11 @@ class CopyTool:
             "safetyMargin",
             1 * 2**30,
         )  # Default 500 GB safety margin
-        self.pbenv = kwds.pop("pbenv", "classic")
         self.gid = kwds.pop("gid", 5050)
         self.scheduler = kwds.pop("scheduler", "threads")
 
-        if (ntasks is None) or (ntasks < 0):
-            # Default to 25 concurrent copy tasks
-            self.ntasks = 25
-        else:
-            self.ntasks = int(ntasks)
+        # Default to 25 concurrent copy tasks
+        self.ntasks = int(kwds.pop("ntasks", 25))
 
     def copy(  # pylint: disable=R0912, R0914
         self,

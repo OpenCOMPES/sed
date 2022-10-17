@@ -76,6 +76,7 @@ class SedProcessor:  # pylint: disable=R0902
                 self.ct = CopyTool(  # pylint: disable=invalid-name
                     source=self._config["core"]["copy_tool_source"],
                     dest=self._config["core"]["copy_tool_dest"],
+                    **self._config["core"].get("copy_tool_kwds", {}),
                 )
             except KeyError:
                 self.use_copy_tool = False
