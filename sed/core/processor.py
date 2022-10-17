@@ -732,7 +732,16 @@ class SedProcessor:  # pylint: disable=R0902
                     **kwds,
                 )
             else:
-                # TODO: get 1st filename from metadata from new loader...
+                if datafile is None:
+                    try:
+                        datafile = self._files[0]
+                    except IndexError:
+                        print(
+                            "No datafile available, specify eihter",
+                            " 'datafile' or 'delay_range'",
+                        )
+                        raise
+
                 self._dataframe = self.dc.append_delay_axis(
                     self._dataframe,
                     datafile=datafile,
