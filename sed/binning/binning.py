@@ -325,11 +325,13 @@ def bin_dataframe(
             del coreTasks
 
     if return_partitions:
-
+        coords = {**coords, **{"df_part": np.arange(df.npartitions)}}
+        dims = list(axes)
+        dims.append("df_part")
         da = xr.DataArray(
             data=np.stack(partitionResults, axis=-1).astype("float32"),
-            coords={**coords, **{"df_part": np.arange(df.npartitions)}},
-            dims=list(axes).append("df_part"),
+            coords=coords,
+            dims=dims,
         )
         return da
 

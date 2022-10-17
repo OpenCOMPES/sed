@@ -188,7 +188,7 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
                 self._config.get("energy", {}).get("ranges", [128000, 138000]),
             ]
             ranges = [tuple(v) for v in ranges_]
-
+        # pylint: disable=R0801
         hist_mode = kwds.pop("hist_mode", self._config["binning"]["hist_mode"])
         mode = kwds.pop("mode", self._config["binning"]["mode"])
         pbar = kwds.pop("pbar", self._config["binning"]["pbar"])
@@ -197,7 +197,7 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
             "threads_per_worker",
             self._config["binning"]["threads_per_worker"],
         )
-        threadpool_API = kwds.pop(
+        threadpool_api = kwds.pop(
             "threadpool_API",
             self._config["binning"]["threadpool_API"],
         )
@@ -220,7 +220,7 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
             pbar=pbar,
             nCores=num_cores,
             nThreadsPerWorker=threads_per_worker,
-            threadpoolAPI=threadpool_API,
+            threadpoolAPI=threadpool_api,
             return_partitions=True,
             **kwds,
         )
@@ -1167,7 +1167,7 @@ def save_class_attributes(clss, form, save_addr):
         raise NotImplementedError
 
 
-def extract_bias(files: List[str], bias_key: str) -> np.array:
+def extract_bias(files: List[str], bias_key: str) -> np.ndarray:
     """
     Read bias value from hdf5 file
 
@@ -1178,13 +1178,13 @@ def extract_bias(files: List[str], bias_key: str) -> np.array:
     Returns:
         bias value
     """
-    bias_list = []
+    bias_list: List[float] = []
     for file in files:
         with h5py.File(file, "r") as file_handle:
             if bias_key[0] == "@":
-                bias_list.append(round(file_handle.attrs[bias_key[1:]]), 2)
+                bias_list.append(round(file_handle.attrs[bias_key[1:]], 2))
             else:
-                bias_list.append(round(file_handle[bias_key]), 2)
+                bias_list.append(round(file_handle[bias_key], 2))
 
     return np.asarray(bias_list)
 
