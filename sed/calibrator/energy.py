@@ -189,54 +189,47 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
             ]
             ranges = [tuple(v) for v in ranges_]
 
-        #        hist_mode = kwds.pop("hist_mode", self._config["binning"]["hist_mode"])
-        #        mode = kwds.pop("mode", self._config["binning"]["mode"])
-        #        pbar = kwds.pop("pbar", self._config["binning"]["pbar"])
-        #        num_cores = kwds.pop("num_cores", self._config["binning"]["num_cores"])
-        #        threads_per_worker = kwds.pop(
-        #            "threads_per_worker",
-        #            self._config["binning"]["threads_per_worker"],
-        #        )
-        #        threadpool_API = kwds.pop(
-        #            "threadpool_API",
-        #            self._config["binning"]["threadpool_API"],
-        #        )
+        hist_mode = kwds.pop("hist_mode", self._config["binning"]["hist_mode"])
+        mode = kwds.pop("mode", self._config["binning"]["mode"])
+        pbar = kwds.pop("pbar", self._config["binning"]["pbar"])
+        num_cores = kwds.pop("num_cores", self._config["binning"]["num_cores"])
+        threads_per_worker = kwds.pop(
+            "threads_per_worker",
+            self._config["binning"]["threads_per_worker"],
+        )
+        threadpool_API = kwds.pop(
+            "threadpool_API",
+            self._config["binning"]["threadpool_API"],
+        )
 
-        traces = []
         read_biases = False
         if biases is None:
-            bias_list = []
             read_biases = True
             if bias_key is None:
                 bias_key = self._config.get("energy", {}).get("bias_key", "")
 
         loader = MpesLoader(config=self._config)
-        for file in data_files:
-            # TODO implement parallelized version and move loading into processor class
-            dataframe = loader.read_dataframe(files=[file])
-            data = bin_dataframe(
-                dataframe,
-                bins=bins,
-                axes=axes,
-                ranges=ranges,
-                # histMode=hist_mode,
-                # mode=mode,
-                # pbar=pbar,
-                # nCores=num_cores,
-                # nThreadsPerWorker=threads_per_worker,
-                # threadpoolAPI=threadpool_API,
-                **kwds,
-            )
-            traces.append(data.data)
-            if read_biases:
-                bias_list.append(extract_bias(file, bias_key))
-        tof = data.coords[(axes[0])]
-        self.traces = self.traces_normed = np.asarray(traces)
-        self.tof = np.asarray(tof)
+        dataframe = loader.read_dataframe(files=data_files)
+        traces = bin_dataframe(
+            dataframe,
+            bins=bins,
+            axes=axes,
+            ranges=ranges,
+            histMode=hist_mode,
+            mode=mode,
+            pbar=pbar,
+            nCores=num_cores,
+            nThreadsPerWorker=threads_per_worker,
+            threadpoolAPI=threadpool_API,
+            return_partitions=True,
+            **kwds,
+        )
         if read_biases:
-            self.biases = np.asarray(bias_list)
-        else:
-            self.biases = np.asarray(biases)
+            biases = extract_bias(data_files, bias_key)
+        tof = traces.coords[(axes[0])]
+        self.traces = self.traces_normed = np.asarray(traces.T)
+        self.tof = np.asarray(tof)
+        self.biases = np.asarray(biases)
 
     def normalize(self, smooth: bool = False, span: int = 7, order: int = 1):
         """Normalize the spectra along an axis.
@@ -1174,7 +1167,7 @@ def save_class_attributes(clss, form, save_addr):
         raise NotImplementedError
 
 
-def extract_bias(file: str, bias_key: str) -> float:
+def extract_bias(files: List[str], bias_key: str) -> np.array:
     """
     Read bias value from hdf5 file
 
@@ -1185,13 +1178,15 @@ def extract_bias(file: str, bias_key: str) -> float:
     Returns:
         bias value
     """
-    with h5py.File(file, "r") as file_handle:
-        if bias_key[0] == "@":
-            bias = file_handle.attrs[bias_key[1:]]
-        else:
-            bias = file_handle[bias_key]
+    bias_list = []
+    for file in files:
+        with h5py.File(file, "r") as file_handle:
+            if bias_key[0] == "@":
+                bias_list.append(round(file_handle.attrs[bias_key[1:]]), 2)
+            else:
+                bias_list.append(round(file_handle[bias_key]), 2)
 
-    return round(bias, 2)
+    return np.asarray(bias_list)
 
 
 def correction_function(

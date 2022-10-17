@@ -158,6 +158,7 @@ def bin_dataframe(
     nCores: int = N_CPU - 1,
     nThreadsPerWorker: int = 4,
     threadpoolAPI: str = "blas",
+    return_partitions: bool = False,
     **kwds,
 ) -> xr.DataArray:
     """Computes the n-dimensional histogram on columns of a dataframe,
@@ -193,6 +194,8 @@ def bin_dataframe(
         nThreadsPerWorker: Limit the number of threads that
             multiprocessing can spawn.
         threadpoolAPI: The API to use for multiprocessing.
+        return_partitions: Option to return a hypercube of dimension n+1,
+            where the last dimension corresponds to the dataframe partitions.
         kwds: passed to dask.compute()
 
     Raises:
@@ -261,7 +264,12 @@ def bin_dataframe(
             if len(coreTasks) > 0:
                 coreResults = dask.compute(*coreTasks, **kwds)
 
-                if mode == "legacy":
+                if return_partitions:
+                    for coreResult in coreResults:
+                        partitionResults.append(coreResult)
+                    del coreResults
+
+                elif mode == "legacy":
                     # Combine all core results for a dataframe partition
                     partitionResult = np.zeros_like(coreResults[0])
                     for coreResult in coreResults:
@@ -315,6 +323,15 @@ def bin_dataframe(
                     raise ValueError(f"Could not interpret mode {mode}")
 
             del coreTasks
+
+    if return_partitions:
+
+        da = xr.DataArray(
+            data=np.stack(partitionResults, axis=-1).astype("float32"),
+            coords={**coords, **{"df_part": np.arange(df.npartitions)}},
+            dims=list(axes).append("df_part"),
+        )
+        return da
 
     if mode == "legacy":
         # still need to combine all partition results
