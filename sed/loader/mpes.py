@@ -85,6 +85,9 @@ class MpesLoader:  # pylint: disable=R0902, too-few-public-methods
 
         self.files = files
 
+        if not files:
+            raise FileNotFoundError("No valid files found!")
+
         if ftype == "parquet":
             return ddf.read_parquet(files, **kwds)
 
@@ -121,7 +124,7 @@ class MpesLoader:  # pylint: disable=R0902, too-few-public-methods
 
 def gather_files(  # pylint: disable=R0913
     folder: str,
-    extension: str = "*.h5",
+    extension: str = "h5",
     f_start: int = None,
     f_end: int = None,
     f_step: int = 1,
