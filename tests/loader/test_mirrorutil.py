@@ -12,7 +12,6 @@ import pytest
 
 from sed.loader.mirrorutil import CopyTool
 
-# import numpy as np
 
 package_dir = os.path.dirname(find_spec("sed").origin)
 source_folder = package_dir + "/../"

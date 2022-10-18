@@ -10,7 +10,6 @@ import pytest
 from sed.loader.mpes import gather_files
 from sed.loader.mpes import MpesLoader
 
-# import numpy as np
 
 package_dir = os.path.dirname(find_spec("sed").origin)
 source_folder = package_dir + "/../tests/data/loader"
