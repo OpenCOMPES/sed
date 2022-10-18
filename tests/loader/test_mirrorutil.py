@@ -6,15 +6,15 @@ import os
 import shutil
 import tempfile
 from contextlib import redirect_stdout
+from importlib.util import find_spec
 
 import pytest
 
-import sed
 from sed.loader.mirrorutil import CopyTool
 
 # import numpy as np
 
-package_dir = os.path.dirname(sed.__file__)
+package_dir = os.path.dirname(find_spec("sed").origin)
 source_folder = package_dir + "/../"
 folder = package_dir + "/../tests/data/loader"
 file = package_dir + "/../tests/data/loader/Scan0030_2.h5"
@@ -24,7 +24,7 @@ def test_copy_tool_folder():
     """Test the folder copy functionalty of the CopyTool"""
     dest_folder = tempfile.mkdtemp()
     gid = os.getgid()
-    ct = CopyTool(
+    ct = CopyTool(  # pylint: disable=invalid-name
         source_folder,
         dest_folder,
         safetyMargin=0.1 * 2**30,
@@ -50,7 +50,7 @@ def test_copy_tool_file():
     """Test the file copy functionality of the copy tool"""
     dest_folder = tempfile.mkdtemp()
     gid = os.getgid()
-    ct = CopyTool(
+    ct = CopyTool(  # pylint: disable=invalid-name
         source_folder,
         dest_folder,
         safetyMargin=0.1 * 2**30,
@@ -69,17 +69,17 @@ def test_copy_tool_cleanup():
     """Test the file cleanup functionality of the copy tool"""
     dest_folder = tempfile.mkdtemp()
     gid = os.getgid()
-    ct = CopyTool(
+    ct = CopyTool(  # pylint: disable=invalid-name
         source_folder,
         dest_folder,
         safetyMargin=0.1 * 2**30,
         gid=gid,
     )
     copied = ct.copy(folder)
-    f = io.StringIO()
-    with redirect_stdout(f):
+    fio = io.StringIO()
+    with redirect_stdout(fio):
         ct.cleanup_oldest_scan(force=True)
-    assert copied in f.getvalue()
+    assert copied in fio.getvalue()
     with pytest.raises(FileNotFoundError):
         ct.cleanup_oldest_scan()
 
