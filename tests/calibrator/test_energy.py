@@ -19,21 +19,18 @@ folder = package_dir + "/../tests/data/calibrator/"
 files = glob.glob(df_folder + "*.h5")
 config = parse_config(package_dir + "/../tests/data/config/config.yaml")
 
-traces = []
-with open(folder + "traces.csv", newline="") as csvfile:
+traces_list = []
+with open(folder + "traces.csv", newline="", encoding="utf-8") as csvfile:
     reader = csv.reader(csvfile, quoting=csv.QUOTE_NONNUMERIC)
     for row in reader:
-        traces.append(row)
-with open(folder + "tof.csv", newline="") as csvfile:
+        traces_list.append(row)
+traces = np.asarray(traces_list).T
+with open(folder + "tof.csv", newline="", encoding="utf-8") as csvfile:
     reader = csv.reader(csvfile, quoting=csv.QUOTE_NONNUMERIC)
-    tof = next(reader)
-with open(folder + "biases.csv", newline="") as csvfile:
+    tof = np.asarray(next(reader))
+with open(folder + "biases.csv", newline="", encoding="utf-8") as csvfile:
     reader = csv.reader(csvfile, quoting=csv.QUOTE_NONNUMERIC)
-    biases = next(reader)
-
-traces = np.asarray(traces).T
-tof = np.asarray(tof)
-biases = np.asarray(biases)
+    biases = np.asarray(next(reader))
 
 
 def test_bin_data_and_read_biases_from_files():
