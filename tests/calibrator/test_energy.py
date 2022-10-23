@@ -7,7 +7,9 @@ import os
 from importlib.util import find_spec
 
 import numpy as np
+import pandas as pd
 import pytest
+import xarray as xr
 
 from sed.calibrator.energy import EnergyCalibrator
 from sed.config.settings import parse_config
@@ -120,3 +122,72 @@ def test_calibrate_append(energy_scale: str, calibration_method: str):
         assert np.all(diff < 0)
     else:
         assert np.all(diff > 0)
+
+
+amplitude = 2.5
+center = (730, 730)
+sample = np.array(
+    [
+        [0, center[0], 2 * center[0], center[0], center[0], center[0]],
+        [center[1], center[1], center[1], 0, center[1], 2 * center[1]],
+        [0, 0, 0, 0, 0, 0],
+    ],
+).T
+columns = ["X", "Y", "t"]
+sample_df = pd.DataFrame(sample, columns=columns)
+dims = ["X", "Y", "t"]
+shape = (100, 100, 100)
+tof_fermi = 132250
+coords = [
+    np.linspace(0, 2048, 100),
+    np.linspace(0, 2048, 100),
+    np.linspace(tof_fermi - 1000, tof_fermi + 1000, 100),
+]
+image = xr.DataArray(
+    data=np.random.rand(*(100, 100, 100)),
+    coords={d: c for d, c in zip(dims, coords)},
+)
+
+correction_types = [
+    "spherical",
+    "Lorentzian",
+    "Gaussian",
+    "Lorentzian_asymmetric",
+]
+correction_kwds = [
+    {"diameter": 50},
+    {"gamma": 900},
+    {"sigma": 500},
+    {"gamma": 900, "gamma2": 900, "amplitude2": amplitude},
+]
+
+
+@pytest.mark.parametrize(
+    "correction_type, correction_kwd",
+    zip(correction_types, correction_kwds),
+)
+def test_energy_correction(correction_type: str, correction_kwd: dict):
+    """Function to test if all energy correction functions generate symmetric curves
+    with the maximum at the cetner x/y.
+
+    Args:
+        correction_type (str): type of correction to test
+        correction_kwd (dict): parameters to pass to the function
+    """
+    ec = EnergyCalibrator(config=config)  # pylint: disable=invalid-name
+    ec.adjust_energy_correction(
+        image=image,
+        correction_type=correction_type,
+        center=center,
+        amplitude=amplitude,
+        tof_fermi=tof_fermi,
+        apply=True,
+        **correction_kwd,
+    )
+    df = ec.apply_energy_correction(sample_df)
+    tof = df["t"]
+    assert tof[0] == tof[2]
+    assert tof[0] < tof[1]
+    assert tof[3] == tof[5]
+    assert tof[3] < tof[4]
+    assert tof[1] == tof[4]
