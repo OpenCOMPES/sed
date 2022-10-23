@@ -124,7 +124,7 @@ def test_calibrate_append(energy_scale: str, calibration_method: str):
         assert np.all(diff > 0)
 
 
-amplitude = 2.5
+amplitude = 2.5  # pylint: disable=invalid-name
 center = (730, 730)
 sample = np.array(
     [
@@ -137,7 +137,7 @@ columns = ["X", "Y", "t"]
 sample_df = pd.DataFrame(sample, columns=columns)
 dims = ["X", "Y", "t"]
 shape = (100, 100, 100)
-tof_fermi = 132250
+tof_fermi = 132250  # pylint: disable=invalid-name
 coords = [
     np.linspace(0, 2048, 100),
     np.linspace(0, 2048, 100),
@@ -145,7 +145,7 @@ coords = [
 ]
 image = xr.DataArray(
     data=np.random.rand(*(100, 100, 100)),
-    coords={d: c for d, c in zip(dims, coords)},
+    coords=dict(zip(dims, coords)),
 )
 
 correction_types = [
@@ -185,9 +185,9 @@ def test_energy_correction(correction_type: str, correction_kwd: dict):
         **correction_kwd,
     )
     df = ec.apply_energy_correction(sample_df)
-    tof = df["t"]
-    assert tof[0] == tof[2]
-    assert tof[0] < tof[1]
-    assert tof[3] == tof[5]
-    assert tof[3] < tof[4]
-    assert tof[1] == tof[4]
+    t = df["t"]
+    assert t[0] == t[2]
+    assert t[0] < t[1]
+    assert t[3] == t[5]
+    assert t[3] < t[4]
+    assert t[1] == t[4]
