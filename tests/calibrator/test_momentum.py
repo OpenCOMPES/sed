@@ -12,6 +12,7 @@ from sed.config.settings import parse_config
 from sed.core import SedProcessor
 from sed.loader.mpes import MpesLoader
 
+# pylint: disable=duplicate-code
 package_dir = os.path.dirname(find_spec("sed").origin)
 df_folder = package_dir + "/../tests/data/loader/"
 folder = package_dir + "/../tests/data/calibrator/"
