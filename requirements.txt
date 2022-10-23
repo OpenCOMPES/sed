@@ -4,6 +4,7 @@ deepdish>=0.3.7
 fastdtw>=0.3.4
 fastparquet>=0.8.0
 h5py>=3.6.0
+ipympl>=0.9.1
 ipython>=8.1.1
 ipywidgets>=7.7.1
 lmfit>=1.0.3
