@@ -836,7 +836,7 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
                 img.set_clim(axmin, axmax)
             fig.canvas.draw_idle()
 
-        update(1, 0, 0, 0)
+        update(scale=scale, xtrans=xtrans, ytrans=ytrans, angle=angle)
 
         scale_slider = ipw.FloatSlider(
             value=scale,
@@ -1159,8 +1159,8 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
             assert k_coord_a is not None
             # Calculate the conversion factor along x and y directions separately
             # (need k_coord_a)
-            kyb, kxb = k_coord_b
-            kya, kxa = k_coord_a
+            kxb, kyb = k_coord_b
+            kxa, kya = k_coord_a
             # Calculate the column- and row-wise conversion factor
             xratio = (kxa - kxb) / (point_a[0] - point_b[0])
             yratio = (kya - kyb) / (point_a[1] - point_b[1])
