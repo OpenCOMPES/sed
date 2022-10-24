@@ -48,7 +48,6 @@ def test_bin_data_and_read_biases_from_files():
 
 def test_energy_calibrator_from_arrays_norm():
     """Test loading the energy, bias and tof traces into the class"""
-    # df = MpesLoader(config=config).read_dataframe(folder=df_folder)
     ec = EnergyCalibrator(config=config)  # pylint: disable=invalid-name
     ec.load_data(biases=biases, traces=traces, tof=tof)
     assert len(ec.biases) == 11

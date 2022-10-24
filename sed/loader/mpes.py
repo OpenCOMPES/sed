@@ -194,10 +194,10 @@ def hdf5_to_dataframe(  # pylint: disable=W0102
             seach_pattern="Stream",
         )
 
-    if time_stamps:
-        group_names.append("timeStamps")
-
     column_names = [alias_dict.get(group, group) for group in group_names]
+
+    if time_stamps:
+        column_names.append("timeStamps")
 
     test_array = hdf5_to_array(
         h5file=test_proc,

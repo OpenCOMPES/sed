@@ -38,3 +38,10 @@ def test_mpes_loader(file_type: str, read_type: str):
         df = ml.read_dataframe(files=files, ftype=file_type)
     assert isinstance(df, ddf.DataFrame)
     assert df.npartitions == 2
+
+
+def test_timestamps():
+    """Function to test if the timestamps are loaded correctly"""
+    ml = MpesLoader()  # pylint: disable=invalid-name
+    df = ml.read_dataframe(folder=source_folder, time_stamps=True)
+    assert "timeStamps" in df.columns
