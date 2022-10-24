@@ -85,19 +85,7 @@ def test_pose_correction():
         bin_ranges=[(-256, 1792), (-256, 1792)],
         rotsym=6,
     )
-    features = np.array(
-        [
-            [203.2, 341.96],
-            [299.16, 345.32],
-            [350.25, 243.70],
-            [304.38, 149.88],
-            [199.52, 152.48],
-            [154.28, 242.27],
-            [248.29, 248.62],
-        ],
-    )
-    mc.add_features(peaks=features)
-    mc.spline_warp_estimate()
+    mc.reset_deformation()
     dfield = np.array([mc.cdeform_field, mc.rdeform_field])
     mc.pose_adjustment(scale=1.2, xtrans=8, ytrans=7, angle=-4, apply=True)
     assert np.all(np.array([mc.cdeform_field, mc.rdeform_field]) != dfield)

@@ -53,31 +53,12 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
         self.image: np.ndarray = None
         self.img_ndim: int = None
         self.slice: np.ndarray = None
+        self.slice_corrected: np.ndarray = None
+        self.slice_transformed: np.ndarray = None
         self.bin_ranges: List[Tuple] = []
 
         if data is not None:
-            if isinstance(data, xr.DataArray):
-                self.image = np.squeeze(data.data)
-                self.bin_ranges = []
-                for axis in data.coords:
-                    self.bin_ranges.append(
-                        (
-                            data.coords[axis][0].values,
-                            data.coords[axis][-1].values,
-                        ),
-                    )
-            else:
-                assert bin_ranges is not None
-                self.image = np.squeeze(data)
-                self.bin_ranges = bin_ranges
-
-            self.img_ndim = self.image.ndim
-            if (self.img_ndim > 3) or (self.img_ndim < 2):
-                raise ValueError(
-                    "The input image dimension need to be 2 or 3!",
-                )
-            if self.img_ndim == 2:
-                self.slice = self.image
+            self.load_data(data=data, bin_ranges=bin_ranges, rotsym=rotsym)
 
         self._config = config
 
@@ -103,8 +84,6 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
         self.mvvdist: float = np.nan
         self.cvdist: float = np.nan
         self.vvdist: float = np.nan
-        self.slice_corrected: np.ndarray = None
-        self.slice_transformed: np.ndarray = None
         self.rdeform_field: np.ndarray = None
         self.cdeform_field: np.ndarray = None
         self.inverse_dfield: np.ndarray = None
@@ -177,6 +156,9 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
             raise ValueError("The input image dimension need to be 2 or 3!")
         if self.img_ndim == 2:
             self.slice = self.image
+
+        if self.slice is not None:
+            self.slice_corrected = self.slice_transformed = self.slice
 
         self.rotsym = int(rotsym)
         self.rotsym_angle = int(360 / self.rotsym)
@@ -258,6 +240,10 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
                 self.slice = image[selector, ...].sum(axis=0)
             except AttributeError:
                 self.slice = image[selector, ...]
+
+            if self.slice is not None:
+                self.slice_corrected = self.slice_transformed = self.slice
+
             img.set_data(self.slice.T)
             axmin = np.min(self.slice, axis=(0, 1))
             axmax = np.max(self.slice, axis=(0, 1))
@@ -303,6 +289,9 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
                 self.slice = immage[selector, ...].sum(axis=0)
             except AttributeError:
                 self.slice = immage[selector, ...]
+
+            if self.slice is not None:
+                self.slice_corrected = self.slice_transformed = self.slice
 
         elif self.img_ndim == 2:
             raise ValueError("Input image dimension is already 2!")
