@@ -1,10 +1,10 @@
 core:
-  use_copy_tool: True
-  copy_tool_source: "/mnt/pcshare/"
-  copy_tool_dest: "/scratch/localDataStore/"
+  use_copy_tool: False
+  copy_tool_source: "/path/to/data/"
+  copy_tool_dest: "/path/to//localDataStore/"
   copy_tool_kwds:
     ntasks: 20
-    gid: 5050
+    gid: 1001
 
 dataframe:
   hdf5_groupnames: ["Stream_0", "Stream_1", "Stream_2", "Stream_4"]
