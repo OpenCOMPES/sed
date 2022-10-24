@@ -165,7 +165,7 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
         self.arot = np.array([0] + [self.rotsym_angle] * (self.rotsym - 1))
         self.ascale = np.array([1.0] * self.rotsym)
 
-    def select_slicer(  # pylint: disable=R0914
+    def select_slicer(  # pylint: disable=R0914, R0915
         self,
         plane: int = 0,
         width: int = 5,

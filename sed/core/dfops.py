@@ -93,11 +93,11 @@ def apply_filter(df, col, lower_bound=-np.inf, upper_bound=np.inf):
     return out_df
 
 
-def map_columns_2d(df, map2D, x_column, y_column, **kwds):
+def map_columns_2d(df, map_2d, x_column, y_column, **kwds):
     """Apply a 2-dimensional mapping simultaneously to two dimensions.
 
     **Parameters**\n
-    map2D: function
+    map_2d: function
         2D mapping function.
     X, Y: series, series
         The two columns of the dataframe to apply mapping to.
@@ -105,9 +105,13 @@ def map_columns_2d(df, map2D, x_column, y_column, **kwds):
         Additional arguments for the 2D mapping function.
     """
 
-    newX = kwds.pop("newX", x_column)
-    newY = kwds.pop("newY", y_column)
+    new_x_column = kwds.pop("new_x_column", x_column)
+    new_y_column = kwds.pop("new_y_column", y_column)
 
-    (df[newX], df[newY]) = map2D(df[x_column], df[y_column], **kwds)
+    (df[new_x_column], df[new_y_column]) = map_2d(
+        df[x_column],
+        df[y_column],
+        **kwds,
+    )
 
     return df
