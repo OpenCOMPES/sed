@@ -3,6 +3,7 @@ module sed.loader.mpes, code for loading hdf5 files delayed into a dask datafram
 Mostly ported from https://github.com/mpes-kit/mpes.
 @author: L. Rettig
 """
+import datetime
 import os
 from glob import glob
 from typing import cast
@@ -300,19 +301,35 @@ def hdf5_to_array(
             g_dataset = g_dataset.astype(data_type)
         data_list.append(g_dataset)
 
-    # calculate time Stamps
+    # calculate time stamps
     if time_stamps:
         # create target array for time stamps
         time_stamp_data = np.zeros(len(data_list[0]))
-        # get the start time of the file from its modification date for now
-        start_time = os.path.getmtime(h5file.filename) * 1000  # convert to ms
         # the ms marker contains a list of events that occurred at full ms intervals.
         # It's monotonically increasing, and can contain duplicates
         ms_marker = np.asarray(h5file["msMarkers"])
-        # ms_marker = h5file['msMarkers']
-        # the modification time points to the time when the file was finished, so we
-        # need to correct for the length it took to write the file
-        start_time -= len(ms_marker)
+
+        # try to get start timestamp from "FirstEventTimeStamp" attribute
+        try:
+            start_time_str = get_attribute(h5file, "FirstEventTimeStamp")
+            # , "%Y-%m-%dT%H:%M:%S.%f"
+            start_time = (
+                datetime.datetime.strptime(
+                    start_time_str,
+                    "%Y-%m-%dT%H:%M:%S.%f%z",
+                ).timestamp()
+                * 1000
+            )
+        except KeyError:
+            # get the start time of the file from its modification date if the key
+            # does not exist (old files)
+            start_time = (
+                os.path.getmtime(h5file.filename) * 1000
+            )  # convert to ms
+            # the modification time points to the time when the file was finished, so we
+            # need to correct for the length it took to write the file
+            start_time -= len(ms_marker)
+
         for i in range(len(ms_marker) - 1):
             # linear interpolation between ms: Disabled, because it takes a lot of
             # time, and external signals are anyway not better synchronized than 1 ms
