@@ -42,6 +42,7 @@ def test_save_and_load_tiff_array(_da):
     ids=lambda x: f"ndims:{len(x.shape)}",
 )
 def test_save_xarr_to_tiff(_da):
+    """Test the tiff saving function for xr.DataArrays."""
     to_tiff(_da, "test")
     assert Path("test.tiff").is_file()
 
@@ -74,3 +75,6 @@ def test_save_and_load_hdf5(_da):
     to_h5(_da, faddr, mode="w")
     loaded = load_h5(faddr)
     xr.testing.assert_equal(_da, loaded)
+    np.testing.assert_equal(_da.attrs, loaded.attrs)
+    for axis in _da.coords:
+        np.testing.assert_equal(_da[axis].attrs, loaded[axis].attrs)
