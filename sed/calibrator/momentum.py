@@ -236,13 +236,7 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
                 start,
                 stop,
             )
-            try:
-                self.slice = image[selector, ...].sum(axis=0)
-            except AttributeError:
-                self.slice = image[selector, ...]
-
-            if self.slice is not None:
-                self.slice_corrected = self.slice_transformed = self.slice
+            self.select_slice(selector=selector, axis=axis)
 
             img.set_data(self.slice.T)
             axmin = np.min(self.slice, axis=(0, 1))
@@ -284,11 +278,11 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
         """
 
         if self.img_ndim > 2:
-            immage = np.moveaxis(self.image, axis, 0)
+            image = np.moveaxis(self.image, axis, 0)
             try:
-                self.slice = immage[selector, ...].sum(axis=0)
+                self.slice = image[selector, ...].sum(axis=0)
             except AttributeError:
-                self.slice = immage[selector, ...]
+                self.slice = image[selector, ...]
 
             if self.slice is not None:
                 self.slice_corrected = self.slice_transformed = self.slice
