@@ -365,8 +365,7 @@ def get_attribute(h5group: h5py.Group, attribute: str) -> str:
         content = h5group.attrs[attribute].decode("utf-8")
     except AttributeError:  # No need to decode
         content = h5group.attrs[attribute]
-    except KeyError:  # No such attribute
-        print(f"Attribute '{attribute}' not found!")
-        raise
+    except KeyError as exc:  # No such attribute
+        raise KeyError(f"Attribute '{attribute}' not found!") from exc
 
     return content
