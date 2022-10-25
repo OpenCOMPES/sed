@@ -23,17 +23,17 @@ jobs:
       run: |
         python -m pip install .
     - name: pycodestyle
-      continue-on-error: true
       run: |
-        python -m pycodestyle --ignore=E501,W503 sed tests 
+        python -m pycodestyle --ignore=E203,E501,W503 sed tests
     - name: pylint
-      continue-on-error: true
+      if: ${{ always() }}
       run: |
-        python -m pylint sed tests 
+        python -m pylint --good-names=i,j,k,ex,x,y,t,k,v,ax,df --disable=fixme sed tests
     - name: mypy
-      continue-on-error: true
+      if: ${{ always() }}
       run: |
         python -m mypy --ignore-missing-imports --follow-imports=silent --no-strict-optional sed tests
     - name: Test with pytest
+      if: ${{ always() }}
       run: |
         python -m pytest -sv tests
