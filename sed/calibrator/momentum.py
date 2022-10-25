@@ -293,9 +293,8 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
     def add_features(
         self,
         peaks: np.ndarray,
-        center_det: str = "centroidnn",
         direction: str = "ccw",
-        symscores: bool = False,
+        symscores: bool = True,
         **kwds,
     ):
         """Add features as reference points provided as np.ndarray. If provided,
@@ -317,27 +316,23 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
         Raises:
             ValueError: Raised if the number of points does not match the rotsym.
         """
-        if center_det is None:
-            if peaks.shape[0] != self.rotsym:
-                raise ValueError(
-                    f"Found '{peaks.shape[0]}' points, ",
-                    f"but '{self.rotsym}' required.",
-                )
-            self.pouter = peaks
-            self.pcent = None
-        else:
-            if peaks.shape[0] != self.rotsym + 1:
-                raise ValueError(
-                    f"Found '{peaks.shape[0]}' points, ",
-                    f"but '{self.rotsym+1}' required",
-                )
+        if peaks.shape[0] == self.rotsym:  # assume no center present
             self.pcent, self.pouter = po.pointset_center(
                 peaks,
-                method=center_det,
-                ret="cnc",
+                method="centroid",
             )
-            if isinstance(self.pcent, np.ndarray):
-                self.pcent = tuple(val.item() for val in self.pcent)
+        elif peaks.shape[0] == self.rotsym + 1:  # assume center included
+            self.pcent, self.pouter = po.pointset_center(
+                peaks,
+                method="centroidnn",
+            )
+        else:
+            raise ValueError(
+                f"Found {peaks.shape[0]} points, ",
+                f"but {self.rotsym} or {self.rotsym+1} (incl.center) required.",
+            )
+        if isinstance(self.pcent, np.ndarray):
+            self.pcent = tuple(val.item() for val in self.pcent)
         # Order the point landmarks
         self.pouter_ord = po.pointset_order(
             self.pouter,
@@ -362,7 +357,6 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
         image: np.ndarray = None,
         direction: str = "ccw",
         feature_type: str = "points",
-        center_det: str = "centroidnn",
         symscores: bool = True,
         **kwds,
     ):
@@ -392,7 +386,6 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
 
             self.add_features(
                 peaks=self.peaks,
-                center_det=center_det,
                 direction=direction,
                 symscores=symscores,
                 **kwds,
@@ -465,12 +458,11 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
             image = self.slice
 
         if self.pouter_ord is None:
+            assert self.pouter is not None, "No landmarks defined!"
             self.pouter_ord = po.pointset_order(self.pouter)
 
         self.prefs = kwds.pop("landmarks", self.pouter_ord)
         self.ptargs = kwds.pop("targets", [])
-
-        include_center = include_center and self.pcent is not None
 
         # Generate the target point set
         if not self.ptargs:

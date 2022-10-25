@@ -6,6 +6,7 @@ import os
 from importlib.util import find_spec
 
 import numpy as np
+import pytest
 
 from sed.calibrator.momentum import MomentumCorrector
 from sed.config.settings import parse_config
@@ -52,7 +53,11 @@ def test_feature_extract():
     assert len(mc.pouter_ord) == 6
 
 
-def test_splinewarp():
+@pytest.mark.parametrize(
+    "include_center",
+    [True, False],
+)
+def test_splinewarp(include_center):
     """Test the generation of the splinewarp etimate."""
     mc = MomentumCorrector(config=config)  # pylint: disable=invalid-name
     mc.load_data(
@@ -71,8 +76,10 @@ def test_splinewarp():
             [248.29, 248.62],
         ],
     )
+    if not include_center:
+        features = features[0:-1]
     mc.add_features(peaks=features)
-    mc.spline_warp_estimate()
+    mc.spline_warp_estimate(include_center=include_center)
     assert mc.cdeform_field.shape == mc.rdeform_field.shape == mc.image.shape
     assert len(mc.ptargs) == len(mc.prefs)
 

@@ -255,7 +255,7 @@ class SedProcessor:  # pylint: disable=R0902
         self,
         features: np.ndarray = None,
         auto_detect: bool = False,
-        use_center: bool = True,
+        include_center: bool = True,
         **kwds,
     ):
         """Detects or assigns the provided feature points, and generates the
@@ -266,14 +266,10 @@ class SedProcessor:  # pylint: disable=R0902
                 np.ndarray of features. Defaults to None.
             auto_detect (bool, optional):
                 Whether to auto-detect the features. Defaults to False.
-            use_center (bool, optional):
+            include_center (bool, optional):
                 Option to fix the position of the center point for the correction.
-                Defaults to False.
+                Defaults to True.
         """
-        center_det = kwds.pop(
-            "center_det",
-            self._config.get("momentum", {}).get("center_det", "centroidnn"),
-        )
         if auto_detect:  # automatic feature selection
             sigma = kwds.pop(
                 "sigma",
@@ -287,33 +283,20 @@ class SedProcessor:  # pylint: disable=R0902
                 "sigma_radius",
                 self._config.get("momentum", {}).get("sigma_radius", 1),
             )
-            if use_center:
-                self.mc.feature_extract(
-                    sigma=sigma,
-                    fwhm=fwhm,
-                    sigma_radius=sigma_radius,
-                    center_det=center_det,
-                    **kwds,
-                )
-            else:
-                self.mc.feature_extract(
-                    sigma=sigma,
-                    fwhm=fwhm,
-                    sigma_radius=sigma_radius,
-                    center_det=None,
-                    **kwds,
-                )
+            self.mc.feature_extract(
+                sigma=sigma,
+                fwhm=fwhm,
+                sigma_radius=sigma_radius,
+                **kwds,
+            )
         else:  # Manual feature selection
             assert features is not None
-            if use_center:
-                self.mc.add_features(features, center_det=center_det, **kwds)
-            else:
-                self.mc.add_features(features, center_det=None, **kwds)
+            self.mc.add_features(features, **kwds)
 
         print("Original slice with reference features")
         self.mc.view(annotated=True, backend="bokeh", crosshair=True)
 
-        self.mc.spline_warp_estimate(include_center=use_center, **kwds)
+        self.mc.spline_warp_estimate(include_center=include_center, **kwds)
 
         print("Corrected slice with target features")
         self.mc.view(
