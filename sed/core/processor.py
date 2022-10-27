@@ -42,11 +42,11 @@ class SedProcessor:
 
         self._dataframe = df
 
-        self._binned = None
+        self._binned: xr.DataArray = None
 
-        self._dimensions = []
-        self._coordinates = {}
-        self.axis = {}
+        self._dimensions: List[str] = []
+        self._coordinates: Dict[Any, Any] = {}
+        self.axis: Dict[Any, Any] = {}
         self._attributes = MetaHandler(meta=metadata)
 
     def __repr__(self):

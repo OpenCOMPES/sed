@@ -1,6 +1,7 @@
 """This file contains code that performs several tests for the sed.binning module
 """
 from typing import List
+from typing import Sequence
 from typing import Tuple
 
 import numpy as np
@@ -17,10 +18,10 @@ from .helpers import get_linear_bin_edges
 sample = np.random.randn(int(1e2), 3)
 columns = ["x", "y", "z"]
 sample_df = pd.DataFrame(sample, columns=columns)
-bins = tuple(np.random.randint(5, 50, size=3))
-ranges = 0.5 + np.random.rand(6).reshape(3, 2)
-ranges[:, 0] = -ranges[:, 0]
-ranges = tuple(tuple(r) for r in ranges)
+bins: Sequence[int] = tuple(np.random.randint(5, 50, size=3))
+ranges_array = 0.5 + np.random.rand(6).reshape(3, 2)
+ranges_array[:, 0] = -ranges_array[:, 0]
+ranges: Sequence[tuple] = tuple(tuple(r) for r in ranges_array)
 
 arrays = [
     get_linear_bin_edges(np.linspace(r[0], r[1], b))
@@ -50,7 +51,7 @@ def test_histdd_error_is_raised(_samples: np.ndarray, _bins: List[int]):
         if _samples.shape[1] == len(_bins):
             pytest.skip("Not of interest")
 
-        _hist_from_bin_range(_samples, _bins, np.array([ranges[0]]))
+        _hist_from_bin_range(_samples, _bins, (ranges[0],))
 
 
 @pytest.mark.parametrize(
@@ -102,6 +103,29 @@ def test_histdd_ranges_as_numpy(args: Tuple[np.ndarray, tuple, tuple, int]):
 @pytest.mark.parametrize(
     "args",
     [
+        (sample[:, :1], bins[0], ranges[:1], 1),
+        (sample[:, :2], bins[0], ranges[:2], 2),
+        (sample[:, :3], bins[0], ranges[:3], 3),
+    ],
+    ids=lambda x: f"ndim: {x[3]}",
+)
+def test_histdd_one_bins_as_numpy(args: Tuple[np.ndarray, int, tuple, int]):
+    """Test whether the numba_histogramdd functions produces the same result
+    as np.histogramdd if called with bin numbers and ranges
+
+    Args:
+        args (Tuple[np.ndarray, np.ndarray, np.ndarray, int]):
+        Tuple of (samples, bins, ranges, dimension)
+    """
+    sample_, bins_, ranges_, _ = args
+    hist1, _ = np.histogramdd(sample_, bins_, ranges_)
+    hist2, _ = numba_histogramdd(sample_, bins_, ranges_)
+    np.testing.assert_allclose(hist1, hist2)
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
         (sample[:, :1], bins[:1], ranges[:1], arrays[:1], 1),
         (sample[:, :2], bins[:2], ranges[:2], arrays[:2], 2),
         (sample[:, :3], bins[:3], ranges[:3], arrays[:3], 3),
@@ -109,7 +133,7 @@ def test_histdd_ranges_as_numpy(args: Tuple[np.ndarray, tuple, tuple, int]):
     ids=lambda x: f"ndim: {x[4]}",
 )
 def test_from_bins_equals_from_bin_range(
-    args: Tuple[np.ndarray, int, tuple, np.ndarray],
+    args: Tuple[np.ndarray, int, tuple, np.ndarray, int],
 ):
     """Test whether the numba_histogramdd functions produces the same result
     if called with bin numbers and ranges or with bin edges.
@@ -164,7 +188,7 @@ def test_bin_edges_to_bin_centers():
 
 bins = [10, 20, 30]
 axes = ["a", "b", "c"]
-ranges = [[-1, 1], [-2, 2], [-3, 3]]
+ranges = [(-1, 1), (-2, 2), (-3, 3)]
 
 
 def test_simplify_binning_arguments_direct():
@@ -188,7 +212,7 @@ def test_simplify_binning_arguments_1d():
     )
     assert bins_ == [bins[0]]
     assert axes_ == [axes[0]]
-    assert ranges_ == ranges[0]
+    assert ranges_ == (ranges[0],)
 
 
 def test_simplify_binning_arguments_edges():

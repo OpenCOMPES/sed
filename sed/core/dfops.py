@@ -47,7 +47,7 @@ def apply_jitter(
     if cols_jittered is None:
         cols_jittered = [col + "_jittered" for col in cols]
     if isinstance(amps, float):
-        amps = np.ones(len(cols)) * amps
+        amps = list(np.ones(len(cols)) * amps)
 
     colsize = df[cols[0]].size
 
