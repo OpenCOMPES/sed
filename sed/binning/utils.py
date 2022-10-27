@@ -1,6 +1,7 @@
 """This file contains helper functions for the sed.binning module
 
 """
+from typing import cast
 from typing import List
 from typing import Sequence
 from typing import Tuple
@@ -25,7 +26,11 @@ def _simplify_binning_arguments(  # pylint: disable=too-many-branches
     ] = 100,
     axes: Union[str, Sequence[str]] = None,
     ranges: Sequence[Tuple[float, float]] = None,
-) -> tuple:
+) -> Tuple[
+    Union[List[int], List[np.ndarray]],
+    Sequence[str],
+    Sequence[Tuple[float, float]],
+]:
     """Convert the flexible input for defining bins into a
     simple "axes" "bins" "ranges" tuple.
 
@@ -67,8 +72,8 @@ def _simplify_binning_arguments(  # pylint: disable=too-many-branches
             bins = [bins]
         else:
             raise ValueError(
-                "Bins defined as tuples should only be used to define start "
-                / "stop and step of the bins. i.e. should always have lenght 3.",
+                "Bins defined as tuples should only be used to define start ",
+                "stop and step of the bins. i.e. should always have lenght 3.",
             )
     if not isinstance(bins, list):
         raise TypeError(f"Cannot interpret bins of type {type(bins)}")
@@ -77,25 +82,30 @@ def _simplify_binning_arguments(  # pylint: disable=too-many-branches
     if not all(isinstance(x, type(bins[0])) for x in bins):
         raise TypeError('All elements in "bins" must be of the same type')
 
-    _bin = bins[0]
-    if isinstance(_bin, tuple):
+    if isinstance(bins[0], tuple):
+        bins = cast(List[tuple], bins)
+        assert len(bins[0]) == 3
         ranges = []
         bins_ = []
         for tpl in bins:
-            ranges.append([tpl[0], tpl[1]])
+            assert isinstance(tpl, tuple)
+            ranges.append((tpl[0], tpl[1]))
             bins_.append(tpl[2])
         bins = bins_
-    elif not isinstance(_bin, (int, np.ndarray)):
-        raise TypeError(f"Could not interpret bins of type {type(_bin)}")
+    elif not isinstance(bins[0], (int, np.ndarray)):
+        raise TypeError(f"Could not interpret bins of type {type(bins[0])}")
 
     if ranges is not None:
-        if (len(axes) == len(bins) == 1) and len(ranges) == 2:
-            pass
+        if (len(axes) == len(bins) == 1) and isinstance(
+            ranges[0],
+            (int, float),
+        ):
+            ranges = (cast(Tuple[float, float], ranges),)
         elif not len(axes) == len(bins) == len(ranges):
             raise AttributeError(
                 "axes and range and bins must have the same number of elements",
             )
-    elif isinstance(_bin, int):
+    elif isinstance(bins[0], int):
         raise AttributeError(
             "Must provide a range if bins is an integer or list of integers",
         )
@@ -104,10 +114,13 @@ def _simplify_binning_arguments(  # pylint: disable=too-many-branches
             "axes and bins must have the same number of elements",
         )
 
+    # TODO: mypy still thinks List[tuple] is a possible type for bins, nut sure why.
+    bins = cast(Union[List[int], List[np.ndarray]], bins)
+
     return bins, axes, ranges
 
 
-def bin_edges_to_bin_centers(bin_edges: np.array) -> np.array:
+def bin_edges_to_bin_centers(bin_edges: np.ndarray) -> np.ndarray:
     """Converts a list of bin edges into corresponding bin centers
 
     Args:

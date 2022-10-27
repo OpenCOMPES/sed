@@ -2,6 +2,7 @@
 
 """
 from functools import reduce
+from typing import cast
 from typing import List
 from typing import Sequence
 from typing import Tuple
@@ -88,6 +89,10 @@ def bin_partition(  # pylint: disable=R0912, R0913, R0914
     """
     if not skip_test:
         bins, axes, ranges = _simplify_binning_arguments(bins, axes, ranges)
+    else:
+        bins = cast(Union[List[int], List[np.ndarray]], bins)
+        axes = cast(Sequence[str], axes)
+        ranges = cast(Sequence[Tuple[float, float]], ranges)
 
     # Locate columns for binning operation
     col_id = [part.columns.get_loc(axis) for axis in axes]
@@ -142,7 +147,7 @@ def bin_partition(  # pylint: disable=R0912, R0913, R0914
     return hist_partition
 
 
-def bin_dataframe(  # pylint: disable=R0912, R0913, R0914
+def bin_dataframe(  # pylint: disable=R0912, R0913, R0914, R0915
     df: dask.dataframe.DataFrame,
     bins: Union[
         int,
@@ -225,8 +230,10 @@ def bin_dataframe(  # pylint: disable=R0912, R0913, R0914
         }
 
     if isinstance(bins[0], np.ndarray):
+        bins = cast(List[np.ndarray], bins)
         full_shape = tuple(x.size for x in bins)
     else:
+        bins = cast(List[int], bins)
         full_shape = tuple(bins)
 
     full_result = np.zeros(full_shape)
