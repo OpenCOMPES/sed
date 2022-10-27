@@ -1,3 +1,6 @@
+"""This file contains helper functions for the sed.binning module
+
+"""
 from typing import List
 from typing import Sequence
 from typing import Tuple
@@ -11,7 +14,7 @@ def _arraysum(array_a, array_b):
     return array_a + array_b
 
 
-def _simplify_binning_arguments(
+def _simplify_binning_arguments(  # pylint: disable=too-many-branches
     bins: Union[
         int,
         dict,
@@ -72,27 +75,27 @@ def _simplify_binning_arguments(
     if axes is None:
         raise AttributeError("Must define on which axes to bin")
     if not all(isinstance(x, type(bins[0])) for x in bins):
-        raise TypeError("All elements in " "bins must be of the same type")
+        raise TypeError('All elements in "bins" must be of the same type')
 
-    bin = bins[0]
-    if isinstance(bin, tuple):
+    _bin = bins[0]
+    if isinstance(_bin, tuple):
         ranges = []
         bins_ = []
         for tpl in bins:
             ranges.append([tpl[0], tpl[1]])
             bins_.append(tpl[2])
         bins = bins_
-    elif not isinstance(bin, (int, np.ndarray)):
-        raise TypeError(f"Could not interpret bins of type {type(bin)}")
+    elif not isinstance(_bin, (int, np.ndarray)):
+        raise TypeError(f"Could not interpret bins of type {type(_bin)}")
 
     if ranges is not None:
         if (len(axes) == len(bins) == 1) and len(ranges) == 2:
             pass
-        elif not (len(axes) == len(bins) == len(ranges)):
+        elif not len(axes) == len(bins) == len(ranges):
             raise AttributeError(
                 "axes and range and bins must have the same number of elements",
             )
-    elif isinstance(bin, int):
+    elif isinstance(_bin, int):
         raise AttributeError(
             "Must provide a range if bins is an integer or list of integers",
         )

@@ -1,3 +1,6 @@
+"""This module contains dataframe operations functions for the sed package
+
+"""
 # Note: some of the functions presented here were
 # inspired by https://github.com/mpes-kit/mpes
 from typing import Sequence
@@ -13,7 +16,7 @@ def apply_jitter(
     cols: Union[str, Sequence[str]],
     cols_jittered: Union[str, Sequence[str]] = None,
     amps: Union[float, Sequence[float]] = 0.5,
-    type: str = "uniform",
+    jitter_type: str = "uniform",
 ) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
     """Add jittering to one or more dataframe columns.
 
@@ -32,7 +35,7 @@ def apply_jitter(
         dataframe with added columns
     """
     assert cols is not None, "cols needs to be provided!"
-    assert type in (
+    assert jitter_type in (
         "uniform",
         "normal",
     ), "type needs to be one of 'normal', 'uniform'!"
@@ -48,10 +51,10 @@ def apply_jitter(
 
     colsize = df[cols[0]].size
 
-    if type == "uniform":
+    if jitter_type == "uniform":
         # Uniform Jitter distribution
         jitter = np.random.uniform(low=-1, high=1, size=colsize)
-    elif type == "normal":
+    elif jitter_type == "normal":
         # Normal Jitter distribution works better for non-linear transformations and
         # jitter sizes that don't match the original bin sizes
         jitter = np.random.standard_normal(size=colsize)

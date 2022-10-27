@@ -1,4 +1,4 @@
-"""This is a code that performs several tests for the input/output functions
+"""This file contains code that performs several tests for the input/output functions
 """
 import random
 from pathlib import Path
@@ -7,12 +7,12 @@ import numpy as np
 import pytest
 import xarray as xr
 
+from tests.helpers import simulate_binned_data
 from sed.io.hdf5 import load_h5
 from sed.io.hdf5 import to_h5
 from sed.io.tiff import _sort_dims_for_imagej
 from sed.io.tiff import load_tiff
 from sed.io.tiff import to_tiff
-from tests.helpers import simulate_binned_data
 
 shapes = []
 for n in range(4):
