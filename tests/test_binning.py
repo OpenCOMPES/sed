@@ -51,7 +51,7 @@ def test_histdd_error_is_raised(_samples: np.ndarray, _bins: List[int]):
         if _samples.shape[1] == len(_bins):
             pytest.skip("Not of interest")
 
-        _hist_from_bin_range(_samples, _bins, (ranges[0],))
+        _hist_from_bin_range(_samples, _bins, np.array([ranges[0]]))
 
 
 @pytest.mark.parametrize(

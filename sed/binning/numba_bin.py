@@ -17,7 +17,7 @@ import numpy as np
 def _hist_from_bin_range(
     sample: np.ndarray,
     bins: Sequence[int],
-    ranges: Sequence[Tuple[float, float]],
+    ranges: np.ndarray,
 ) -> np.ndarray:
     """
     N dimensional binning function, pre-compiled by Numba for performance.
@@ -49,14 +49,14 @@ def _hist_from_bin_range(
     strides = np.zeros(ndims, np.int64)
 
     for i in range(ndims):
-        delta[i] = 1 / ((ranges[i][1] - ranges[i][0]) / bins[i])
+        delta[i] = 1 / ((ranges[i, 1] - ranges[i, 0]) / bins[i])
         strides[i] = hist.strides[i] // hist.itemsize  # pylint: disable=E1136
 
     for t in range(sample.shape[0]):
         is_inside = True
         flatidx = 0
         for i in range(ndims):
-            j = (sample[t, i] - ranges[i][0]) * delta[i]
+            j = (sample[t, i] - ranges[i, 0]) * delta[i]
             is_inside = is_inside and (0 <= j < bins[i])
             flatidx += int(j) * strides[i]
             # don't check all axes if you already know you're out of the range
@@ -242,7 +242,7 @@ def numba_histogramdd(  # pylint: disable=R0912
 
         nbin[i] = len(edges[i]) + 1  # includes an outlier on each end
 
-    hist = _hist_from_bin_range(sample, bins, ranges)
+    hist = _hist_from_bin_range(sample, bins, np.asarray(ranges))
 
     if (hist.shape != nbin - 2).any():
         raise RuntimeError("Internal Shape Error")
