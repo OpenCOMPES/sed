@@ -13,6 +13,9 @@ dataframe:
     Stream_1: "Y"
     Stream_2: "t"
     Stream_4: "ADC"
+  time_stamp_alias: "timeStamps"
+  ms_markers_group: "msMarkers"
+  first_event_time_stamp_key: "FirstEventTimeStamp"
   jitter_cols: ["X", "Y", "t", "ADC"]
   x_column: "X"
   y_column: "Y"

@@ -101,11 +101,35 @@ class MpesLoader:  # pylint: disable=R0902, too-few-public-methods
                 "hdf5_aliases",
                 self._config.get("dataframe", {}).get("hdf5_aliases", {}),
             )
+            time_stamp_alias = kwds.pop(
+                "time_stamp_alias",
+                self._config.get("dataframe", {}).get(
+                    "time_stamp_alias",
+                    "timeStamps",
+                ),
+            )
+            ms_markers_group = kwds.pop(
+                "ms_markers_group",
+                self._config.get("dataframe", {}).get(
+                    "ms_markers_group",
+                    "msMarkers",
+                ),
+            )
+            first_event_time_stamp_key = kwds.pop(
+                "first_event_time_stamp_key",
+                self._config.get("dataframe", {}).get(
+                    "first_event_time_stamp_key",
+                    "FirstEventTimeStamp",
+                ),
+            )
             return hdf5_to_dataframe(
                 files=files,
                 group_names=hdf5_groupnames,
                 alias_dict=hdf5_aliases,
                 time_stamps=time_stamps,
+                time_stamp_alias=time_stamp_alias,
+                ms_markers_group=ms_markers_group,
+                first_event_time_stamp_key=first_event_time_stamp_key,
                 **kwds,
             )
 
@@ -166,6 +190,9 @@ def hdf5_to_dataframe(  # pylint: disable=W0102
     group_names: List[str] = [],
     alias_dict: Dict[str, str] = {},
     time_stamps: bool = False,
+    time_stamp_alias: str = "timeStamps",
+    ms_markers_group: str = "msMarkers",
+    first_event_time_stamp_key: str = "FirstEventTimeStamp",
     **kwds,
 ) -> ddf.DataFrame:
     """Function to read a selection of hdf5-files, and generate a delayed dask
@@ -198,13 +225,14 @@ def hdf5_to_dataframe(  # pylint: disable=W0102
     column_names = [alias_dict.get(group, group) for group in group_names]
 
     if time_stamps:
-        column_names.append("timeStamps")
+        column_names.append(time_stamp_alias)
 
     test_array = hdf5_to_array(
         h5file=test_proc,
         group_names=group_names,
         time_stamps=time_stamps,
-        **kwds,
+        ms_markers_group=ms_markers_group,
+        first_event_time_stamp_key=first_event_time_stamp_key,
     )
 
     # Delay-read all files
@@ -214,7 +242,8 @@ def hdf5_to_dataframe(  # pylint: disable=W0102
                 h5file=h5py.File(f),
                 group_names=group_names,
                 time_stamps=time_stamps,
-                **kwds,
+                ms_markers_group=ms_markers_group,
+                first_event_time_stamp_key=first_event_time_stamp_key,
             ),
             dtype=test_array.dtype,
             shape=(test_array.shape[0], np.nan),
@@ -222,9 +251,6 @@ def hdf5_to_dataframe(  # pylint: disable=W0102
         for f in files
     ]
     array_stack = da.concatenate(arrays, axis=1).T
-
-    # if rechunksz is not None:
-    #     array_stack = array_stack.rechunk(rechunksz)
 
     return ddf.from_dask_array(array_stack, columns=column_names)
 
@@ -271,6 +297,8 @@ def hdf5_to_array(
     group_names: List[str],
     data_type: str = "float32",
     time_stamps=False,
+    ms_markers_group: str = "msMarkers",
+    first_event_time_stamp_key: str = "FirstEventTimeStamp",
 ) -> np.ndarray:
     """Reads the content of the given groups in an hdf5 file, and returns a
     2-dimensional array with the corresponding values.
@@ -306,11 +334,11 @@ def hdf5_to_array(
         time_stamp_data = np.zeros(len(data_list[0]))
         # the ms marker contains a list of events that occurred at full ms intervals.
         # It's monotonically increasing, and can contain duplicates
-        ms_marker = np.asarray(h5file["msMarkers"])
+        ms_marker = np.asarray(h5file[ms_markers_group])
 
         # try to get start timestamp from "FirstEventTimeStamp" attribute
         try:
-            start_time_str = get_attribute(h5file, "FirstEventTimeStamp")
+            start_time_str = get_attribute(h5file, first_event_time_stamp_key)
             start_time = datetime.datetime.strptime(
                 start_time_str,
                 "%Y-%m-%dT%H:%M:%S.%f%z",
