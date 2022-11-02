@@ -296,7 +296,6 @@ def hdf5_to_array(
     for group in group_names:
 
         g_dataset = np.asarray(h5file[group])
-        # g_dataset = h5file[group]
         if bool(data_type):
             g_dataset = g_dataset.astype(data_type)
         data_list.append(g_dataset)
@@ -312,24 +311,20 @@ def hdf5_to_array(
         # try to get start timestamp from "FirstEventTimeStamp" attribute
         try:
             start_time_str = get_attribute(h5file, "FirstEventTimeStamp")
-            # , "%Y-%m-%dT%H:%M:%S.%f"
-            start_time = (
-                datetime.datetime.strptime(
-                    start_time_str,
-                    "%Y-%m-%dT%H:%M:%S.%f%z",
-                ).timestamp()
-                * 1000
-            )
+            start_time = datetime.datetime.strptime(
+                start_time_str,
+                "%Y-%m-%dT%H:%M:%S.%f%z",
+            ).timestamp()
         except KeyError:
             # get the start time of the file from its modification date if the key
             # does not exist (old files)
-            start_time = (
-                os.path.getmtime(h5file.filename) * 1000
-            )  # convert to ms
+            start_time = os.path.getmtime(h5file.filename)  # convert to ms
             # the modification time points to the time when the file was finished, so we
-            # need to correct for the length it took to write the file
-            start_time -= len(ms_marker)
+            # need to correct for the time it took to write the file
+            start_time -= len(ms_marker) / 1000
 
+        # fill in range before 1st marker
+        time_stamp_data[0 : ms_marker[0]] = start_time
         for i in range(len(ms_marker) - 1):
             # linear interpolation between ms: Disabled, because it takes a lot of
             # time, and external signals are anyway not better synchronized than 1 ms
@@ -338,7 +333,9 @@ def hdf5_to_array(
             #     start_time + n + 1,
             #     ms_marker[n + 1] - ms_marker[n],
             # )
-            time_stamp_data[ms_marker[i] : ms_marker[i + 1]] = start_time + i
+            time_stamp_data[ms_marker[i] : ms_marker[i + 1]] = (
+                start_time + i / 1000
+            )
         # fill any remaining points
         time_stamp_data[
             ms_marker[len(ms_marker) - 1] : len(time_stamp_data)
