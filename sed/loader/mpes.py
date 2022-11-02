@@ -185,7 +185,7 @@ def gather_files(  # pylint: disable=R0913
     return files
 
 
-def hdf5_to_dataframe(  # pylint: disable=W0102
+def hdf5_to_dataframe(  # pylint: disable=W0102, R0913
     files: List[str],
     group_names: List[str] = [],
     alias_dict: Dict[str, str] = {},
@@ -292,7 +292,7 @@ def get_groups_and_aliases(
     return filtered_group_names, alias_dict
 
 
-def hdf5_to_array(
+def hdf5_to_array(  # pylint: disable=R0913
     h5file: h5py.File,
     group_names: List[str],
     data_type: str = "float32",
