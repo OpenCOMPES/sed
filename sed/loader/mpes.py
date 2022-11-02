@@ -9,6 +9,7 @@ from glob import glob
 from typing import cast
 from typing import Dict
 from typing import List
+from typing import Sequence
 from typing import Tuple
 
 import dask
@@ -16,6 +17,7 @@ import dask.array as da
 import dask.dataframe as ddf
 import h5py
 import numpy as np
+import scipy.interpolate as sint
 from natsort import natsorted
 
 from sed.core.metadata import MetaHandler
@@ -153,6 +155,76 @@ class MpesLoader:  # pylint: disable=too-few-public-methods
             raise Exception(
                 "The file format cannot be understood!",
             ) from exc
+
+    def get_count_rate(
+        self,
+        fids: Sequence[int] = None,
+        **kwds,
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Create count rate data for the files specified in ``fids``.
+
+        Parameters:
+            fids: the file ids to include. None | list of file ids.
+            kwds: Keyword arguments:
+                ms_markers_group: Name of the hdf5 group containing the ms-markers
+        """
+
+        if fids is None:
+            fids = range(0, len(self.files))
+
+        ms_markers_group = kwds.pop(
+            "ms_markers_group",
+            self._config.get("dataframe", {}).get(
+                "ms_markers_group",
+                "msMarkers",
+            ),
+        )
+
+        secs = []
+        count_rate = []
+        accumulated_time = 0
+        for fid in fids:
+            count_rate_, secs_ = get_count_rate(
+                h5py.File(self.files[fid]),
+                ms_markers_group=ms_markers_group,
+            )
+            secs.append((accumulated_time + secs_).T)
+            count_rate.append(count_rate_.T)
+            accumulated_time += secs_[-1]
+
+        count_rate = np.concatenate(count_rate)
+        secs = np.concatenate(secs)
+
+        return count_rate, secs
+
+    def get_elapsed_time(self, fids: Sequence[int] = None, **kwds):
+        """
+        Return the elapsed time in the file from the msMarkers wave.
+
+        **Return**\n
+            The length of the the file in seconds.
+        """
+
+        if fids is None:
+            fids = range(0, len(self.files))
+
+        ms_markers_group = kwds.pop(
+            "ms_markers_group",
+            self._config.get("dataframe", {}).get(
+                "ms_markers_group",
+                "msMarkers",
+            ),
+        )
+
+        secs = 0
+        for fid in fids:
+            secs += get_elapsed_time(
+                h5py.File(self.files[fid]),
+                ms_markers_group=ms_markers_group,
+            )
+
+        return secs
 
 
 def gather_files(
@@ -407,3 +479,46 @@ def get_attribute(h5group: h5py.Group, attribute: str) -> str:
         raise KeyError(f"Attribute '{attribute}' not found!") from exc
 
     return content
+
+
+def get_count_rate(
+    h5file: h5py.File,
+    ms_markers_group: str = "msMarkers",
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Create count rate trace from the msMarker field in the hdf5 file.
+
+    Parameters:
+        h5file: The h5file from which to get the count rate
+        ms_marker_group: The hdf5 group where the millisecond markers are stored
+
+    Return:
+        countRate: ndarray
+            The count rate in Hz.
+        secs: ndarray
+            The seconds into the scan.
+
+    """
+
+    ms_markers = np.asarray(h5file[ms_markers_group])
+    secs = np.arange(0, len(ms_markers)) / 1000
+    msmarker_spline = sint.InterpolatedUnivariateSpline(secs, ms_markers, k=1)
+    rate_spline = msmarker_spline.derivative()
+    count_rate = rate_spline(secs)
+
+    return (count_rate, secs)
+
+
+def get_elapsed_time(
+    h5file: h5py.File,
+    ms_markers_group: str = "msMarkers",
+) -> float:
+    """
+    Return the elapsed time in the file from the msMarkers wave
+
+        return: secs: the acquision time of the file in seconds.
+    """
+
+    secs = h5file[ms_markers_group].len() / 1000
+
+    return secs
