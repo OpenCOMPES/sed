@@ -181,20 +181,20 @@ class MpesLoader:  # pylint: disable=too-few-public-methods
             ),
         )
 
-        secs = []
-        count_rate = []
+        secs_list = []
+        count_rate_list = []
         accumulated_time = 0
         for fid in fids:
             count_rate_, secs_ = get_count_rate(
                 h5py.File(self.files[fid]),
                 ms_markers_group=ms_markers_group,
             )
-            secs.append((accumulated_time + secs_).T)
-            count_rate.append(count_rate_.T)
+            secs_list.append((accumulated_time + secs_).T)
+            count_rate_list.append(count_rate_.T)
             accumulated_time += secs_[-1]
 
-        count_rate = np.concatenate(count_rate)
-        secs = np.concatenate(secs)
+        count_rate = np.concatenate(count_rate_list)
+        secs = np.concatenate(secs_list)
 
         return count_rate, secs
 
@@ -217,7 +217,7 @@ class MpesLoader:  # pylint: disable=too-few-public-methods
             ),
         )
 
-        secs = 0
+        secs = 0.0
         for fid in fids:
             secs += get_elapsed_time(
                 h5py.File(self.files[fid]),
