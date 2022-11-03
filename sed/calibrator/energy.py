@@ -1029,6 +1029,7 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
         apply_button = ipw.Button(description="apply")
         display(apply_button)
         apply_button.on_click(apply_func)
+        plt.show()
 
         if apply:
             apply_func(True)

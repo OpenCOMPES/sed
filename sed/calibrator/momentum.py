@@ -882,7 +882,6 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
                 self.cdeform_field[::subs, ::subs].ravel(),
                 c="b",
             )
-            plt.show()
             scale_slider.close()
             xtrans_slider.close()
             ytrans_slider.close()
