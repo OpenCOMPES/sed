@@ -26,6 +26,7 @@ from IPython.display import display
 from matplotlib import cm
 from numpy.linalg import norm
 from scipy.interpolate import griddata
+from scipy.interpolate import RegularGridInterpolator
 from symmetrize import pointops as po
 from symmetrize import sym
 from symmetrize import tps
@@ -1223,6 +1224,7 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
             y_column=y_column,
             new_x_column=new_x_column,
             new_y_column=new_y_column,
+            detector_ranges=self.detector_ranges,
             **kwds,
         )
         return out_df
@@ -1370,6 +1372,7 @@ def apply_dfield(  # pylint: disable=too-many-arguments
     y_column: str,
     new_x_column: str,
     new_y_column: str,
+    detector_ranges: List[Tuple],
 ) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
     """
     Application of the inverse displacement-field to the dataframe coordinates
@@ -1384,6 +1387,8 @@ def apply_dfield(  # pylint: disable=too-many-arguments
             Labels of the source columns
         newX, newY:
             Labels of the destination columns
+        detector_ranges:
+            tuple of pixel ranges of the detector x/y coordinates
 
     :Return:
         dataframe with added columns
@@ -1392,9 +1397,34 @@ def apply_dfield(  # pylint: disable=too-many-arguments
     x = df[x_column]
     y = df[y_column]
 
+    r_axis = np.linspace(
+        detector_ranges[0][0],
+        dfield[0].shape[0],
+        detector_ranges[0][1],
+        endpoint=False,
+    )
+
+    c_axis = np.linspace(
+        detector_ranges[1][0],
+        dfield[0].shape[1],
+        detector_ranges[1][1],
+        endpoint=False,
+    )
+
+    interp_x = RegularGridInterpolator(
+        (r_axis, c_axis),
+        dfield[0],
+        bounds_error=False,
+    )
+    interp_y = RegularGridInterpolator(
+        (r_axis, c_axis),
+        dfield[1],
+        bounds_error=False,
+    )
+
     df[new_x_column], df[new_y_column] = (
-        dfield[0, np.int16(x), np.int16(y)],
-        dfield[1, np.int16(x), np.int16(y)],
+        interp_x((x, y)),
+        interp_y((x, y)),
     )
     return df
 
