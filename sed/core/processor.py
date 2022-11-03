@@ -458,7 +458,7 @@ class SedProcessor:  # pylint: disable=R0902
             print(
                 "Pre-binned data not present, binning using defaults from config...",
             )
-            self.pre_binning()
+            self._pre_binned = self.pre_binning()
 
         self.ec.adjust_energy_correction(
             self._pre_binned,
