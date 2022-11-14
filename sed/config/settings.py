@@ -13,8 +13,8 @@ import yaml
 package_dir = os.path.dirname(find_spec("sed").origin)
 
 
-def parse_config(  # pylint: disable=dangerous-default-value
-    config: Union[dict, str] = {},
+def parse_config(
+    config: Union[dict, str] = None,
     default_config: Union[
         dict,
         str,
@@ -34,6 +34,9 @@ def parse_config(  # pylint: disable=dangerous-default-value
     Returns:
         config_dict: loaded and possibly completed config dictionary.
     """
+
+    if config is None:
+        config = {}
 
     if isinstance(config, dict):
         config_dict = config

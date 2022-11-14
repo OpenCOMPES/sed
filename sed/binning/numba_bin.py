@@ -147,7 +147,7 @@ def _hist_from_bins(
     return hist
 
 
-def numba_histogramdd(  # pylint: disable=R0912
+def numba_histogramdd(
     sample: np.ndarray,
     bins: Union[int, Sequence[int], Sequence[np.ndarray], np.ndarray],
     ranges: Sequence = None,

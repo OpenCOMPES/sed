@@ -26,11 +26,11 @@ N_CPU = psutil.cpu_count()
 class SedProcessor:
     """[summary]"""
 
-    def __init__(  # pylint: disable=dangerous-default-value
+    def __init__(
         self,
         df: Union[pd.DataFrame, dask.dataframe.DataFrame] = None,
-        metadata: dict = {},
-        config: Union[dict, str] = {},
+        metadata: dict = None,
+        config: Union[dict, str] = None,
     ):
 
         self._config = parse_config(config)
@@ -246,7 +246,7 @@ class SedProcessor:
         )
         return self._binned
 
-    def view_event_histogram(  # pylint: disable=W0102, R0913, R0914
+    def view_event_histogram(
         self,
         dfpid: int,
         ncol: int = 2,
@@ -255,8 +255,8 @@ class SedProcessor:
         ranges: Sequence[Tuple[float, float]] = None,
         backend: str = "bokeh",
         legend: bool = True,
-        histkwds: dict = {},
-        legkwds: dict = {},
+        histkwds: dict = None,
+        legkwds: dict = None,
         **kwds: Any,
     ):
         """

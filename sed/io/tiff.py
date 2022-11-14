@@ -75,10 +75,10 @@ def to_tiff(
         }
         try:
             out = np.expand_dims(data, dim_expansions[data.ndim])
-        except KeyError:
-            raise NotImplementedError(  # pylint: disable=W0707
+        except KeyError as exc:
+            raise NotImplementedError(
                 f"Only 2-3-4D arrays supported when data is a {type(data)}",
-            )
+            ) from exc
 
         dims_order = dims[data.ndim]
 

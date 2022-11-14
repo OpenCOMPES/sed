@@ -23,7 +23,7 @@ from .utils import _simplify_binning_arguments
 N_CPU = psutil.cpu_count()
 
 
-def bin_partition(  # pylint: disable=R0912, R0913, R0914
+def bin_partition(
     part: Union[dask.dataframe.core.DataFrame, pd.DataFrame],
     bins: Union[
         int,
@@ -147,7 +147,7 @@ def bin_partition(  # pylint: disable=R0912, R0913, R0914
     return hist_partition
 
 
-def bin_dataframe(  # pylint: disable=R0912, R0913, R0914, R0915
+def bin_dataframe(
     df: dask.dataframe.DataFrame,
     bins: Union[
         int,

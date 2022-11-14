@@ -28,7 +28,7 @@ jobs:
     - name: pylint
       if: ${{ always() }}
       run: |
-        python -m pylint --good-names=i,j,k,ex,x,y,t,k,v,ax,df --disable=fixme sed tests
+        python -m pylint --good-names=i,j,k,ex,x,y,t,k,v,ax,df --disable=fixme,too-many-branches,too-many-locals,too-many-statements,too-many-arguments sed tests
     - name: mypy
       if: ${{ always() }}
       run: |

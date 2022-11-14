@@ -15,7 +15,7 @@ def _arraysum(array_a, array_b):
     return array_a + array_b
 
 
-def _simplify_binning_arguments(  # pylint: disable=too-many-branches
+def _simplify_binning_arguments(
     bins: Union[
         int,
         dict,

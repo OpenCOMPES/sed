@@ -52,7 +52,7 @@ def plot_single_hist(
     return fig
 
 
-def grid_histogram(  # pylint: disable=W0102, R0913, R0914
+def grid_histogram(
     dct: dict,
     ncol: int,
     rvs: Sequence,
@@ -60,8 +60,8 @@ def grid_histogram(  # pylint: disable=W0102, R0913, R0914
     rvranges: Sequence[Tuple[float, float]],
     backend: str = "bokeh",
     legend: bool = True,
-    histkwds: dict = {},
-    legkwds: dict = {},
+    histkwds: dict = None,
+    legkwds: dict = None,
     **kwds: Any,
 ):
     """
@@ -79,6 +79,11 @@ def grid_histogram(  # pylint: disable=W0102, R0913, R0914
         legkwds: Keyword arguments for legends.
         **kwds: Additional keyword arguments.
     """
+
+    if histkwds is None:
+        histkwds = {}
+    if legkwds is None:
+        legkwds = {}
 
     figsz = kwds.pop("figsize", (14, 8))
 
