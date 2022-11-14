@@ -12,6 +12,14 @@ import pandas as pd
 from dask.diagnostics import ProgressBar
 
 
+class Column:
+    def __init__(self, **kwargs) -> None:
+        self.name = kwargs.get("name", None)
+        self.alias = kwargs.get("alias", None)
+        self.unit = kwargs.get("unit", None)
+        self.metadata = kwargs.get("metadata", None)
+
+
 class DataFrame:
     """Single event dataframe, expanding functionalities on top of pandas/dask.
 
@@ -28,6 +36,14 @@ class DataFrame:
         **kwargs,
     ) -> None:
         self._df = None
+        self._columns = {
+            "col1": {
+                "unit": "fs",
+                "name": "delayStage",
+                "alias": "OPTICAL_DELAY_STAGE",
+                "col_number": 2,
+            },
+        }
 
         if isinstance(df, pd.DataFrame):
             self.from_pandas(df, chunksize, npartitions, **kwargs)
@@ -211,7 +227,10 @@ class DataFrame:
         return repr(self._df)
 
     def _repr_html_(self) -> str:
-        return self._df._repr_html_()
+        try:
+            return self._df._repr_html_()
+        except AttributeError:
+            return repr(self._df)
 
     def __str__(self) -> str:
         return str(self._df)
