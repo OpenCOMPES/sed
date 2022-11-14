@@ -238,7 +238,7 @@ def numba_histogramdd(  # pylint: disable=R0912
     nbin = np.empty(num_cols, int)
 
     for i in range(num_cols):
-        edges.append(np.linspace(ranges[i][0], ranges[i][0], bins[i] + 1))
+        edges.append(np.linspace(ranges[i][0], ranges[i][1], bins[i] + 1))
 
         nbin[i] = len(edges[i]) + 1  # includes an outlier on each end
 
