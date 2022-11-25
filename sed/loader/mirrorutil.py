@@ -36,7 +36,7 @@ class CopyTool:
         # Default to 25 concurrent copy tasks
         self.ntasks = int(kwds.pop("ntasks", 25))
 
-    def copy(  # pylint: disable=R0912, R0914
+    def copy(
         self,
         source: str,
         force_copy: bool = False,
@@ -184,7 +184,7 @@ class CopyTool:
         """
 
         size = 0
-        for path, dirs, filenames in os.walk(  # pylint: disable=W0612
+        for path, dirs, filenames in os.walk(  # pylint: disable=unused-variable
             sdir,
         ):
             # Check space left
@@ -193,7 +193,7 @@ class CopyTool:
 
         return size
 
-    def cleanup_oldest_scan(  # pylint: disable=R0912
+    def cleanup_oldest_scan(
         self,
         force: bool = False,
         report: bool = False,
@@ -213,7 +213,7 @@ class CopyTool:
 
         # get list of all Scan directories (leaf directories)
         scan_dirs = []
-        for root, dirs, files in os.walk(  # pylint: disable=W0612
+        for root, dirs, files in os.walk(  # pylint: disable=unused-variable
             self.dest,
         ):
             if not dirs:
@@ -227,7 +227,7 @@ class CopyTool:
             total_size = 0
             for scan in scan_dirs:
                 size = 0
-                for path, dirs, filenames in os.walk(  # pylint: disable=W0612
+                for path, dirs, filenames in os.walk(  # pylint: disable=unused-variable
                     scan,
                 ):
                     for sfile in filenames:
@@ -242,7 +242,7 @@ class CopyTool:
         oldest_scan = None
         for scan in scan_dirs:
             size = 0
-            for path, dirs, filenames in os.walk(  # pylint: disable=W0612
+            for path, dirs, filenames in os.walk(  # pylint: disable=unused-variable
                 scan,
             ):
                 for sfile in filenames:
@@ -270,7 +270,7 @@ class CopyTool:
 
 
 # private Functions
-def get_target_dir(  # pylint: disable=R0913
+def get_target_dir(
     sdir: str,
     source: str,
     dest: str,
@@ -333,7 +333,7 @@ def mymakedirs(path: str, mode: int, gid: int) -> List[str]:
 
     if not path or os.path.exists(path):
         return []
-    (head, tail) = os.path.split(path)  # pylint: disable=W0612
+    head, tail = os.path.split(path)  # pylint: disable=unused-variable
     res = mymakedirs(head, mode, gid)
     os.mkdir(path)
     os.chmod(path, mode)

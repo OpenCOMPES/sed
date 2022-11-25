@@ -34,15 +34,19 @@ momentum_map = np.asarray(momentum_map_list).T
 
 def test_bin_data_and_slice_image():
     """Test binning the data and slicing of the image"""
-    sp = SedProcessor(config=config)  # pylint: disable=invalid-name
-    sp.load(files=files)
-    sp.bin_and_load_momentum_calibration(plane=33, width=10, apply=True)
-    assert sp.mc.slice.shape == (512, 512)
+    sed_processor = SedProcessor(config=config)
+    sed_processor.load(files=files)
+    sed_processor.bin_and_load_momentum_calibration(
+        plane=33,
+        width=10,
+        apply=True,
+    )
+    assert sed_processor.mc.slice.shape == (512, 512)
 
 
 def test_feature_extract():
     """Testextracting the feature from a 2D slice"""
-    mc = MomentumCorrector(config=config)  # pylint: disable=invalid-name
+    mc = MomentumCorrector(config=config)
     mc.load_data(
         data=momentum_map,
         bin_ranges=[(-256, 1792), (-256, 1792)],
@@ -59,7 +63,7 @@ def test_feature_extract():
 )
 def test_splinewarp(include_center):
     """Test the generation of the splinewarp etimate."""
-    mc = MomentumCorrector(config=config)  # pylint: disable=invalid-name
+    mc = MomentumCorrector(config=config)
     mc.load_data(
         data=momentum_map,
         bin_ranges=[(-256, 1792), (-256, 1792)],
@@ -86,7 +90,7 @@ def test_splinewarp(include_center):
 
 def test_pose_correction():
     """Test the adjustment of the pose correction."""
-    mc = MomentumCorrector(config=config)  # pylint: disable=invalid-name
+    mc = MomentumCorrector(config=config)
     mc.load_data(
         data=momentum_map,
         bin_ranges=[(-256, 1792), (-256, 1792)],
@@ -101,7 +105,7 @@ def test_pose_correction():
 def test_apply_correction():
     """Test the application of the distortion correction to the dataframe."""
     df = MpesLoader(config=config).read_dataframe(folder=df_folder)
-    mc = MomentumCorrector(config=config)  # pylint: disable=invalid-name
+    mc = MomentumCorrector(config=config)
     mc.load_data(
         data=momentum_map,
         bin_ranges=[(-256, 1792), (-256, 1792)],
@@ -130,7 +134,7 @@ def test_momentum_calibration_equiscale():
     and application to the dataframe.
     """
     df = MpesLoader(config=config).read_dataframe(folder=df_folder)
-    mc = MomentumCorrector(config=config)  # pylint: disable=invalid-name
+    mc = MomentumCorrector(config=config)
     mc.load_data(data=momentum_map, bin_ranges=[(-256, 1792), (-256, 1792)])
     point_a = [308, 345]
     point_b = [256, 256]
@@ -150,7 +154,7 @@ def test_momentum_calibration_equiscale():
 def test_momentum_calibration_two_points():
     """Test the calibration using two k-points, and application to the dataframe."""
     df = MpesLoader(config=config).read_dataframe(folder=df_folder)
-    mc = MomentumCorrector(config=config)  # pylint: disable=invalid-name
+    mc = MomentumCorrector(config=config)
     mc.load_data(data=momentum_map, bin_ranges=[(-256, 1792), (-256, 1792)])
     point_a = [360, 256]
     point_b = [256, 360]

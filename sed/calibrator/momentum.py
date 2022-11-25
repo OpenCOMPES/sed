@@ -1,7 +1,6 @@
 """sed.calibrator.momentum module. Code for momentum calibration and distortion
 correction. Mostly ported from https://github.com/mpes-kit/mpes.
 """
-# pylint: disable=too-many-lines
 import itertools as it
 from typing import Any
 from typing import Dict
@@ -32,17 +31,17 @@ from symmetrize import sym
 from symmetrize import tps
 
 
-class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
+class MomentumCorrector:
     """
     Momentum distortion correction and momentum calibration workflow.
     """
 
-    def __init__(  # pylint: disable=dangerous-default-value
+    def __init__(
         self,
         data: Union[xr.DataArray, np.ndarray] = None,
         bin_ranges: List[Tuple] = None,
         rotsym: int = 6,
-        config: dict = {},
+        config: dict = None,
     ):
         """
         Parameters:
@@ -60,6 +59,9 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
 
         if data is not None:
             self.load_data(data=data, bin_ranges=bin_ranges, rotsym=rotsym)
+
+        if config is None:
+            config = {}
 
         self._config = config
 
@@ -166,7 +168,7 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
         self.arot = np.array([0] + [self.rotsym_angle] * (self.rotsym - 1))
         self.ascale = np.array([1.0] * self.rotsym)
 
-    def select_slicer(  # pylint: disable=R0914, R0915
+    def select_slicer(
         self,
         plane: int = 0,
         width: int = 5,
@@ -353,7 +355,7 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
             self.mcvdist = self.mdist
             self.mvvdist = self.mdist
 
-    def feature_extract(  # pylint: disable=too-many-arguments
+    def feature_extract(
         self,
         image: np.ndarray = None,
         direction: str = "ccw",
@@ -589,12 +591,12 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
             cval=np.nan,
         )
 
-    def coordinate_transform(  # pylint: disable=W0102, R0912, R0914
+    def coordinate_transform(
         self,
         transform_type: str,
         keep: bool = False,
         interp_order: int = 1,
-        mapkwds: dict = {},
+        mapkwds: dict = None,
         **kwds,
     ) -> np.ndarray:
         """Apply a pixel-wise coordinate transform to the image
@@ -613,6 +615,9 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
             Additional arguments in specific deformation field.
             See ``symmetrize.sym`` module.
         """
+
+        if mapkwds is None:
+            mapkwds = {}
 
         image = kwds.pop("image", self.slice)
         stackax = kwds.pop("stackaxis", 0)
@@ -739,7 +744,7 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
 
         return slice_transformed
 
-    def pose_adjustment(  # pylint: disable=R0913, R0914, R0915
+    def pose_adjustment(
         self,
         scale: float = 1,
         xtrans: float = 0,
@@ -909,7 +914,7 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
 
         return self.inverse_dfield
 
-    def view(  # pylint: disable=W0102, R0912, R0913, R0914
+    def view(  # pylint: disable=dangerous-default-value
         self,
         image: np.ndarray = None,
         origin: str = "lower",
@@ -1063,14 +1068,14 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
 
             pbk.show(fig)
 
-    def calibrate(  # pylint: disable=W0102, R0913, R0914
+    def calibrate(
         self,
         point_a: Union[np.ndarray, List[int]],
         point_b: Union[np.ndarray, List[int]],
         k_distance: float = None,
         image: np.ndarray = None,
         k_coord_a: Union[np.ndarray, List[float]] = None,
-        k_coord_b: Union[np.ndarray, List[float]] = [0.0, 0.0],
+        k_coord_b: Union[np.ndarray, List[float]] = np.array([0.0, 0.0]),
         equiscale: bool = True,
     ) -> dict:
         """Momentum axes calibration using the pixel positions of two symmetry points
@@ -1169,7 +1174,7 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
 
         return self.calibration
 
-    def apply_distortion_correction(  # pylint:disable=too-many-arguments
+    def apply_distortion_correction(
         self,
         df: Union[pd.DataFrame, dask.dataframe.DataFrame],
         x_column: str = "X",
@@ -1228,7 +1233,7 @@ class MomentumCorrector:  # pylint: disable=too-many-instance-attributes
         )
         return out_df
 
-    def append_k_axis(  # pylint: disable=too-many-arguments
+    def append_k_axis(
         self,
         df: Union[pd.DataFrame, dask.dataframe.DataFrame],
         x_column: str = "Xm",
@@ -1340,7 +1345,7 @@ def dictmerge(
     return main_dict
 
 
-def detector_coordiantes_2_k_koordinates(  # pylint: disable=too-many-arguments
+def detector_coordiantes_2_k_koordinates(
     r_det: float,
     c_det: float,
     r_start: float,
@@ -1364,7 +1369,7 @@ def detector_coordiantes_2_k_koordinates(  # pylint: disable=too-many-arguments
     return (k_r, k_c)
 
 
-def apply_dfield(  # pylint: disable=too-many-arguments
+def apply_dfield(
     df: Union[pd.DataFrame, dask.dataframe.DataFrame],
     dfield: np.ndarray,
     x_column: str,

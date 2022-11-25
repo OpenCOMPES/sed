@@ -30,10 +30,10 @@ from sed.loader.mpes import MpesLoader
 N_CPU = psutil.cpu_count()
 
 
-class SedProcessor:  # pylint: disable=R0902
+class SedProcessor:
     """[summary]"""
 
-    def __init__(  # pylint: disable=W0102
+    def __init__(
         self,
         metadata: dict = None,
         config: Union[dict, str] = None,
@@ -59,13 +59,13 @@ class SedProcessor:  # pylint: disable=R0902
         self._coordinates: Dict[Any, Any] = {}
         self.axis: Dict[Any, Any] = {}
         self._attributes = MetaHandler(meta=metadata)
-        self.ec = EnergyCalibrator(  # pylint: disable=invalid-name
+        self.ec = EnergyCalibrator(
             config=self._config,
         )
-        self.mc = MomentumCorrector(  # pylint: disable=invalid-name
+        self.mc = MomentumCorrector(
             config=self._config,
         )
-        self.dc = DelayyCalibrator(  # pylint: disable=invalid-name
+        self.dc = DelayyCalibrator(
             config=self._config,
         )
         self.ml = MpesLoader(  # pylint: disable=invalid-name
@@ -78,7 +78,7 @@ class SedProcessor:  # pylint: disable=R0902
         )
         if self.use_copy_tool:
             try:
-                self.ct = CopyTool(  # pylint: disable=invalid-name
+                self.ct = CopyTool(
                     source=self._config["core"]["copy_tool_source"],
                     dest=self._config["core"]["copy_tool_dest"],
                     **self._config["core"].get("copy_tool_kwds", {}),
@@ -234,7 +234,7 @@ class SedProcessor:  # pylint: disable=R0902
 
     # Momentum calibration workflow
     # 1. Bin raw detector data for distortion correction
-    def bin_and_load_momentum_calibration(  # pylint: disable=R0913, R0914
+    def bin_and_load_momentum_calibration(
         self,
         df_partitions: int = 100,
         rotation_symmetry: int = 6,
@@ -353,7 +353,7 @@ class SedProcessor:  # pylint: disable=R0902
 
     # 3. Pose corrections. Provide interactive interface for correcting
     # scaling, shift and rotation
-    def pose_adjustment(  # pylint: disable=R0913
+    def pose_adjustment(
         self,
         scale: float = 1,
         xtrans: float = 0,
@@ -388,13 +388,13 @@ class SedProcessor:  # pylint: disable=R0902
 
     # 4. Calculate momentum calibration and apply correction and calibration
     # to the dataframe
-    def calibrate_momentum_axes(  # pylint: disable=W0102, R0913
+    def calibrate_momentum_axes(
         self,
         point_a: Union[np.ndarray, List[int]],
         point_b: Union[np.ndarray, List[int]] = None,
         k_distance: float = None,
         k_coord_a: Union[np.ndarray, List[float]] = None,
-        k_coord_b: Union[np.ndarray, List[float]] = [0.0, 0.0],
+        k_coord_b: Union[np.ndarray, List[float]] = np.array([0.0, 0.0]),
         equiscale: bool = True,
         apply=True,
     ):
@@ -516,7 +516,7 @@ class SedProcessor:  # pylint: disable=R0902
 
     # Energy calibrator workflow
     # 1. Load and normalize data
-    def load_bias_series(  # pylint: disable=R0913
+    def load_bias_series(
         self,
         data_files: List[str],
         axes: List[str] = None,
@@ -567,7 +567,7 @@ class SedProcessor:  # pylint: disable=R0902
         )
 
     # 2. extract ranges and get peak positions
-    def find_bias_peaks(  # pylint: disable=too-many-arguments
+    def find_bias_peaks(
         self,
         ranges: Union[List[Tuple], Tuple],
         ref_id: int = 0,
@@ -632,7 +632,7 @@ class SedProcessor:  # pylint: disable=R0902
             raise
 
     # 3. Fit the energy calibration reation, and apply it to the data frame
-    def calibrate_energy_axis(  # pylint: disable=R0913
+    def calibrate_energy_axis(
         self,
         ref_id: int,
         ref_energy: float,
@@ -793,7 +793,7 @@ class SedProcessor:  # pylint: disable=R0902
             cols_jittered=cols,
         )
 
-    def pre_binning(  # pylint: disable=R0913, R0914
+    def pre_binning(
         self,
         df_partitions: int = 100,
         axes: List[str] = None,

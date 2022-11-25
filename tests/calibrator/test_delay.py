@@ -17,7 +17,7 @@ config = parse_config(package_dir + "/../tests/data/config/config.yaml")
 def test_delay_parameters_from_file():
     """Test the option to extract the delay parameters from a file"""
     df = MpesLoader(config=config).read_dataframe(files=[file])
-    dc = DelayyCalibrator(config=config)  # pylint: disable=invalid-name
+    dc = DelayyCalibrator(config=config)
     dc.append_delay_axis(df, datafile=file)
     assert "delay" in df.columns
 
@@ -25,7 +25,7 @@ def test_delay_parameters_from_file():
 def test_delay_parameters_from_delay_range():
     """Test the option to extract the delay parameters from a delay range"""
     df = MpesLoader(config=config).read_dataframe(files=[file])
-    dc = DelayyCalibrator(config=config)  # pylint: disable=invalid-name
+    dc = DelayyCalibrator(config=config)
     dc.append_delay_axis(df, delay_range=(-100, 200))
     assert "delay" in df.columns
 
@@ -33,7 +33,7 @@ def test_delay_parameters_from_delay_range():
 def test_delay_parameters_from_delay_range_mm():
     """Test the option to extract the delay parameters from a mm range + t0"""
     df = MpesLoader(config=config).read_dataframe(files=[file])
-    dc = DelayyCalibrator(config=config)  # pylint: disable=invalid-name
+    dc = DelayyCalibrator(config=config)
     with pytest.raises(NotImplementedError):
         dc.append_delay_axis(df, delay_range_mm=(1, 15))
     dc.append_delay_axis(df, delay_range_mm=(1, 15), time0=1)

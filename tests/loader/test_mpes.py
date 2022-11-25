@@ -29,19 +29,19 @@ def test_mpes_loader(file_type: str, read_type: str):
         file_type (str): File type to test. "h5", "parquet", "csv" or "json"
         read_type (str): read method to use. "files" or "folder".
     """
-    ml = MpesLoader()  # pylint: disable=invalid-name
+    loader = MpesLoader()
     if read_type == "folder":
-        df = ml.read_dataframe(folder=source_folder, ftype=file_type)
+        df = loader.read_dataframe(folder=source_folder, ftype=file_type)
     else:
         files = gather_files(folder=source_folder, extension=file_type)
         assert len(files) == 2
-        df = ml.read_dataframe(files=files, ftype=file_type)
+        df = loader.read_dataframe(files=files, ftype=file_type)
     assert isinstance(df, ddf.DataFrame)
     assert df.npartitions == 2
 
 
 def test_timestamps():
     """Function to test if the timestamps are loaded correctly"""
-    ml = MpesLoader()  # pylint: disable=invalid-name
-    df = ml.read_dataframe(folder=source_folder, time_stamps=True)
+    loader = MpesLoader()
+    df = loader.read_dataframe(folder=source_folder, time_stamps=True)
     assert "timeStamps" in df.columns

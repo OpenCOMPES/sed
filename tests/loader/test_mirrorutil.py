@@ -23,7 +23,7 @@ def test_copy_tool_folder():
     """Test the folder copy functionalty of the CopyTool"""
     dest_folder = tempfile.mkdtemp()
     gid = os.getgid()
-    ct = CopyTool(  # pylint: disable=invalid-name
+    ct = CopyTool(
         source_folder,
         dest_folder,
         safetyMargin=0.1 * 2**30,
@@ -49,7 +49,7 @@ def test_copy_tool_file():
     """Test the file copy functionality of the copy tool"""
     dest_folder = tempfile.mkdtemp()
     gid = os.getgid()
-    ct = CopyTool(  # pylint: disable=invalid-name
+    ct = CopyTool(
         source_folder,
         dest_folder,
         safetyMargin=0.1 * 2**30,
@@ -68,7 +68,7 @@ def test_copy_tool_cleanup():
     """Test the file cleanup functionality of the copy tool"""
     dest_folder = tempfile.mkdtemp()
     gid = os.getgid()
-    ct = CopyTool(  # pylint: disable=invalid-name
+    ct = CopyTool(
         source_folder,
         dest_folder,
         safetyMargin=0.1 * 2**30,

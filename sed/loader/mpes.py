@@ -21,15 +21,23 @@ from natsort import natsorted
 from sed.core.metadata import MetaHandler
 
 
-class MpesLoader:  # pylint: disable=R0902, too-few-public-methods
+class MpesLoader:  # pylint: disable=too-few-public-methods
     """MpesLoader class, holding configuation and parameters for the file loader."""
 
-    def __init__(  # pylint: disable=W0102
+    def __init__(
         self,
-        metadata: dict = {},
-        config: dict = {},
+        metadata: dict = None,
+        config: dict = None,
     ):
+
+        if config is None:
+            config = {}
+
         self._config = config
+
+        if metadata is None:
+            metadata = {}
+
         self._attributes = MetaHandler(meta=metadata)
         self.read_timestamps = self._config.get("dataframe", {}).get(
             "read_timestamps",
@@ -147,7 +155,7 @@ class MpesLoader:  # pylint: disable=R0902, too-few-public-methods
             ) from exc
 
 
-def gather_files(  # pylint: disable=R0913
+def gather_files(
     folder: str,
     extension: str = "h5",
     f_start: int = None,
@@ -185,10 +193,10 @@ def gather_files(  # pylint: disable=R0913
     return files
 
 
-def hdf5_to_dataframe(  # pylint: disable=W0102, R0913
+def hdf5_to_dataframe(
     files: List[str],
-    group_names: List[str] = [],
-    alias_dict: Dict[str, str] = {},
+    group_names: List[str] = None,
+    alias_dict: Dict[str, str] = None,
     time_stamps: bool = False,
     time_stamp_alias: str = "timeStamps",
     ms_markers_group: str = "msMarkers",
@@ -213,6 +221,11 @@ def hdf5_to_dataframe(  # pylint: disable=W0102, R0913
     Returns:
         ddf.DataFrame: The delayed Dask DataFrame
     """
+    if group_names is None:
+        group_names = []
+    if alias_dict is None:
+        alias_dict = {}
+
     # Read a file to parse the file structure
     test_fid = kwds.pop("test_fid", 0)
     test_proc = h5py.File(files[test_fid])
@@ -292,7 +305,7 @@ def get_groups_and_aliases(
     return filtered_group_names, alias_dict
 
 
-def hdf5_to_array(  # pylint: disable=R0913
+def hdf5_to_array(
     h5file: h5py.File,
     group_names: List[str],
     data_type: str = "float32",

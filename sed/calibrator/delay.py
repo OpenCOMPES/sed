@@ -1,6 +1,5 @@
 """sed.calibrator.delay module. Code for delay calibration.
 """
-# pylint: disable=too-many-lines
 from typing import List
 from typing import Tuple
 from typing import Union
@@ -11,16 +10,19 @@ import numpy as np
 import pandas as pd
 
 
-class DelayyCalibrator:  # pylint: disable=too-few-public-methods
+class DelayyCalibrator:
     """
     Pump-Probe delay calibration methods.
     """
 
-    def __init__(  # pylint: disable=dangerous-default-value
+    def __init__(
         self,
-        config: dict = {},
+        config: dict = None,
     ):
         """Initialization of the DelayCalibrator class passes the config dict."""
+
+        if config is None:
+            config = {}
 
         self._config = config
 
@@ -33,7 +35,7 @@ class DelayyCalibrator:  # pylint: disable=too-few-public-methods
             "delay",
         )
 
-    def append_delay_axis(  # pylint: disable=R0912, R0913
+    def append_delay_axis(
         self,
         df: Union[pd.DataFrame, dask.dataframe.DataFrame],
         adc_column: str = None,

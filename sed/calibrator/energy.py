@@ -1,7 +1,6 @@
 """sed.calibrator.energy module. Code for energy calibration and
 correction. Mostly ported from https://github.com/mpes-kit/mpes.
 """
-# pylint: disable=too-many-lines
 import itertools as it
 import pickle
 import warnings as wn
@@ -40,17 +39,17 @@ from sed.binning import bin_dataframe
 from sed.loader.mpes import MpesLoader
 
 
-class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
+class EnergyCalibrator:
     """
     Electron binding energy calibration workflow.
     """
 
-    def __init__(  # pylint: disable=dangerous-default-value
+    def __init__(
         self,
         biases: np.ndarray = None,
         traces: np.ndarray = None,
         tof: np.ndarray = None,
-        config: dict = {},
+        config: dict = None,
     ):
         """Initialization of the EnergyCalibrator class can follow different ways,
 
@@ -74,6 +73,10 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
             self.traces = self.traces_normed = traces
         else:
             self.traces = self.traces_normed = np.asarray([])
+
+        if config is None:
+            config = {}
+
         self._config = config
 
         self.featranges: List[Tuple] = []  # Value ranges for feature detection
@@ -156,7 +159,7 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
         self.tof = tof
         self.traces = self.traces_normed = traces
 
-    def bin_data(  # pylint: disable=R0913, R0914
+    def bin_data(
         self,
         data_files: List[str],
         axes: List[str] = None,
@@ -188,7 +191,7 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
                 self._config.get("energy", {}).get("ranges", [128000, 138000]),
             ]
             ranges = [tuple(v) for v in ranges_]
-        # pylint: disable=R0801
+        # pylint: disable=duplicate-code
         hist_mode = kwds.pop("hist_mode", self._config["binning"]["hist_mode"])
         mode = kwds.pop("mode", self._config["binning"]["mode"])
         pbar = kwds.pop("pbar", self._config["binning"]["pbar"])
@@ -249,7 +252,7 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
             order=order,
         )
 
-    def add_features(  # pylint: disable=too-many-arguments
+    def add_features(
         self,
         ranges: Union[List[Tuple], Tuple],
         ref_id: int = 0,
@@ -339,7 +342,7 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
             pkwindow=peak_window,
         )
 
-    def calibrate(  # pylint: disable=R0913
+    def calibrate(
         self,
         ref_id: int = 0,
         method: str = "lmfit",
@@ -412,7 +415,7 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
 
         return self.calibration
 
-    def view(  # pylint: disable=W0102, R0912, R0913, R0914
+    def view(  # pylint: disable=dangerous-default-value
         self,
         traces: np.ndarray,
         segs: List[Tuple] = None,
@@ -673,7 +676,7 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
 
         return df
 
-    def adjust_energy_correction(  # pylint: disable=R0913, R0914, R0915
+    def adjust_energy_correction(
         self,
         image: xr.DataArray,
         correction_type: str = None,
@@ -1025,7 +1028,7 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
 
         else:
             raise NotImplementedError
-
+        # pylint: disable=duplicate-code
         apply_button = ipw.Button(description="apply")
         display(apply_button)
         apply_button.on_click(apply_func)
@@ -1034,7 +1037,7 @@ class EnergyCalibrator:  # pylint: disable=too-many-instance-attributes
         if apply:
             apply_func(True)
 
-    def apply_energy_correction(  # pylint: disable=R0913, R0914
+    def apply_energy_correction(
         self,
         df: Union[pd.DataFrame, dask.dataframe.DataFrame],
         correction_type: str = None,
@@ -1489,7 +1492,7 @@ def _datacheck_peakdetect(
     return x_axis, y_axis
 
 
-def peakdetect1d(  # pylint: disable=too-many-branches
+def peakdetect1d(
     y_axis: np.ndarray,
     x_axis: np.ndarray = None,
     lookahead: int = 200,
@@ -1613,7 +1616,7 @@ def peakdetect1d(  # pylint: disable=too-many-branches
     return (np.asarray(max_peaks), np.asarray(min_peaks))
 
 
-def fit_energy_calibation(  # pylint: disable=too-many-locals, too-many-arguments
+def fit_energy_calibation(
     pos: Union[List[float], np.ndarray],
     vals: Union[List[float], np.ndarray],
     binwidth: float,
@@ -1718,7 +1721,7 @@ def fit_energy_calibation(  # pylint: disable=too-many-locals, too-many-argument
     return ecalibdict
 
 
-def poly_energy_calibration(  # pylint: disable=R0913, R0914
+def poly_energy_calibration(
     pos: Union[List[float], np.ndarray],
     vals: Union[List[float], np.ndarray],
     order: int = 3,
@@ -1826,7 +1829,7 @@ def poly_energy_calibration(  # pylint: disable=R0913, R0914
     return ecalibdict
 
 
-def tof2ev(  # pylint: disable=too-many-arguments
+def tof2ev(
     tof_distance: float,
     time_offset: float,
     binwidth: float,
