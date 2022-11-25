@@ -240,7 +240,7 @@ class SedProcessor:
         rotation_symmetry: int = 6,
         axes: List[str] = None,
         bins: List[int] = None,
-        ranges: List[Tuple] = None,
+        ranges: Sequence[Tuple[float, float]] = None,
         plane: int = 0,
         width: int = 5,
         apply: bool = False,
@@ -521,7 +521,7 @@ class SedProcessor:
         data_files: List[str],
         axes: List[str] = None,
         bins: List = None,
-        ranges: List[Tuple] = None,
+        ranges: Sequence[Tuple[float, float]] = None,
         biases: np.ndarray = None,
         bias_key: str = None,
         normalize: bool = None,
@@ -798,7 +798,7 @@ class SedProcessor:
         df_partitions: int = 100,
         axes: List[str] = None,
         bins: List[int] = None,
-        ranges: List[Tuple] = None,
+        ranges: Sequence[Tuple[float, float]] = None,
         **kwds,
     ) -> xr.DataArray:
         """Function to do an initial binning of the dataframe loaded to the class.
@@ -836,7 +836,7 @@ class SedProcessor:
                 "ranges",
                 [[-256, 1792], [-256, 1792], [128000, 138000]],
             )
-            ranges = [tuple(v) for v in ranges_]
+            ranges = [cast(Tuple[float, float], tuple(v)) for v in ranges_]
 
         assert (
             self._dataframe is not None

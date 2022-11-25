@@ -7,8 +7,10 @@ import warnings as wn
 from copy import deepcopy
 from functools import partial
 from typing import Any
+from typing import cast
 from typing import Dict
 from typing import List
+from typing import Sequence
 from typing import Tuple
 from typing import Union
 
@@ -164,7 +166,7 @@ class EnergyCalibrator:
         data_files: List[str],
         axes: List[str] = None,
         bins: List[int] = None,
-        ranges: List[Tuple] = None,
+        ranges: Sequence[Tuple[float, float]] = None,
         biases: np.ndarray = None,
         bias_key: str = None,
         **kwds,
@@ -190,7 +192,7 @@ class EnergyCalibrator:
             ranges_ = [
                 self._config.get("energy", {}).get("ranges", [128000, 138000]),
             ]
-            ranges = [tuple(v) for v in ranges_]
+            ranges = [cast(Tuple[float, float], tuple(v)) for v in ranges_]
         # pylint: disable=duplicate-code
         hist_mode = kwds.pop("hist_mode", self._config["binning"]["hist_mode"])
         mode = kwds.pop("mode", self._config["binning"]["mode"])
