@@ -63,7 +63,13 @@ class EnergyCalibrator:
         using the bin_data method.
         """
 
-        self.load_data(biases=biases, traces=traces, tof=tof)
+        self.biases: np.ndarray = None
+        self.traces: np.ndarray = None
+        self.traces_normed: np.ndarray = None
+        self.tof: np.ndarray = None
+
+        if traces is not None and tof is not None and biases is not None:
+            self.load_data(biases=biases, traces=traces, tof=tof)
 
         if config is None:
             config = {}
