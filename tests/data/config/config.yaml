@@ -1,7 +1,85 @@
+core:
+  use_copy_tool: False
+  copy_tool_source: "/path/to/data/"
+  copy_tool_dest: "/path/to//localDataStore/"
+  copy_tool_kwds:
+    ntasks: 20
+    gid: 1001
+
+dataframe:
+  hdf5_groupnames: ["Stream_0", "Stream_1", "Stream_2", "Stream_4"]
+  hdf5_aliases:
+    Stream_0: "X"
+    Stream_1: "Y"
+    Stream_2: "t"
+    Stream_4: "ADC"
+  time_stamp_alias: "timeStamps"
+  ms_markers_group: "msMarkers"
+  first_event_time_stamp_key: "FirstEventTimeStamp"
+  jitter_cols: ["X", "Y", "t", "ADC"]
+  x_column: "X"
+  y_column: "Y"
+  tof_column: "t"
+  adc_column: "ADC"
+  energy_column: "E"
+  x_corrected_column: "Xm"
+  y_corrected_column: "Ym"
+  kx_column: "kx"
+  ky_column: "ky"
+  delay_column: "delay"
+  tof_binwidth: 4.125e-12
+  tof_binning: 2
+
+energy:
+  bins: 1000
+  ranges: [64000, 69000]
+  bias_key: "@KTOF:Lens:Sample:V"
+  normalize: True
+  normalize_span: 7
+  normalize_order: 1
+  fastdtw_radius: 2
+  peak_window: 7
+  calibration_method: "lmfit"
+  energy_scale: "kinetic"
+  tof_fermi: 132250
+  x_width: [-20, 20]
+  y_width: [-20, 20]
+  tof_width: [-300, 500]
+  color_clip: 300
+  correction:
+    correction_type: "Lorentzian"
+    amplitude: 8
+    center: [750, 730]
+    kwds:
+      sigma: 900
+
+momentum:
+  axes: ["@x_column", "@y_column", "@tof_column"]
+  bins: [512, 512, 300]
+  ranges: [[-256, 1792], [-256, 1792], [66000, 68000]]
+  detector_ranges: [[0, 2048], [0, 2048]]
+  center_pixel: [256, 256]
+  sigma: 5
+  fwhm: 8
+  sigma_radius: 1
+  center_det: "centroidnn"
+
+delay:
+  adc_range: [1900, 25600]
+  adc_binning: 2
+  p1_key: "@trARPES:DelayStage:p1"
+  p2_key: "@trARPES:DelayStage:p2"
+  t0_key: "@trARPES:DelayStage:t0"
+
 binning:
   hist_mode: "numba"
-  mode: fast
+  mode: "fast"
   pbar: True
   num_cores: 20
   threads_per_worker: 4
   threadpool_API: "blas"
+
+histogram:
+  bins: [80, 80, 80, 80]
+  axes: ["X", "Y", "t", "ADC"]
+  ranges: [[0, 1800], [0, 1800], [65000, 69000], [0, 9000], ]
