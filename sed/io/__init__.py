@@ -1,3 +1,6 @@
+"""sed.io module easy access APIs
+
+"""
 from .hdf5 import load_h5
 from .hdf5 import to_h5
 from .tiff import load_tiff

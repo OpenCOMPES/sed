@@ -1,3 +1,6 @@
+"""This module contains diagnostic output functions for the sed module
+
+"""
 from typing import Any
 from typing import List
 from typing import Sequence
@@ -30,8 +33,8 @@ def plot_single_hist(
 
     ttp = kwds.pop("tooltip", [("(x, y)", "($x, $y)")])
 
-    p = pbk.figure(background_fill_color="white", tooltips=ttp)
-    p.quad(
+    fig = pbk.figure(background_fill_color="white", tooltips=ttp)
+    fig.quad(
         top=histvals,
         bottom=0,
         left=edges[:-1],
@@ -42,11 +45,11 @@ def plot_single_hist(
         **kwds,
     )
 
-    p.y_range.start = 0
-    p.legend.location = "top_right"
-    p.grid.grid_line_color = "lightgrey"
+    fig.y_range.start = 0
+    fig.legend.location = "top_right"
+    fig.grid.grid_line_color = "lightgrey"
 
-    return p
+    return fig
 
 
 def grid_histogram(
@@ -57,8 +60,8 @@ def grid_histogram(
     rvranges: Sequence[Tuple[float, float]],
     backend: str = "bokeh",
     legend: bool = True,
-    histkwds: dict = {},
-    legkwds: dict = {},
+    histkwds: dict = None,
+    legkwds: dict = None,
     **kwds: Any,
 ):
     """
@@ -77,6 +80,11 @@ def grid_histogram(
         **kwds: Additional keyword arguments.
     """
 
+    if histkwds is None:
+        histkwds = {}
+    if legkwds is None:
+        legkwds = {}
+
     figsz = kwds.pop("figsize", (14, 8))
 
     if backend == "matplotlib":
@@ -85,7 +93,7 @@ def grid_histogram(
         nrow = int(np.ceil(nrv / ncol))
         histtype = kwds.pop("histtype", "step")
 
-        f, ax = plt.subplots(nrow, ncol, figsize=figsz)
+        fig, ax = plt.subplots(nrow, ncol, figsize=figsz)
         otherax = ax.copy()
         for i, zipped in enumerate(zip(rvs, rvbins, rvranges)):
 
@@ -122,7 +130,7 @@ def grid_histogram(
 
         for oax in otherax.flatten():
             if oax is not None:
-                f.delaxes(oax)
+                fig.delaxes(oax)
 
     elif backend == "bokeh":
 

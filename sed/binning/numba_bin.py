@@ -1,3 +1,10 @@
+"""This file contains code for binning using numba precompiled code for the
+sed.binning module
+
+"""
+from typing import Any
+from typing import cast
+from typing import List
 from typing import Sequence
 from typing import Tuple
 from typing import Union
@@ -8,10 +15,10 @@ import numpy as np
 
 @numba.jit(nogil=True, nopython=True)
 def _hist_from_bin_range(
-    sample: np.array,
-    bins: Sequence,
-    ranges: np.array,
-) -> np.array:
+    sample: np.ndarray,
+    bins: Sequence[int],
+    ranges: np.ndarray,
+) -> np.ndarray:
     """
     N dimensional binning function, pre-compiled by Numba for performance.
     Behaves much like numpy.histogramdd, but calculates and returns unsigned 32
@@ -36,14 +43,14 @@ def _hist_from_bin_range(
             "The dimension of bins is not equal to the dimension of the sample x",
         )
 
-    H = np.zeros(bins, np.uint32)
-    Hflat = H.ravel()
+    hist = np.zeros(bins, np.uint32)
+    hist_flat = hist.ravel()
     delta = np.zeros(ndims, np.float64)
     strides = np.zeros(ndims, np.int64)
 
     for i in range(ndims):
         delta[i] = 1 / ((ranges[i, 1] - ranges[i, 0]) / bins[i])
-        strides[i] = H.strides[i] // H.itemsize
+        strides[i] = hist.strides[i] // hist.itemsize  # pylint: disable=E1136
 
     for t in range(sample.shape[0]):
         is_inside = True
@@ -56,9 +63,9 @@ def _hist_from_bin_range(
             if not is_inside:
                 break
         if is_inside:
-            Hflat[flatidx] += int(is_inside)
+            hist_flat[flatidx] += int(is_inside)
 
-    return H
+    return hist
 
 
 @numba.jit(nogil=True, parallel=False, nopython=True)
@@ -116,13 +123,13 @@ def _hist_from_bins(
         raise ValueError(
             "The dimension of bins is not equal to the dimension of the sample x",
         )
-    H = np.zeros(shape, np.uint32)
-    Hflat = H.ravel()
+    hist = np.zeros(shape, np.uint32)
+    hist_flat = hist.ravel()
 
     strides = np.zeros(ndims, np.int64)
 
     for i in range(ndims):
-        strides[i] = H.strides[i] // H.itemsize
+        strides[i] = hist.strides[i] // hist.itemsize  # pylint: disable=E1136
     for t in range(sample.shape[0]):
         is_inside = True
         flatidx = 0
@@ -135,16 +142,16 @@ def _hist_from_bins(
             if not is_inside:
                 break
         if is_inside:
-            Hflat[flatidx] += int(is_inside)
+            hist_flat[flatidx] += int(is_inside)
 
-    return H
+    return hist
 
 
 def numba_histogramdd(
-    sample: np.array,
-    bins: Union[Sequence[Union[int, np.ndarray]], np.ndarray],
+    sample: np.ndarray,
+    bins: Union[int, Sequence[int], Sequence[np.ndarray], np.ndarray],
     ranges: Sequence = None,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> Tuple[np.ndarray, List[np.ndarray]]:
     """Multidimensional histogramming function, powered by Numba.
 
     Behaves in total much like numpy.histogramdd. Returns uint32 arrays.
@@ -177,31 +184,30 @@ def numba_histogramdd(
 
     try:
         # Sample is an ND-array.
-        N, D = sample.shape
+        num_rows, num_cols = sample.shape  # pylint: disable=unused-variable
     except (AttributeError, ValueError):
         # Sample is a sequence of 1D arrays.
         sample = np.atleast_2d(sample).T
-        N, D = sample.shape
+        num_rows, num_cols = sample.shape  # pylint: disable=unused-variable
 
-    if not isinstance(bins, (tuple, list)):
-        bins = D * [bins]
-    Db = len(bins)
-    if isinstance(bins[0], (int, np.int_)):
-        method = "int"
-    elif isinstance(bins[0], np.ndarray):
-        method = "array"
-    else:
-        raise AttributeError(
-            f"bins must be int, np.ndarray or a sequence of the two. "
-            f"Found {type(bins[0])} instead",
-        )
+    if isinstance(bins, (int, np.int_)):  # bins provided as a single number
+        bins = num_cols * [bins]
+    num_bins = len(bins)  # Number of dimensions in bins
 
-    if Db != D:  # check number of dimensions
+    if num_bins != num_cols:  # check number of dimensions
         raise ValueError(
             "The dimension of bins must be equal to the dimension of the sample x.",
         )
 
-    if method == "array":
+    if not isinstance(bins[0], (int, np.int_, np.ndarray)):
+        raise TypeError(
+            f"bins must be int, np.ndarray or a sequence of the two. "
+            f"Found {type(bins[0])} instead",
+        )
+
+    # method == "array"
+    if isinstance(bins[0], np.ndarray):
+        bins = cast(List[np.ndarray], list(bins))
         hist = _hist_from_bins(
             sample,
             tuple(bins),
@@ -209,36 +215,36 @@ def numba_histogramdd(
         )
         return hist, bins
 
-    elif method == "int":
-        # normalize the range argument
-        if ranges is None:
-            raise ValueError(
-                "must define a value for ranges when bins is"
-                " the number of bins",
-            )
-        #     ranges = (None,) * D
-        if D == 1 and isinstance(ranges[0], (int, float)):
-            ranges = (ranges,)
-        elif len(ranges) != D:
-            raise ValueError(
-                "range argument must have one entry per dimension",
-            )
+    # method == "int"
+    assert isinstance(bins[0], (int, np.int_))
+    # normalize the range argument
+    if ranges is None:
+        raise ValueError(
+            "must define a value for ranges when bins is"
+            " the number of bins",
+        )
+    if num_cols == 1 and isinstance(ranges[0], (int, float)):
+        ranges = (ranges,)
+    elif len(ranges) != num_cols:
+        raise ValueError(
+            "range argument must have one entry per dimension",
+        )
 
-        ranges = np.asarray(ranges)
-        bins = tuple(bins)
+    # ranges = np.asarray(ranges)
+    bins = tuple(bins)
 
-        # Create edge arrays
-        edges = D * [None]
-        nbin = np.empty(D, int)
+    # Create edge arrays
+    edges: List[Any] = []
+    nbin = np.empty(num_cols, int)
 
-        for i in range(D):
-            edges[i] = np.linspace(*ranges[i, :], bins[i] + 1)
+    for i in range(num_cols):
+        edges.append(np.linspace(ranges[i][0], ranges[i][1], bins[i] + 1))
 
-            nbin[i] = len(edges[i]) + 1  # includes an outlier on each end
+        nbin[i] = len(edges[i]) + 1  # includes an outlier on each end
 
-        hist = _hist_from_bin_range(sample, bins, ranges)
+    hist = _hist_from_bin_range(sample, bins, np.asarray(ranges))
 
-        if (hist.shape != nbin - 2).any():
-            raise RuntimeError("Internal Shape Error")
+    if (hist.shape != nbin - 2).any():
+        raise RuntimeError("Internal Shape Error")
 
-        return hist, edges
+    return hist, edges

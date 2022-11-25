@@ -1,4 +1,8 @@
+"""This module contains the binning functions of the sed.binning module
+
+"""
 from functools import reduce
+from typing import cast
 from typing import List
 from typing import Sequence
 from typing import Tuple
@@ -31,10 +35,10 @@ def bin_partition(
     ] = 100,
     axes: Union[str, Sequence[str]] = None,
     ranges: Sequence[Tuple[float, float]] = None,
-    histMode: str = "numba",
+    hist_mode: str = "numba",
     jitter: Union[list, dict] = None,
-    returnEdges: bool = False,
-    skipTest: bool = False,
+    return_edges: bool = False,
+    skip_test: bool = False,
 ) -> Union[np.ndarray, Tuple[np.ndarray, list]]:
     """Compute the n-dimensional histogram of a single dataframe partition.
 
@@ -83,11 +87,15 @@ def bin_partition(
             - **edges**: A list of D arrays describing the bin edges for
                 each dimension.
     """
-    if not skipTest:
+    if not skip_test:
         bins, axes, ranges = _simplify_binning_arguments(bins, axes, ranges)
+    else:
+        bins = cast(Union[List[int], List[np.ndarray]], bins)
+        axes = cast(Sequence[str], axes)
+        ranges = cast(Sequence[Tuple[float, float]], ranges)
 
     # Locate columns for binning operation
-    colID = [part.columns.get_loc(axis) for axis in axes]
+    col_id = [part.columns.get_loc(axis) for axis in axes]
 
     if jitter is not None:
         sel_part = part[axes].copy()
@@ -100,28 +108,28 @@ def bin_partition(
                     jpars = {}
                 amp = jpars.get("amplitude", 0.5)
                 mode = jpars.get("mode", "uniform")
-                axIdx = axes.index(col)
-                bin = bins[axIdx]
-                if isinstance(bin, int):
-                    rng = ranges[axIdx]
-                    binsize = abs(rng[1] - rng[0]) / bin
+                ax_index = axes.index(col)
+                _bin = bins[ax_index]
+                if isinstance(_bin, int):
+                    rng = ranges[ax_index]
+                    binsize = abs(rng[1] - rng[0]) / _bin
                 else:
-                    binsize = abs(bin[0] - bin[1])
+                    binsize = abs(_bin[0] - _bin[1])
                     assert np.allclose(
                         binsize,
-                        abs(bin[-3] - bin[-2]),
+                        abs(_bin[-3] - _bin[-2]),
                     ), f"bins along {col} are not uniform. Cannot apply jitter."
                 apply_jitter_on_column(sel_part, amp * binsize, col, mode)
         vals = sel_part.values
     else:
-        vals = part.values[:, colID]
-    if histMode == "numba":
+        vals = part.values[:, col_id]
+    if hist_mode == "numba":
         hist_partition, edges = numba_histogramdd(
             vals,
             bins=bins,
             ranges=ranges,
         )
-    elif histMode == "numpy":
+    elif hist_mode == "numpy":
         hist_partition, edges = np.histogramdd(
             vals,
             bins=bins,
@@ -129,14 +137,14 @@ def bin_partition(
         )
     else:
         raise ValueError(
-            f"No binning method {histMode} available. Please choose between "
+            f"No binning method {hist_mode} available. Please choose between "
             f"numba and numpy.",
         )
 
-    if returnEdges:
+    if return_edges:
         return hist_partition, edges
-    else:
-        return hist_partition
+
+    return hist_partition
 
 
 def bin_dataframe(
@@ -151,13 +159,13 @@ def bin_dataframe(
     ] = 100,
     axes: Union[str, Sequence[str]] = None,
     ranges: Sequence[Tuple[float, float]] = None,
-    histMode: str = "numba",
+    hist_mode: str = "numba",
     mode: str = "fast",
     jitter: Union[list, dict] = None,
     pbar: bool = True,
-    nCores: int = N_CPU - 1,
-    nThreadsPerWorker: int = 4,
-    threadpoolAPI: str = "blas",
+    n_cores: int = N_CPU - 1,
+    threads_per_worker: int = 4,
+    threadpool_api: str = "blas",
     return_partitions: bool = False,
     **kwds,
 ) -> xr.DataArray:
@@ -176,7 +184,7 @@ def bin_dataframe(
         axes: The names of the axes (columns) on which to calculate the histogram.
             The order will be the order of the dimensions in the resulting array.
         ranges: list of tuples containing the start and end point of the binning range.
-        histMode: Histogram calculation method. Choose between
+        hist_mode: Histogram calculation method. Choose between
             "numpy" which uses numpy.histogramdd, and "numba" which uses a
             numba powered similar method.
         mode: Defines how the results from each partition are
@@ -189,11 +197,11 @@ def bin_dataframe(
             This example also shows the default behaviour, in case None is
             passed in the dictionary, or jitter is a list of strings.
         pbar: Allows to deactivate the tqdm progress bar.
-        nCores: Number of CPU cores to use for parallelization. Defaults to
+        n_cores: Number of CPU cores to use for parallelization. Defaults to
             all but one of the available cores.
-        nThreadsPerWorker: Limit the number of threads that
+        threads_per_worker: Limit the number of threads that
             multiprocessing can spawn.
-        threadpoolAPI: The API to use for multiprocessing.
+        threadpool_api: The API to use for multiprocessing.
         return_partitions: Option to return a hypercube of dimension n+1,
             where the last dimension corresponds to the dataframe partitions.
         kwds: passed to dask.compute()
@@ -213,140 +221,143 @@ def bin_dataframe(
 
     # create the coordinate axes for the xarray output
     if isinstance(bins[0], np.ndarray):
-        coords = {ax: bin for ax, bin in zip(axes, bins)}
+        coords = dict(zip(axes, bins))
     elif ranges is None:
         raise ValueError(
             "bins is not an array and range is none.. this shouldn't happen.",
         )
     else:
+        bins = cast(List[int], bins)
         coords = {
             ax: np.linspace(r[0], r[1], n)
             for ax, r, n in zip(axes, ranges, bins)
         }
 
     if isinstance(bins[0], np.ndarray):
-        fullShape = tuple(x.size for x in bins)
+        bins = cast(List[np.ndarray], bins)
+        full_shape = tuple(x.size for x in bins)
     else:
-        fullShape = tuple(bins)
+        bins = cast(List[int], bins)
+        full_shape = tuple(bins)
 
-    fullResult = np.zeros(fullShape)
-    partitionResults = []  # Partition-level results
+    full_result = np.zeros(full_shape)
+    partition_results = []  # Partition-level results
 
     # limit multithreading in worker threads
-    with threadpool_limits(limits=nThreadsPerWorker, user_api=threadpoolAPI):
+    with threadpool_limits(limits=threads_per_worker, user_api=threadpool_api):
 
         # Main loop for binning
-        for i in tqdm(range(0, df.npartitions, nCores), disable=not (pbar)):
+        for i in tqdm(range(0, df.npartitions, n_cores), disable=not pbar):
 
-            coreTasks = []  # Core-level jobs
-            for j in range(0, nCores):
+            core_tasks = []  # Core-level jobs
+            for j in range(0, n_cores):
 
-                ij = i + j
-                if ij >= df.npartitions:
+                partition_index = i + j
+                if partition_index >= df.npartitions:
                     break
 
-                dfPartition = df.get_partition(
-                    ij,
+                df_partition = df.get_partition(
+                    partition_index,
                 )  # Obtain dataframe partition
-                coreTasks.append(
+                core_tasks.append(
                     dask.delayed(bin_partition)(
-                        dfPartition,
+                        df_partition,
                         bins=bins,
                         axes=axes,
                         ranges=ranges,
-                        histMode=histMode,
+                        hist_mode=hist_mode,
                         jitter=jitter,
-                        skipTest=True,
-                        returnEdges=False,
+                        skip_test=True,
+                        return_edges=False,
                     ),
                 )
 
-            if len(coreTasks) > 0:
-                coreResults = dask.compute(*coreTasks, **kwds)
+            if len(core_tasks) > 0:
+                core_results = dask.compute(*core_tasks, **kwds)
 
                 if return_partitions:
-                    for coreResult in coreResults:
-                        partitionResults.append(coreResult)
-                    del coreResults
+                    for core_result in core_results:
+                        partition_results.append(core_result)
+                    del core_results
 
                 elif mode == "legacy":
                     # Combine all core results for a dataframe partition
-                    partitionResult = np.zeros_like(coreResults[0])
-                    for coreResult in coreResults:
-                        partitionResult += coreResult
+                    partition_result = np.zeros_like(core_results[0])
+                    for core_result in core_results:
+                        partition_result += core_result
 
-                    partitionResults.append(partitionResult)
+                    partition_results.append(partition_result)
                     # del partitionResult
 
                 elif mode == "lean":
                     # Combine all core results for a dataframe partition
-                    partitionResult = reduce(_arraysum, coreResults)
-                    fullResult += partitionResult
-                    del partitionResult
-                    del coreResults
+                    partition_result = reduce(_arraysum, core_results)
+                    full_result += partition_result
+                    del partition_result
+                    del core_results
 
                 elif mode == "fast":
-                    combineTasks = []
-                    for j in range(0, nCores):
-                        combineParts = []
+                    combine_tasks = []
+                    for j in range(0, n_cores):
+                        combine_parts = []
                         # split results along the first dimension among worker
                         # threads
-                        for r in coreResults:
-                            combineParts.append(
-                                r[
-                                    int(j * fullShape[0] / nCores) : int(
-                                        (j + 1) * fullShape[0] / nCores,
+                        for core_result in core_results:
+                            combine_parts.append(
+                                core_result[
+                                    int(j * full_shape[0] / n_cores) : int(
+                                        (j + 1) * full_shape[0] / n_cores,
                                     ),
                                     ...,
                                 ],
                             )
-                        combineTasks.append(
-                            dask.delayed(reduce)(_arraysum, combineParts),
+                        combine_tasks.append(
+                            dask.delayed(reduce)(_arraysum, combine_parts),
                         )
-                    combineResults = dask.compute(*combineTasks, **kwds)
+                    combine_results = dask.compute(*combine_tasks, **kwds)
                     # Directly fill into target array. This is much faster than
                     # the (not so parallel) reduce/concatenation used before,
                     # and uses less memory.
 
-                    for j in range(0, nCores):
-                        fullResult[
-                            int(j * fullShape[0] / nCores) : int(
-                                (j + 1) * fullShape[0] / nCores,
+                    for j in range(0, n_cores):
+                        full_result[
+                            int(j * full_shape[0] / n_cores) : int(
+                                (j + 1) * full_shape[0] / n_cores,
                             ),
                             ...,
-                        ] += combineResults[j]
-                    del combineParts
-                    del combineTasks
-                    del combineResults
-                    del coreResults
+                        ] += combine_results[j]
+                    del combine_parts
+                    del combine_tasks
+                    del combine_results
+                    del core_results
                 else:
                     raise ValueError(f"Could not interpret mode {mode}")
 
-            del coreTasks
+            del core_tasks
 
     if return_partitions:
         coords = {**coords, **{"df_part": np.arange(df.npartitions)}}
         dims = list(axes)
         dims.append("df_part")
-        da = xr.DataArray(
-            data=np.stack(partitionResults, axis=-1).astype("float32"),
+        data_array = xr.DataArray(
+            data=np.stack(partition_results, axis=-1).astype("float32"),
             coords=coords,
             dims=dims,
         )
-        return da
+        return data_array
 
     if mode == "legacy":
         # still need to combine all partition results
-        fullResult = np.zeros_like(partitionResults[0])
-        for pr in partitionResults:
-            fullResult += np.nan_to_num(pr)
+        full_result = np.zeros_like(partition_results[0])
+        for partition_result in partition_results:
+            full_result += np.nan_to_num(partition_result)
 
-    da = xr.DataArray(
-        data=fullResult.astype("float32"),
+    data_array = xr.DataArray(
+        data=full_result.astype("float32"),
         coords=coords,
         dims=list(axes),
     )
-    return da
+    return data_array
 
 
 def apply_jitter_on_column(

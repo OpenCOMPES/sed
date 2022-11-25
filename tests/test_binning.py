@@ -1,21 +1,27 @@
+"""This file contains code that performs several tests for the sed.binning module
+"""
+from typing import List
+from typing import Sequence
+from typing import Tuple
+
 import numpy as np
 import pandas as pd
 import pytest
 
-from .helpers import get_linear_bin_edges
 from sed.binning.binning import _simplify_binning_arguments
 from sed.binning.binning import numba_histogramdd
 from sed.binning.numba_bin import _hist_from_bin_range
 from sed.binning.utils import bin_centers_to_bin_edges
 from sed.binning.utils import bin_edges_to_bin_centers
+from .helpers import get_linear_bin_edges
 
 sample = np.random.randn(int(1e2), 3)
 columns = ["x", "y", "z"]
 sample_df = pd.DataFrame(sample, columns=columns)
-bins = tuple(np.random.randint(5, 50, size=3))
-ranges = 0.5 + np.random.rand(6).reshape(3, 2)
-ranges[:, 0] = -ranges[:, 0]
-ranges = tuple(tuple(r) for r in ranges)
+bins: Sequence[int] = tuple(np.random.randint(5, 50, size=3))
+ranges_array = 0.5 + np.random.rand(6).reshape(3, 2)
+ranges_array[:, 0] = -ranges_array[:, 0]
+ranges: Sequence[tuple] = tuple(tuple(r) for r in ranges_array)
 
 arrays = [
     get_linear_bin_edges(np.linspace(r[0], r[1], b))
@@ -34,7 +40,13 @@ arrays = [
     [bins[:1], bins[:2], bins[:3]],
     ids=lambda x: f"bins:{len(x)}",
 )
-def test_histdd_error_is_raised(_samples, _bins):
+def test_histdd_error_is_raised(_samples: np.ndarray, _bins: List[int]):
+    """Test if the correct error is raised if the bins and sample shapes do not match
+
+    Args:
+        _samples (np.ndarray): Samples array
+        _bins (List[Tuple]): Bins list
+    """
     with pytest.raises(ValueError):
         if _samples.shape[1] == len(_bins):
             pytest.skip("Not of interest")
@@ -51,11 +63,20 @@ def test_histdd_error_is_raised(_samples, _bins):
     ],
     ids=lambda x: f"ndim: {x[2]}",
 )
-def test_histdd_bins_as_numpy(args):
-    sample, bins, _ = args
-    H1, _ = np.histogramdd(sample, bins)
-    H2, _ = numba_histogramdd(sample, bins)
-    return np.testing.assert_allclose(H1, H2)
+def test_histdd_bins_as_numpy(args: Tuple[np.ndarray, np.ndarray, int]):
+    """Test whether the numba_histogramdd functions produces the same result
+    as np.histogramdd if called with a list of bin edgees
+
+    Args:
+        args (Tuple[np.ndarray, np.ndarray, int]):
+        Tuple of (samples, bin_edges, dimension)
+    """
+    sample_, bins_, _ = args
+    hist1, edges1 = np.histogramdd(sample_, bins_)
+    hist2, edges2 = numba_histogramdd(sample_, bins_)
+    np.testing.assert_allclose(hist1, hist2)
+    for (edges1_, edges2_) in zip(edges1, edges2):
+        np.testing.assert_allclose(edges1_, edges2_)
 
 
 @pytest.mark.parametrize(
@@ -67,11 +88,45 @@ def test_histdd_bins_as_numpy(args):
     ],
     ids=lambda x: f"ndim: {x[3]}",
 )
-def test_histdd_ranges_as_numpy(args):
-    sample, bins, ranges, _ = args
-    H1, _ = np.histogramdd(sample, bins, ranges)
-    H2, _ = numba_histogramdd(sample, bins, ranges)
-    return np.testing.assert_allclose(H1, H2)
+def test_histdd_ranges_as_numpy(args: Tuple[np.ndarray, tuple, tuple, int]):
+    """Test whether the numba_histogramdd functions produces the same result
+    as np.histogramdd if called with bin numbers and ranges
+
+    Args:
+        args (Tuple[np.ndarray, np.ndarray, np.ndarray, int]):
+        Tuple of (samples, bins, ranges, dimension)
+    """
+    sample_, bins_, ranges_, _ = args
+    hist1, edges1 = np.histogramdd(sample_, bins_, ranges_)
+    hist2, edges2 = numba_histogramdd(sample_, bins_, ranges_)
+    np.testing.assert_allclose(hist1, hist2)
+    for (edges1_, edges2_) in zip(edges1, edges2):
+        np.testing.assert_allclose(edges1_, edges2_)
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        (sample[:, :1], bins[0], ranges[:1], 1),
+        (sample[:, :2], bins[0], ranges[:2], 2),
+        (sample[:, :3], bins[0], ranges[:3], 3),
+    ],
+    ids=lambda x: f"ndim: {x[3]}",
+)
+def test_histdd_one_bins_as_numpy(args: Tuple[np.ndarray, int, tuple, int]):
+    """Test whether the numba_histogramdd functions produces the same result
+    as np.histogramdd if called with bin numbers and ranges
+
+    Args:
+        args (Tuple[np.ndarray, np.ndarray, np.ndarray, int]):
+        Tuple of (samples, bins, ranges, dimension)
+    """
+    sample_, bins_, ranges_, _ = args
+    hist1, edges1 = np.histogramdd(sample_, bins_, ranges_)
+    hist2, edges2 = numba_histogramdd(sample_, bins_, ranges_)
+    np.testing.assert_allclose(hist1, hist2)
+    for (edges1_, edges2_) in zip(edges1, edges2):
+        np.testing.assert_allclose(edges1_, edges2_)
 
 
 @pytest.mark.parametrize(
@@ -83,14 +138,26 @@ def test_histdd_ranges_as_numpy(args):
     ],
     ids=lambda x: f"ndim: {x[4]}",
 )
-def test_from_bins_equals_from_bin_range(args):
-    sample, bins, ranges, arrays, _ = args
-    H1, _ = numba_histogramdd(sample, bins, ranges)
-    H2, _ = numba_histogramdd(sample, arrays)
-    np.testing.assert_allclose(H1, H2)
+def test_from_bins_equals_from_bin_range(
+    args: Tuple[np.ndarray, int, tuple, np.ndarray, int],
+):
+    """Test whether the numba_histogramdd functions produces the same result
+    if called with bin numbers and ranges or with bin edges.
+
+    Args:
+        args (Tuple[np.ndarray, int, tuple, np.ndarray, int]):
+        Tuple of (samples, bins, ranges, bin_edges, dimension)
+    """
+    sample_, bins_, ranges_, arrays_, _ = args
+    hist1, edges1 = numba_histogramdd(sample_, bins_, ranges_)
+    hist2, edges2 = numba_histogramdd(sample_, arrays_)
+    np.testing.assert_allclose(hist1, hist2)
+    for (edges1_, edges2_) in zip(edges1, edges2):
+        np.testing.assert_allclose(edges1_, edges2_)
 
 
 def test_bin_centers_to_bin_edges():
+    """Test the conversion from bin centers to bin edges"""
     stepped_array = np.concatenate(
         [
             arrays[0],
@@ -109,6 +176,7 @@ def test_bin_centers_to_bin_edges():
 
 
 def test_bin_edges_to_bin_centers():
+    """Test the conversion from bin edges to bin centers"""
     stepped_array = np.concatenate(
         [
             arrays[0],
@@ -128,34 +196,47 @@ def test_bin_edges_to_bin_centers():
 
 bins = [10, 20, 30]
 axes = ["a", "b", "c"]
-ranges = [[-1, 1], [-2, 2], [-3, 3]]
+ranges = [(-1, 1), (-2, 2), (-3, 3)]
 
 
 def test_simplify_binning_arguments_direct():
-    b, a, r = _simplify_binning_arguments(bins, axes, ranges)
-    assert b == bins
-    assert a == axes
-    assert r == ranges
+    """Test the result of the _simplify_binning_arguments functions for number of
+    bins and ranges
+    """
+    bins_, axes_, ranges_ = _simplify_binning_arguments(bins, axes, ranges)
+    assert bins_ == bins
+    assert axes_ == axes
+    assert ranges_ == ranges
 
 
-def test_simplify_binning_arguments_1D():
-    b, a, r = _simplify_binning_arguments(bins[0], axes[0], ranges[0])
-    assert b == [bins[0]]
-    assert a == [axes[0]]
-    assert r == ranges[0]
+def test_simplify_binning_arguments_1d():
+    """Test the result of the _simplify_binning_arguments functions for number of
+    bins and ranges, 1D case
+    """
+    bins_, axes_, ranges_ = _simplify_binning_arguments(
+        bins[0],
+        axes[0],
+        ranges[0],
+    )
+    assert bins_ == [bins[0]]
+    assert axes_ == [axes[0]]
+    assert ranges_ == (ranges[0],)
 
 
 def test_simplify_binning_arguments_edges():
+    """Test the result of the _simplify_binning_arguments functions for bin edges"""
     bin_edges = [np.linspace(r[0], r[1], b) for r, b in zip(ranges, bins)]
-    b, a, r = _simplify_binning_arguments(bin_edges, axes)
-    (np.testing.assert_allclose(b_, bins_) for b_, bins_ in zip(b, bins))
-    assert a == axes
-    assert r is None
+    bin_edges_, axes_, ranges_ = _simplify_binning_arguments(bin_edges, axes)
+    for bin_, bin_edges_ in zip(bin_edges_, bin_edges):
+        np.testing.assert_allclose(bin_, bin_edges_)
+    assert axes_ == axes
+    assert ranges_ is None
 
 
 def test_simplify_binning_arguments_tuple():
+    """Test the result of the _simplify_binning_arguments functions for bin tuples"""
     bin_tuple = [tuple((r[0], r[1], b)) for r, b in zip(ranges, bins)]
-    b, a, r = _simplify_binning_arguments(bin_tuple, axes)
-    assert b == bins
-    assert a == axes
-    assert r == ranges
+    bins_, axes_, ranges_ = _simplify_binning_arguments(bin_tuple, axes)
+    assert bins_ == bins
+    assert axes_ == axes
+    assert ranges_ == ranges

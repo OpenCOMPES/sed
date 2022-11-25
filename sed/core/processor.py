@@ -1,5 +1,9 @@
+"""This module contains the core class for the sed package
+
+"""
 from typing import Any
 from typing import cast
+from typing import Dict
 from typing import List
 from typing import Sequence
 from typing import Tuple
@@ -31,8 +35,8 @@ class SedProcessor:  # pylint: disable=R0902
 
     def __init__(  # pylint: disable=W0102
         self,
-        metadata: dict = {},
-        config: Union[dict, str] = {},
+        metadata: dict = None,
+        config: Union[dict, str] = None,
         dataframe: Union[pd.DataFrame, ddf.DataFrame] = None,
         files: List[str] = None,
         folder: str = None,
@@ -51,8 +55,9 @@ class SedProcessor:  # pylint: disable=R0902
         self._binned: xr.DataArray = None
         self._pre_binned: xr.DataArray = None
 
-        self._dimensions = []
-        self._coordinates = {}
+        self._dimensions: List[str] = []
+        self._coordinates: Dict[Any, Any] = {}
+        self.axis: Dict[Any, Any] = {}
         self._attributes = MetaHandler(meta=metadata)
         self.ec = EnergyCalibrator(  # pylint: disable=invalid-name
             config=self._config,
@@ -92,8 +97,8 @@ class SedProcessor:  # pylint: disable=R0902
             df_str = self._dataframe.__repr__()
         coordinates_str = f"Coordinates: {self._coordinates}"
         dimensions_str = f"Dimensions: {self._dimensions}"
-        s = df_str + "\n" + coordinates_str + "\n" + dimensions_str
-        return s
+        pretty_str = df_str + "\n" + coordinates_str + "\n" + dimensions_str
+        return pretty_str
 
     def __getitem__(self, val: Any) -> pd.DataFrame:
         """Accessor to the underlying data structure.
@@ -110,11 +115,22 @@ class SedProcessor:  # pylint: disable=R0902
         return self._dataframe[val]
 
     @property
-    def config(self):
+    def config(self) -> Dict[Any, Any]:
+        """Getter attribute for the config dictionary
+
+        Returns:
+            Dict: The config dictionary.
+        """
         return self._config
 
     @config.setter
     def config(self, config: Union[dict, str]):
+        """Setter function for the config dictionary.
+
+        Args:
+            config (Union[dict, str]): Config dictionary or path of config file
+            to load.
+        """
         self._config = parse_config(config)
         num_cores = self._config.get("binning", {}).get("num_cores", N_CPU - 1)
         if num_cores >= N_CPU:
@@ -122,20 +138,40 @@ class SedProcessor:  # pylint: disable=R0902
         self._config["binning"]["num_cores"] = num_cores
 
     @property
-    def dimensions(self):
+    def dimensions(self) -> list:
+        """Getter attribute for the dimensions.
+
+        Returns:
+            list: List of dimensions.
+        """
         return self._dimensions
 
     @dimensions.setter
-    def dimensions(self, dims):
+    def dimensions(self, dims: list):
+        """Setter function for the dimensions.
+
+        Args:
+            dims (list): List of dimensions to set.
+        """
         assert isinstance(dims, list)
         self._dimensions = dims
 
     @property
-    def coordinates(self):
+    def coordinates(self) -> dict:
+        """Getter attribute for the coordinates dict.
+
+        Returns:
+            dict: Dictionary of coordinates.
+        """
         return self._coordinates
 
     @coordinates.setter
-    def coordinates(self, coords):
+    def coordinates(self, coords: dict):
+        """Setter function for the coordinates dict
+
+        Args:
+            coords (dict): Dictionary of coordinates.
+        """
         assert isinstance(coords, dict)
         self._coordinates = {}
         for k, v in coords.items():
@@ -865,7 +901,7 @@ class SedProcessor:  # pylint: disable=R0902
             "threads_per_worker",
             self._config["binning"]["threads_per_worker"],
         )
-        threadpool_API = kwds.pop(
+        threadpool_api = kwds.pop(
             "threadpool_API",
             self._config["binning"]["threadpool_API"],
         )
@@ -882,17 +918,17 @@ class SedProcessor:  # pylint: disable=R0902
             bins=bins,
             axes=axes,
             ranges=ranges,
-            histMode=hist_mode,
+            hist_mode=hist_mode,
             mode=mode,
             pbar=pbar,
-            nCores=num_cores,
-            nThreadsPerWorker=threads_per_worker,
-            threadpoolAPI=threadpool_API,
+            n_cores=num_cores,
+            threads_per_worker=threads_per_worker,
+            threadpool_api=threadpool_api,
             **kwds,
         )
         return self._binned
 
-    def viewEventHistogram(
+    def view_event_histogram(
         self,
         dfpid: int,
         ncol: int = 2,
@@ -901,8 +937,8 @@ class SedProcessor:  # pylint: disable=R0902
         ranges: Sequence[Tuple[float, float]] = None,
         backend: str = "bokeh",
         legend: bool = True,
-        histkwds: dict = {},
-        legkwds: dict = {},
+        histkwds: dict = None,
+        legkwds: dict = None,
         **kwds: Any,
     ):
         """
@@ -964,8 +1000,27 @@ class SedProcessor:  # pylint: disable=R0902
             **kwds,
         )
 
-    def add_dimension(self, name, range):
+    def add_dimension(self, name: str, axis_range: Tuple):
+        """Add a dimension axis.
+
+        Args:
+            name (str): name of the axis
+            axis_range (Tuple): range for the axis.
+
+        Raises:
+            ValueError: Raised if an axis with that name already exists.
+        """
         if name in self._coordinates:
             raise ValueError(f"Axis {name} already exists")
-        else:
-            self.axis[name] = self.make_axis(range)
+
+        self.axis[name] = self.make_axis(axis_range)
+
+    def make_axis(self, axis_range: Tuple) -> np.ndarray:
+        """Function to make an axis.
+
+        Args:
+            axis_range (Tuple): range for the new axis.
+        """
+
+        # TODO: What shall this function do?
+        return np.arange(*axis_range)
