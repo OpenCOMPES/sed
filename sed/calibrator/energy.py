@@ -53,28 +53,17 @@ class EnergyCalibrator:
         tof: np.ndarray = None,
         config: dict = None,
     ):
-        """Initialization of the EnergyCalibrator class can follow different ways,
+        """The initialization of the EnergyCalibrator class, can happen by passing
+        the following parameters:
+            biases: Bias voltages used
+            traces: TOF-Data traces corresponding to the bias values
+            tof: TOF-values for the data traces
 
-        1. Initialize with all the file paths in a list
-        1a. Use an hdf5 file containing all binned traces and tof
-        1b. Use a mat file containing all binned traces and tof
-        1c. Use the raw data hdf5 files
-        2. Initialize with the folder path containing any of the above files
-        3. Initialize with the binned traces and the time-of-flight
+        Otherwise, data can be loaded by the load_data method, or by binning data
+        using the bin_data method.
         """
 
-        if biases is not None:
-            self.biases = biases
-        else:
-            self.biases = np.asarray([])
-        if tof is not None:
-            self.tof = tof
-        else:
-            self.tof = np.asarray([])
-        if traces is not None:
-            self.traces = self.traces_normed = traces
-        else:
-            self.traces = self.traces_normed = np.asarray([])
+        self.load_data(biases=biases, traces=traces, tof=tof)
 
         if config is None:
             config = {}
@@ -157,9 +146,18 @@ class EnergyCalibrator:
             traces: TOF-Data traces corresponding to the bias values
             tof: TOF-values for the data traces
         """
-        self.biases = biases
-        self.tof = tof
-        self.traces = self.traces_normed = traces
+        if biases is not None:
+            self.biases = biases
+        else:
+            self.biases = np.asarray([])
+        if tof is not None:
+            self.tof = tof
+        else:
+            self.tof = np.asarray([])
+        if traces is not None:
+            self.traces = self.traces_normed = traces
+        else:
+            self.traces = self.traces_normed = np.asarray([])
 
     def bin_data(
         self,
