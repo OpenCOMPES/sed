@@ -17,7 +17,7 @@ import psutil
 import xarray as xr
 
 from sed.binning import bin_dataframe
-from sed.calibrator.delay import DelayyCalibrator
+from sed.calibrator.delay import DelayCalibrator
 from sed.calibrator.energy import EnergyCalibrator
 from sed.calibrator.momentum import MomentumCorrector
 from sed.config.settings import parse_config
@@ -65,7 +65,7 @@ class SedProcessor:
         self.mc = MomentumCorrector(
             config=self._config,
         )
-        self.dc = DelayyCalibrator(
+        self.dc = DelayCalibrator(
             config=self._config,
         )
         self.ml = MpesLoader(  # pylint: disable=invalid-name

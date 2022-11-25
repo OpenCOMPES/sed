@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 
 
-class DelayyCalibrator:
+class DelayCalibrator:
     """
     Pump-Probe delay calibration methods.
     """
