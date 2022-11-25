@@ -1,6 +1,7 @@
 """
 module sed.loader.mirrorutil, code for transparently mirroring file system trees to a
-second (local) location.
+second (local) location. This is speeds up binning of data stored on network drives
+tremendiously.
 Mostly ported from https://github.com/mpes-kit/mpes.
 @author: L. Rettig
 """
