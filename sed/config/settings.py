@@ -1,17 +1,20 @@
+"""This module contains a settings/config library for loading yaml/json files into
+dicts
+
+"""
 import json
 import os
+from importlib.util import find_spec
 from pathlib import Path
 from typing import Union
 
 import yaml
 
-import sed
-
-package_dir = os.path.dirname(sed.__file__)
+package_dir = os.path.dirname(find_spec("sed").origin)
 
 
 def parse_config(
-    config: Union[dict, str] = {},
+    config: Union[dict, str] = None,
     default_config: Union[
         dict,
         str,
@@ -20,9 +23,9 @@ def parse_config(
     """Handle config dictionary or files.
 
     Args:
-        config: config dictionary, file path or Path object.
+        config: config dictionary or file path.
                 Files can be json or yaml.
-        default_config: default config dictionary, file path Path object.
+        default_config: default config dictionary or file path.
                 The loaded dictionary is completed with the default values.
 
     Raises:
@@ -31,6 +34,9 @@ def parse_config(
     Returns:
         config_dict: loaded and possibly completed config dictionary.
     """
+
+    if config is None:
+        config = {}
 
     if isinstance(config, dict):
         config_dict = config
@@ -51,7 +57,7 @@ def load_config(config_path: str) -> dict:
     """Loads config parameter files.
 
     Args:
-        config_file: Path object to the config file. Json or Yaml format are supported.
+        config_path: Path to the config file. Json or Yaml format are supported.
 
     Raises:
         TypeError, FileNotFoundError
@@ -67,10 +73,10 @@ def load_config(config_path: str) -> dict:
         )
 
     if config_file.suffix == ".json":
-        with open(config_file) as stream:
+        with open(config_file, encoding="utf-8") as stream:
             config_dict = json.load(stream)
     elif config_file.suffix == ".yaml":
-        with open(config_file) as stream:
+        with open(config_file, encoding="utf-8") as stream:
             config_dict = yaml.safe_load(stream)
     else:
         raise TypeError("config file must be of type json or yaml!")

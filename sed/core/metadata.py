@@ -1,8 +1,13 @@
+"""This is a metadata handler class from the sed package
+
+"""
 from typing import Any
 from typing import Dict
 
 
 class MetaHandler:
+    """[summary]"""
+
     def __init__(self, meta: Dict = None) -> None:
         self._m = meta if meta is not None else {}
 
@@ -13,7 +18,7 @@ class MetaHandler:
         # TODO: #35 add pretty print, possibly to HTML
         return str(self._m)
 
-    def add(self, v: Dict, duplicate: bool = "raise") -> None:
+    def add(self, v: Dict, duplicate: str = "raise") -> None:
         """Add an entry to the metadata container
 
         Args:
@@ -36,10 +41,10 @@ class MetaHandler:
                 f"an entry {v['name']} already exists in metadata",
             )
         elif duplicate == "append":
-            n = 0
+            i = 0
             while True:
-                n += 1
-                newname = f"name_{n}"
+                i += 1
+                newname = f"name_{i}"
                 if newname not in self._m.keys():
                     break
             self._m[newname] = v
@@ -47,34 +52,83 @@ class MetaHandler:
         else:
             raise ValueError(
                 f"could not interpret duplication handling method {duplicate}"
-                f"Please choose between overwrite,append or rise.",
+                f"Please choose between overwrite,append or raise.",
             )
 
-    def addProcessing(self, method: str, **kwds: Any) -> None:
+    def add_processing(self, method: str, **kwds: Any) -> None:
+        """docstring
+
+        Args:
+
+        Returns:
+
+        """
         # TODO: #36 Add processing metadata validation tests
         self._m["processing"][method] = kwds
 
     def from_nexus(self, val: Any) -> None:
+        """docstring
+
+        Args:
+
+        Returns:
+
+        """
         raise NotImplementedError()
 
     def to_nexus(self, val: Any) -> None:
+        """docstring
+
+        Args:
+
+        Returns:
+
+        """
         raise NotImplementedError()
 
     def from_json(self, val: Any) -> None:
+        """docstring
+
+        Args:
+
+        Returns:
+
+        """
         raise NotImplementedError()
 
     def to_json(self, val: Any) -> None:
+        """docstring
+
+        Args:
+
+        Returns:
+
+        """
         raise NotImplementedError()
 
     def from_dict(self, val: Any) -> None:
+        """docstring
+
+        Args:
+
+        Returns:
+
+        """
         raise NotImplementedError()
 
     def to_dict(self, val: Any) -> None:
+        """docstring
+
+        Args:
+
+        Returns:
+
+        """
         raise NotImplementedError()
 
 
 class DuplicateEntryError(Exception):
-    pass
+    """[summary]"""
 
 
 if __name__ == "__main__":

@@ -1,3 +1,6 @@
+"""This module contains hdf5 file input/output functions for the sed.io module
+
+"""
 from typing import Union
 
 import h5py
@@ -19,7 +22,16 @@ def recursive_write_metadata(h5group: h5py.Group, node: dict):
     for key, item in node.items():
         if isinstance(
             item,
-            (np.ndarray, np.int64, np.float64, str, bytes, int, float, list),
+            (
+                np.ndarray,
+                np.int64,
+                np.float64,
+                str,
+                bytes,
+                int,
+                float,
+                list,
+            ),
         ):
             try:
                 h5group.create_dataset(key, data=item)
@@ -27,7 +39,6 @@ def recursive_write_metadata(h5group: h5py.Group, node: dict):
                 h5group.create_dataset(key, data=str(item))
                 print(f"Saved {key} as string.")
         elif isinstance(item, dict):
-            print(key)
             group = h5group.create_group(key)
             recursive_write_metadata(group, item)
         else:
@@ -133,7 +144,7 @@ def load_h5(faddr: str, mode: str = "r") -> xr.DataArray:
     with h5py.File(faddr, mode) as h5_file:
         # Reading data array
         try:
-            data = h5_file["binned"]["BinnedData"]
+            data = np.asarray(h5_file["binned"]["BinnedData"])
         except KeyError as exc:
             raise Exception(
                 "Wrong Data Format, the BinnedData were not found. "
@@ -165,9 +176,9 @@ def load_h5(faddr: str, mode: str = "r") -> xr.DataArray:
         xarray = xr.DataArray(data, dims=bin_names, coords=coords)
 
         try:
-            for axis in bin_axes:
+            for axis in range(len(bin_axes)):
                 xarray[bin_names[axis]].attrs["unit"] = h5_file["axes"][
-                    axis
+                    f"ax{axis}"
                 ].attrs["unit"]
             xarray.attrs["units"] = h5_file["binned"]["BinnedData"].attrs[
                 "units"

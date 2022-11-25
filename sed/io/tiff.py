@@ -1,8 +1,8 @@
+"""This module contains tiff file input/output functions for the sed.io module
+
+"""
 from pathlib import Path
-from typing import Any
-from typing import Mapping
 from typing import Sequence
-from typing import Tuple
 from typing import Union
 
 import numpy as np
@@ -64,6 +64,7 @@ def to_tiff(
         TypeError: if data is not a np.ndarray or an xarray.DataArray
     """
 
+    out: Union[np.ndarray, xr.DataArray] = None
     if isinstance(data, np.ndarray):
         # TODO: add sorting by dictionary keys
         dim_expansions = {2: [0, 1, 2, 5], 3: [0, 2, 5], 4: [2, 5]}
@@ -74,15 +75,15 @@ def to_tiff(
         }
         try:
             out = np.expand_dims(data, dim_expansions[data.ndim])
-        except KeyError:
+        except KeyError as exc:
             raise NotImplementedError(
                 f"Only 2-3-4D arrays supported when data is a {type(data)}",
-            )
+            ) from exc
 
         dims_order = dims[data.ndim]
 
     elif isinstance(data, xr.DataArray):
-        dims_order = _fill_missing_dims(data.dims, alias_dict=alias_dict)
+        dims_order = _fill_missing_dims(list(data.dims), alias_dict=alias_dict)
         out = data.expand_dims(
             {dim: 1 for dim in dims_order if dim not in data.dims},
         )
@@ -127,7 +128,7 @@ def _fill_missing_dims(dims: list, alias_dict: dict = None) -> list:
     Returns:
         _description_
     """
-    order = []
+    order: list = []
     # overwrite the default values with the provided dict
     if alias_dict is None:
         alias_dict = {}
@@ -163,7 +164,7 @@ def _fill_missing_dims(dims: list, alias_dict: dict = None) -> list:
 
 def load_tiff(
     faddr: Union[str, Path],
-    coords: Union[Sequence[Tuple[Any, ...]], Mapping[Any, Any], None] = None,
+    coords: dict = None,
     dims: Sequence = None,
     attrs: dict = None,
 ) -> xr.DataArray:

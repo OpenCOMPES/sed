@@ -1,3 +1,5 @@
+"""This file contains helper functions used in other tests.
+"""
 import numpy as np
 import xarray as xr
 
