@@ -237,12 +237,24 @@ def get_attribute(h5group: h5py.Group, attribute: str) -> str:
 
 
 def parse_metadata(files: Sequence[str]) -> dict:
+    """_summary_
+
+    Args:
+        files (Sequence[str]): _description_
+
+    Returns:
+        dict: _description_
+    """
     return {}
 
 
 class MpesLoader(BaseLoader):  # pylint: disable=too-few-public-methods
     """Mpes implementation of the Loader. Reads from h5 files or folders of the
     SPECS Metis 1000 (FHI Berlin)"""
+
+    __name__ = "mpes"
+
+    supported_file_types = ["h5"]
 
     def __init__(
         self,
@@ -265,7 +277,7 @@ class MpesLoader(BaseLoader):  # pylint: disable=too-few-public-methods
         self,
         files: Sequence[str] = None,
         folder: str = None,
-        extension: str = "h5",
+        ftype: str = "h5",
         time_stamps: bool = False,
         **kwds,
     ) -> Tuple[ddf.DataFrame, dict]:
@@ -294,7 +306,7 @@ class MpesLoader(BaseLoader):  # pylint: disable=too-few-public-methods
             folder = os.path.realpath(folder)
             files = gather_files(
                 folder=folder,
-                extension=extension,
+                extension=ftype,
                 file_sorting=True,
                 **kwds,
             )
@@ -352,7 +364,7 @@ class MpesLoader(BaseLoader):  # pylint: disable=too-few-public-methods
         )
         metadata = parse_metadata(files=files)
 
-        return (df, metadata)
+        return df, metadata
 
 
 LOADER = MpesLoader

@@ -219,7 +219,7 @@ class EnergyCalibrator:
             if bias_key is None:
                 bias_key = self._config.get("energy", {}).get("bias_key", "")
 
-        dataframe = self.loader.read_dataframe(files=data_files)
+        dataframe, _ = self.loader.read_dataframe(files=data_files)
         traces = bin_dataframe(
             dataframe,
             bins=bins,

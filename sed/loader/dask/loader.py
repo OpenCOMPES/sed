@@ -17,6 +17,21 @@ class DaskLoader(BaseLoader):  # pylint: disable=too-few-public-methods
     """Dask implementation of the Loader. Reads from various file types using the
     utilities of Dask."""
 
+    __name__ = "dask"
+
+    supported_file_types = ["parquet", "csv", "json"]
+
+    def __init__(
+        self,
+        config: dict = None,
+    ):
+        if config is None:
+            config = {}
+
+        self._config = config
+
+        self.files: List[str] = []
+
     def read_dataframe(
         self,
         files: List[str] = None,

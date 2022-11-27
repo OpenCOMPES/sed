@@ -20,6 +20,8 @@ class BaseLoader(ABC):
 
     __name__ = "BaseLoader"
 
+    supported_file_types = []
+
     @abstractmethod
     def __init__(
         self,
@@ -36,11 +38,13 @@ class BaseLoader(ABC):
     def read_dataframe(
         self,
         files: Sequence[str] = None,
+        folder: str = None,
+        ftype: str = None,
         **kwds,
     ) -> Tuple[ddf.DataFrame, dict]:
         """Reads data from given files or folder and returns a dask dataframe,
         and a dictionary with metadata"""
-        return (ddf.DataFrame(), {})
+        return None, None
 
 
 LOADER = BaseLoader

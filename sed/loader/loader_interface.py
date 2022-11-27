@@ -8,8 +8,12 @@ from typing import List
 from sed.loader.base.loader import BaseLoader
 
 
-def get_loader(loader_name: str, config: dict) -> BaseLoader:
+def get_loader(loader_name: str, config: dict = None) -> BaseLoader:
     """Helper function to get the loader object from it's given name"""
+
+    if config is None:
+        config = {}
+
     path_prefix = (
         f"{os.path.dirname(__file__)}{os.sep}"
         if os.path.dirname(__file__)
