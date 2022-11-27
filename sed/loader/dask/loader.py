@@ -4,7 +4,10 @@ Mostly ported from https://github.com/mpes-kit/mpes.
 @author: L. Rettig
 """
 import os
+from typing import Any
+from typing import Dict
 from typing import List
+from typing import Sequence
 from typing import Tuple
 
 import dask.dataframe as ddf
@@ -34,7 +37,7 @@ class DaskLoader(BaseLoader):  # pylint: disable=too-few-public-methods
 
     def read_dataframe(
         self,
-        files: List[str] = None,
+        files: Sequence[str] = None,
         folder: str = None,
         ftype: str = "parquet",
         **kwds,
@@ -58,8 +61,8 @@ class DaskLoader(BaseLoader):  # pylint: disable=too-few-public-methods
             Dask dataframe read from specified files.
         """
 
-        metadata = {}
-
+        metadata: Dict[Any, Any] = {}
+        # pylint: disable=duplicate-code
         if folder is not None:
             folder = os.path.realpath(folder)
             files = gather_files(

@@ -134,7 +134,7 @@ def get_groups_and_aliases(
 
 def hdf5_to_array(
     h5file: h5py.File,
-    group_names: List[str],
+    group_names: Sequence[str],
     data_type: str = "float32",
     time_stamps=False,
     ms_markers_group: str = "msMarkers",
@@ -236,8 +236,10 @@ def get_attribute(h5group: h5py.Group, attribute: str) -> str:
     return content
 
 
-def parse_metadata(files: Sequence[str]) -> dict:
-    """_summary_
+def parse_metadata(
+    files: Sequence[str],  # pylint: disable=unused-argument
+) -> dict:
+    """Dummy
 
     Args:
         files (Sequence[str]): _description_
@@ -271,7 +273,7 @@ class MpesLoader(BaseLoader):  # pylint: disable=too-few-public-methods
             False,
         )
 
-        self.files: Sequence[str] = []
+        self.files: List[str] = []
 
     def read_dataframe(
         self,
@@ -301,7 +303,7 @@ class MpesLoader(BaseLoader):  # pylint: disable=too-few-public-methods
         **Return**\n
             Dask dataframe read from specified files.
         """
-
+        # pylint: disable=duplicate-code
         if folder is not None:
             folder = os.path.realpath(folder)
             files = gather_files(

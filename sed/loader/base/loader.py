@@ -20,7 +20,7 @@ class BaseLoader(ABC):
 
     __name__ = "BaseLoader"
 
-    supported_file_types = []
+    supported_file_types: List[str] = []
 
     @abstractmethod
     def __init__(

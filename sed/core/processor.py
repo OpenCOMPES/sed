@@ -223,19 +223,23 @@ class SedProcessor:
         if dataframe is not None:
             self._dataframe = dataframe
         elif folder is not None:
+            # pylint: disable=unused-variable
             dataframe, metadata = self.loader.read_dataframe(
                 folder=cast(str, self.cpy(folder)),
                 **kwds,
             )
             self._dataframe = dataframe
+            # TODO: Implement metadata treatment
             # self._attributes.add(metadata)
             self._files = self.loader.files
         elif files is not None:
+            # pylint: disable=unused-variable
             dataframe, metadata = self.loader.read_dataframe(
                 files=cast(List[str], self.cpy(files)),
                 **kwds,
             )
             self._dataframe = dataframe
+            # TODO: Implement metadata treatment
             # self._attributes.add(metadata)
             self._files = self.loader.files
         else:
