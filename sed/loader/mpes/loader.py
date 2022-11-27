@@ -5,10 +5,9 @@ Mostly ported from https://github.com/mpes-kit/mpes.
 """
 import datetime
 import os
-from glob import glob
-from typing import cast
 from typing import Dict
 from typing import List
+from typing import Sequence
 from typing import Tuple
 
 import dask
@@ -16,186 +15,14 @@ import dask.array as da
 import dask.dataframe as ddf
 import h5py
 import numpy as np
-from natsort import natsorted
 
-from sed.core.metadata import MetaHandler
-
-
-class MpesLoader:  # pylint: disable=too-few-public-methods
-    """MpesLoader class, holding configuation and parameters for the file loader."""
-
-    def __init__(
-        self,
-        metadata: dict = None,
-        config: dict = None,
-    ):
-
-        if config is None:
-            config = {}
-
-        self._config = config
-
-        if metadata is None:
-            metadata = {}
-
-        self._attributes = MetaHandler(meta=metadata)
-        self.read_timestamps = self._config.get("dataframe", {}).get(
-            "read_timestamps",
-            False,
-        )
-
-        self.files: List[str] = []
-
-    def read_dataframe(
-        self,
-        files: List[str] = None,
-        folder: str = None,
-        ftype: str = "h5",
-        time_stamps: bool = False,
-        **kwds,
-    ) -> ddf.DataFrame:
-        """Read stored files from a folder into a dataframe.
-
-        Parameters:
-        folder, files: str, list/tuple | None, None
-            Folder path of the files or a list of file paths. The folder path has
-            the priority such that if it's specified, the specified files will
-            be ignored.
-        ftype: str | 'h5'
-            File type to read ('h5' or 'hdf5', 'parquet', 'json', 'csv', etc).
-            If a folder path is given, all files of the specified type are read
-            into the dataframe in the reading order.
-        time_stamps: bool | False
-            Option to create a time_stamp column in the dataframe from ms-Markers
-            in the files.
-        **kwds: keyword arguments
-            See the keyword arguments for the specific file parser in
-            ``dask.dataframe`` module.
-
-        **Return**\n
-            Dask dataframe read from specified files.
-        """
-
-        if folder is not None:
-            folder = os.path.realpath(folder)
-            files = gather_files(
-                folder=folder,
-                extension=ftype,
-                file_sorting=True,
-                **kwds,
-            )
-
-        elif folder is None:
-            if files is None:
-                raise ValueError(
-                    "Either the folder or file path should be provided!",
-                )
-            files = [os.path.realpath(file) for file in files]
-
-        self.files = files
-
-        if not files:
-            raise FileNotFoundError("No valid files found!")
-
-        if ftype == "parquet":
-            return ddf.read_parquet(files, **kwds)
-
-        if ftype in ("h5", "hdf5"):
-            hdf5_groupnames = kwds.pop(
-                "hdf5_groupnames",
-                self._config.get("dataframe", {}).get("hdf5_groupnames", []),
-            )
-            hdf5_aliases = kwds.pop(
-                "hdf5_aliases",
-                self._config.get("dataframe", {}).get("hdf5_aliases", {}),
-            )
-            time_stamp_alias = kwds.pop(
-                "time_stamp_alias",
-                self._config.get("dataframe", {}).get(
-                    "time_stamp_alias",
-                    "timeStamps",
-                ),
-            )
-            ms_markers_group = kwds.pop(
-                "ms_markers_group",
-                self._config.get("dataframe", {}).get(
-                    "ms_markers_group",
-                    "msMarkers",
-                ),
-            )
-            first_event_time_stamp_key = kwds.pop(
-                "first_event_time_stamp_key",
-                self._config.get("dataframe", {}).get(
-                    "first_event_time_stamp_key",
-                    "FirstEventTimeStamp",
-                ),
-            )
-            return hdf5_to_dataframe(
-                files=files,
-                group_names=hdf5_groupnames,
-                alias_dict=hdf5_aliases,
-                time_stamps=time_stamps,
-                time_stamp_alias=time_stamp_alias,
-                ms_markers_group=ms_markers_group,
-                first_event_time_stamp_key=first_event_time_stamp_key,
-                **kwds,
-            )
-
-        if ftype == "json":
-            return ddf.read_json(files, **kwds)
-
-        if ftype == "csv":
-            return ddf.read_csv(files, **kwds)
-
-        try:
-            return ddf.read_table(files, **kwds)
-        except (TypeError, ValueError, NotImplementedError) as exc:
-            raise Exception(
-                "The file format cannot be understood!",
-            ) from exc
-
-
-def gather_files(
-    folder: str,
-    extension: str = "h5",
-    f_start: int = None,
-    f_end: int = None,
-    f_step: int = 1,
-    file_sorting: bool = True,
-) -> List[str]:
-    """
-    Collects and sorts files with specified extension from a given folder.
-
-    Parameters:
-        folder: str
-            The folder to search
-        extension: str | r'/*.h5'
-            File extension used for glob.glob().
-        f_start, f_end, f_step: int, int, int | None, None, 1
-            Starting, ending file id and the step. Used to construct a file selector.
-        file_sorting: bool | True
-            Option to sort the files by their names.
-    """
-
-    try:
-        files = glob(folder + "/*." + extension)
-
-        if file_sorting:
-            files = cast(List[str], natsorted(files))
-
-        if f_start is not None and f_end is not None:
-            files = files[slice(f_start, f_end, f_step)]
-
-    except FileNotFoundError:
-        print("No legitimate folder address is specified for file retrieval!")
-        raise
-
-    return files
+from sed.loader.base.loader import BaseLoader
+from sed.loader.utils import gather_files
 
 
 def hdf5_to_dataframe(
-    files: List[str],
-    group_names: List[str] = None,
+    files: Sequence[str],
+    group_names: Sequence[str] = None,
     alias_dict: Dict[str, str] = None,
     time_stamps: bool = False,
     time_stamp_alias: str = "timeStamps",
@@ -407,3 +234,125 @@ def get_attribute(h5group: h5py.Group, attribute: str) -> str:
         raise KeyError(f"Attribute '{attribute}' not found!") from exc
 
     return content
+
+
+def parse_metadata(files: Sequence[str]) -> dict:
+    return {}
+
+
+class MpesLoader(BaseLoader):  # pylint: disable=too-few-public-methods
+    """Mpes implementation of the Loader. Reads from h5 files or folders of the
+    SPECS Metis 1000 (FHI Berlin)"""
+
+    def __init__(
+        self,
+        config: dict = None,
+    ):
+
+        if config is None:
+            config = {}
+
+        self._config = config
+
+        self.read_timestamps = self._config.get("dataframe", {}).get(
+            "read_timestamps",
+            False,
+        )
+
+        self.files: Sequence[str] = []
+
+    def read_dataframe(
+        self,
+        files: Sequence[str] = None,
+        folder: str = None,
+        extension: str = "h5",
+        time_stamps: bool = False,
+        **kwds,
+    ) -> Tuple[ddf.DataFrame, dict]:
+        """Read stored hdf5 files from a list or from folder into a dataframe.
+
+        Parameters:
+        folder, files: str, list/tuple | None, None
+            Folder path of the files or a list of file paths. The folder path has
+            the priority such that if it's specified, the specified files will
+            be ignored.
+        extension: str | 'h5'
+            File extension to use.
+            If a folder path is given, all files with the specified extension are read
+            into the dataframe in the reading order.
+        time_stamps: bool | False
+            Option to create a time_stamp column in the dataframe from ms-Markers
+            in the files.
+
+        **kwds: Keyword parameters for gather_files.
+
+        **Return**\n
+            Dask dataframe read from specified files.
+        """
+
+        if folder is not None:
+            folder = os.path.realpath(folder)
+            files = gather_files(
+                folder=folder,
+                extension=extension,
+                file_sorting=True,
+                **kwds,
+            )
+
+        elif folder is None:
+            if files is None:
+                raise ValueError(
+                    "Either the folder or file path should be provided!",
+                )
+            files = [os.path.realpath(file) for file in files]
+
+        self.files = files
+
+        if not files:
+            raise FileNotFoundError("No valid files found!")
+
+        hdf5_groupnames = kwds.pop(
+            "hdf5_groupnames",
+            self._config.get("dataframe", {}).get("hdf5_groupnames", []),
+        )
+        hdf5_aliases = kwds.pop(
+            "hdf5_aliases",
+            self._config.get("dataframe", {}).get("hdf5_aliases", {}),
+        )
+        time_stamp_alias = kwds.pop(
+            "time_stamp_alias",
+            self._config.get("dataframe", {}).get(
+                "time_stamp_alias",
+                "timeStamps",
+            ),
+        )
+        ms_markers_group = kwds.pop(
+            "ms_markers_group",
+            self._config.get("dataframe", {}).get(
+                "ms_markers_group",
+                "msMarkers",
+            ),
+        )
+        first_event_time_stamp_key = kwds.pop(
+            "first_event_time_stamp_key",
+            self._config.get("dataframe", {}).get(
+                "first_event_time_stamp_key",
+                "FirstEventTimeStamp",
+            ),
+        )
+        df = hdf5_to_dataframe(
+            files=files,
+            group_names=hdf5_groupnames,
+            alias_dict=hdf5_aliases,
+            time_stamps=time_stamps,
+            time_stamp_alias=time_stamp_alias,
+            ms_markers_group=ms_markers_group,
+            first_event_time_stamp_key=first_event_time_stamp_key,
+            **kwds,
+        )
+        metadata = parse_metadata(files=files)
+
+        return (df, metadata)
+
+
+LOADER = MpesLoader

@@ -38,7 +38,7 @@ from scipy.sparse.linalg import lsqr
 from silx.io import dictdump
 
 from sed.binning import bin_dataframe
-from sed.loader.mpes import MpesLoader
+from sed.loader.base.loader import BaseLoader
 
 
 class EnergyCalibrator:
@@ -48,6 +48,7 @@ class EnergyCalibrator:
 
     def __init__(
         self,
+        loader: BaseLoader,
         biases: np.ndarray = None,
         traces: np.ndarray = None,
         tof: np.ndarray = None,
@@ -63,6 +64,7 @@ class EnergyCalibrator:
         using the bin_data method.
         """
 
+        self.loader = loader
         self.biases: np.ndarray = None
         self.traces: np.ndarray = None
         self.traces_normed: np.ndarray = None
@@ -217,8 +219,7 @@ class EnergyCalibrator:
             if bias_key is None:
                 bias_key = self._config.get("energy", {}).get("bias_key", "")
 
-        loader = MpesLoader(config=self._config)
-        dataframe = loader.read_dataframe(files=data_files)
+        dataframe = self.loader.read_dataframe(files=data_files)
         traces = bin_dataframe(
             dataframe,
             bins=bins,

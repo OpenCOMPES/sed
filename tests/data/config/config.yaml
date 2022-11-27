@@ -1,4 +1,5 @@
 core:
+  loader: mpes
   use_copy_tool: False
   copy_tool_source: "/path/to/data/"
   copy_tool_dest: "/path/to//localDataStore/"
