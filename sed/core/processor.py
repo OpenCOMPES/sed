@@ -24,7 +24,7 @@ from sed.config.settings import parse_config
 from sed.core.dfops import apply_jitter
 from sed.core.metadata import MetaHandler
 from sed.diagnostics import grid_histogram
-from sed.loader.loaderInterface import get_loader
+from sed.loader.loader_interface import get_loader
 from sed.loader.mirrorutil import CopyTool
 
 N_CPU = psutil.cpu_count()
