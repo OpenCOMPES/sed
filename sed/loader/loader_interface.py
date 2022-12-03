@@ -5,14 +5,22 @@ import importlib.util
 import os
 from typing import List
 
+from sed.core.metadata import MetaHandler
 from sed.loader.base.loader import BaseLoader
 
 
-def get_loader(loader_name: str, config: dict = None) -> BaseLoader:
+def get_loader(
+    loader_name: str,
+    config: dict = None,
+    meta_handler: MetaHandler = None,
+) -> BaseLoader:
     """Helper function to get the loader object from it's given name"""
 
     if config is None:
         config = {}
+
+    if meta_handler is None:
+        meta_handler = MetaHandler()
 
     path_prefix = (
         f"{os.path.dirname(__file__)}{os.sep}"
@@ -29,8 +37,8 @@ def get_loader(loader_name: str, config: dict = None) -> BaseLoader:
 
     spec = importlib.util.spec_from_file_location("loader.py", path)
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)  # type: ignore[attr-defined]
-    return module.LOADER(config=config)  # type: ignore[attr-defined]
+    spec.loader.exec_module(module)
+    return module.LOADER(config=config, meta_handler=meta_handler)
 
 
 def get_names_of_all_loaders() -> List[str]:

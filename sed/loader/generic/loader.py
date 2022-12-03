@@ -12,11 +12,12 @@ from typing import Tuple
 
 import dask.dataframe as ddf
 
+from sed.core.metadata import MetaHandler
 from sed.loader.base.loader import BaseLoader
 from sed.loader.utils import gather_files
 
 
-class GenericLoader(BaseLoader):  # pylint: disable=too-few-public-methods
+class GenericLoader(BaseLoader):
     """Dask implementation of the Loader. Reads from various file types using the
     utilities of Dask."""
 
@@ -27,11 +28,13 @@ class GenericLoader(BaseLoader):  # pylint: disable=too-few-public-methods
     def __init__(
         self,
         config: dict = None,
+        meta_handler: MetaHandler = None,
     ):
-        if config is None:
-            config = {}
+        self._config = config if config is not None else {}
 
-        self._config = config
+        self._meta_handler = (
+            meta_handler if meta_handler is not None else MetaHandler()
+        )
 
         self.files: List[str] = []
 

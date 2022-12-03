@@ -295,7 +295,7 @@ def get_elapsed_time(
     return secs
 
 
-class MpesLoader(BaseLoader):  # pylint: disable=too-few-public-methods
+class MpesLoader(BaseLoader):
     """Mpes implementation of the Loader. Reads from h5 files or folders of the
     SPECS Metis 1000 (FHI Berlin)"""
 
@@ -305,19 +305,15 @@ class MpesLoader(BaseLoader):  # pylint: disable=too-few-public-methods
 
     def __init__(
         self,
-        metadata: dict = None,
         config: dict = None,
+        meta_handler: MetaHandler = None,
     ):
+        self._config = config if config is not None else {}
 
-        if config is None:
-            config = {}
+        self._meta_handler = (
+            meta_handler if meta_handler is not None else MetaHandler()
+        )
 
-        self._config = config
-
-        if metadata is None:
-            metadata = {}
-
-        self._attributes = MetaHandler(meta=metadata)
         self.read_timestamps = self._config.get("dataframe", {}).get(
             "read_timestamps",
             False,

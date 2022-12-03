@@ -7,6 +7,8 @@ from typing import Tuple
 
 import dask.dataframe as ddf
 
+from sed.core.metadata import MetaHandler
+
 
 class BaseLoader(ABC):
     """
@@ -26,11 +28,13 @@ class BaseLoader(ABC):
     def __init__(
         self,
         config: dict = None,
+        meta_handler: MetaHandler = None,
     ):
-        if config is None:
-            config = {}
+        self._config = config if config is not None else {}
 
-        self._config = config
+        self._meta_handler = (
+            meta_handler if meta_handler is not None else MetaHandler()
+        )
 
         self.files: List[str] = []
 
