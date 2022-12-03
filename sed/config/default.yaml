@@ -1,3 +1,6 @@
+core:
+  loader: dask
+
 binning:
   hist_mode: "numba"
   mode: fast

@@ -24,8 +24,8 @@ from sed.config.settings import parse_config
 from sed.core.dfops import apply_jitter
 from sed.core.metadata import MetaHandler
 from sed.diagnostics import grid_histogram
+from sed.loader.loader_interface import get_loader
 from sed.loader.mirrorutil import CopyTool
-from sed.loader.mpes import MpesLoader
 
 N_CPU = psutil.cpu_count()
 
@@ -59,16 +59,23 @@ class SedProcessor:
         self._coordinates: Dict[Any, Any] = {}
         self.axis: Dict[Any, Any] = {}
         self._attributes = MetaHandler(meta=metadata)
-        self.ec = EnergyCalibrator(
+
+        loader_name = self._config["core"]["loader"]
+        self.loader = get_loader(
+            loader_name=loader_name,
             config=self._config,
         )
+
+        self.ec = EnergyCalibrator(
+            loader=self.loader,
+            config=self._config,
+        )
+
         self.mc = MomentumCorrector(
             config=self._config,
         )
+
         self.dc = DelayCalibrator(
-            config=self._config,
-        )
-        self.ml = MpesLoader(  # pylint: disable=invalid-name
             config=self._config,
         )
 
@@ -216,17 +223,25 @@ class SedProcessor:
         if dataframe is not None:
             self._dataframe = dataframe
         elif folder is not None:
-            self._dataframe = self.ml.read_dataframe(
+            # pylint: disable=unused-variable
+            dataframe, metadata = self.loader.read_dataframe(
                 folder=cast(str, self.cpy(folder)),
                 **kwds,
             )
-            self._files = self.ml.files
+            self._dataframe = dataframe
+            # TODO: Implement metadata treatment
+            # self._attributes.add(metadata)
+            self._files = self.loader.files
         elif files is not None:
-            self._dataframe = self.ml.read_dataframe(
+            # pylint: disable=unused-variable
+            dataframe, metadata = self.loader.read_dataframe(
                 files=cast(List[str], self.cpy(files)),
                 **kwds,
             )
-            self._files = self.ml.files
+            self._dataframe = dataframe
+            # TODO: Implement metadata treatment
+            # self._attributes.add(metadata)
+            self._files = self.loader.files
         else:
             raise ValueError(
                 "Either 'dataframe', 'files' or 'folder' needs to be privided!",
