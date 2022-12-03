@@ -16,7 +16,7 @@ from sed.loader.base.loader import BaseLoader
 from sed.loader.utils import gather_files
 
 
-class DaskLoader(BaseLoader):  # pylint: disable=too-few-public-methods
+class GenericLoader(BaseLoader):  # pylint: disable=too-few-public-methods
     """Dask implementation of the Loader. Reads from various file types using the
     utilities of Dask."""
 
@@ -101,4 +101,4 @@ class DaskLoader(BaseLoader):  # pylint: disable=too-few-public-methods
             ) from exc
 
 
-LOADER = DaskLoader
+LOADER = GenericLoader
