@@ -13,10 +13,10 @@ import xarray as xr
 
 from sed.calibrator.energy import EnergyCalibrator
 from sed.config.settings import parse_config
-from sed.loader.mpes import MpesLoader
+from sed.loader.loader_interface import get_loader
 
 package_dir = os.path.dirname(find_spec("sed").origin)
-df_folder = package_dir + "/../tests/data/loader/"
+df_folder = package_dir + "/../tests/data/loader/mpes/"
 folder = package_dir + "/../tests/data/calibrator/"
 files = glob.glob(df_folder + "*.h5")
 config = parse_config(package_dir + "/../tests/data/config/config.yaml")
@@ -37,7 +37,10 @@ with open(folder + "biases.csv", newline="", encoding="utf-8") as csvfile:
 
 def test_bin_data_and_read_biases_from_files():
     """Test binning the data and extracting the bias values from the files"""
-    ec = EnergyCalibrator(config=config)
+    ec = EnergyCalibrator(
+        config=config,
+        loader=get_loader("mpes", config=config),
+    )
     ec.bin_data(data_files=files)
     assert ec.traces.ndim == 2
     assert ec.traces.shape == (2, 1000)
@@ -48,7 +51,10 @@ def test_bin_data_and_read_biases_from_files():
 
 def test_energy_calibrator_from_arrays_norm():
     """Test loading the energy, bias and tof traces into the class"""
-    ec = EnergyCalibrator(config=config)
+    ec = EnergyCalibrator(
+        config=config,
+        loader=get_loader("mpes", config=config),
+    )
     ec.load_data(biases=biases, traces=traces, tof=tof)
     assert len(ec.biases) == 11
     assert ec.traces.shape == (11, 1000)
@@ -68,7 +74,10 @@ def test_feature_extract():
         64500 + (tof[1] - tof[0]) * rand[ref_id],
         65300 + (tof[1] - tof[0]) * rand[ref_id],
     )
-    ec = EnergyCalibrator(config=config)
+    ec = EnergyCalibrator(
+        config=config,
+        loader=get_loader("mpes", config=config),
+    )
     ec.load_data(biases=biases, traces=traces_rand, tof=tof)
     ec.add_features(ranges=rng, ref_id=ref_id)
     for pos, feat_rng in zip(rand, ec.featranges):
@@ -97,8 +106,9 @@ def test_calibrate_append(energy_scale: str, calibration_method: str):
         energy_scale (str): tpye of energy scaling
         calibration_method (str): method used for ralibration
     """
-    df = MpesLoader(config=config).read_dataframe(folder=df_folder)
-    ec = EnergyCalibrator(config=config)
+    loader = get_loader(loader_name="mpes", config=config)
+    df, _ = loader.read_dataframe(folder=df_folder)
+    ec = EnergyCalibrator(config=config, loader=loader)
     ec.load_data(biases=biases, traces=traces, tof=tof)
     ec.normalize()
     rng = (66100, 67000)
@@ -173,7 +183,10 @@ def test_energy_correction(correction_type: str, correction_kwd: dict):
         correction_type (str): type of correction to test
         correction_kwd (dict): parameters to pass to the function
     """
-    ec = EnergyCalibrator(config=config)
+    ec = EnergyCalibrator(
+        config=config,
+        loader=get_loader("mpes", config=config),
+    )
     ec.adjust_energy_correction(
         image=image,
         correction_type=correction_type,

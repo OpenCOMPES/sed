@@ -11,11 +11,11 @@ import pytest
 from sed.calibrator.momentum import MomentumCorrector
 from sed.config.settings import parse_config
 from sed.core import SedProcessor
-from sed.loader.mpes import MpesLoader
+from sed.loader.loader_interface import get_loader
 
 # pylint: disable=duplicate-code
 package_dir = os.path.dirname(find_spec("sed").origin)
-df_folder = package_dir + "/../tests/data/loader/"
+df_folder = package_dir + "/../tests/data/loader/mpes/"
 folder = package_dir + "/../tests/data/calibrator/"
 files = glob.glob(df_folder + "*.h5")
 config = parse_config(package_dir + "/../tests/data/config/config.yaml")
@@ -104,7 +104,9 @@ def test_pose_correction():
 
 def test_apply_correction():
     """Test the application of the distortion correction to the dataframe."""
-    df = MpesLoader(config=config).read_dataframe(folder=df_folder)
+    df, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
+        folder=df_folder,
+    )
     mc = MomentumCorrector(config=config)
     mc.load_data(
         data=momentum_map,
@@ -133,7 +135,9 @@ def test_momentum_calibration_equiscale():
     """Test the calibration using one point and the k-distance,
     and application to the dataframe.
     """
-    df = MpesLoader(config=config).read_dataframe(folder=df_folder)
+    df, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
+        folder=df_folder,
+    )
     mc = MomentumCorrector(config=config)
     mc.load_data(data=momentum_map, bin_ranges=[(-256, 1792), (-256, 1792)])
     point_a = [308, 345]
@@ -153,7 +157,9 @@ def test_momentum_calibration_equiscale():
 
 def test_momentum_calibration_two_points():
     """Test the calibration using two k-points, and application to the dataframe."""
-    df = MpesLoader(config=config).read_dataframe(folder=df_folder)
+    df, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
+        folder=df_folder,
+    )
     mc = MomentumCorrector(config=config)
     mc.load_data(data=momentum_map, bin_ranges=[(-256, 1792), (-256, 1792)])
     point_a = [360, 256]
