@@ -23,210 +23,6 @@ from natsort import natsorted
 from sed.core.metadata import MetaHandler
 
 
-class MpesLoader:  # pylint: disable=too-few-public-methods
-    """MpesLoader class, holding configuation and parameters for the file loader."""
-
-    def __init__(
-        self,
-        metadata: dict = None,
-        config: dict = None,
-    ):
-
-        if config is None:
-            config = {}
-
-        self._config = config
-
-        if metadata is None:
-            metadata = {}
-
-        self._attributes = MetaHandler(meta=metadata)
-        self.read_timestamps = self._config.get("dataframe", {}).get(
-            "read_timestamps",
-            False,
-        )
-
-        self.files: List[str] = []
-
-    def read_dataframe(
-        self,
-        files: List[str] = None,
-        folder: str = None,
-        ftype: str = "h5",
-        time_stamps: bool = False,
-        **kwds,
-    ) -> ddf.DataFrame:
-        """Read stored files from a folder into a dataframe.
-
-        Parameters:
-        folder, files: str, list/tuple | None, None
-            Folder path of the files or a list of file paths. The folder path has
-            the priority such that if it's specified, the specified files will
-            be ignored.
-        ftype: str | 'h5'
-            File type to read ('h5' or 'hdf5', 'parquet', 'json', 'csv', etc).
-            If a folder path is given, all files of the specified type are read
-            into the dataframe in the reading order.
-        time_stamps: bool | False
-            Option to create a time_stamp column in the dataframe from ms-Markers
-            in the files.
-        **kwds: keyword arguments
-            See the keyword arguments for the specific file parser in
-            ``dask.dataframe`` module.
-
-        **Return**\n
-            Dask dataframe read from specified files.
-        """
-
-        if folder is not None:
-            folder = os.path.realpath(folder)
-            files = gather_files(
-                folder=folder,
-                extension=ftype,
-                file_sorting=True,
-                **kwds,
-            )
-
-        elif folder is None:
-            if files is None:
-                raise ValueError(
-                    "Either the folder or file path should be provided!",
-                )
-            files = [os.path.realpath(file) for file in files]
-
-        self.files = files
-
-        if not files:
-            raise FileNotFoundError("No valid files found!")
-
-        if ftype == "parquet":
-            return ddf.read_parquet(files, **kwds)
-
-        if ftype in ("h5", "hdf5"):
-            hdf5_groupnames = kwds.pop(
-                "hdf5_groupnames",
-                self._config.get("dataframe", {}).get("hdf5_groupnames", []),
-            )
-            hdf5_aliases = kwds.pop(
-                "hdf5_aliases",
-                self._config.get("dataframe", {}).get("hdf5_aliases", {}),
-            )
-            time_stamp_alias = kwds.pop(
-                "time_stamp_alias",
-                self._config.get("dataframe", {}).get(
-                    "time_stamp_alias",
-                    "timeStamps",
-                ),
-            )
-            ms_markers_group = kwds.pop(
-                "ms_markers_group",
-                self._config.get("dataframe", {}).get(
-                    "ms_markers_group",
-                    "msMarkers",
-                ),
-            )
-            first_event_time_stamp_key = kwds.pop(
-                "first_event_time_stamp_key",
-                self._config.get("dataframe", {}).get(
-                    "first_event_time_stamp_key",
-                    "FirstEventTimeStamp",
-                ),
-            )
-            return hdf5_to_dataframe(
-                files=files,
-                group_names=hdf5_groupnames,
-                alias_dict=hdf5_aliases,
-                time_stamps=time_stamps,
-                time_stamp_alias=time_stamp_alias,
-                ms_markers_group=ms_markers_group,
-                first_event_time_stamp_key=first_event_time_stamp_key,
-                **kwds,
-            )
-
-        if ftype == "json":
-            return ddf.read_json(files, **kwds)
-
-        if ftype == "csv":
-            return ddf.read_csv(files, **kwds)
-
-        try:
-            return ddf.read_table(files, **kwds)
-        except (TypeError, ValueError, NotImplementedError) as exc:
-            raise Exception(
-                "The file format cannot be understood!",
-            ) from exc
-
-    def get_count_rate(
-        self,
-        fids: Sequence[int] = None,
-        **kwds,
-    ) -> Tuple[np.ndarray, np.ndarray]:
-        """
-        Create count rate data for the files specified in ``fids``.
-
-        Parameters:
-            fids: the file ids to include. None | list of file ids.
-            kwds: Keyword arguments:
-                ms_markers_group: Name of the hdf5 group containing the ms-markers
-        """
-
-        if fids is None:
-            fids = range(0, len(self.files))
-
-        ms_markers_group = kwds.pop(
-            "ms_markers_group",
-            self._config.get("dataframe", {}).get(
-                "ms_markers_group",
-                "msMarkers",
-            ),
-        )
-
-        secs_list = []
-        count_rate_list = []
-        accumulated_time = 0
-        for fid in fids:
-            count_rate_, secs_ = get_count_rate(
-                h5py.File(self.files[fid]),
-                ms_markers_group=ms_markers_group,
-            )
-            secs_list.append((accumulated_time + secs_).T)
-            count_rate_list.append(count_rate_.T)
-            accumulated_time += secs_[-1]
-
-        count_rate = np.concatenate(count_rate_list)
-        secs = np.concatenate(secs_list)
-
-        return count_rate, secs
-
-    def get_elapsed_time(self, fids: Sequence[int] = None, **kwds):
-        """
-        Return the elapsed time in the file from the msMarkers wave.
-
-        **Return**\n
-            The length of the the file in seconds.
-        """
-
-        if fids is None:
-            fids = range(0, len(self.files))
-
-        ms_markers_group = kwds.pop(
-            "ms_markers_group",
-            self._config.get("dataframe", {}).get(
-                "ms_markers_group",
-                "msMarkers",
-            ),
-        )
-
-        secs = 0.0
-        for fid in fids:
-            secs += get_elapsed_time(
-                h5py.File(self.files[fid]),
-                ms_markers_group=ms_markers_group,
-            )
-
-        return secs
-
-
 def gather_files(
     folder: str,
     extension: str = "h5",
@@ -522,3 +318,207 @@ def get_elapsed_time(
     secs = h5file[ms_markers_group].len() / 1000
 
     return secs
+
+
+class MpesLoader:  # pylint: disable=too-few-public-methods
+    """MpesLoader class, holding configuation and parameters for the file loader."""
+
+    def __init__(
+        self,
+        metadata: dict = None,
+        config: dict = None,
+    ):
+
+        if config is None:
+            config = {}
+
+        self._config = config
+
+        if metadata is None:
+            metadata = {}
+
+        self._attributes = MetaHandler(meta=metadata)
+        self.read_timestamps = self._config.get("dataframe", {}).get(
+            "read_timestamps",
+            False,
+        )
+
+        self.files: List[str] = []
+
+    def read_dataframe(
+        self,
+        files: List[str] = None,
+        folder: str = None,
+        ftype: str = "h5",
+        time_stamps: bool = False,
+        **kwds,
+    ) -> ddf.DataFrame:
+        """Read stored files from a folder into a dataframe.
+
+        Parameters:
+        folder, files: str, list/tuple | None, None
+            Folder path of the files or a list of file paths. The folder path has
+            the priority such that if it's specified, the specified files will
+            be ignored.
+        ftype: str | 'h5'
+            File type to read ('h5' or 'hdf5', 'parquet', 'json', 'csv', etc).
+            If a folder path is given, all files of the specified type are read
+            into the dataframe in the reading order.
+        time_stamps: bool | False
+            Option to create a time_stamp column in the dataframe from ms-Markers
+            in the files.
+        **kwds: keyword arguments
+            See the keyword arguments for the specific file parser in
+            ``dask.dataframe`` module.
+
+        **Return**\n
+            Dask dataframe read from specified files.
+        """
+
+        if folder is not None:
+            folder = os.path.realpath(folder)
+            files = gather_files(
+                folder=folder,
+                extension=ftype,
+                file_sorting=True,
+                **kwds,
+            )
+
+        elif folder is None:
+            if files is None:
+                raise ValueError(
+                    "Either the folder or file path should be provided!",
+                )
+            files = [os.path.realpath(file) for file in files]
+
+        self.files = files
+
+        if not files:
+            raise FileNotFoundError("No valid files found!")
+
+        if ftype == "parquet":
+            return ddf.read_parquet(files, **kwds)
+
+        if ftype in ("h5", "hdf5"):
+            hdf5_groupnames = kwds.pop(
+                "hdf5_groupnames",
+                self._config.get("dataframe", {}).get("hdf5_groupnames", []),
+            )
+            hdf5_aliases = kwds.pop(
+                "hdf5_aliases",
+                self._config.get("dataframe", {}).get("hdf5_aliases", {}),
+            )
+            time_stamp_alias = kwds.pop(
+                "time_stamp_alias",
+                self._config.get("dataframe", {}).get(
+                    "time_stamp_alias",
+                    "timeStamps",
+                ),
+            )
+            ms_markers_group = kwds.pop(
+                "ms_markers_group",
+                self._config.get("dataframe", {}).get(
+                    "ms_markers_group",
+                    "msMarkers",
+                ),
+            )
+            first_event_time_stamp_key = kwds.pop(
+                "first_event_time_stamp_key",
+                self._config.get("dataframe", {}).get(
+                    "first_event_time_stamp_key",
+                    "FirstEventTimeStamp",
+                ),
+            )
+            return hdf5_to_dataframe(
+                files=files,
+                group_names=hdf5_groupnames,
+                alias_dict=hdf5_aliases,
+                time_stamps=time_stamps,
+                time_stamp_alias=time_stamp_alias,
+                ms_markers_group=ms_markers_group,
+                first_event_time_stamp_key=first_event_time_stamp_key,
+                **kwds,
+            )
+
+        if ftype == "json":
+            return ddf.read_json(files, **kwds)
+
+        if ftype == "csv":
+            return ddf.read_csv(files, **kwds)
+
+        try:
+            return ddf.read_table(files, **kwds)
+        except (TypeError, ValueError, NotImplementedError) as exc:
+            raise Exception(
+                "The file format cannot be understood!",
+            ) from exc
+
+    def get_count_rate(
+        self,
+        fids: Sequence[int] = None,
+        **kwds,
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Create count rate data for the files specified in ``fids``.
+
+        Parameters:
+            fids: the file ids to include. None | list of file ids.
+            kwds: Keyword arguments:
+                ms_markers_group: Name of the hdf5 group containing the ms-markers
+        """
+
+        if fids is None:
+            fids = range(0, len(self.files))
+
+        ms_markers_group = kwds.pop(
+            "ms_markers_group",
+            self._config.get("dataframe", {}).get(
+                "ms_markers_group",
+                "msMarkers",
+            ),
+        )
+
+        secs_list = []
+        count_rate_list = []
+        accumulated_time = 0
+        for fid in fids:
+            count_rate_, secs_ = get_count_rate(
+                h5py.File(self.files[fid]),
+                ms_markers_group=ms_markers_group,
+            )
+            secs_list.append((accumulated_time + secs_).T)
+            count_rate_list.append(count_rate_.T)
+            accumulated_time += secs_[-1]
+
+        count_rate = np.concatenate(count_rate_list)
+        secs = np.concatenate(secs_list)
+
+        return count_rate, secs
+
+    def get_elapsed_time(self, fids: Sequence[int] = None, **kwds):
+        """
+        Return the elapsed time in the file from the msMarkers wave.
+
+        **Return**\n
+            The length of the the file in seconds.
+        """
+
+        if fids is None:
+            fids = range(0, len(self.files))
+
+        ms_markers_group = kwds.pop(
+            "ms_markers_group",
+            self._config.get("dataframe", {}).get(
+                "ms_markers_group",
+                "msMarkers",
+            ),
+        )
+
+        secs = 0.0
+        for fid in fids:
+            secs += get_elapsed_time(
+                h5py.File(self.files[fid]),
+                ms_markers_group=ms_markers_group,
+            )
+
+        return secs
