@@ -308,11 +308,7 @@ class MpesLoader(BaseLoader):
         config: dict = None,
         meta_handler: MetaHandler = None,
     ):
-        self._config = config if config is not None else {}
-
-        self._meta_handler = (
-            meta_handler if meta_handler is not None else MetaHandler()
-        )
+        super().__init__(config=config, meta_handler=meta_handler)
 
         self.read_timestamps = self._config.get("dataframe", {}).get(
             "read_timestamps",
@@ -420,12 +416,16 @@ class MpesLoader(BaseLoader):
         **kwds,
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
-        Create count rate data for the files specified in ``fids``.
+        Create count rate data for the files specified in ``fids`` from the msMarkers.
 
         Parameters:
             fids: the file ids to include. None | list of file ids.
-            kwds: Keyword arguments:
+            kwds: Keyword arguments
                 ms_markers_group: Name of the hdf5 group containing the ms-markers
+
+        Return:
+            countrate, seconds: Arrays containing countrate and seconds
+            into the scan.
         """
 
         if fids is None:
@@ -456,12 +456,16 @@ class MpesLoader(BaseLoader):
 
         return count_rate, secs
 
-    def get_elapsed_time(self, fids: Sequence[int] = None, **kwds):
+    def get_elapsed_time(self, fids: Sequence[int] = None, **kwds) -> float:
         """
         Return the elapsed time in the file from the msMarkers wave.
 
-        **Return**\n
-            The length of the the file in seconds.
+        Parameters:
+            fids: the file ids to include. None | list of file ids.
+            kwds: Keyword arguments
+
+        Return:
+            The elapsed time in the files in seconds.
         """
 
         if fids is None:

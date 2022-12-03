@@ -6,6 +6,7 @@ from typing import Sequence
 from typing import Tuple
 
 import dask.dataframe as ddf
+import numpy as np
 
 from sed.core.metadata import MetaHandler
 
@@ -24,7 +25,6 @@ class BaseLoader(ABC):
 
     supported_file_types: List[str] = []
 
-    @abstractmethod
     def __init__(
         self,
         config: dict = None,
@@ -49,6 +49,39 @@ class BaseLoader(ABC):
         """Reads data from given files or folder and returns a dask dataframe,
         and a dictionary with metadata"""
         return None, None
+
+    @abstractmethod
+    def get_count_rate(
+        self,
+        fids: Sequence[int] = None,
+        **kwds,
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Create count rate data for the files specified in ``fids``.
+
+        Parameters:
+            fids: the file ids to include. None | list of file ids.
+            kwds: Keyword arguments
+
+        Return:
+            countrate, seconds: Arrays containing countrate and seconds
+            into the scan.
+        """
+        return None, None
+
+    @abstractmethod
+    def get_elapsed_time(self, fids: Sequence[int] = None, **kwds) -> float:
+        """
+        Return the elapsed time in the files.
+
+        Parameters:
+            fids: the file ids to include. None | list of file ids.
+            kwds: Keyword arguments
+
+        Return:
+            The elapsed time in the files in seconds.
+        """
+        return None
 
 
 LOADER = BaseLoader

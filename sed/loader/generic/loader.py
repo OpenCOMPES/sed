@@ -6,13 +6,12 @@ Mostly ported from https://github.com/mpes-kit/mpes.
 import os
 from typing import Any
 from typing import Dict
-from typing import List
 from typing import Sequence
 from typing import Tuple
 
 import dask.dataframe as ddf
+import numpy as np
 
-from sed.core.metadata import MetaHandler
 from sed.loader.base.loader import BaseLoader
 from sed.loader.utils import gather_files
 
@@ -24,19 +23,6 @@ class GenericLoader(BaseLoader):
     __name__ = "dask"
 
     supported_file_types = ["parquet", "csv", "json"]
-
-    def __init__(
-        self,
-        config: dict = None,
-        meta_handler: MetaHandler = None,
-    ):
-        self._config = config if config is not None else {}
-
-        self._meta_handler = (
-            meta_handler if meta_handler is not None else MetaHandler()
-        )
-
-        self.files: List[str] = []
 
     def read_dataframe(
         self,
@@ -102,6 +88,41 @@ class GenericLoader(BaseLoader):
             raise Exception(
                 "The file format cannot be understood!",
             ) from exc
+
+    def get_count_rate(  # Pylint: disable=unused_parameter
+        self,
+        fids: Sequence[int] = None,
+        **kwds,
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Create count rate data for the files specified in ``fids``.
+
+        Parameters:
+            fids: the file ids to include. None | list of file ids.
+            kwds: Keyword arguments
+
+        Return:
+            countrate, seconds: Arrays containing countrate and seconds
+            into the scan.
+        """
+        return None, None
+
+    def get_elapsed_time(  # Pylint: disable=unused_parameter
+        self,
+        fids: Sequence[int] = None,
+        **kwds,
+    ) -> float:
+        """
+        Return the elapsed time in the files.
+
+        Parameters:
+            fids: the file ids to include. None | list of file ids.
+            kwds: Keyword arguments
+
+        Return:
+            The elapsed time in the files in seconds.
+        """
+        return None
 
 
 LOADER = GenericLoader
