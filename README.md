@@ -30,8 +30,20 @@ python -m ipykernel install --user --name=sed_conda
   + poetry: https://python-poetry.org/docs/
   + pyenv: https://github.com/pyenv/pyenv
 
-- Clone this repository and check the python version within the `[tool.poetry.dependencies]` section of the `pyproject.toml` file
+- Clone this repository
+```
+git clone git@github.com:OpenCOMPES/sed.git
+git checkout flash
+```
+
+```
+curl -sSL https://install.python-poetry.org | python3 -
+```
+
+
+- check the python version within the `[tool.poetry.dependencies]` section of the `pyproject.toml` file
   + If your system is using a different Python version, use `pyenv` to create and activate a Python version compatible with the specifications from the `pyproject.toml`. See [pyenv basic usage](https://github.com/pyenv/pyenv)
+  
 - Create a virtual environment by typing:
 ```python
 poetry shell
