@@ -18,7 +18,7 @@ def plot_single_hist(
     edges: List[float],
     legend: str = None,
     **kwds: Any,
-) -> pbk.Figure:
+) -> pbk.figure:
     """Bokeh-based plotting of a single histogram with legend and tooltips.
 
     Args:
