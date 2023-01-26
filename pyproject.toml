@@ -24,6 +24,14 @@ Sphinx = {version = "^4.4.0", extras = ["docs"], optional = true}
 sphinx-rtd-theme = {version = "^1.0.0", extras = ["docs"], optional = true}
 tomlkit = {version = "^0.10.0", extras = ["docs"], optional = true}
 sphinx-autodoc-typehints = {version = "^1.17.0", extras = ["docs"], optional = true}
+bokeh = "^3.0.3"
+deepdish = "^0.3.7"
+fastdtw = "^0.3.4"
+lmfit = "^1.1.0"
+silx = "^1.1.2"
+symmetrize = "^0.5.5"
+natsort = "^8.2.0"
+p-tqdm = "^1.4.0"
 
 [tool.poetry.extras]
 notebook = ["jupyter", "ipykernel"]
