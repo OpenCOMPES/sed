@@ -36,6 +36,7 @@ git clone git@github.com:OpenCOMPES/sed.git
 git checkout flash
 ```
 
+- Install poetry
 ```
 curl -sSL https://install.python-poetry.org | python3 -
 ```
