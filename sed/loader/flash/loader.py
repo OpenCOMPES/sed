@@ -44,7 +44,7 @@ class FlashLoader(BaseLoader):
         self.index_per_electron: Union[MultiIndex, None] = None
         self.index_per_pulse: Union[MultiIndex, None] = None
         self.parquet_names: List[Path] = []
-        self.failed_files_error: List[Path] = []
+        self.failed_files_error: List[str] = []
 
     def config_parser(self):
         """
@@ -80,7 +80,7 @@ class FlashLoader(BaseLoader):
             self.data_raw_dir = beamtime_dir.joinpath('raw/hdf/express')
             # Use new convention if express doesn't exist
             if not self.data_raw_dir.exists():
-                self.data_raw_dir = beamtime_dir.joinpath(f'raw/hdf/{self.daq.upper()}')
+                self.data_raw_dir = beamtime_dir.joinpath(f'raw/hdf/express-0/{self.daq}')
 
             parquet_path = 'processed/parquet'
             self.data_parquet_dir = beamtime_dir.joinpath(parquet_path)
@@ -350,10 +350,9 @@ class FlashLoader(BaseLoader):
                 .reset_index(level=["trainId", "pulseId", "electronId"])
                 .to_parquet(parquet_path, index=False)
             )
-        except ValueError:
-            self.failed_files_error.append(parquet_path)
+        except ValueError as failed_string_error:
+            self.failed_files_error.append(f"{parquet_path}: {failed_string_error}")
             self.parquet_names.remove(parquet_path)
-
     def fill_na(self, dataframes: List):
         """Routine to fill the NaN values with intrafile forward filling."""
         # First use forward filling method to fill each file's
@@ -426,15 +425,15 @@ class FlashLoader(BaseLoader):
             if len(files_) == 0:
                 raise FileNotFoundError(f"No file found for run {run}")
 
-        self.parquet_names = [parquet_name + file.stem for file in all_files]
+        self.parquet_names = [Path(parquet_name + file.stem) for file in all_files]
         missing_files: List[Path] = []
         missing_parquet_names: List[Path] = []
 
         # only read and write files which were not read already
         for i, _ in enumerate(self.parquet_names):
-            if not Path(self.parquet_names[i]).exists():
+            if not self.parquet_names[i].exists():
                 missing_files.append(all_files[i])
-                missing_parquet_names.append(Path(self.parquet_names[i]))
+                missing_parquet_names.append(self.parquet_names[i])
 
         print(
                 f"Reading {runs_str}: {len(missing_files)} new files of "
