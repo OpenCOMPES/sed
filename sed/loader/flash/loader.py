@@ -300,7 +300,10 @@ class FlashLoader(BaseLoader):
         all_keys = parse_h5_keys(h5_file)
 
         for channel in self.all_channels:
-            group_name = self.all_channels[channel]['group_name'] + 'value'
+            if channel == "timeStamp":
+                group_name = self.all_channels[channel]['group_name'] + 'time'
+            else:
+                group_name = self.all_channels[channel]['group_name'] + 'value'
             if group_name not in all_keys:
                 raise ValueError(f'The group_name for channel {channel} does not exist.')
         # filters for valid channels
@@ -359,7 +362,7 @@ class FlashLoader(BaseLoader):
         # pulse and train resolved channels.
         channels: List[str] = self.channels_per_pulse + self.channels_per_train
         for i, _ in enumerate(dataframes):
-            dataframes[i][channels] = dataframes[i][channels].ffill()
+            dataframes[i][channels] = dataframes[i][channels].fillna(method="ffill")
 
         # This loop forward fills between the consective files.
         # The first run file will have NaNs, unless another run
@@ -377,7 +380,7 @@ class FlashLoader(BaseLoader):
                 # Get the values for those channels from previous file
                 values = dataframes[i - 1][channels].tail(1).values[0]
                 # Fill all NaNs by those values
-                subset[channels_to_overwrite] =subset[channels_to_overwrite].fillna(
+                subset[channels_to_overwrite] = subset[channels_to_overwrite].fillna(
                     dict(zip(channels_to_overwrite, values)),
                 )
                 # Overwrite the dataframes with filled dataframes
@@ -457,10 +460,10 @@ class FlashLoader(BaseLoader):
         if len(self.failed_files_error) > 0:
             print(
                     f"Failed reading {len(self.failed_files_error)}"
-                    f"files of{len(all_files)}:",
+                    f" files of {len(all_files)}:",
             )
             for failed_string in self.failed_files_error:
-                print(f"\t- Failed to read {failed_string}")
+                print(f"\t- {failed_string}")
         if len(self.parquet_names) == 0:
             raise ValueError("No data available. Probably failed reading all h5 files")
 
