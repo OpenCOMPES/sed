@@ -32,6 +32,7 @@ silx = "^1.1.2"
 symmetrize = "^0.5.5"
 natsort = "^8.2.0"
 p-tqdm = "^1.4.0"
+joblib = "^1.2.0"
 
 [tool.poetry.extras]
 notebook = ["jupyter", "ipykernel"]
