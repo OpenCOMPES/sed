@@ -6,6 +6,7 @@ from typing import List
 from pathlib import Path
 
 from natsort import natsorted
+from .exception_handlers import NoFilesFoundError
 
 
 def gather_files(
@@ -60,8 +61,11 @@ def gather_flash_files(
         "fl2user2": "FLASH2_USER2_stream_2",
     }
 
-    return sorted(Path(raw_data_dir).glob( f"{stream_name_prefixes[daq]}_run{run_number}_*."
+    files = sorted(Path(raw_data_dir).glob( f"{stream_name_prefixes[daq]}_run{run_number}_*."
                 + extension), key=lambda filename: str(filename).rsplit("_", maxsplit=1)[-1])
+    if not files:
+        raise NoFilesFoundError(f"No files found for run {run_number} in directory {raw_data_dir}")
+    return files
 
 def parse_h5_keys(h5_file, prefix=""):
     """Helper method which parses the channels present in the h5 file"""

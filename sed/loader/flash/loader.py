@@ -6,7 +6,6 @@ The class attributes are inherited by dataframeReader - a wrapper class.
 import os
 from functools import reduce
 from itertools import compress
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import cast
 from typing import Union
@@ -14,6 +13,7 @@ from typing import List
 from typing import Tuple
 
 import dask.dataframe as dd
+from joblib import Parallel, delayed
 import h5py
 import numpy as np
 from pandas import DataFrame
@@ -22,6 +22,7 @@ from pandas import Series
 
 from sed.loader.base.loader import BaseLoader
 from sed.loader.utils import gather_flash_files, parse_h5_keys
+from sed.loader.exception_handlers import NoFilesFoundError
 
 class FlashLoader(BaseLoader):
     """
@@ -32,7 +33,7 @@ class FlashLoader(BaseLoader):
 
     __name__ = "flash"
 
-    supported_file_types = ["h5"]
+    supported_file_types = ["h5", "parquet"]
 
     def __init__(self, config: dict) -> None:
 
@@ -202,6 +203,67 @@ class FlashLoader(BaseLoader):
             )
         return train_id, np_array
 
+    def create_dataframe_per_electron(self, np_array, train_id, channel) -> DataFrame:
+        """Returns a pandas DataFrame for a given channel name of type [per electron]"""
+        # The microbunch resolved data is exploded and
+        # converted to dataframe, afterwhich the MultiIndex is set
+        # The NaN values are dropped, alongside the
+        # pulseId = 0 (meaningless)
+        return (
+            Series((np_array[i] for i in train_id.index), name=channel)
+            .explode()
+            .dropna()
+            .to_frame()
+            .set_index(self.index_per_electron)
+            .drop(
+                index=cast(List[int], np.arange(-self.ubid_offset, 0)),
+                level=1,
+                errors="ignore",
+            )
+        )
+
+    def create_dataframe_per_pulse(self, np_array, train_id, channel, channel_dict) -> DataFrame:
+        """Returns a pandas DataFrame for a given channel name of type [per pulse]"""
+        # Special case for auxillary channels which checks the channel
+        # dictionary for correct slices and creates a multicolumn
+        # pandas dataframe
+        if channel == "dldAux":
+            # The macrobunch resolved data is repeated 499 times to be
+            # compared to electron resolved data for each auxillary channel
+            # and converted to a multicolumn dataframe
+            data_frames = (
+                Series(
+                    (np_array[i, value] for i in train_id.index),
+                    name=key,
+                    index=train_id,
+                ).to_frame()
+                for key, value in channel_dict["dldAuxChannels"].items()
+            )
+
+            # Multiindex set and combined dataframe returned
+            return reduce(DataFrame.combine_first, data_frames)
+
+        else:
+            # For all other pulse resolved channels, macrobunch resolved
+            # data is exploded to a dataframe and the MultiIndex set
+
+            # Creates the index_per_pulse for the given channel
+            self.create_multi_index_per_pulse(train_id, np_array)
+            return (
+                Series((np_array[i] for i in train_id.index), name=channel)
+                .explode()
+                .to_frame()
+                .set_index(self.index_per_pulse)
+            )
+
+    def create_dataframe_per_train(self, np_array, train_id, channel) -> DataFrame:
+        """Returns a pandas DataFrame for a given channel name of type [per train]"""
+        return (
+            Series((np_array[i] for i in train_id.index), name=channel)
+            .to_frame()
+            .set_index(train_id)
+            )
+
     def create_dataframe_per_channel(
         self, h5_file: h5py.File, channel: str,
     ) -> Union[Series, DataFrame]:
@@ -222,68 +284,19 @@ class FlashLoader(BaseLoader):
 
         # Electron resolved data is treated here
         if channel_dict["format"] == "per_electron":
-            # Creates the index_per_electron if it does not
-            # exist for a given file
+            # Creates the index_per_electron if it does not exist for a given file
             if self.index_per_electron is None:
                 self.create_multi_index_per_electron(h5_file)
 
-            # The microbunch resolved data is exploded and
-            # converted to dataframe, afterwhich the MultiIndex is set
-            # The NaN values are dropped, alongside the
-            # pulseId = 0 (meaningless)
-            return (
-                Series((np_array[i] for i in train_id.index), name=channel)
-                .explode()
-                .dropna()
-                .to_frame()
-                .set_index(self.index_per_electron)
-                .drop(
-                    index=cast(List[int], np.arange(-self.ubid_offset, 0)),
-                    level=1,
-                    errors="ignore",
-                )
-            )
+            return self.create_dataframe_per_electron(np_array, train_id, channel)
 
         # Pulse resolved data is treated here
         elif channel_dict["format"] == "per_pulse":
-            # Special case for auxillary channels which checks the channel
-            # dictionary for correct slices and creates a multicolumn
-            # pandas dataframe
-            if channel == "dldAux":
-                # The macrobunch resolved data is repeated 499 times to be
-                # comapred to electron resolved data for each auxillary channel
-                # and converted to a multicolumn dataframe
-                data_frames = (
-                    Series(
-                        (np_array[i, value] for i in train_id.index),
-                        name=key,
-                        index=train_id,
-                    ).to_frame()
-                    for key, value in channel_dict["dldAuxChannels"].items()
-                )
-
-                # Multiindex set and combined dataframe returned
-                return reduce(DataFrame.combine_first, data_frames)
-
-            else:
-                # For all other pulse resolved channels, macrobunch resolved
-                # data is exploded to a dataframe and the MultiIndex set
-
-                # Creates the index_per_pulse for the given channel
-                self.create_multi_index_per_pulse(train_id, np_array)
-                return (
-                    Series((np_array[i] for i in train_id.index), name=channel)
-                    .explode()
-                    .to_frame()
-                    .set_index(self.index_per_pulse)
-                )
-
+            return self.create_dataframe_per_pulse(np_array, train_id, channel, channel_dict)
+        
+        # Train resolved data is treated here
         elif channel_dict["format"] == "per_train":
-            return (
-                Series((np_array[i] for i in train_id.index), name=channel)
-                .to_frame()
-                .set_index(train_id)
-            )
+            return self.create_dataframe_per_train(np_array, train_id, channel)
 
         else:
             raise ValueError(
@@ -293,45 +306,25 @@ class FlashLoader(BaseLoader):
             )
 
     def concatenate_channels(
-        self, h5_file: h5py.File, format_: str = "",
-    ) -> Union[Series, DataFrame]:
+        self, h5_file: h5py.File) -> Union[Series, DataFrame]:
         """Returns a concatenated pandas DataFrame for either all pulse,
         train or electron resolved channels."""
-        all_keys = parse_h5_keys(h5_file)
+        all_keys = parse_h5_keys(h5_file) # Parses all channels present
 
+        # Check for if the provided group_name actually exists in the file
         for channel in self.all_channels:
             if channel == "timeStamp":
                 group_name = self.all_channels[channel]['group_name'] + 'time'
             else:
                 group_name = self.all_channels[channel]['group_name'] + 'value'
+
             if group_name not in all_keys:
                 raise ValueError(f'The group_name for channel {channel} does not exist.')
-        # filters for valid channels
-        valid_names = [
-            each_name for each_name in self.available_channels if each_name in self.all_channels
-        ]
-        # Only channels with the defined format are selected and stored
-        # in an iterable list
-        if format_:
-            channels = [
-                each_name
-                for each_name in valid_names
-                if self.all_channels[each_name]["format"] == format_
-            ]
-        else:
-            channels = list(valid_names)
-
-        # if the defined format has channels, returns a concatenatd Dataframe.
-        # Otherwise returns empty Dataframe.
-        if channels:
-            data_frames = (
-                self.create_dataframe_per_channel(h5_file, each) for each in channels
-            )
-            return reduce(
-                lambda left, right: left.join(right, how="outer"), data_frames,
-            )
-        else:
-            return DataFrame()
+ 
+        data_frames = (
+            self.create_dataframe_per_channel(h5_file, each) for each in self.available_channels)
+        return reduce(
+            lambda left, right: left.join(right, how="outer"), data_frames,)
 
     def create_dataframe_per_file(self, file_path: Path) -> Union[Series, DataFrame]:
         """Returns two pandas DataFrames constructed for the given file.
@@ -356,10 +349,9 @@ class FlashLoader(BaseLoader):
         except ValueError as failed_string_error:
             self.failed_files_error.append(f"{parquet_path}: {failed_string_error}")
             self.parquet_names.remove(parquet_path)
-    def fill_na(self, dataframes: List):
+
+    def fill_na(self, dataframes: List) -> dd.DataFrame:
         """Routine to fill the NaN values with intrafile forward filling."""
-        # First use forward filling method to fill each file's
-        # pulse and train resolved channels.
         channels: List[str] = self.channels_per_pulse + self.channels_per_train
         for i, _ in enumerate(dataframes):
             dataframes[i][channels] = dataframes[i][channels].fillna(method="ffill")
@@ -371,12 +363,12 @@ class FlashLoader(BaseLoader):
             # Take only pulse channels
             subset = dataframes[i][channels]
             # Find which column(s) contain NaNs.
-            is_null = subset.loc[0].isnull().values.compute()
+            is_null = subset.loc[0].isnull()
             # Statement executed if there is more than one NaN value in the
             # first row from all columns
             if is_null.sum() > 0:
                 # Select channel names with only NaNs
-                channels_to_overwrite = list(compress(channels, is_null[0]))
+                channels_to_overwrite = list(compress(channels, is_null))
                 # Get the values for those channels from previous file
                 values = dataframes[i - 1][channels].tail(1).values[0]
                 # Fill all NaNs by those values
@@ -404,66 +396,42 @@ class FlashLoader(BaseLoader):
         """Read express data from DAQ, generating a parquet in between."""
         # create a per_file directory
         temp_parquet_dir = self.data_parquet_dir.joinpath("per_file")
-        if not temp_parquet_dir.exists():
-            os.mkdir(temp_parquet_dir)
+        os.makedirs(temp_parquet_dir, exist_ok=True)
         
         self.files = files
         runs = files
         folder = str(self.data_raw_dir)
         # Prepare a list of names for the files to read and parquets to write
-        try:
-            runs = cast(list, runs)
-            runs_str = f"Runs {runs[0]} to {runs[-1]}"
-        except TypeError:
-            runs = cast(int, runs)
-            runs_str = f"Run {runs}"
-            runs = [runs]
-        parquet_name = f"{temp_parquet_dir}/"
+        runs = files if isinstance(files, list) else [files]
         all_files = []
         for run in runs:
-            run_ = cast(int, run)
-            files_ = gather_flash_files(run_, self.daq, folder, extension = ftype)
-            for file in files_:
-                all_files.append(file)
-            if len(files_) == 0:
-                raise FileNotFoundError(f"No file found for run {run}")
+            run_files = gather_flash_files(run, self.daq, folder, extension=ftype)
+            all_files.extend(run_files)
 
+        parquet_name = f"{temp_parquet_dir}/"
         self.parquet_names = [Path(parquet_name + file.stem) for file in all_files]
         missing_files: List[Path] = []
         missing_parquet_names: List[Path] = []
 
         # only read and write files which were not read already
-        for i, _ in enumerate(self.parquet_names):
-            if not self.parquet_names[i].exists():
+        for i, parquet_file in enumerate(self.parquet_names):
+            if not parquet_file.exists():
                 missing_files.append(all_files[i])
-                missing_parquet_names.append(self.parquet_names[i])
+                missing_parquet_names.append(parquet_file)
 
-        print(
-                f"Reading {runs_str}: {len(missing_files)} new files of "
-                f"{len(all_files)} total.",
-        )
-        self.failed_files_error = []
+        print(f"Reading files: {len(missing_files)} new files of {len(all_files)} total.")
 
         self.reset_multi_index()  # initializes the indices for h5_to_parquet
 
-        # Read missing files
-        if len(missing_files) > 0:
-            # with ThreadPoolExecutor() as executor:
-            #     for h5_path, parquet_path in zip(missing_files, missing_parquet_names):
-            #         executor.submit(self.h5_to_parquet, h5_path, parquet_path)
-            # for param in zip(missing_files, missing_parquet_names):
-            #     self.h5_to_parquet(*param)
-        
-            for h5_path, parquet_path in zip(missing_files, missing_parquet_names):
-                self.h5_to_parquet(h5_path, parquet_path)
+        # run self.h5_to_parquet sequentially
+        for h5_path, parquet_path in zip(missing_files, missing_parquet_names):
+            self.h5_to_parquet(h5_path, parquet_path)
 
-        if len(self.failed_files_error) > 0:
-            print(
-                    f"Failed reading {len(self.failed_files_error)}"
-                    f" files of {len(all_files)}:",
-            )
-            for failed_string in self.failed_files_error:
-                print(f"\t- {failed_string}")
+        if self.failed_files_error:
+            raise NoFilesFoundError("Conversion failed for the following files: \n" + "\n".join(self.failed_files_error))
+        else:
+            print("All files converted successfully!")
+
         if len(self.parquet_names) == 0:
             raise ValueError("No data available. Probably failed reading all h5 files")
 
@@ -472,23 +440,8 @@ class FlashLoader(BaseLoader):
                 f"{len(all_files)-len(self.parquet_names)} files.",
         )
         # Read all parquet files using dask and concatenate into one dataframe after filling
-        
         dataframe = self.fill_na([dd.read_parquet(parquet_file) for parquet_file in self.parquet_names])
         dataframe = dataframe.dropna(subset=self.channels_per_electron)
-        # pulse_columns = (
-        #     ["trainId", "pulseId", "electronId"]
-        #     + self.channels_per_pulse
-        #     + self.channels_per_train
-        # )
-        # df_pulse = dataframe[pulse_columns]
-        # df_pulse = df_pulse[
-        #     (df_pulse["electronId"] == 0) | (np.isnan(df_pulse["electronId"]))
-        # ]
-
-        # dataframe = df_electron.repartition(npartitions=len(self.parquet_names))
-
-        metadata = self.parse_metadata(files=all_files)
-
-        return dataframe, metadata
+        return dataframe, self.parse_metadata(all_files)
 
 LOADER = FlashLoader
