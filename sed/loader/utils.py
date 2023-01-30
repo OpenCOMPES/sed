@@ -6,7 +6,7 @@ from typing import List
 from pathlib import Path
 
 from natsort import natsorted
-from .exception_handlers import NoFilesFoundError
+from sed.loader.exception_handlers import NoFilesFoundError
 
 
 def gather_files(
