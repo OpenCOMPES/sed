@@ -423,9 +423,12 @@ class FlashLoader(BaseLoader):
 
         self.reset_multi_index()  # initializes the indices for h5_to_parquet
 
-        # run self.h5_to_parquet sequentially
-        for h5_path, parquet_path in zip(missing_files, missing_parquet_names):
-            self.h5_to_parquet(h5_path, parquet_path)
+        # run self.h5_to_parquet in parallel
+        if len(missing_files) > 0:
+            Parallel(n_jobs=len(missing_files), verbose=10)(
+                delayed(self.h5_to_parquet)(h5_path, parquet_path)
+                for h5_path, parquet_path in zip(missing_files, missing_parquet_names)
+            )
 
         if self.failed_files_error:
             raise NoFilesFoundError("Conversion failed for the following files: \n" + "\n".join(self.failed_files_error))
