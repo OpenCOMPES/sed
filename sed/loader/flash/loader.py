@@ -197,9 +197,9 @@ class FlashLoader(BaseLoader):
         np_array = cast(np.ndarray, np_array)
         # Uses predefined axis and slice from the json file
         # to choose correct dimension for necessary channel
-        if "axis" in channel_dict:
+        if "slice" in channel_dict:
             np_array = np.take(
-                np_array, channel_dict["slice"], axis=channel_dict["axis"],
+                np_array, channel_dict["slice"], axis=1,
             )
         return train_id, np_array
 
