@@ -19,6 +19,8 @@ import numpy as np
 from pandas import DataFrame
 from pandas import MultiIndex
 from pandas import Series
+from pandas import concat
+from pandas import read_parquet
 
 from sed.loader.base.loader import BaseLoader
 from sed.loader.utils import gather_flash_files, parse_h5_keys
@@ -350,7 +352,7 @@ class FlashLoader(BaseLoader):
             self.failed_files_error.append(f"{parquet_path}: {failed_string_error}")
             self.parquet_names.remove(parquet_path)
 
-    def fill_na(self, dataframes: List) -> dd.DataFrame:
+    def fill_na(self, dataframes: List) -> DataFrame:
         """Routine to fill the NaN values with intrafile forward filling."""
         channels: List[str] = self.channels_per_pulse + self.channels_per_train
         for i, _ in enumerate(dataframes):
@@ -363,7 +365,7 @@ class FlashLoader(BaseLoader):
             # Take only pulse channels
             subset = dataframes[i][channels]
             # Find which column(s) contain NaNs.
-            is_null = subset.loc[0].isnull()
+            is_null = subset.loc[0].isnull().values
             # Statement executed if there is more than one NaN value in the
             # first row from all columns
             if is_null.sum() > 0:
@@ -371,14 +373,13 @@ class FlashLoader(BaseLoader):
                 channels_to_overwrite = list(compress(channels, is_null))
                 # Get the values for those channels from previous file
                 values = dataframes[i - 1][channels].tail(1).values[0]
+                # Extract channels_to_overwrite from values and create a dictionary
+                fill_dict = dict(zip(channels, values))
+                fill_dict = {k: v for k, v in fill_dict.items() if k in channels_to_overwrite}
                 # Fill all NaNs by those values
-                subset[channels_to_overwrite] = subset[channels_to_overwrite].fillna(
-                    dict(zip(channels_to_overwrite, values)),
-                )
-                # Overwrite the dataframes with filled dataframes
-                dataframes[i][channels] = subset
+                dataframes[i][channels_to_overwrite] = subset[channels_to_overwrite].fillna(fill_dict)
 
-        return dd.concat(dataframes)
+        return concat(dataframes)
     
     def parse_metadata(self, files) -> dict:
         """Dummy
@@ -443,8 +444,9 @@ class FlashLoader(BaseLoader):
                 f"{len(all_files)-len(self.parquet_names)} files.",
         )
         # Read all parquet files using dask and concatenate into one dataframe after filling
-        dataframe = self.fill_na([dd.read_parquet(parquet_file) for parquet_file in self.parquet_names])
+        dataframe = self.fill_na([read_parquet(parquet_file) for parquet_file in self.parquet_names])
         dataframe = dataframe.dropna(subset=self.channels_per_electron)
+
         return dataframe, self.parse_metadata(all_files)
 
 LOADER = FlashLoader
