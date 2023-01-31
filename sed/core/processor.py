@@ -23,7 +23,6 @@ from sed.calibrator.momentum import MomentumCorrector
 from sed.config.settings import parse_config
 from sed.core.dfops import apply_jitter
 from sed.core.metadata import MetaHandler
-from sed.core.workflow_recorder import MethodCall, track_call
 from sed.diagnostics import grid_histogram
 from sed.loader.loader_interface import get_loader
 from sed.loader.mirrorutil import CopyTool
@@ -60,7 +59,6 @@ class SedProcessor:
         self._coordinates: Dict[Any, Any] = {}
         self.axis: Dict[Any, Any] = {}
         self._attributes = MetaHandler(meta=metadata)
-        self._call_tracker: List[MethodCall] = []
 
         loader_name = self._config["core"]["loader"]
         self.loader = get_loader(
@@ -209,7 +207,6 @@ class SedProcessor:
 
         return path
 
-    @track_call
     def load(
         self,
         dataframe: Union[pd.DataFrame, ddf.DataFrame] = None,
