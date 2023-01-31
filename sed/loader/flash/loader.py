@@ -368,7 +368,7 @@ class FlashLoader(BaseLoader):
             # first row from all columns
             if is_null.sum() > 0:
                 # Select channel names with only NaNs
-                channels_to_overwrite = list(compress(channels, is_null))
+                channels_to_overwrite = list(compress(channels, is_null[0]))
                 # Get the values for those channels from previous file
                 values = dataframes[i - 1][channels].tail(1).values[0]
                 # Extract channels_to_overwrite from values and create a dictionary
