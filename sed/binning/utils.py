@@ -102,7 +102,7 @@ def _simplify_binning_arguments(
         for tpl in bins:
             assert isinstance(tpl, tuple)
             ranges.append((tpl[0], tpl[1]))
-            bins_.append(tpl[2])
+            bins_.append(int((tpl[1] - tpl[0])/tpl[2]))
         bins = bins_
     elif not isinstance(bins[0], (int, np.ndarray)):
         raise TypeError(f"Could not interpret bins of type {type(bins[0])}")
@@ -174,3 +174,4 @@ def bin_centers_to_bin_edges(bin_centers: np.ndarray) -> np.ndarray:
     )
 
     return bin_edges
+    
