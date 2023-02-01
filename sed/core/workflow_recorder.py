@@ -27,6 +27,6 @@ class CallTracker:
 
     def __call__(self, *args, **kwargs):
         self.__class__.call_tracker.append(
-            MethodCall(self.func.__name__, args, kwargs),
+            MethodCall(self.func.__qualname__, args, kwargs),
         )
-        return self.func(*args, **kwargs)
+        return self.func(self, *args, **kwargs)
