@@ -40,6 +40,7 @@ from silx.io import dictdump
 from sed.binning import bin_dataframe
 from sed.loader.base.loader import BaseLoader
 
+from sed.core.workflow_recorder import MethodCall, track_call
 
 class EnergyCalibrator:
     """
@@ -53,6 +54,7 @@ class EnergyCalibrator:
         traces: np.ndarray = None,
         tof: np.ndarray = None,
         config: dict = None,
+        tracker: List[MethodCall] = None,
     ):
         """The initialization of the EnergyCalibrator class, can happen by passing
         the following parameters:
@@ -77,6 +79,11 @@ class EnergyCalibrator:
             config = {}
 
         self._config = config
+
+        if tracker is None:
+            tracker = []
+
+        self._call_tracker = tracker
 
         self.featranges: List[Tuple] = []  # Value ranges for feature detection
         self.peaks: np.ndarray = np.asarray([])
@@ -124,6 +131,10 @@ class EnergyCalibrator:
         )
 
     @property
+    def call_tracker(self):
+        return self._call_tracker
+
+    @property
     def ntraces(self) -> int:
         """The number of loaded/calculated traces."""
 
@@ -167,6 +178,7 @@ class EnergyCalibrator:
         else:
             self.traces = self.traces_normed = np.asarray([])
 
+    @track_call
     def bin_data(
         self,
         data_files: List[str],
@@ -241,6 +253,7 @@ class EnergyCalibrator:
         self.tof = np.asarray(tof)
         self.biases = np.asarray(biases)
 
+    @track_call
     def normalize(self, smooth: bool = False, span: int = 7, order: int = 1):
         """Normalize the spectra along an axis.
 
@@ -259,6 +272,7 @@ class EnergyCalibrator:
             order=order,
         )
 
+    @track_call
     def add_features(
         self,
         ranges: Union[List[Tuple], Tuple],
@@ -316,6 +330,7 @@ class EnergyCalibrator:
         elif mode == "replace":
             self.featranges = newranges
 
+    @track_call
     def feature_extract(
         self,
         ranges: List[Tuple] = None,
@@ -349,6 +364,7 @@ class EnergyCalibrator:
             pkwindow=peak_window,
         )
 
+    @track_call
     def calibrate(
         self,
         ref_id: int = 0,
@@ -609,6 +625,7 @@ class EnergyCalibrator:
 
             pbk.show(fig)
 
+    @track_call
     def append_energy_axis(
         self,
         df: Union[pd.DataFrame, dask.dataframe.DataFrame],
@@ -885,14 +902,7 @@ class EnergyCalibrator:
             )
 
             def apply_func(apply: bool):  # pylint: disable=unused-argument
-                self.correction["amplitude"] = amplitude_slider.value
-                self.correction["center"] = (
-                    x_center_slider.value,
-                    y_center_slider.value,
-                )
-                self.correction["correction_type"] = correction_type
-                kwds["diameter"] = diameter_slider.value
-                self.correction["kwds"] = kwds
+                self.set_energy_correction(amplitude=amplitude_slider.value, center=(x_center_slider.value,y_center_slider.value), correction_type=correction_type, diameter=diameter_slider.value)
                 amplitude_slider.close()
                 x_center_slider.close()
                 y_center_slider.close()
@@ -920,14 +930,7 @@ class EnergyCalibrator:
             )
 
             def apply_func(apply: bool):  # pylint: disable=unused-argument
-                self.correction["amplitude"] = amplitude_slider.value
-                self.correction["center"] = (
-                    x_center_slider.value,
-                    y_center_slider.value,
-                )
-                self.correction["correction_type"] = correction_type
-                kwds["gamma"] = gamma_slider.value
-                self.correction["kwds"] = kwds
+                self.set_energy_correction(amplitude=amplitude_slider.value, center=(x_center_slider.value,y_center_slider.value), correction_type=correction_type, gamma=gamma_slider.value)
                 amplitude_slider.close()
                 x_center_slider.close()
                 y_center_slider.close()
@@ -955,14 +958,7 @@ class EnergyCalibrator:
             )
 
             def apply_func(apply: bool):  # pylint: disable=unused-argument
-                self.correction["amplitude"] = amplitude_slider.value
-                self.correction["center"] = (
-                    x_center_slider.value,
-                    y_center_slider.value,
-                )
-                self.correction["correction_type"] = correction_type
-                kwds["sigma"] = sigma_slider.value
-                self.correction["kwds"] = kwds
+                self.set_energy_correction(amplitude=amplitude_slider.value, center=(x_center_slider.value,y_center_slider.value), correction_type=correction_type, sigma=sigma_slider.value)
                 amplitude_slider.close()
                 x_center_slider.close()
                 y_center_slider.close()
@@ -1015,16 +1011,7 @@ class EnergyCalibrator:
             )
 
             def apply_func(apply: bool):  # pylint: disable=unused-argument
-                self.correction["amplitude"] = amplitude_slider.value
-                self.correction["center"] = (
-                    x_center_slider.value,
-                    y_center_slider.value,
-                )
-                self.correction["correction_type"] = correction_type
-                kwds["gamma"] = gamma_slider.value
-                kwds["amplitude2"] = amplitude2_slider.value
-                kwds["gamma2"] = gamma2_slider.value
-                self.correction["kwds"] = kwds
+                self.set_energy_correction(amplitude=amplitude_slider.value, center=(x_center_slider.value,y_center_slider.value), correction_type=correction_type, gamma=gamma_slider.value, amplitude2=amplitude2_slider.value, gamma2=gamma2_slider.value)
                 amplitude_slider.close()
                 x_center_slider.close()
                 y_center_slider.close()
@@ -1044,6 +1031,20 @@ class EnergyCalibrator:
         if apply:
             apply_func(True)
 
+    @track_call
+    def set_energy_correction(
+        self,
+        amplitude,
+        correction_type,
+        center,
+        **kwds,
+    ):
+        self.correction["amplitude"] = amplitude
+        self.correction["center"] = center
+        self.correction["correction_type"] = correction_type
+        self.correction["kwds"] = kwds
+
+    @track_call
     def apply_energy_correction(
         self,
         df: Union[pd.DataFrame, dask.dataframe.DataFrame],

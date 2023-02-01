@@ -30,6 +30,8 @@ from symmetrize import pointops as po
 from symmetrize import sym
 from symmetrize import tps
 
+from sed.core.workflow_recorder import MethodCall, track_call
+
 
 class MomentumCorrector:
     """
@@ -42,6 +44,7 @@ class MomentumCorrector:
         bin_ranges: List[Tuple] = None,
         rotsym: int = 6,
         config: dict = None,
+        tracker: List[MethodCall] = None,
     ):
         """
         Parameters:
@@ -64,6 +67,11 @@ class MomentumCorrector:
             config = {}
 
         self._config = config
+
+        if tracker is None:
+            tracker = []
+
+        self._call_tracker = tracker
 
         self.detector_ranges = self._config.get("momentum", {}).get(
             "detector_ranges",
@@ -92,6 +100,10 @@ class MomentumCorrector:
         self.inverse_dfield: np.ndarray = None
         self.transformations: Dict[Any, Any] = {}
         self.calibration: Dict[Any, Any] = {}
+
+    @property
+    def call_tracker(self):
+        return self._call_tracker
 
     @property
     def features(self) -> dict:
@@ -264,6 +276,7 @@ class MomentumCorrector:
         if apply:
             apply_fun(True)
 
+    @track_call
     def select_slice(
         self,
         selector: Union[slice, List[int], int],
@@ -293,6 +306,7 @@ class MomentumCorrector:
         elif self.img_ndim == 2:
             raise ValueError("Input image dimension is already 2!")
 
+    @track_call
     def add_features(
         self,
         peaks: np.ndarray,
@@ -355,6 +369,7 @@ class MomentumCorrector:
             self.mcvdist = self.mdist
             self.mvvdist = self.mdist
 
+    @track_call
     def feature_extract(
         self,
         image: np.ndarray = None,
@@ -424,6 +439,7 @@ class MomentumCorrector:
 
         return csm
 
+    @track_call
     def spline_warp_estimate(
         self,
         image: np.ndarray = None,
@@ -515,6 +531,7 @@ class MomentumCorrector:
 
         return self.slice_corrected
 
+    @track_call
     def apply_correction(
         self,
         image: np.ndarray,
@@ -591,6 +608,7 @@ class MomentumCorrector:
             cval=np.nan,
         )
 
+    @track_call
     def coordinate_transform(
         self,
         transform_type: str,
@@ -741,6 +759,9 @@ class MomentumCorrector:
                 rdeform,
                 cdeform,
             )
+        else:
+            #remove tracked call to function if not keeping transformation
+            self.call_tracker.pop()
 
         return slice_transformed
 
@@ -1068,6 +1089,7 @@ class MomentumCorrector:
 
             pbk.show(fig)
 
+    @track_call
     def calibrate(
         self,
         point_a: Union[np.ndarray, List[int]],
@@ -1174,6 +1196,7 @@ class MomentumCorrector:
 
         return self.calibration
 
+    @track_call
     def apply_distortion_correction(
         self,
         df: Union[pd.DataFrame, dask.dataframe.DataFrame],
@@ -1233,6 +1256,7 @@ class MomentumCorrector:
         )
         return out_df
 
+    @track_call
     def append_k_axis(
         self,
         df: Union[pd.DataFrame, dask.dataframe.DataFrame],

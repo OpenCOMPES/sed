@@ -9,6 +9,7 @@ import h5py
 import numpy as np
 import pandas as pd
 
+from sed.core.workflow_recorder import MethodCall, track_call
 
 class DelayCalibrator:
     """
@@ -18,6 +19,7 @@ class DelayCalibrator:
     def __init__(
         self,
         config: dict = None,
+        tracker: List[MethodCall] = None,
     ):
         """Initialization of the DelayCalibrator class passes the config dict."""
 
@@ -25,6 +27,11 @@ class DelayCalibrator:
             config = {}
 
         self._config = config
+
+        if tracker is None:
+            tracker = []
+
+        self._call_tracker = tracker
 
         self.adc_column = self._config.get("dataframe", {}).get(
             "adc_column",
@@ -35,6 +42,11 @@ class DelayCalibrator:
             "delay",
         )
 
+    @property
+    def call_tracker(self):
+        return self._call_tracker
+
+    @track_call
     def append_delay_axis(
         self,
         df: Union[pd.DataFrame, dask.dataframe.DataFrame],

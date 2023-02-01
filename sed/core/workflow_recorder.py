@@ -13,7 +13,7 @@ def track_call(func):
     """A decorator that records each call to the decorated function."""
     @wraps(func)
     def wrapper(self, *args, **kwargs):
-        self._call_tracker.append(MethodCall(func.__name__, args, kwargs))
+        self.call_tracker.append(MethodCall(type(self).__name__ + "." + func.__name__, args, kwargs))
 
         return func(self, *args, **kwargs)
 
