@@ -70,14 +70,17 @@ class SedProcessor:
         self.ec = EnergyCalibrator(
             loader=self.loader,
             config=self._config,
+            tracker=self._call_tracker,
         )
 
         self.mc = MomentumCorrector(
             config=self._config,
+            tracker=self._call_tracker,
         )
 
         self.dc = DelayCalibrator(
             config=self._config,
+            tracker=self._call_tracker,
         )
 
         self.use_copy_tool = self._config.get("core", {}).get(
@@ -144,6 +147,12 @@ class SedProcessor:
         if num_cores >= N_CPU:
             num_cores = N_CPU - 1
         self._config["binning"]["num_cores"] = num_cores
+
+    @property
+    def call_tracker(self) -> List[MethodCall]:
+        """List of tracked function calls."""
+
+        return self._call_tracker
 
     @property
     def dimensions(self) -> list:
@@ -787,6 +796,7 @@ class SedProcessor:
 
             print(self._dataframe.head(10))
 
+    @track_call
     def add_jitter(self, cols: Sequence[str] = None) -> None:
         """Add jitter to the selected dataframe columns.
 
@@ -867,6 +877,7 @@ class SedProcessor:
             **kwds,
         )
 
+    @track_call
     def compute(
         self,
         bins: Union[

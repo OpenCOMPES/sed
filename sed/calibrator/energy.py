@@ -38,6 +38,8 @@ from scipy.sparse.linalg import lsqr
 from silx.io import dictdump
 
 from sed.binning import bin_dataframe
+from sed.core.workflow_recorder import MethodCall
+from sed.core.workflow_recorder import track_call
 from sed.loader.base.loader import BaseLoader
 
 
@@ -53,6 +55,7 @@ class EnergyCalibrator:
         traces: np.ndarray = None,
         tof: np.ndarray = None,
         config: dict = None,
+        tracker: List[MethodCall] = None,
     ):
         """The initialization of the EnergyCalibrator class, can happen by passing
         the following parameters:
@@ -73,10 +76,14 @@ class EnergyCalibrator:
         if traces is not None and tof is not None and biases is not None:
             self.load_data(biases=biases, traces=traces, tof=tof)
 
+        # pylint: disable=duplicate-code
         if config is None:
             config = {}
-
         self._config = config
+
+        if tracker is None:
+            tracker = []
+        self._call_tracker = tracker
 
         self.featranges: List[Tuple] = []  # Value ranges for feature detection
         self.peaks: np.ndarray = np.asarray([])
@@ -124,6 +131,12 @@ class EnergyCalibrator:
         )
 
     @property
+    def call_tracker(self) -> List[MethodCall]:
+        """List of tracked function calls."""
+
+        return self._call_tracker
+
+    @property
     def ntraces(self) -> int:
         """The number of loaded/calculated traces."""
 
@@ -167,6 +180,7 @@ class EnergyCalibrator:
         else:
             self.traces = self.traces_normed = np.asarray([])
 
+    @track_call
     def bin_data(
         self,
         data_files: List[str],
@@ -241,6 +255,7 @@ class EnergyCalibrator:
         self.tof = np.asarray(tof)
         self.biases = np.asarray(biases)
 
+    @track_call
     def normalize(self, smooth: bool = False, span: int = 7, order: int = 1):
         """Normalize the spectra along an axis.
 
@@ -259,6 +274,7 @@ class EnergyCalibrator:
             order=order,
         )
 
+    @track_call
     def add_features(
         self,
         ranges: Union[List[Tuple], Tuple],
@@ -316,6 +332,7 @@ class EnergyCalibrator:
         elif mode == "replace":
             self.featranges = newranges
 
+    @track_call
     def feature_extract(
         self,
         ranges: List[Tuple] = None,
@@ -349,6 +366,7 @@ class EnergyCalibrator:
             pkwindow=peak_window,
         )
 
+    @track_call
     def calibrate(
         self,
         ref_id: int = 0,
@@ -609,6 +627,7 @@ class EnergyCalibrator:
 
             pbk.show(fig)
 
+    @track_call
     def append_energy_axis(
         self,
         df: Union[pd.DataFrame, dask.dataframe.DataFrame],
@@ -885,14 +904,12 @@ class EnergyCalibrator:
             )
 
             def apply_func(apply: bool):  # pylint: disable=unused-argument
-                self.correction["amplitude"] = amplitude_slider.value
-                self.correction["center"] = (
-                    x_center_slider.value,
-                    y_center_slider.value,
+                self.set_energy_correction(
+                    amplitude=amplitude_slider.value,
+                    center=(x_center_slider.value, y_center_slider.value),
+                    correction_type=correction_type,
+                    diameter=diameter_slider.value,
                 )
-                self.correction["correction_type"] = correction_type
-                kwds["diameter"] = diameter_slider.value
-                self.correction["kwds"] = kwds
                 amplitude_slider.close()
                 x_center_slider.close()
                 y_center_slider.close()
@@ -920,14 +937,12 @@ class EnergyCalibrator:
             )
 
             def apply_func(apply: bool):  # pylint: disable=unused-argument
-                self.correction["amplitude"] = amplitude_slider.value
-                self.correction["center"] = (
-                    x_center_slider.value,
-                    y_center_slider.value,
+                self.set_energy_correction(
+                    amplitude=amplitude_slider.value,
+                    center=(x_center_slider.value, y_center_slider.value),
+                    correction_type=correction_type,
+                    gamma=gamma_slider.value,
                 )
-                self.correction["correction_type"] = correction_type
-                kwds["gamma"] = gamma_slider.value
-                self.correction["kwds"] = kwds
                 amplitude_slider.close()
                 x_center_slider.close()
                 y_center_slider.close()
@@ -955,14 +970,12 @@ class EnergyCalibrator:
             )
 
             def apply_func(apply: bool):  # pylint: disable=unused-argument
-                self.correction["amplitude"] = amplitude_slider.value
-                self.correction["center"] = (
-                    x_center_slider.value,
-                    y_center_slider.value,
+                self.set_energy_correction(
+                    amplitude=amplitude_slider.value,
+                    center=(x_center_slider.value, y_center_slider.value),
+                    correction_type=correction_type,
+                    sigma=sigma_slider.value,
                 )
-                self.correction["correction_type"] = correction_type
-                kwds["sigma"] = sigma_slider.value
-                self.correction["kwds"] = kwds
                 amplitude_slider.close()
                 x_center_slider.close()
                 y_center_slider.close()
@@ -1015,16 +1028,14 @@ class EnergyCalibrator:
             )
 
             def apply_func(apply: bool):  # pylint: disable=unused-argument
-                self.correction["amplitude"] = amplitude_slider.value
-                self.correction["center"] = (
-                    x_center_slider.value,
-                    y_center_slider.value,
+                self.set_energy_correction(
+                    amplitude=amplitude_slider.value,
+                    center=(x_center_slider.value, y_center_slider.value),
+                    correction_type=correction_type,
+                    gamma=gamma_slider.value,
+                    amplitude2=amplitude2_slider.value,
+                    gamma2=gamma2_slider.value,
                 )
-                self.correction["correction_type"] = correction_type
-                kwds["gamma"] = gamma_slider.value
-                kwds["amplitude2"] = amplitude2_slider.value
-                kwds["gamma2"] = gamma2_slider.value
-                self.correction["kwds"] = kwds
                 amplitude_slider.close()
                 x_center_slider.close()
                 y_center_slider.close()
@@ -1044,6 +1055,32 @@ class EnergyCalibrator:
         if apply:
             apply_func(True)
 
+    @track_call
+    def set_energy_correction(
+        self,
+        amplitude: float,
+        correction_type: str,
+        center: Tuple[float, float],
+        **kwds,
+    ):
+        """Set the supplied energy correction parameters in the class attribute
+
+        Args:
+            amplitude (float):
+                Amplitude of the time-of-flight correction term
+            correction_type (str):
+                Type of correction to apply to the TOF axis. Defaults to config value.
+            center (Tuple(float, float)):
+                Center pixel (x, y) of the correction term.
+            **kwds:
+                Additional keyword arguments specific to the various correction_types
+        """
+        self.correction["amplitude"] = amplitude
+        self.correction["center"] = center
+        self.correction["correction_type"] = correction_type
+        self.correction["kwds"] = kwds
+
+    @track_call
     def apply_energy_correction(
         self,
         df: Union[pd.DataFrame, dask.dataframe.DataFrame],
