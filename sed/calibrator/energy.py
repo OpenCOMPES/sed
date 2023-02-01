@@ -38,9 +38,10 @@ from scipy.sparse.linalg import lsqr
 from silx.io import dictdump
 
 from sed.binning import bin_dataframe
+from sed.core.workflow_recorder import MethodCall
+from sed.core.workflow_recorder import track_call
 from sed.loader.base.loader import BaseLoader
 
-from sed.core.workflow_recorder import MethodCall, track_call
 
 class EnergyCalibrator:
     """
@@ -75,14 +76,13 @@ class EnergyCalibrator:
         if traces is not None and tof is not None and biases is not None:
             self.load_data(biases=biases, traces=traces, tof=tof)
 
+        # pylint: disable=duplicate-code
         if config is None:
             config = {}
-
         self._config = config
 
         if tracker is None:
             tracker = []
-
         self._call_tracker = tracker
 
         self.featranges: List[Tuple] = []  # Value ranges for feature detection
@@ -131,7 +131,9 @@ class EnergyCalibrator:
         )
 
     @property
-    def call_tracker(self):
+    def call_tracker(self) -> List[MethodCall]:
+        """List of tracked function calls."""
+
         return self._call_tracker
 
     @property
@@ -902,7 +904,12 @@ class EnergyCalibrator:
             )
 
             def apply_func(apply: bool):  # pylint: disable=unused-argument
-                self.set_energy_correction(amplitude=amplitude_slider.value, center=(x_center_slider.value,y_center_slider.value), correction_type=correction_type, diameter=diameter_slider.value)
+                self.set_energy_correction(
+                    amplitude=amplitude_slider.value,
+                    center=(x_center_slider.value, y_center_slider.value),
+                    correction_type=correction_type,
+                    diameter=diameter_slider.value,
+                )
                 amplitude_slider.close()
                 x_center_slider.close()
                 y_center_slider.close()
@@ -930,7 +937,12 @@ class EnergyCalibrator:
             )
 
             def apply_func(apply: bool):  # pylint: disable=unused-argument
-                self.set_energy_correction(amplitude=amplitude_slider.value, center=(x_center_slider.value,y_center_slider.value), correction_type=correction_type, gamma=gamma_slider.value)
+                self.set_energy_correction(
+                    amplitude=amplitude_slider.value,
+                    center=(x_center_slider.value, y_center_slider.value),
+                    correction_type=correction_type,
+                    gamma=gamma_slider.value,
+                )
                 amplitude_slider.close()
                 x_center_slider.close()
                 y_center_slider.close()
@@ -958,7 +970,12 @@ class EnergyCalibrator:
             )
 
             def apply_func(apply: bool):  # pylint: disable=unused-argument
-                self.set_energy_correction(amplitude=amplitude_slider.value, center=(x_center_slider.value,y_center_slider.value), correction_type=correction_type, sigma=sigma_slider.value)
+                self.set_energy_correction(
+                    amplitude=amplitude_slider.value,
+                    center=(x_center_slider.value, y_center_slider.value),
+                    correction_type=correction_type,
+                    sigma=sigma_slider.value,
+                )
                 amplitude_slider.close()
                 x_center_slider.close()
                 y_center_slider.close()
@@ -1011,7 +1028,14 @@ class EnergyCalibrator:
             )
 
             def apply_func(apply: bool):  # pylint: disable=unused-argument
-                self.set_energy_correction(amplitude=amplitude_slider.value, center=(x_center_slider.value,y_center_slider.value), correction_type=correction_type, gamma=gamma_slider.value, amplitude2=amplitude2_slider.value, gamma2=gamma2_slider.value)
+                self.set_energy_correction(
+                    amplitude=amplitude_slider.value,
+                    center=(x_center_slider.value, y_center_slider.value),
+                    correction_type=correction_type,
+                    gamma=gamma_slider.value,
+                    amplitude2=amplitude2_slider.value,
+                    gamma2=gamma2_slider.value,
+                )
                 amplitude_slider.close()
                 x_center_slider.close()
                 y_center_slider.close()
@@ -1034,11 +1058,23 @@ class EnergyCalibrator:
     @track_call
     def set_energy_correction(
         self,
-        amplitude,
-        correction_type,
-        center,
+        amplitude: float,
+        correction_type: str,
+        center: Tuple[float, float],
         **kwds,
     ):
+        """Set the supplied energy correction parameters in the class attribute
+
+        Args:
+            amplitude (float):
+                Amplitude of the time-of-flight correction term
+            correction_type (str):
+                Type of correction to apply to the TOF axis. Defaults to config value.
+            center (Tuple(float, float)):
+                Center pixel (x, y) of the correction term.
+            **kwds:
+                Additional keyword arguments specific to the various correction_types
+        """
         self.correction["amplitude"] = amplitude
         self.correction["center"] = center
         self.correction["correction_type"] = correction_type

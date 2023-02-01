@@ -9,7 +9,9 @@ import h5py
 import numpy as np
 import pandas as pd
 
-from sed.core.workflow_recorder import MethodCall, track_call
+from sed.core.workflow_recorder import MethodCall
+from sed.core.workflow_recorder import track_call
+
 
 class DelayCalibrator:
     """
@@ -23,14 +25,13 @@ class DelayCalibrator:
     ):
         """Initialization of the DelayCalibrator class passes the config dict."""
 
+        # pylint: disable=duplicate-code
         if config is None:
             config = {}
-
         self._config = config
 
         if tracker is None:
             tracker = []
-
         self._call_tracker = tracker
 
         self.adc_column = self._config.get("dataframe", {}).get(
@@ -43,7 +44,9 @@ class DelayCalibrator:
         )
 
     @property
-    def call_tracker(self):
+    def call_tracker(self) -> List[MethodCall]:
+        """List of tracked function calls."""
+
         return self._call_tracker
 
     @track_call

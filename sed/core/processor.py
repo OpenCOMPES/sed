@@ -23,7 +23,8 @@ from sed.calibrator.momentum import MomentumCorrector
 from sed.config.settings import parse_config
 from sed.core.dfops import apply_jitter
 from sed.core.metadata import MetaHandler
-from sed.core.workflow_recorder import MethodCall, track_call
+from sed.core.workflow_recorder import MethodCall
+from sed.core.workflow_recorder import track_call
 from sed.diagnostics import grid_histogram
 from sed.loader.loader_interface import get_loader
 from sed.loader.mirrorutil import CopyTool
@@ -150,7 +151,9 @@ class SedProcessor:
         self._config["binning"]["num_cores"] = num_cores
 
     @property
-    def call_tracker(self):
+    def call_tracker(self) -> List[MethodCall]:
+        """List of tracked function calls."""
+
         return self._call_tracker
 
     @property

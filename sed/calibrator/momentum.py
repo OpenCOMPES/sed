@@ -30,7 +30,8 @@ from symmetrize import pointops as po
 from symmetrize import sym
 from symmetrize import tps
 
-from sed.core.workflow_recorder import MethodCall, track_call
+from sed.core.workflow_recorder import MethodCall
+from sed.core.workflow_recorder import track_call
 
 
 class MomentumCorrector:
@@ -63,14 +64,13 @@ class MomentumCorrector:
         if data is not None:
             self.load_data(data=data, bin_ranges=bin_ranges, rotsym=rotsym)
 
+        # pylint: disable=duplicate-code
         if config is None:
             config = {}
-
         self._config = config
 
         if tracker is None:
             tracker = []
-
         self._call_tracker = tracker
 
         self.detector_ranges = self._config.get("momentum", {}).get(
@@ -102,7 +102,9 @@ class MomentumCorrector:
         self.calibration: Dict[Any, Any] = {}
 
     @property
-    def call_tracker(self):
+    def call_tracker(self) -> List[MethodCall]:
+        """List of tracked function calls."""
+
         return self._call_tracker
 
     @property
@@ -760,7 +762,7 @@ class MomentumCorrector:
                 cdeform,
             )
         else:
-            #remove tracked call to function if not keeping transformation
+            # remove tracked call to function if not keeping transformation
             self.call_tracker.pop()
 
         return slice_transformed
