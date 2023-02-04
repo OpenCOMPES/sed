@@ -633,6 +633,11 @@ class EnergyCalibrator:
         binning = kwds.pop("binning", self.binning)
 
         calib_type = ""
+        time_offset = None
+        drift_distance = None
+        energy_scale = None
+        poly_a = None
+        energy_offset = None
 
         if "t0" in kwds and "d" in kwds and "E0" in kwds:
             time_offset = kwds.pop("t0")
@@ -657,10 +662,14 @@ class EnergyCalibrator:
             energy_offset = self.calibration["E0"]
             energy_scale = self.calibration["energy_scale"]
             calib_type = "fit"
+
         elif "coeffs" in self.calibration and "E0" in self.calibration:
             poly_a = self.calibration["coeffs"]
             energy_offset = self.calibration["E0"]
             calib_type = "poly"
+
+        else:
+            raise ValueError("No valid calibration parameters provided!")
 
         if calib_type == "fit":
             df[energy_column] = tof2ev(

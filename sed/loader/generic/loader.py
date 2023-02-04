@@ -85,7 +85,7 @@ class GenericLoader(BaseLoader):
         try:
             return (ddf.read_table(files, **kwds), metadata)
         except (TypeError, ValueError, NotImplementedError) as exc:
-            raise Exception(
+            raise ValueError(
                 "The file format cannot be understood!",
             ) from exc
 
