@@ -321,6 +321,11 @@ class SedProcessor:
                 Option to fix the position of the center point for the correction.
                 Defaults to True.
         """
+        if self.mc.slice is None:
+            raise ValueError(
+                "No slice for corrections and transformations loaded!",
+            )
+
         if auto_detect:  # automatic feature selection
             sigma = kwds.pop(
                 "sigma",
@@ -393,6 +398,17 @@ class SedProcessor:
                 Option to directly apply the provided transformations.
                 Defaults to False.
         """
+        # Generate homomorphy as default if no distortion correction has been applied
+        if self.mc.slice_corrected is None:
+            if self.mc.slice is None:
+                raise ValueError(
+                    "No slice for corrections and transformations loaded!",
+                )
+            self.mc.slice_corrected = self.mc.slice
+
+        if self.mc.cdeform_field is None or self.mc.rdeform_field is None:
+            self.mc.reset_deformation()
+
         self.mc.pose_adjustment(
             scale=scale,
             xtrans=xtrans,
@@ -442,6 +458,15 @@ class SedProcessor:
                 Option to apply the Distortion correction and momentum calibration to
                 the dataframe. Defaults to True.
         """
+
+        # Generate homomorphy as default if no distortion correction has been applied
+        if self.mc.slice_transformed is None:
+            if self.mc.slice is None:
+                raise ValueError(
+                    "No slice for corrections and transformations loaded!",
+                )
+            self.mc.slice_transformed = self.mc.slice
+
         if point_b is None:
             point_b = self._config.get("momentum", {}).get(
                 "center_pixel",
@@ -469,13 +494,29 @@ class SedProcessor:
         plt.show()
 
         if apply and self._dataframe is not None:
-            print("Adding corrected X/Y columns to dataframe:")
-            self._dataframe = self.mc.apply_distortion_correction(
-                self._dataframe,
-            )
-            print("Adding kx/ky columns to dataframe:")
-            self._dataframe = self.mc.append_k_axis(self._dataframe)
-            print(self._dataframe.head(10))
+            if (
+                self.mc.cdeform_field is not None
+                and self.mc.rdeform_field is not None
+            ):
+                print("Adding corrected X/Y columns to dataframe:")
+                self._dataframe = self.mc.apply_distortion_correction(
+                    self._dataframe,
+                )
+                print("Adding kx/ky columns to dataframe:")
+                self._dataframe = self.mc.append_k_axis(
+                    df=self._dataframe,
+                    x_column="Xm",
+                    y_column="Ym",
+                )
+                print(self._dataframe.head(10))
+            else:
+                print("Adding kx/ky columns to dataframe:")
+                self._dataframe = self.mc.append_k_axis(
+                    df=self._dataframe,
+                    x_column="X",
+                    y_column="Y",
+                )
+                print(self._dataframe.head(10))
 
     # Energy correction workflow
     # 1. Adjust the energy correction parameters

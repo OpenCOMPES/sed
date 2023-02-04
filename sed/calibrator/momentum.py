@@ -90,6 +90,7 @@ class MomentumCorrector:
         self.rdeform_field: np.ndarray = None
         self.cdeform_field: np.ndarray = None
         self.inverse_dfield: np.ndarray = None
+        self.dfield_updated: bool = False
         self.transformations: Dict[Any, Any] = {}
         self.calibration: Dict[Any, Any] = {}
 
@@ -569,6 +570,8 @@ class MomentumCorrector:
         self.rdeform_field = coordmat[1, ...]
         self.cdeform_field = coordmat[0, ...]
 
+        self.dfield_updated = True
+
     def update_deformation(self, rdeform: np.ndarray, cdeform: np.ndarray):
         """Update the deformation field by applying the provided column/row
         deformation fields.
@@ -590,6 +593,8 @@ class MomentumCorrector:
             order=1,
             cval=np.nan,
         )
+
+        self.dfield_updated = True
 
     def coordinate_transform(
         self,
@@ -1210,7 +1215,7 @@ class MomentumCorrector:
                 self.detector_ranges,
             )
         else:
-            if self.inverse_dfield is not None:
+            if self.inverse_dfield is not None and not self.dfield_updated:
                 dfield = self.inverse_dfield
             else:
                 self.inverse_dfield = generate_inverse_dfield(
@@ -1219,6 +1224,7 @@ class MomentumCorrector:
                     self.bin_ranges,
                     self.detector_ranges,
                 )
+                self.dfield_updated = False
                 dfield = self.inverse_dfield
 
         out_df = df.map_partitions(
