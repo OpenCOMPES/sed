@@ -1073,6 +1073,155 @@ class MomentumCorrector:
 
             pbk.show(fig)
 
+    def select_k_range(
+        self,
+        point_a: Union[np.ndarray, List[int]] = None,
+        point_b: Union[np.ndarray, List[int]] = None,
+        k_distance: float = None,
+        k_coord_a: Union[np.ndarray, List[float]] = None,
+        k_coord_b: Union[np.ndarray, List[float]] = np.array([0.0, 0.0]),
+        equiscale: bool = True,
+        apply: bool = False,
+    ):
+        """Interactive selection function for features for the Momentum axes calibra-
+        tion. It allows the user to select the pixel positions of two symmetry points
+        (a and b) and the k-space distance of the two. Alternatively, the corrdinates
+        of both points can be provided. See the equiscale option for details on the
+        specifications of point coordinates.
+
+        Args:
+        point_a, point_b (Union[np.ndarray, List[int]], optional):
+            Pixel coordinates of the two symmetry points (a and b). Point b has the
+            default coordinates [0., 0.] (see below).
+        k_distance (float, optional):
+            The known momentum space distance between the two symmetry points.
+        k_coord_a, k_coord_b (Union[np.ndarray, List[float]], optional):
+            Momentum coordinates of the two symmetry points a/b.
+            Point b defaults to k-space center. Only valid if equiscale=False
+        equiscale: bool | True
+            Option to adopt equal scale along both the x and y directions.
+            :True: Use a uniform scale for both x and y directions in the image
+            coordinate system. This applies to the situation where k_distance is given
+            and the points a and b are (close to) parallel with one of the two image
+            axes.
+            :False: Calculate the momentum scale for both x and y directions
+            separately. This applies to the situation where the points a and b are
+            sufficiently different in both x and y directions in the image coordinate
+            system.
+         apply (bool, optional):
+            Option to directly apply the calibration. Defaults to False.
+
+        Raises:
+            ValueError: If no valid image is found fom which to ge the coordinates.
+        """
+
+        matplotlib.use("module://ipympl.backend_nbagg")
+        if self.slice_transformed is not None:
+            image = self.slice_transformed
+        elif self.slice_corrected is not None:
+            image = self.slice_corrected
+        elif self.slice is not None:
+            image = self.slice
+        else:
+            raise ValueError("No valid image loaded!")
+
+        if point_b is None:
+            point_b = self._config.get("momentum", {}).get(
+                "center_pixel",
+                [256, 256],
+            )
+
+        if point_a is None:
+            point_a = [0, 0]
+
+        fig, ax = plt.subplots(1, 1)
+        img = ax.imshow(image.T, origin="lower", cmap="terrain_r")
+
+        (marker_a,) = ax.plot(point_a[0], point_a[1], "o")
+        (marker_b,) = ax.plot(point_b[0], point_b[1], "ro")
+
+        def update(
+            point_a_x: int,
+            point_a_y: int,
+            point_b_x: int,
+            point_b_y: int,
+            k_distance: float,
+        ):
+            fig.canvas.draw_idle()
+            marker_a.set_xdata(point_a_x)
+            marker_a.set_ydata(point_a_y)
+            marker_b.set_xdata(point_b_x)
+            marker_b.set_ydata(point_b_y)
+
+        point_a_input_x = ipw.IntText(point_a[0])
+        point_a_input_y = ipw.IntText(point_a[1])
+        point_b_input_x = ipw.IntText(point_b[0])
+        point_b_input_y = ipw.IntText(point_b[1])
+        k_distance_input = ipw.FloatText(k_distance)
+        ipw.interact(
+            update,
+            point_a_x=point_a_input_x,
+            point_a_y=point_a_input_y,
+            point_b_x=point_b_input_x,
+            point_b_y=point_b_input_y,
+            k_distance=k_distance_input,
+        )
+
+        global i
+        i = 0
+
+        def onclick(event):
+            global i
+            if i == 0:
+                point_a_input_x.value = event.xdata
+                point_a_input_y.value = event.ydata
+                i = 1
+            else:
+                point_b_input_x.value = event.xdata
+                point_b_input_y.value = event.ydata
+                i = 0
+
+        cid = fig.canvas.mpl_connect("button_press_event", onclick)
+
+        def apply_func(apply: bool):  # pylint: disable=unused-argument
+            point_a = (point_a_input_x.value, point_a_input_y.value)
+            point_b = (point_b_input_x.value, point_b_input_y.value)
+            calibration = self.calibrate(
+                point_a=point_a,
+                point_b=point_b,
+                k_distance=k_distance,
+                equiscale=equiscale,
+                k_coord_a=k_coord_a,
+                k_coord_b=k_coord_b,
+            )
+
+            img.set_extent(calibration["extent"])
+            plt.title("Momentum calibrated data")
+            plt.xlabel("$k_x$", fontsize=15)
+            plt.ylabel("$k_y$", fontsize=15)
+            ax.axhline(0)
+            ax.axvline(0)
+
+            fig.canvas.mpl_disconnect(cid)
+
+            point_a_input_x.close()
+            point_a_input_y.close()
+            point_b_input_x.close()
+            point_b_input_y.close()
+            k_distance_input.close()
+            apply_button.close()
+
+            fig.canvas.draw_idle()
+
+        apply_button = ipw.Button(description="apply")
+        display(apply_button)
+        apply_button.on_click(apply_func)
+
+        if apply:
+            apply_func(True)
+
+        plt.show()
+
     def calibrate(
         self,
         point_a: Union[np.ndarray, List[int]],

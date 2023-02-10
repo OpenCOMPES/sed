@@ -421,13 +421,13 @@ class SedProcessor:
     # to the dataframe
     def calibrate_momentum_axes(
         self,
-        point_a: Union[np.ndarray, List[int]],
+        point_a: Union[np.ndarray, List[int]] = None,
         point_b: Union[np.ndarray, List[int]] = None,
         k_distance: float = None,
         k_coord_a: Union[np.ndarray, List[float]] = None,
         k_coord_b: Union[np.ndarray, List[float]] = np.array([0.0, 0.0]),
         equiscale: bool = True,
-        apply=True,
+        apply=False,
     ):
         """Calibrate momentum axes and apply distortion correction and
         momentum calibration to dataframe. One can either provide pixel coordinates
@@ -459,41 +459,39 @@ class SedProcessor:
                 the dataframe. Defaults to True.
         """
 
-        # Generate homomorphy as default if no distortion correction has been applied
-        if self.mc.slice_transformed is None:
-            if self.mc.slice is None:
-                raise ValueError(
-                    "No slice for corrections and transformations loaded!",
-                )
-            self.mc.slice_transformed = self.mc.slice
-
         if point_b is None:
             point_b = self._config.get("momentum", {}).get(
                 "center_pixel",
                 [256, 256],
             )
 
-        calibration = self.mc.calibrate(
+        self.mc.select_k_range(
             point_a=point_a,
             point_b=point_b,
             k_distance=k_distance,
             k_coord_a=k_coord_a,
             k_coord_b=k_coord_b,
             equiscale=equiscale,
+            apply=apply,
         )
 
-        self.mc.view(
-            image=self.mc.slice_transformed,
-            imkwds={"extent": calibration["extent"]},
-        )
-        plt.title("Momentum calibrated data")
-        plt.xlabel("$k_x$", fontsize=15)
-        plt.ylabel("$k_y$", fontsize=15)
-        plt.axhline(0)
-        plt.axvline(0)
-        plt.show()
+    # 5. Apply correction and calibration to the dataframe
+    def apply_momentum_calibration(
+        self,
+        calibration: dict = None,
+    ):
+        """Applies the distortion correction and pose adjustment (optional)
+        and the momentum calibration to the dataframe
 
-        if apply and self._dataframe is not None:
+        Args:
+            calibration (dict, optional):
+            Optional dictionary with calibration data to usecalibration.
+            Defaults to None.
+        """
+        if calibration is not None:
+            self.mc.calibration = calibration
+
+        if self._dataframe is not None:
             if (
                 self.mc.cdeform_field is not None
                 and self.mc.rdeform_field is not None
@@ -562,10 +560,13 @@ class SedProcessor:
         )
 
     # 2. Apply energy correction to dataframe
-    def apply_energy_correction(self):
+    def apply_energy_correction(self, correction: dict = None):
         """Apply the enery correction parameters stored in the class to the
         dataframe. Per default it is directly applied to the TOF column.
         """
+        if correction is not None:
+            self.ec.correction = correction
+
         if self._dataframe is not None:
             print("Applying energy correction to dataframe...")
             self._dataframe = self.ec.apply_energy_correction(self._dataframe)
