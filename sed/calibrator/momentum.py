@@ -94,6 +94,8 @@ class MomentumCorrector:
         self.transformations: Dict[Any, Any] = {}
         self.calibration: Dict[Any, Any] = {}
 
+        self._state: int = 0
+
     @property
     def features(self) -> dict:
         """Dictionary of detected features for the symmetrization process.
@@ -1145,7 +1147,7 @@ class MomentumCorrector:
             point_a_y: int,
             point_b_x: int,
             point_b_y: int,
-            k_distance: float,
+            k_distance: float,  # pylint: disable=unused-argument
         ):
             fig.canvas.draw_idle()
             marker_a.set_xdata(point_a_x)
@@ -1167,25 +1169,23 @@ class MomentumCorrector:
             k_distance=k_distance_input,
         )
 
-        global i
-        i = 0
+        self._state = 0
 
         def onclick(event):
-            global i
-            if i == 0:
+            if self._state == 0:
                 point_a_input_x.value = event.xdata
                 point_a_input_y.value = event.ydata
-                i = 1
+                self._state = 1
             else:
                 point_b_input_x.value = event.xdata
                 point_b_input_y.value = event.ydata
-                i = 0
+                self._state = 0
 
         cid = fig.canvas.mpl_connect("button_press_event", onclick)
 
         def apply_func(apply: bool):  # pylint: disable=unused-argument
-            point_a = (point_a_input_x.value, point_a_input_y.value)
-            point_b = (point_b_input_x.value, point_b_input_y.value)
+            point_a = [point_a_input_x.value, point_a_input_y.value]
+            point_b = [point_b_input_x.value, point_b_input_y.value]
             calibration = self.calibrate(
                 point_a=point_a,
                 point_b=point_b,
