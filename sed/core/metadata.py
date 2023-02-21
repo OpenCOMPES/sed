@@ -18,12 +18,14 @@ class MetaHandler:
         # TODO: #35 add pretty print, possibly to HTML
         return str(self._m)
 
-    def add(self, v: Dict, duplicate: str = "raise") -> None:
+    def add(self, v: Dict, category=None, duplicate: str = "raise") -> None:
         """Add an entry to the metadata container
 
         Args:
             v: dictionary containing the metadata to add.
                 Must contain a 'name' key.
+            category: sub-dictionary container where to store the entry. e.g. "workflow"
+                for workflow steps
             overwrite: Control behaviour in case the 'name' key
                 is already present in the metadata dictionary. If raise, raises
                 a DuplicateEntryError.
@@ -34,8 +36,14 @@ class MetaHandler:
         Raises:
             DuplicateEntryError: [description]
         """
-        if v["name"] not in self._m.keys() or duplicate == "overwrite":
-            self._m[v["name"]] = v
+        meta = self._m
+        if category is not None:
+            if category not in self._m.keys():
+                self._m[category] = {}
+            meta = meta[category]
+
+        if v["name"] not in meta.keys() or duplicate == "overwrite":
+            meta[v["name"]] = v
         elif duplicate == "raise":
             raise DuplicateEntryError(
                 f"an entry {v['name']} already exists in metadata",
@@ -44,10 +52,10 @@ class MetaHandler:
             i = 0
             while True:
                 i += 1
-                newname = f"name_{i}"
-                if newname not in self._m.keys():
+                newname = f"{v['name']}_{i}"
+                if newname not in meta.keys():
                     break
-            self._m[newname] = v
+            meta[newname] = v
 
         else:
             raise ValueError(
@@ -55,16 +63,21 @@ class MetaHandler:
                 f"Please choose between overwrite,append or raise.",
             )
 
-    def add_processing(self, method: str, **kwds: Any) -> None:
-        """docstring
+    # def add_processing(self, method: str, **kwds: Any) -> None:
+    #     """docstring
 
-        Args:
+    #     Args:
 
-        Returns:
+    #     Returns:
 
-        """
-        # TODO: #36 Add processing metadata validation tests
-        self._m["processing"][method] = kwds
+    #     """
+    #     # TODO: #36 Add processing metadata validation tests
+    #     self._m["processing"][method] = kwds
+
+    def has_processing(self, method) -> bool:
+        if method in self._m["workflow"]:
+            return True
+        return False
 
     def from_nexus(self, val: Any) -> None:
         """docstring
