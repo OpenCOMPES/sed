@@ -1,0 +1,35 @@
+[tool.poetry]
+name = "toolbox-sxp"
+version = "0.1.0"
+description = ""
+authors = ["David Doblas Jiménez <david.doblas-jimenez@xfel.eu>"]
+readme = "README.md"
+packages = [{include = "toolbox_sxp", from = "src"}]
+
+[tool.poetry.dependencies]
+python = ">=3.8, <3.12"
+matplotlib = "3.4.2"
+ipympl = "0.7.0"
+ipywidgets = "7.6.3"
+numpy = "^1.23.3"
+numba = "^0.56.2"
+h5py = "^3.7.0"
+scikit-image = "^0.19.3"
+scipy = "^1.10.1"
+opencv-contrib-python = "^4.7.0.72"
+pandas = "^1.5.3"
+polars = "^0.16.7"
+pyarrow = "^11.0.0"
+pasha = "^0.1.1"
+dtaidistance = "^2.3.10"
+jax = "^0.4.4"
+jaxlib = "^0.4.4"
+
+
+[tool.poetry.group.dev.dependencies]
+pre-commit = "^2.20.0"
+pytest = "^7.1.3"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
