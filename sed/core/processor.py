@@ -488,14 +488,12 @@ class SedProcessor:
             Optional dictionary with calibration data to usecalibration.
             Defaults to None.
         """
-        if calibration is not None:
-            self.mc.calibration = calibration
 
         if self._dataframe is not None:
             if (
                 self.mc.cdeform_field is not None
                 and self.mc.rdeform_field is not None
-            ):
+            ) or (self.mc.inverse_dfield is not None):
                 print("Adding corrected X/Y columns to dataframe:")
                 self._dataframe = self.mc.apply_distortion_correction(
                     self._dataframe,
@@ -505,6 +503,7 @@ class SedProcessor:
                     df=self._dataframe,
                     x_column="Xm",
                     y_column="Ym",
+                    calibration=calibration,
                 )
                 print(self._dataframe.head(10))
             else:
@@ -513,6 +512,7 @@ class SedProcessor:
                     df=self._dataframe,
                     x_column="X",
                     y_column="Y",
+                    calibration=calibration,
                 )
                 print(self._dataframe.head(10))
 
@@ -560,16 +560,22 @@ class SedProcessor:
         )
 
     # 2. Apply energy correction to dataframe
-    def apply_energy_correction(self, correction: dict = None):
+    def apply_energy_correction(self, correction: dict = None, **kwds):
         """Apply the enery correction parameters stored in the class to the
-        dataframe. Per default it is directly applied to the TOF column.
+        dataframe.
+        Args:
+            correction (dict, optional):
+            Dictionary containing the correction parameters
         """
-        if correction is not None:
-            self.ec.correction = correction
 
         if self._dataframe is not None:
             print("Applying energy correction to dataframe...")
-            self._dataframe = self.ec.apply_energy_correction(self._dataframe)
+            self._dataframe = self.ec.apply_energy_correction(
+                df=self._dataframe,
+                correction=correction,
+                **kwds,
+            )
+            print(self._dataframe.head(10))
 
     # Energy calibrator workflow
     # 1. Load and normalize data
@@ -688,14 +694,13 @@ class SedProcessor:
             print("Could not determine all peaks!")
             raise
 
-    # 3. Fit the energy calibration reation, and apply it to the data frame
+    # 3. Fit the energy calibration relation
     def calibrate_energy_axis(
         self,
         ref_id: int,
         ref_energy: float,
         method: str = None,
         energy_scale: str = None,
-        apply: bool = True,
         **kwds,
     ):
         """Calculate the calibration function for the energy axis,
@@ -716,8 +721,6 @@ class SedProcessor:
                 which energy scale to use. Possible values are
                 "kinetic" and "binding"
                 Defaults to _config["energy"]["energy_scale"]
-            apply (bool, optional):
-                Whether to apply the calibration to the dataframe. Defaults to True.
         """
         if method is None:
             method = self._config.get("energy", {}).get(
@@ -776,9 +779,30 @@ class SedProcessor:
         plt.ylabel("Energy (eV)", fontsize=15)
         plt.show()
 
-        if apply and self._dataframe is not None:
+    # Apply energy calibration to the dataframe
+    def append_energy_axis(
+        self,
+        calibration: dict = None,
+        **kwds,
+    ):
+        """Applies the calibration function to to the dataframe.
+        Two approximations are implemented,
+        a (normally 3rd order) polynomial approximation, and a d^2/(t-t0)^2
+        relation.
+
+        Args:
+            calibration: dict | config
+                Calibration dict containing calibration parameters. Overrides
+                calibration from class or config.
+        """
+
+        if self._dataframe is not None:
             print("Adding energy column to dataframe:")
-            self._dataframe = self.ec.append_energy_axis(self._dataframe)
+            self._dataframe = self.ec.append_energy_axis(
+                df=self._dataframe,
+                calibration=calibration,
+                **kwds,
+            )
             print(self._dataframe.head(10))
 
     # Delay calibration function

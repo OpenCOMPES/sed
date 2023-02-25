@@ -93,6 +93,35 @@ class MomentumCorrector:
         self.dfield_updated: bool = False
         self.transformations: Dict[Any, Any] = {}
         self.calibration: Dict[Any, Any] = {}
+        if "dfield_file" in self._config.get("momentum", {}):
+            (self.rdeform_field, self.cdeform_field) = load_dfield(
+                self._config["momentum"]["dfield_file"],
+            )
+
+        self.x_column = self._config.get("dataframe", {}).get(
+            "x_column",
+            "X",
+        )
+        self.y_column = self._config.get("dataframe", {}).get(
+            "y_column",
+            "Y",
+        )
+        self.corrected_x_column = self._config.get("dataframe", {}).get(
+            "corrected_x_column",
+            "Xm",
+        )
+        self.corrected_y_column = self._config.get("dataframe", {}).get(
+            "corrected_y_column",
+            "Ym",
+        )
+        self.kx_column = self._config.get("dataframe", {}).get(
+            "kx_column",
+            "kx",
+        )
+        self.ky_column = self._config.get("dataframe", {}).get(
+            "ky_column",
+            "ky",
+        )
 
         self._state: int = 0
 
@@ -1331,10 +1360,10 @@ class MomentumCorrector:
     def apply_distortion_correction(
         self,
         df: Union[pd.DataFrame, dask.dataframe.DataFrame],
-        x_column: str = "X",
-        y_column: str = "Y",
-        new_x_column: str = "Xm",
-        new_y_column: str = "Ym",
+        x_column: str = None,
+        y_column: str = None,
+        new_x_column: str = None,
+        new_y_column: str = None,
         **kwds: dict,
     ) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
         """Calculate and replace the X and Y values with their distortion-corrected
@@ -1351,6 +1380,16 @@ class MomentumCorrector:
         :Return:
             dataframe with added columns
         """
+
+        if x_column is None:
+            x_column = self.x_column
+        if y_column is None:
+            y_column = self.y_column
+
+        if new_x_column is None:
+            new_x_column = self.corrected_x_column
+        if new_y_column is None:
+            new_y_column = self.corrected_y_column
 
         if "dfield" in kwds:
             dfield = np.asarray(kwds.pop("dfield"))
@@ -1391,10 +1430,11 @@ class MomentumCorrector:
     def append_k_axis(
         self,
         df: Union[pd.DataFrame, dask.dataframe.DataFrame],
-        x_column: str = "Xm",
-        y_column: str = "Ym",
-        new_x_column: str = "kx",
-        new_y_column: str = "ky",
+        x_column: str = None,
+        y_column: str = None,
+        new_x_column: str = None,
+        new_y_column: str = None,
+        calibration: dict = None,
         **kwds,
     ) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
         """Calculate and append the k axis coordinates (kx, ky) to the events dataframe.
@@ -1406,12 +1446,41 @@ class MomentumCorrector:
                 Labels of the source columns
             newX, newY: | 'ky', 'ky'
                 Labels of the destination columns
+            calibration: dict, default None
+                Calibration dictionary. If provided, overrides calibration from
+                class or config
             **kwds:
                 additional keywords for the momentum conversion
 
         :Return:
             dataframe with added columns
         """
+
+        if x_column is None:
+            if self.corrected_x_column in df.columns:
+                x_column = self.corrected_x_column
+            else:
+                x_column = self.x_column
+        if y_column is None:
+            if self.corrected_y_column in df.columns:
+                y_column = self.corrected_y_column
+            else:
+                y_column = self.y_column
+
+        if new_x_column is None:
+            new_x_column = self.kx_column
+
+        if new_y_column is None:
+            new_y_column = self.ky_column
+
+        if calibration is None:
+            if self.calibration:
+                calibration = self.calibration
+            else:
+                calibration = self._config.get("momentum", {}).get(
+                    "calibration",
+                    {},
+                )
 
         try:
             (
@@ -1420,14 +1489,14 @@ class MomentumCorrector:
             ) = detector_coordiantes_2_k_koordinates(
                 r_det=df[x_column],
                 c_det=df[y_column],
-                r_start=self.calibration["rstart"],
-                c_start=self.calibration["cstart"],
-                r_center=self.calibration["x_center"],
-                c_center=self.calibration["y_center"],
-                r_conversion=self.calibration["coeffs"][0],
-                c_conversion=self.calibration["coeffs"][1],
-                r_step=self.calibration["rstep"],
-                c_step=self.calibration["cstep"],
+                r_start=calibration["rstart"],
+                c_start=calibration["cstart"],
+                r_center=calibration["x_center"],
+                c_center=calibration["y_center"],
+                r_conversion=calibration["coeffs"][0],
+                c_conversion=calibration["coeffs"][1],
+                r_step=calibration["rstep"],
+                c_step=calibration["cstep"],
             )
         except KeyError:
             (
@@ -1669,3 +1738,27 @@ def generate_inverse_dfield(
     inverse_dfield = np.asarray([inv_rdeform_field, inv_cdeform_field])
 
     return inverse_dfield
+
+
+def load_dfield(file: str) -> Tuple[np.ndarray, np.ndarray]:
+    """Load inverse dfield from file
+
+    Args:
+        file (str): Path to file containing the inverse dfield
+
+    Returns:
+        np.ndarray: the loaded inverse deformation field
+    """
+
+    rdeform_field: np.ndarray = None
+    cdeform_field: np.ndarray = None
+
+    try:
+        dfield = np.load(file)
+        rdeform_field = dfield[0]
+        cdeform_field = dfield[1]
+
+    except FileNotFoundError:
+        pass
+
+    return rdeform_field, cdeform_field
