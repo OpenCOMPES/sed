@@ -16,7 +16,10 @@ from ..binning import bin_dataframe
 from ..config.settings import parse_config
 from .metadata import MetaHandler
 
+
 __version__ = "0.0.1_alpha"  # TODO: infer from sed package version
+
+# TODO: add save to parquet option
 
 
 class WorkflowStep(ABC):
@@ -46,10 +49,11 @@ class WorkflowStep(ABC):
         Returns:
             dictionary containing metadata
         """
-        varnames = [
-            s for s in self.__init__.__code__.co_varnames if s not in ["self"]
-        ]
-        d = {n: getattr(self, n) for n in varnames}
+        d = {
+            n: getattr(self, n)
+            for n in self.__init__.__code__.co_varnames
+            if hasattr(self, n)
+        }
         d["name"] = str(self.__class__).split("'")[-2].split(".")[-1]
         return d
 
@@ -178,8 +182,7 @@ class WorkflowManager:
     def compute_dataframe(self) -> ddf.DataFrame:
         """compute the dask dataframe and store it in memory."""
         with ProgressBar():
-            self._dataframe = self._dataframe.compute()
-        return self._dataframe
+            return self._dataframe.compute()
 
     def compute_binning(
         self,
