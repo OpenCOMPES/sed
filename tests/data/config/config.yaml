@@ -99,3 +99,82 @@ histogram:
   bins: [80, 80, 80, 80]
   axes: ["X", "Y", "t", "ADC"]
   ranges: [[0, 1800], [0, 1800], [65000, 69000], [0, 9000], ]
+
+metadata:
+  epics_pvs: ["KTOF:Lens:Extr:I", "trARPES:Carving:TEMP_RBV", "trARPES:XGS600:PressureAC:P_RD", "KTOF:Lens:UDLD:V", "KTOF:Lens:Sample:V", "KTOF:Apertures:m1.RBV", "KTOF:Apertures:m2.RBV", "KTOF:Apertures:m3.RBV", "trARPES:Carving:TRX.RBV", "trARPES:Carving:TRY.RBV", "trARPES:Carving:TRZ.RBV", "trARPES:Carving:THT.RBV", "trARPES:Carving:PHI.RBV", "trARPES:Carving:OMG.RBV"]
+  fa_in_channel: 'KTOF:Apertures:m1.RBV'
+  fa_hor_channel: 'KTOF:Apertures:m2.RBV'
+  ca_in_channel: 'KTOF:Apertures:m3.RBV'
+  aperture_config:
+    "2018-01-23T19:35:15":
+      fa_size:
+        750.: [[-3.0, -1.4], [-5.4, -4.6]]
+        grid: [[-3.0, -1.4], [0.15, 1.75]]
+        1500.: [[-3.0, -1.4], [6.25, 7.75]]
+        200.: [[3.3, 4.4], [-5.4, -4.6]]
+        500.: [[3.3, 4.4], [0.15, 1.75]]
+        1000.: [[3.3, 4.4], [6.25, 7.75]]
+        20.: [[9.6, 10.1], [-5.4, -4.6]]
+        50.: [[9.6, 10.1], [0.15, 1.75]]
+        100.: [[9.6, 10.1], [6.25, 7.75]]
+        open: [[-15, -9.0], [-15, -8.9]]
+      ca_size:
+        50.: [8.0, 8.4]
+        200.: [-0.5, -0.9]
+        100: [3.4, 3.8]
+        grid: [-5.3, -5.9]
+        open: [-12.0, -8]
+    "2020-01-23T19:35:15":
+      fa_size:
+        750.: [[-6.2, -4.8], [5.0, 6.0]]
+        grid: [[-6.2, -4.8], [-0.7, -0.3]]
+        500.: [[-6.2, -4.8], [-7.0, -6.0]]
+        200.: [[0.5, 0.9], [-0.7, -0.3]]
+        100.: [[0.5, 0.9], [-7.0, -6.0]]
+        300.: [[0.5, 0.9], [5.0, 6.0]]
+        10.: [[6.5, 6.9], [-7.0, -6.0]]
+        20.: [[6.5, 6.9], [-0.7, -0.3]]
+        50.: [[6.5, 6.9], [5.0, 6.0]]
+        open: [[-15, -8.5], [-15, -8.9]]
+      ca_size:
+        50.: [9.0, 11.0]
+        300.: [-0.1, 0.1]
+        200.: [0.7, 1.5]
+        100: [5.1, 5.9]
+        grid: [-5.5, -5.2]
+        open: [-15, -8.5]
+  lens_mode_config:
+    "6kV_kmodem4.0_20VTOF_v3.sav":
+      Extr: 6000.0
+      UCA: 1200
+      UFA: 600.0
+      Z1: 2452.9
+      Z2: 1489.9
+      A: 420.07
+      B: 2494.8
+      C: 489.2
+      D: 228.05
+      E: 113.82
+      F: 54.232
+      G: 20.0
+      H: 25.5
+      I: 36.0
+      TOF: 20.0
+      MCPfront: 20.0
+    "6kV_kmodem4.0_30VTOF_453ns_focus.sav":
+      Extr: 6000.0
+      UCA: 1200
+      UFA: 600.0
+      Z1: 2452.9
+      Z2: 1489.9
+      A: 403.07
+      B: 2500
+      C: 422.25
+      D: 208.88
+      E: 199.49
+      F: 68.735
+      G: 30.0
+      H: 30.0
+      I: 44.5
+      TOF: 30.0
+      MCPfront: 30.0

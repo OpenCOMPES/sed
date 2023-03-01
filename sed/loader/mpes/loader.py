@@ -4,7 +4,9 @@ Mostly ported from https://github.com/mpes-kit/mpes.
 @author: L. Rettig
 """
 import datetime
+import json
 import os
+import urllib
 from typing import Dict
 from typing import List
 from typing import Sequence
@@ -248,9 +250,9 @@ def get_attribute(h5group: h5py.Group, attribute: str) -> str:
 
 
 def parse_metadata(
-    files: Sequence[str],  # pylint: disable=unused-argument
+    files: Sequence[str],
 ) -> dict:
-    """Dummy for a parse MetaData function.
+    """Parses file metadata and returns corresponding dictionary
 
     Args:
         files (Sequence[str]): List of files from which to read metadata.
@@ -258,6 +260,11 @@ def parse_metadata(
     Returns:
         dict: Metadata dictionary.
     """
+
+    metadata_dict = {}
+    metadata_dict["name"] = "loader"
+    # Get time ranges
+
     return {}
 
 
@@ -335,6 +342,7 @@ class MpesLoader(BaseLoader):
         self,
         files: Sequence[str] = None,
         folder: str = None,
+        metadata: dict = None,
         ftype: str = "h5",
         time_stamps: bool = False,
         **kwds,
@@ -422,9 +430,203 @@ class MpesLoader(BaseLoader):
             first_event_time_stamp_key=first_event_time_stamp_key,
             **kwds,
         )
-        metadata = parse_metadata(files=files)
+
+        metadata = self.gather_metadata(files=files, metadata=metadata)
 
         return df, metadata
+
+    def gather_metadata(self, files: Sequence[str], metadata: dict = None):
+
+        if metadata is None:
+            metadata = {}
+        print("Gathering metadata from different locations")
+        # Read events in with ms time stamps
+        print("Collecting time stamps...")
+
+        hf = h5py.File(files[0])
+        timestamps = hdf5_to_array(
+            hf,
+            group_names=self._config["dataframe"]["hdf5_groupnames"],
+            time_stamps=True,
+        )
+        tsFrom = timestamps[-1][1]
+        hf = h5py.File(files[-1])
+        timestamps = hdf5_to_array(
+            hf,
+            group_names=self._config["dataframe"]["hdf5_groupnames"],
+            time_stamps=True,
+        )
+        tsTo = timestamps[-1][-1]
+
+        metadata["timing"] = {
+            "acquisition_start": datetime.datetime.utcfromtimestamp(tsFrom)
+            .replace(tzinfo=datetime.timezone.utc)
+            .isoformat(),
+            "acquisition_stop": datetime.datetime.utcfromtimestamp(tsTo)
+            .replace(tzinfo=datetime.timezone.utc)
+            .isoformat(),
+            "acquisition_duration": int(tsTo - tsFrom),
+            "collection_time": float(tsTo - tsFrom),
+        }
+
+        # import meta data from data file
+        if (
+            "file" not in metadata
+        ):  # If already present, the value is assumed to be a dictionary
+            metadata["file"] = {}
+
+        print("Collecting file metadata...")
+        with h5py.File(files[0], "r") as f:
+            for k, v in f.attrs.items():
+                k = k.replace("VSet", "V")
+                metadata["file"][k] = v
+
+        metadata["entry_identifier"] = os.path.dirname(
+            os.path.realpath(files[0]),
+        )
+
+        print("Collecting data from the EPICS archive...")
+        # Get metadata from Epics archive if not present already
+        start = datetime.datetime.utcfromtimestamp(tsFrom).isoformat()
+        end = datetime.datetime.utcfromtimestamp(tsTo).isoformat()
+        epics_channels = self._config["metadata"]["epics_pvs"]
+
+        channels_missing = set(epics_channels) - set(
+            metadata["file"].keys(),
+        )
+        for channel in channels_missing:
+            try:
+                req_str = (
+                    "http://aa0.fhi-berlin.mpg.de:17668/retrieval/data/getData.json?pv="
+                    + channel
+                    + "&from="
+                    + start
+                    + "Z&to="
+                    + end
+                    + "Z"
+                )
+                req = urllib.request.urlopen(req_str)
+                data = json.load(req)
+                vals = [x["val"] for x in data[0]["data"]]
+                metadata["file"][f"{channel}"] = np.mean(vals)
+
+            except (IndexError):
+                metadata["file"][f"{channel}"] = np.nan
+                print(
+                    f"Data for channel {channel} doesn't exist for time {start}",
+                )
+            except urllib.error.HTTPError as e:
+                print(
+                    f"Incorrect URL for the archive channel {channel}. "
+                    "Make sure that the channel name and file start and end times are "
+                    "correct.",
+                )
+                print("Error code: ", e)
+            except urllib.error.URLError as e:
+                print(
+                    f"Cannot access the archive URL for channel {channel}. "
+                    f"Make sure that you are within the FHI network."
+                    f"Skipping over channels {channels_missing}.",
+                )
+                print("Error code: ", e)
+                break
+
+        # Determine the correct aperture_config
+        stamps = sorted(
+            list(self._config["metadata"]["aperture_config"]) + [start],
+        )
+        current_index = stamps.index(start)
+        timestamp = stamps[
+            current_index - 1
+        ]  # pick last configuration before file date
+
+        # Aperture metadata
+        if "instrument" not in metadata.keys():
+            metadata["instrument"] = {"analyzer": {}}
+        metadata["instrument"]["analyzer"]["fa_shape"] = "circle"
+        metadata["instrument"]["analyzer"]["ca_shape"] = "circle"
+        metadata["instrument"]["analyzer"]["fa_size"] = np.nan
+        metadata["instrument"]["analyzer"]["ca_size"] = np.nan
+        # get field aperture shape and size
+        if {
+            self._config["metadata"]["fa_in_channel"],
+            self._config["metadata"]["fa_hor_channel"],
+        }.issubset(set(metadata["file"].keys())):
+            fa_in = metadata["file"][self._config["metadata"]["fa_in_channel"]]
+            fa_hor = metadata["file"][
+                self._config["metadata"]["fa_hor_channel"]
+            ]
+            for k, v in self._config["metadata"]["aperture_config"][timestamp][
+                "fa_size"
+            ].items():
+                if v[0][0] < fa_in < v[0][1] and v[1][0] < fa_hor < v[1][1]:
+                    if isinstance(k, float):
+                        metadata["instrument"]["analyzer"]["fa_size"] = k
+                    else:  # considering that only int and str type values are present
+                        metadata["instrument"]["analyzer"]["fa_shape"] = k
+                    break
+            else:
+                print("Field aperture size not found.")
+
+        # get contrast aperture shape and size
+        if self._config["metadata"]["ca_in_channel"] in metadata["file"]:
+            ca_in = metadata["file"][self._config["metadata"]["ca_in_channel"]]
+            for k, v in self._config["metadata"]["aperture_config"][timestamp][
+                "ca_size"
+            ].items():
+                if v[0] < ca_in < v[1]:
+                    if isinstance(k, float):
+                        metadata["instrument"]["analyzer"]["ca_size"] = k
+                    else:  # considering that only int and str type values are present
+                        metadata["instrument"]["analyzer"]["ca_shape"] = k
+                    break
+            else:
+                print("Contrast aperture size not found.")
+
+        # Storing the lens modes corresponding to lens voltages.
+        # Use lens volages present in first lens_mode entry.
+        lens_list = self._config["metadata"]["lens_mode_config"][
+            next(iter(self._config["metadata"]["lens_mode_config"]))
+        ].keys()
+
+        lens_volts = np.array(
+            [metadata["file"][f"KTOF:Lens:{lens}:V"] for lens in lens_list],
+        )
+        for mode, v in self._config["metadata"]["lens_mode_config"].items():
+            lens_volts_config = np.array([v[k] for k in lens_list])
+            if np.allclose(
+                lens_volts,
+                lens_volts_config,
+                rtol=0.005,
+            ):  # Equal upto 0.5% tolerance
+                metadata["instrument"]["analyzer"]["lens_mode"] = mode
+                break
+        else:
+            print(
+                "Lens mode for given lens voltages not found. "
+                "Storing lens mode from the user, if provided.",
+            )
+
+        # Determining projection from the lens mode
+        try:
+            lens_mode = metadata["instrument"]["analyzer"]["lens_mode"]
+            if "spatial" in lens_mode.split("_")[1]:
+                metadata["instrument"]["analyzer"]["projection"] = "real"
+            else:
+                metadata["instrument"]["analyzer"]["projection"] = "reciprocal"
+        except IndexError:
+            print(
+                "Lens mode must have the form, '6kV_kmodem4.0_20VTOF_v3.sav'. "
+                "Can't determine projection. "
+                "Storing projection from the user, if provided.",
+            )
+        except KeyError:
+            print(
+                "Lens mode not found. Can't determine projection. "
+                "Storing projection from the user, if provided.",
+            )
+
+        return metadata
 
     def get_count_rate(
         self,

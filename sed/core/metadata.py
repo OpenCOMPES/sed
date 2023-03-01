@@ -4,6 +4,8 @@
 from typing import Any
 from typing import Dict
 
+from sed.config.settings import insert_default_config
+
 
 class MetaHandler:
     """[summary]"""
@@ -18,13 +20,18 @@ class MetaHandler:
         # TODO: #35 add pretty print, possibly to HTML
         return str(self._m)
 
-    def add(self, v: Dict, duplicate: str = "raise") -> None:
+    def add(
+        self,
+        entry: Dict,
+        name: str,
+        duplicate_policy: str = "raise",
+    ) -> None:
         """Add an entry to the metadata container
 
         Args:
-            v: dictionary containing the metadata to add.
-                Must contain a 'name' key.
-            overwrite: Control behaviour in case the 'name' key
+            entry: dictionary containing the metadata to add.
+            name: name of the dictionary key under which to add entry.
+            duplicate_policy: Control behaviour in case the 'name' key
                 is already present in the metadata dictionary. If raise, raises
                 a DuplicateEntryError.
                 If 'overwrite' it overwrites the previous data with the new
@@ -34,24 +41,27 @@ class MetaHandler:
         Raises:
             DuplicateEntryError: [description]
         """
-        if v["name"] not in self._m.keys() or duplicate == "overwrite":
-            self._m[v["name"]] = v
-        elif duplicate == "raise":
+        if name not in self._m.keys() or duplicate_policy == "overwrite":
+            self._m[name] = entry
+        elif duplicate_policy == "raise":
             raise DuplicateEntryError(
-                f"an entry {v['name']} already exists in metadata",
+                f"an entry {name} already exists in metadata",
             )
-        elif duplicate == "append":
+        elif duplicate_policy == "append":
             i = 0
             while True:
                 i += 1
-                newname = f"name_{i}"
+                newname = f"{name}_{i}"
                 if newname not in self._m.keys():
                     break
-            self._m[newname] = v
+            self._m[newname] = entry
+
+        elif duplicate_policy == "merge":
+            insert_default_config(self._m[name], entry)
 
         else:
             raise ValueError(
-                f"could not interpret duplication handling method {duplicate}"
+                f"could not interpret duplication handling method {duplicate_policy}"
                 f"Please choose between overwrite,append or raise.",
             )
 

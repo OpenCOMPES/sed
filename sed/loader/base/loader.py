@@ -49,9 +49,9 @@ class BaseLoader(ABC):
         folder: str = None,
         ftype: str = None,
         **kwds,
-    ) -> Tuple[ddf.DataFrame, dict]:
-        """Reads data from given files or folder and returns a dask dataframe,
-        and a dictionary with metadata
+    ) -> ddf.DataFrame:
+        """Reads data from given files or folder and returns a dask dataframe.
+        Metadata are added to the meta_handler object in the class.
 
         Args:
             files (Sequence[str], optional): List of file paths. Defaults to None.
@@ -65,11 +65,10 @@ class BaseLoader(ABC):
                 parser in``dask.dataframe`` module.
 
         Returns:
-            Tuple[ddf.DataFrame, dict]: Dask dataframe and metadata read from specified
-            files.
+            ddf.DataFrame: Dask dataframe read from specified files.
         """
 
-        return None, None
+        return None
 
     @abstractmethod
     def get_count_rate(

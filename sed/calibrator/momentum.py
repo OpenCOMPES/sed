@@ -1417,8 +1417,11 @@ class MomentumCorrector:
         y_column: str = None,
         new_x_column: str = None,
         new_y_column: str = None,
+        rdeform_field: np.ndarray = None,
+        cdeform_field: np.ndarray = None,
+        inv_dfield: np.ndarray = None,
         **kwds,
-    ) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
+    ) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
         """Calculate and replace the X and Y values with their distortion-corrected
         version.
 
@@ -1457,11 +1460,9 @@ class MomentumCorrector:
         if new_y_column is None:
             new_y_column = self.corrected_y_column
 
-        if "dfield" in kwds:
-            dfield = np.asarray(kwds.pop("dfield"))
-        elif "rdeform_field" in kwds and "cdeform_field" in kwds:
-            rdeform_field = np.asarray(kwds.pop("rdeform_field"))
-            cdeform_field = np.asarray(kwds.pop("cdeform_field"))
+        if inv_dfield is not None:
+            dfield = inv_dfield
+        elif rdeform_field is not None and cdeform_field is not None:
             dfield = generate_inverse_dfield(
                 rdeform_field,
                 cdeform_field,
@@ -1491,7 +1492,10 @@ class MomentumCorrector:
             detector_ranges=self.detector_ranges,
             **kwds,
         )
-        return out_df
+
+        metadata = self.gather_correction_metadata(dfield=dfield)
+
+        return out_df, metadata
 
     def append_k_axis(
         self,
@@ -1502,7 +1506,7 @@ class MomentumCorrector:
         new_y_column: str = None,
         calibration: dict = None,
         **kwds,
-    ) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
+    ) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
         """Calculate and append the k axis coordinates (kx, ky) to the events dataframe.
 
         Args:
@@ -1576,7 +1580,49 @@ class MomentumCorrector:
                 **kwds,
             )
 
-        return df
+        metadata = self.gather_calibration_metadata(calibration=calibration)
+
+        return df, metadata
+
+    def gather_correction_metadata(self, dfield: np.ndarray = None):
+        """_summary_"""
+        if dfield is None:
+            dfield = self.inverse_dfield
+        metadata = {}
+        metadata["dfield"] = dfield
+        metadata["adjust_params"] = self.adjust_params
+        metadata["pcent"] = self.pcent
+        metadata["pouter_ord"] = self.pouter_ord
+        metadata["ptargs"] = self.ptargs
+        metadata["pcent"] = np.array(metadata["pcent"])
+        metadata["adjust_params"]["center"] = np.array(
+            metadata["adjust_params"]["center"],
+        )
+        metadata["adjust_params"]["x_vector"] = np.array([1.0, 0.0, 0.0])
+        metadata["adjust_params"]["y_vector"] = np.array([0.0, 1.0, 0.0])
+        metadata["adjust_params"]["angle_radians"] = (
+            self.adjust_params["angle"] * np.pi / 180
+        )
+        metadata["adjust_params"]["rotation_vector"] = np.array(
+            [0.0, 0.0, 1.0],
+        )
+        metadata["adjust_params"]["offset"] = np.concatenate(
+            (self.adjust_params["center"], [0.0]),
+        )
+
+        return metadata
+
+    def gather_calibration_metadata(self, calibration: dict = None):
+        """_summary_"""
+        if calibration is None:
+            calibration = self.calibration
+        metadata = {}
+        metadata["calibration"] = calibration
+        metadata["calibration"]["coeffs"] = np.array(
+            metadata["calibration"]["coeffs"],
+        )
+
+        return metadata
 
 
 def cm2palette(cmap_name: str) -> list:

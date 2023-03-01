@@ -90,6 +90,7 @@ class SedProcessor:
         self.loader = get_loader(
             loader_name=loader_name,
             config=self._config,
+            meta_handler=self._attributes,
         )
 
         self.ec = EnergyCalibrator(
@@ -236,6 +237,7 @@ class SedProcessor:
     def load(
         self,
         dataframe: Union[pd.DataFrame, ddf.DataFrame] = None,
+        metadata: dict = None,
         files: List[str] = None,
         folder: str = None,
         **kwds,
@@ -254,31 +256,36 @@ class SedProcessor:
         Raises:
             ValueError: Raised if no valid input is provided.
         """
+        if metadata is None:
+            metadata = {}
         if dataframe is not None:
             self._dataframe = dataframe
         elif folder is not None:
-            # pylint: disable=unused-variable
             dataframe, metadata = self.loader.read_dataframe(
                 folder=cast(str, self.cpy(folder)),
+                metadata=metadata,
                 **kwds,
             )
             self._dataframe = dataframe
-            # TODO: Implement metadata treatment
-            # self._attributes.add(metadata)
             self._files = self.loader.files
         elif files is not None:
-            # pylint: disable=unused-variable
             dataframe, metadata = self.loader.read_dataframe(
                 files=cast(List[str], self.cpy(files)),
+                metadata=metadata,
                 **kwds,
             )
             self._dataframe = dataframe
-            # TODO: Implement metadata treatment
-            # self._attributes.add(metadata)
             self._files = self.loader.files
         else:
             raise ValueError(
                 "Either 'dataframe', 'files' or 'folder' needs to be privided!",
+            )
+
+        for key in metadata:
+            self._attributes.add(
+                entry=metadata[key],
+                name=key,
+                duplicate_policy="merge",
             )
 
     # Momentum calibration workflow
@@ -444,6 +451,37 @@ class SedProcessor:
             apply=apply,
         )
 
+    def apply_momentum_correction(
+        self,
+        rdeform_field: np.ndarray = None,
+        cdeform_field: np.ndarray = None,
+        inv_dfield: np.ndarray = None,
+    ):
+        """Applies the distortion correction and pose adjustment (optional)
+        to the dataframe.
+
+        Args:
+            rdeform_field (np.ndarray, optional): Row deformation field.
+                Defaults to None.
+            cdeform_field (np.ndarray, optional): Column deformation field.
+                Defaults to None.
+            inv_dfield (np.ndarray, optional): Inverse deformation field.
+                Defaults to None.
+        """
+        if self._dataframe is not None:
+            print("Adding corrected X/Y columns to dataframe:")
+            self._dataframe, metadata = self.mc.apply_distortion_correction(
+                df=self._dataframe,
+                rdeform_field=rdeform_field,
+                cdeform_field=cdeform_field,
+                inv_dfield=inv_dfield,
+            )
+            # Add Metadata
+            self._attributes.add(
+                metadata,
+                "momentum_correction",
+            )
+
     # 4. Calculate momentum calibration and apply correction and calibration
     # to the dataframe
     def calibrate_momentum_axes(
@@ -514,31 +552,21 @@ class SedProcessor:
                 use. Defaults to None.
         """
         if self._dataframe is not None:
-            if (
-                self.mc.cdeform_field is not None
-                and self.mc.rdeform_field is not None
-            ) or (self.mc.inverse_dfield is not None):
-                print("Adding corrected X/Y columns to dataframe:")
-                self._dataframe = self.mc.apply_distortion_correction(
-                    self._dataframe,
-                )
-                print("Adding kx/ky columns to dataframe:")
-                self._dataframe = self.mc.append_k_axis(
-                    df=self._dataframe,
-                    x_column="Xm",
-                    y_column="Ym",
-                    calibration=calibration,
-                )
-                print(self._dataframe.head(10))
-            else:
-                print("Adding kx/ky columns to dataframe:")
-                self._dataframe = self.mc.append_k_axis(
-                    df=self._dataframe,
-                    x_column="X",
-                    y_column="Y",
-                    calibration=calibration,
-                )
-                print(self._dataframe.head(10))
+
+            print("Adding kx/ky columns to dataframe:")
+            self._dataframe, metadata = self.mc.append_k_axis(
+                df=self._dataframe,
+                x_column="X",
+                y_column="Y",
+                calibration=calibration,
+            )
+
+            # Add Metadata
+            self._attributes.add(
+                metadata,
+                "momentum_calibration",
+            )
+            print(self._dataframe.head(10))
 
     # Energy correction workflow
     # 1. Adjust the energy correction parameters
@@ -597,12 +625,17 @@ class SedProcessor:
         """
         if self._dataframe is not None:
             print("Applying energy correction to dataframe...")
-            self._dataframe = self.ec.apply_energy_correction(
+            self._dataframe, metadata = self.ec.apply_energy_correction(
                 df=self._dataframe,
                 correction=correction,
                 **kwds,
             )
-            print(self._dataframe.head(10))
+
+            # Add Metadata
+            self._attributes.add(
+                metadata,
+                "energy_correction",
+            )
 
     # Energy calibrator workflow
     # 1. Load and normalize data
@@ -836,10 +869,16 @@ class SedProcessor:
         """
         if self._dataframe is not None:
             print("Adding energy column to dataframe:")
-            self._dataframe = self.ec.append_energy_axis(
+            self._dataframe, metadata = self.ec.append_energy_axis(
                 df=self._dataframe,
                 calibration=calibration,
                 **kwds,
+            )
+
+            # Add Metadata
+            self._attributes.add(
+                metadata,
+                "energy_calibration",
             )
             print(self._dataframe.head(10))
 
@@ -864,7 +903,7 @@ class SedProcessor:
             print("Adding delay column to dataframe:")
 
             if delay_range is not None:
-                self._dataframe = self.dc.append_delay_axis(
+                self._dataframe, metadata = self.dc.append_delay_axis(
                     self._dataframe,
                     delay_range=delay_range,
                     **kwds,
@@ -880,13 +919,17 @@ class SedProcessor:
                         )
                         raise
 
-                self._dataframe = self.dc.append_delay_axis(
+                self._dataframe, metadata = self.dc.append_delay_axis(
                     self._dataframe,
                     datafile=datafile,
                     **kwds,
                 )
 
-            print(self._dataframe.head(10))
+            # Add Metadata
+            self._attributes.add(
+                metadata,
+                "energy_calibration",
+            )
 
     def add_jitter(self, cols: Sequence[str] = None):
         """Add jitter to the selected dataframe columns.

@@ -242,7 +242,7 @@ class EnergyCalibrator:
             if bias_key is None:
                 bias_key = self._config.get("energy", {}).get("bias_key", "")
 
-        dataframe, _ = self.loader.read_dataframe(files=data_files)
+        dataframe = self.loader.read_dataframe(files=data_files)
         traces = bin_dataframe(
             dataframe,
             bins=bins,
@@ -646,7 +646,7 @@ class EnergyCalibrator:
         energy_column: str = None,
         calibration: dict = None,
         **kwds,
-    ) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
+    ) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
         """Calculate and append the energy axis to the events dataframe.
 
         Args:
@@ -741,16 +741,25 @@ class EnergyCalibrator:
                 energy_offset,
                 df[tof_column].astype("float64"),
             )
+            metadata = self.gather_calibration_metadata()
         elif calib_type == "poly":
             df[energy_column] = tof2evpoly(
                 poly_a,
                 energy_offset,
                 df[tof_column].astype("float64"),
             )
+            metadata = self.gather_calibration_metadata()
         else:
             raise NotImplementedError
 
-        return df
+        return df, metadata
+
+    def gather_calibration_metadata(self):
+        """_summary_"""
+        metadata = {}
+        metadata["calibration"] = self.calibration
+
+        return metadata
 
     def adjust_energy_correction(
         self,
@@ -1126,7 +1135,7 @@ class EnergyCalibrator:
         amplitude: float = None,
         correction: dict = None,
         **kwds,
-    ) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
+    ) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
         """Apply correction to the time-of-flight (TOF) axis of single-event data.
 
         Args:
@@ -1202,8 +1211,16 @@ class EnergyCalibrator:
             amplitude=amplitude,
             **kwds,
         )
+        metadata = self.gather_correction_metadata()
 
-        return df
+        return df, metadata
+
+    def gather_correction_metadata(self):
+        """_summary_"""
+        metadata = {}
+        metadata["correction"] = self.correction
+
+        return metadata
 
 
 def extract_bias(files: List[str], bias_key: str) -> np.ndarray:
