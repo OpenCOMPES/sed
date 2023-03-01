@@ -1061,11 +1061,12 @@ class SedProcessor:
             )
 
         # Read out the values for the specified groups
-        group_dict = {}
+        group_dict_dd = {}
         dfpart = df.get_partition(dfpid)
         cols = dfpart.columns
         for ax in axes:
-            group_dict[ax] = dfpart.values[:, cols.get_loc(ax)].compute()
+            group_dict_dd[ax] = dfpart.values[:, cols.get_loc(ax)]
+        group_dict = ddf.compute(group_dict_dd)[0]
 
         # Plot multiple histograms in a grid
         grid_histogram(
