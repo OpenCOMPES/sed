@@ -97,6 +97,10 @@ class MomentumCorrector:
             (self.rdeform_field, self.cdeform_field) = load_dfield(
                 self._config["momentum"]["dfield_file"],
             )
+            self.bin_ranges = self._config.get("momentum", {}).get(
+                "ranges",
+                [],
+            )
 
         self.x_column = self._config.get("dataframe", {}).get(
             "x_column",
