@@ -18,7 +18,12 @@ class MetaHandler:
         # TODO: #35 add pretty print, possibly to HTML
         return str(self._m)
 
-    def add(self, v: Dict, category=None, duplicate: str = "raise") -> None:
+    def add(
+        self,
+        entry: Dict,
+        category=None,
+        duplicate_policy: str = "raise",
+    ) -> None:
         """Add an entry to the metadata container
 
         Args:
@@ -26,7 +31,7 @@ class MetaHandler:
                 Must contain a 'name' key.
             category: sub-dictionary container where to store the entry. e.g. "workflow"
                 for workflow steps
-            overwrite: Control behaviour in case the 'name' key
+            duplicate_policy: Control behaviour in case the 'name' key
                 is already present in the metadata dictionary. If raise, raises
                 a DuplicateEntryError.
                 If 'overwrite' it overwrites the previous data with the new
@@ -42,37 +47,25 @@ class MetaHandler:
                 self._m[category] = {}
             meta = meta[category]
 
-        if v["name"] not in meta.keys() or duplicate == "overwrite":
-            meta[v["name"]] = v
-        elif duplicate == "raise":
+        if entry["name"] not in meta.keys() or duplicate_policy == "overwrite":
+            meta[entry["name"]] = entry
+        elif duplicate_policy == "raise":
             raise DuplicateEntryError(
-                f"an entry {v['name']} already exists in metadata",
+                f"an entry {entry['name']} already exists in metadata",
             )
-        elif duplicate == "append":
+        elif duplicate_policy == "append":
             i = 0
             while True:
                 i += 1
-                newname = f"{v['name']}_{i}"
+                newname = f"{entry['name']}_{i}"
                 if newname not in meta.keys():
                     break
-            meta[newname] = v
-
+            meta[newname] = entry
         else:
             raise ValueError(
-                f"could not interpret duplication handling method {duplicate}"
+                f"could not interpret duplication handling method {duplicate_policy}"
                 f"Please choose between overwrite,append or raise.",
             )
-
-    # def add_processing(self, method: str, **kwds: Any) -> None:
-    #     """docstring
-
-    #     Args:
-
-    #     Returns:
-
-    #     """
-    #     # TODO: #36 Add processing metadata validation tests
-    #     self._m["processing"][method] = kwds
 
     def has_processing(self, method) -> bool:
         if method in self._m["workflow"]:
