@@ -40,7 +40,24 @@ class WorkflowStep(ABC):
         self.duplicate_policy = duplicate_policy
         self.notes = notes
         self.version = __version__
-        self.name = str(self.__class__).split(".")[-1]
+
+    @abstractmethod
+    def func(
+        self,
+        x,
+    ) -> ddf.DataFrame:
+        """The main function to map on the dataframe.
+        Args:
+            x: the input column(s)
+
+        Returns:
+            the generated series or dataframe (column or columns)
+        """
+        pass
+
+    @property
+    def name(self):
+        return str(self.__class__).split(".")[-1][:-2]
 
     @property
     def metadata(self):
@@ -54,8 +71,31 @@ class WorkflowStep(ABC):
             for n in self.__init__.__code__.co_varnames
             if hasattr(self, n)
         }
-        d["name"] = str(self.__class__).split("'")[-2].split(".")[-1]
+        d["name"] = self.name
         return d
+
+    def __call__(
+        self,
+        dd,
+    ) -> None:  # Alternative use format, maybe less intuitive
+        """Allows the usage of this class as a function
+
+        alternative application method, maybe less intuitive than "apply_to"
+        """
+        return self.apply_to(dd)
+
+    def __repr__(self):
+        s = f"Workflow step: {self.name}\n"
+        s += "Parameters:\n"
+        for k, v in self.metadata.items():
+            s += f" - {k}: {v}\n"
+        return s
+
+    def __str__(self):
+        s = f"{self.name} | "
+        for k, v in self.metadata.items():
+            s += f"{k}: {v}, "
+        return s
 
     def apply_to(self, dd, return_=True) -> None:  # TODO: add inplace option?
         """Map the main function self.func on a dataframe.
@@ -76,37 +116,6 @@ class WorkflowStep(ABC):
             raise TypeError("Only Dask or Pandas DataFrames are supported")
         if return_:
             return dd
-
-    def __call__(
-        self,
-        dd,
-    ) -> None:  # Alternative use format, maybe less intuitive
-        """Allows the usage of this class as a function
-
-        alternative application method, maybe less intuitive than "apply_to"
-        """
-        return self.apply_to(dd)
-
-    @abstractmethod
-    def func(
-        self,
-        x,
-    ) -> ddf.DataFrame:
-        """The main function to map on the dataframe.
-        Args:
-            x: the input column(s)
-
-        Returns:
-            the generated series or dataframe (column or columns)
-        """
-        pass
-
-    def __repr__(self):
-        s = f"Workflow step: {self.__class__}\n"
-        s += "Parameters:\n"
-        for k, v in self.metadata.items():
-            s += f" - {k}: {v}\n"
-        return s
 
 
 class WorkflowManager:
@@ -143,6 +152,14 @@ class WorkflowManager:
         elif isinstance(workflow, WorkflowStep):
             self._workflow_queue = [workflow]
 
+    def __repr__(self):
+        s = "Workflow Manager:\n"
+        s += f"data:\n{self._dataframe.__repr__()}\n"
+        s += "Workflow:\n"
+        for i, step in enumerate(self._workflow_queue):
+            s += f"{i+1}. {str(step)}\n"
+        return s
+
     def add_step(
         self,
         step: Union[WorkflowStep, Sequence[WorkflowStep]],
@@ -160,14 +177,6 @@ class WorkflowManager:
         for step in self._workflow_queue:
             self._dataframe = step(self._dataframe)
             self._metadata.add(step.metadata)
-
-    def __repr__(self):
-        s = "Workflow Manager:\n"
-        s += f"data:\n{self._dataframe.__repr__()}\n"
-        s += "Workflow:\n"
-        for step in self._workflow_queue:
-            s += f"\t {step.__repr__()}"
-        return s
 
     def add_binning(
         self,
