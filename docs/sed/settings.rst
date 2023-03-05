@@ -1,5 +1,5 @@
-Settings
+Config
 ===================================================
-.. automodule:: sed.settings
+.. automodule:: sed.config
    :members:
    :undoc-members:

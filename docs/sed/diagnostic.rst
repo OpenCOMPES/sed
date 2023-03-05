@@ -1,5 +1,5 @@
-Diagnostic
+Diagnostics
 ===================================================
-.. automodule:: sed.diagnostic
+.. automodule:: sed.diagnostics
    :members:
    :undoc-members:

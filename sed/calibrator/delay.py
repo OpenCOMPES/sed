@@ -13,14 +13,21 @@ import pandas as pd
 class DelayCalibrator:
     """
     Pump-Probe delay calibration methods.
+    Initialization of the DelayCalibrator class passes the config.
+
+    Args:
+        config (dict, optional): Config dictionary. Defaults to None.
     """
 
     def __init__(
         self,
         config: dict = None,
     ):
-        """Initialization of the DelayCalibrator class passes the config dict."""
+        """Initialization of the DelayCalibrator class passes the config.
 
+        Args:
+            config (dict, optional): Config dictionary. Defaults to None.
+        """
         if config is None:
             config = {}
 
@@ -49,10 +56,40 @@ class DelayCalibrator:
         p2_key: str = None,
         t0_key: str = None,
     ) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
-        """Calculate and append the delay axis to the events dataframe.
+        """Calculate and append the delay axis to the events dataframe, by converting
+        values from an analog-digital-converter (ADC).
 
-        Parameter:
-        ...
+        Args:
+            df (Union[pd.DataFrame, dask.dataframe.DataFrame]): The dataframe where
+                to apply the delay calibration to.
+            adc_column (str, optional): Source column for delay calibration.
+                Defaults to config["dataframe"]["adc_column"].
+            delay_column (str, optional): Destination column for delay calibration.
+                Defaults to config["dataframe"]["delay_column"].
+            adc_range (Union[Tuple, List, np.ndarray], optional): The range of used
+                ADC values. Defaults to config["delay"]["adc_range"].
+            delay_range (Union[Tuple, List, np.ndarray], optional): Range of scanned
+                delay values in ps. If omitted, the range is calculated from the
+                delay_range_mm and t0 values.
+            time0 (float, optional): Pump-Probe overlap value of the delay coordinate.
+                If omitted, it is searched for in the data files.
+            delay_range_mm (Union[Tuple, List, np.ndarray], optional): Range of scanned
+                delay stage in mm. If omitted, it is searched for in the data files.
+            datafile (str, optional): Datafile in which delay parameters are searched
+                for. Defaults to None.
+            p1_key (str, optional): hdf5 key for delay_range_mm start value.
+                Defaults to config["delay"]["p1_key"]
+            p2_key (str, optional): hdf5 key for delay_range_mm end value.
+                Defaults to config["delay"]["p2_key"]
+            t0_key (str, optional): hdf5 key for t0 value (mm).
+                Defaults to config["delay"]["t0_key"]
+
+        Raises:
+            ValueError: Raised if delay parameters are not found in the file.
+            NotImplementedError: Raised if no sufficient information passed.
+
+        Returns:
+            Union[pd.DataFrame, dask.dataframe.DataFrame]: dataframe with added column.
         """
         if adc_range is None:
             adc_range = np.asarray(

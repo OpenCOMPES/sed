@@ -20,21 +20,22 @@ def parse_config(
         str,
     ] = f"{package_dir}/config/default.yaml",
 ) -> dict:
-    """Handle config dictionary or files.
+    """Load the config dictionary from a file, or pass the provided config dictionary.
 
     Args:
-        config: config dictionary or file path.
-                Files can be json or yaml.
-        default_config: default config dictionary or file path.
-                The loaded dictionary is completed with the default values.
+        config (Union[dict, str], optional): config dictionary or file path.
+                Files can be *json* or *yaml*. Defaults to None.
+        default_config (Union[ dict, str, ], optional): default config dictionary
+            or file path. The loaded dictionary is completed with the default values.
+            Defaults to *package_dir*/config/default.yaml".
 
     Raises:
-        TypeError
+        TypeError: Raised if the provided file is neither *json* nor *yaml*.
+        FileNotFoundError: Raised if the provided file is not found.
 
     Returns:
-        config_dict: loaded and possibly completed config dictionary.
+        dict: Loaded and possibly completed config dictionary.
     """
-
     if config is None:
         config = {}
 
@@ -65,7 +66,6 @@ def load_config(config_path: str) -> dict:
     Returns:
         config_dict: loaded config dictionary
     """
-
     config_file = Path(config_path)
     if not config_file.is_file():
         raise FileNotFoundError(
@@ -94,7 +94,6 @@ def insert_default_config(config: dict, default_config: dict) -> dict:
     Returns:
         config: merged dictionary
     """
-
     for k, v in default_config.items():
         if isinstance(v, dict):
             if k not in config.keys():

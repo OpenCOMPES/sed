@@ -1,5 +1,5 @@
-Calibration
+Calibrator
 ===================================================
-.. automodule:: sed.calibration
+.. automodule:: sed.calibrator
    :members:
    :undoc-members:

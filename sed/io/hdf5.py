@@ -12,12 +12,13 @@ def recursive_write_metadata(h5group: h5py.Group, node: dict):
     """Recurses through a python dictionary and writes it into an hdf5 file.
 
     Args:
-        h5group: hdf5 group element where to store the current dict node to.
-        node: dictionary node to store
+        h5group (h5py.Group): hdf5 group element where to store the current dict node
+            to.
+        node (dict): dictionary node to store
 
     Raises:
         Warning: warns if elements have been converted into strings for saving.
-        ValueError: Rises when elements cannot be saved even as strings.
+        ValueError: Raises when elements cannot be saved even as strings.
     """
     for key, item in node.items():
         if isinstance(
@@ -46,7 +47,7 @@ def recursive_write_metadata(h5group: h5py.Group, node: dict):
                 h5group.create_dataset(key, data=str(item))
                 print(f"Saved {key} as string.")
             except BaseException as exc:
-                raise BaseException(  # pylint: disable=broad-exception-raised
+                raise ValueError(
                     f"Unknown error occured, cannot save {item} of type {type(item)}.",
                 ) from exc
 
@@ -57,10 +58,11 @@ def recursive_parse_metadata(
     """Recurses through an hdf5 file, and parse it into a dictionary.
 
     Args:
-        node: hdf5 group or dataset to parse into dictionary.
+        node (Union[h5py.Group, h5py.Dataset]): hdf5 group or dataset to parse into
+            dictionary.
 
     Returns:
-        dictionary: Dictionary of elements in the hdf5 path contained in node
+        dict: Dictionary of elements in the hdf5 path contained in node
     """
     if isinstance(node, h5py.Group):
         dictionary = {}
@@ -83,15 +85,13 @@ def to_h5(data: xr.DataArray, faddr: str, mode: str = "w"):
     """Save xarray formatted data to hdf5
 
     Args:
-        data: input data
+        data (xr.DataArray): input data
         faddr (str): complete file name (including path)
-        mode (str): hdf5 read/write mode
+        mode (str, optional): hdf5 read/write mode. Defaults to "w".
 
     Raises:
         Warning: subfunction warns if elements have been converted into strings for
-        saving.
-
-    Returns:
+            saving.
     """
     with h5py.File(faddr, mode) as h5_file:
 
@@ -135,11 +135,14 @@ def load_h5(faddr: str, mode: str = "r") -> xr.DataArray:
     """Read xarray data from formatted hdf5 file
 
     Args:
-        faddr: complete file name (including path)
-        mode: hdf5 read/write mode
+        faddr (str): complete file name (including path)
+        mode (str, optional): hdf5 read/write mode. Defaults to "r".
+
+    Raises:
+        ValueError: Raised if data or axes are not found in the file.
 
     Returns:
-        xarray: output xarra data
+        xr.DataArray: output xarra data
     """
     with h5py.File(faddr, mode) as h5_file:
         # Reading data array
