@@ -8,11 +8,11 @@ Single-Event DataFrame (SED) documentation
 
    sed/core
    sed/binning
-   sed/calibration
+   sed/calibrator
    sed/diagnostic
    sed/io
    sed/metadata
-   sed/settings
+   sed/config
 
 .. toctree::
    :maxdepth: 2

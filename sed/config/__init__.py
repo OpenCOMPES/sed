@@ -1,4 +1,4 @@
-"""sed.settings module easy access APIs
+"""sed.config module easy access APIs
 
 """
 from .settings import parse_config
