@@ -321,6 +321,11 @@ class SedProcessor:
                 Option to fix the position of the center point for the correction.
                 Defaults to True.
         """
+        if self.mc.slice is None:
+            raise ValueError(
+                "No slice for corrections and transformations loaded!",
+            )
+
         if auto_detect:  # automatic feature selection
             sigma = kwds.pop(
                 "sigma",
@@ -393,6 +398,17 @@ class SedProcessor:
                 Option to directly apply the provided transformations.
                 Defaults to False.
         """
+        # Generate homomorphy as default if no distortion correction has been applied
+        if self.mc.slice_corrected is None:
+            if self.mc.slice is None:
+                raise ValueError(
+                    "No slice for corrections and transformations loaded!",
+                )
+            self.mc.slice_corrected = self.mc.slice
+
+        if self.mc.cdeform_field is None or self.mc.rdeform_field is None:
+            self.mc.reset_deformation()
+
         self.mc.pose_adjustment(
             scale=scale,
             xtrans=xtrans,
@@ -405,13 +421,13 @@ class SedProcessor:
     # to the dataframe
     def calibrate_momentum_axes(
         self,
-        point_a: Union[np.ndarray, List[int]],
+        point_a: Union[np.ndarray, List[int]] = None,
         point_b: Union[np.ndarray, List[int]] = None,
         k_distance: float = None,
         k_coord_a: Union[np.ndarray, List[float]] = None,
         k_coord_b: Union[np.ndarray, List[float]] = np.array([0.0, 0.0]),
         equiscale: bool = True,
-        apply=True,
+        apply=False,
     ):
         """Calibrate momentum axes and apply distortion correction and
         momentum calibration to dataframe. One can either provide pixel coordinates
@@ -442,40 +458,63 @@ class SedProcessor:
                 Option to apply the Distortion correction and momentum calibration to
                 the dataframe. Defaults to True.
         """
+
         if point_b is None:
             point_b = self._config.get("momentum", {}).get(
                 "center_pixel",
                 [256, 256],
             )
 
-        calibration = self.mc.calibrate(
+        self.mc.select_k_range(
             point_a=point_a,
             point_b=point_b,
             k_distance=k_distance,
             k_coord_a=k_coord_a,
             k_coord_b=k_coord_b,
             equiscale=equiscale,
+            apply=apply,
         )
 
-        self.mc.view(
-            image=self.mc.slice_transformed,
-            imkwds={"extent": calibration["extent"]},
-        )
-        plt.title("Momentum calibrated data")
-        plt.xlabel("$k_x$", fontsize=15)
-        plt.ylabel("$k_y$", fontsize=15)
-        plt.axhline(0)
-        plt.axvline(0)
-        plt.show()
+    # 5. Apply correction and calibration to the dataframe
+    def apply_momentum_calibration(
+        self,
+        calibration: dict = None,
+    ):
+        """Applies the distortion correction and pose adjustment (optional)
+        and the momentum calibration to the dataframe
 
-        if apply and self._dataframe is not None:
-            print("Adding corrected X/Y columns to dataframe:")
-            self._dataframe = self.mc.apply_distortion_correction(
-                self._dataframe,
-            )
-            print("Adding kx/ky columns to dataframe:")
-            self._dataframe = self.mc.append_k_axis(self._dataframe)
-            print(self._dataframe.head(10))
+        Args:
+            calibration (dict, optional):
+            Optional dictionary with calibration data to usecalibration.
+            Defaults to None.
+        """
+
+        if self._dataframe is not None:
+            if (
+                self.mc.cdeform_field is not None
+                and self.mc.rdeform_field is not None
+            ) or (self.mc.inverse_dfield is not None):
+                print("Adding corrected X/Y columns to dataframe:")
+                self._dataframe = self.mc.apply_distortion_correction(
+                    self._dataframe,
+                )
+                print("Adding kx/ky columns to dataframe:")
+                self._dataframe = self.mc.append_k_axis(
+                    df=self._dataframe,
+                    x_column="Xm",
+                    y_column="Ym",
+                    calibration=calibration,
+                )
+                print(self._dataframe.head(10))
+            else:
+                print("Adding kx/ky columns to dataframe:")
+                self._dataframe = self.mc.append_k_axis(
+                    df=self._dataframe,
+                    x_column="X",
+                    y_column="Y",
+                    calibration=calibration,
+                )
+                print(self._dataframe.head(10))
 
     # Energy correction workflow
     # 1. Adjust the energy correction parameters
@@ -521,13 +560,22 @@ class SedProcessor:
         )
 
     # 2. Apply energy correction to dataframe
-    def apply_energy_correction(self):
+    def apply_energy_correction(self, correction: dict = None, **kwds):
         """Apply the enery correction parameters stored in the class to the
-        dataframe. Per default it is directly applied to the TOF column.
+        dataframe.
+        Args:
+            correction (dict, optional):
+            Dictionary containing the correction parameters
         """
+
         if self._dataframe is not None:
             print("Applying energy correction to dataframe...")
-            self._dataframe = self.ec.apply_energy_correction(self._dataframe)
+            self._dataframe = self.ec.apply_energy_correction(
+                df=self._dataframe,
+                correction=correction,
+                **kwds,
+            )
+            print(self._dataframe.head(10))
 
     # Energy calibrator workflow
     # 1. Load and normalize data
@@ -646,14 +694,13 @@ class SedProcessor:
             print("Could not determine all peaks!")
             raise
 
-    # 3. Fit the energy calibration reation, and apply it to the data frame
+    # 3. Fit the energy calibration relation
     def calibrate_energy_axis(
         self,
         ref_id: int,
         ref_energy: float,
         method: str = None,
         energy_scale: str = None,
-        apply: bool = True,
         **kwds,
     ):
         """Calculate the calibration function for the energy axis,
@@ -674,8 +721,6 @@ class SedProcessor:
                 which energy scale to use. Possible values are
                 "kinetic" and "binding"
                 Defaults to _config["energy"]["energy_scale"]
-            apply (bool, optional):
-                Whether to apply the calibration to the dataframe. Defaults to True.
         """
         if method is None:
             method = self._config.get("energy", {}).get(
@@ -734,9 +779,30 @@ class SedProcessor:
         plt.ylabel("Energy (eV)", fontsize=15)
         plt.show()
 
-        if apply and self._dataframe is not None:
+    # Apply energy calibration to the dataframe
+    def append_energy_axis(
+        self,
+        calibration: dict = None,
+        **kwds,
+    ):
+        """Applies the calibration function to to the dataframe.
+        Two approximations are implemented,
+        a (normally 3rd order) polynomial approximation, and a d^2/(t-t0)^2
+        relation.
+
+        Args:
+            calibration: dict | config
+                Calibration dict containing calibration parameters. Overrides
+                calibration from class or config.
+        """
+
+        if self._dataframe is not None:
             print("Adding energy column to dataframe:")
-            self._dataframe = self.ec.append_energy_axis(self._dataframe)
+            self._dataframe = self.ec.append_energy_axis(
+                df=self._dataframe,
+                calibration=calibration,
+                **kwds,
+            )
             print(self._dataframe.head(10))
 
     # Delay calibration function
@@ -995,11 +1061,12 @@ class SedProcessor:
             )
 
         # Read out the values for the specified groups
-        group_dict = {}
+        group_dict_dd = {}
         dfpart = df.get_partition(dfpid)
         cols = dfpart.columns
         for ax in axes:
-            group_dict[ax] = dfpart.values[:, cols.get_loc(ax)].compute()
+            group_dict_dd[ax] = dfpart.values[:, cols.get_loc(ax)]
+        group_dict = ddf.compute(group_dict_dd)[0]
 
         # Plot multiple histograms in a grid
         grid_histogram(

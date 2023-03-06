@@ -15,7 +15,9 @@ import dask.array as da
 import dask.dataframe as ddf
 import h5py
 import numpy as np
+import scipy.interpolate as sint
 
+from sed.core.metadata import MetaHandler
 from sed.loader.base.loader import BaseLoader
 from sed.loader.utils import gather_files
 
@@ -250,7 +252,50 @@ def parse_metadata(
     return {}
 
 
-class MpesLoader(BaseLoader):  # pylint: disable=too-few-public-methods
+def get_count_rate(
+    h5file: h5py.File,
+    ms_markers_group: str = "msMarkers",
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Create count rate trace from the msMarker field in the hdf5 file.
+
+    Parameters:
+        h5file: The h5file from which to get the count rate
+        ms_marker_group: The hdf5 group where the millisecond markers are stored
+
+    Return:
+        countRate: ndarray
+            The count rate in Hz.
+        secs: ndarray
+            The seconds into the scan.
+
+    """
+
+    ms_markers = np.asarray(h5file[ms_markers_group])
+    secs = np.arange(0, len(ms_markers)) / 1000
+    msmarker_spline = sint.InterpolatedUnivariateSpline(secs, ms_markers, k=1)
+    rate_spline = msmarker_spline.derivative()
+    count_rate = rate_spline(secs)
+
+    return (count_rate, secs)
+
+
+def get_elapsed_time(
+    h5file: h5py.File,
+    ms_markers_group: str = "msMarkers",
+) -> float:
+    """
+    Return the elapsed time in the file from the msMarkers wave
+
+        return: secs: the acquision time of the file in seconds.
+    """
+
+    secs = h5file[ms_markers_group].len() / 1000
+
+    return secs
+
+
+class MpesLoader(BaseLoader):
     """Mpes implementation of the Loader. Reads from h5 files or folders of the
     SPECS Metis 1000 (FHI Berlin)"""
 
@@ -261,12 +306,9 @@ class MpesLoader(BaseLoader):  # pylint: disable=too-few-public-methods
     def __init__(
         self,
         config: dict = None,
+        meta_handler: MetaHandler = None,
     ):
-
-        if config is None:
-            config = {}
-
-        self._config = config
+        super().__init__(config=config, meta_handler=meta_handler)
 
         self.read_timestamps = self._config.get("dataframe", {}).get(
             "read_timestamps",
@@ -367,6 +409,84 @@ class MpesLoader(BaseLoader):  # pylint: disable=too-few-public-methods
         metadata = parse_metadata(files=files)
 
         return df, metadata
+
+    def get_count_rate(
+        self,
+        fids: Sequence[int] = None,
+        **kwds,
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Create count rate data for the files specified in ``fids`` from the msMarkers.
+
+        Parameters:
+            fids: the file ids to include. None | list of file ids.
+            kwds: Keyword arguments
+                ms_markers_group: Name of the hdf5 group containing the ms-markers
+
+        Return:
+            countrate, seconds: Arrays containing countrate and seconds
+            into the scan.
+        """
+
+        if fids is None:
+            fids = range(0, len(self.files))
+
+        ms_markers_group = kwds.pop(
+            "ms_markers_group",
+            self._config.get("dataframe", {}).get(
+                "ms_markers_group",
+                "msMarkers",
+            ),
+        )
+
+        secs_list = []
+        count_rate_list = []
+        accumulated_time = 0
+        for fid in fids:
+            count_rate_, secs_ = get_count_rate(
+                h5py.File(self.files[fid]),
+                ms_markers_group=ms_markers_group,
+            )
+            secs_list.append((accumulated_time + secs_).T)
+            count_rate_list.append(count_rate_.T)
+            accumulated_time += secs_[-1]
+
+        count_rate = np.concatenate(count_rate_list)
+        secs = np.concatenate(secs_list)
+
+        return count_rate, secs
+
+    def get_elapsed_time(self, fids: Sequence[int] = None, **kwds) -> float:
+        """
+        Return the elapsed time in the file from the msMarkers wave.
+
+        Parameters:
+            fids: the file ids to include. None | list of file ids.
+            kwds: Keyword arguments
+
+        Return:
+            The elapsed time in the files in seconds.
+        """
+
+        if fids is None:
+            fids = range(0, len(self.files))
+
+        ms_markers_group = kwds.pop(
+            "ms_markers_group",
+            self._config.get("dataframe", {}).get(
+                "ms_markers_group",
+                "msMarkers",
+            ),
+        )
+
+        secs = 0.0
+        for fid in fids:
+            secs += get_elapsed_time(
+                h5py.File(self.files[fid]),
+                ms_markers_group=ms_markers_group,
+            )
+
+        return secs
 
 
 LOADER = MpesLoader

@@ -90,8 +90,44 @@ class MomentumCorrector:
         self.rdeform_field: np.ndarray = None
         self.cdeform_field: np.ndarray = None
         self.inverse_dfield: np.ndarray = None
+        self.dfield_updated: bool = False
         self.transformations: Dict[Any, Any] = {}
         self.calibration: Dict[Any, Any] = {}
+        if "dfield_file" in self._config.get("momentum", {}):
+            (self.rdeform_field, self.cdeform_field) = load_dfield(
+                self._config["momentum"]["dfield_file"],
+            )
+            self.bin_ranges = self._config.get("momentum", {}).get(
+                "ranges",
+                [],
+            )
+
+        self.x_column = self._config.get("dataframe", {}).get(
+            "x_column",
+            "X",
+        )
+        self.y_column = self._config.get("dataframe", {}).get(
+            "y_column",
+            "Y",
+        )
+        self.corrected_x_column = self._config.get("dataframe", {}).get(
+            "corrected_x_column",
+            "Xm",
+        )
+        self.corrected_y_column = self._config.get("dataframe", {}).get(
+            "corrected_y_column",
+            "Ym",
+        )
+        self.kx_column = self._config.get("dataframe", {}).get(
+            "kx_column",
+            "kx",
+        )
+        self.ky_column = self._config.get("dataframe", {}).get(
+            "ky_column",
+            "ky",
+        )
+
+        self._state: int = 0
 
     @property
     def features(self) -> dict:
@@ -569,6 +605,8 @@ class MomentumCorrector:
         self.rdeform_field = coordmat[1, ...]
         self.cdeform_field = coordmat[0, ...]
 
+        self.dfield_updated = True
+
     def update_deformation(self, rdeform: np.ndarray, cdeform: np.ndarray):
         """Update the deformation field by applying the provided column/row
         deformation fields.
@@ -590,6 +628,8 @@ class MomentumCorrector:
             order=1,
             cval=np.nan,
         )
+
+        self.dfield_updated = True
 
     def coordinate_transform(
         self,
@@ -1068,6 +1108,153 @@ class MomentumCorrector:
 
             pbk.show(fig)
 
+    def select_k_range(
+        self,
+        point_a: Union[np.ndarray, List[int]] = None,
+        point_b: Union[np.ndarray, List[int]] = None,
+        k_distance: float = None,
+        k_coord_a: Union[np.ndarray, List[float]] = None,
+        k_coord_b: Union[np.ndarray, List[float]] = np.array([0.0, 0.0]),
+        equiscale: bool = True,
+        apply: bool = False,
+    ):
+        """Interactive selection function for features for the Momentum axes calibra-
+        tion. It allows the user to select the pixel positions of two symmetry points
+        (a and b) and the k-space distance of the two. Alternatively, the corrdinates
+        of both points can be provided. See the equiscale option for details on the
+        specifications of point coordinates.
+
+        Args:
+        point_a, point_b (Union[np.ndarray, List[int]], optional):
+            Pixel coordinates of the two symmetry points (a and b). Point b has the
+            default coordinates [0., 0.] (see below).
+        k_distance (float, optional):
+            The known momentum space distance between the two symmetry points.
+        k_coord_a, k_coord_b (Union[np.ndarray, List[float]], optional):
+            Momentum coordinates of the two symmetry points a/b.
+            Point b defaults to k-space center. Only valid if equiscale=False
+        equiscale: bool | True
+            Option to adopt equal scale along both the x and y directions.
+            :True: Use a uniform scale for both x and y directions in the image
+            coordinate system. This applies to the situation where k_distance is given
+            and the points a and b are (close to) parallel with one of the two image
+            axes.
+            :False: Calculate the momentum scale for both x and y directions
+            separately. This applies to the situation where the points a and b are
+            sufficiently different in both x and y directions in the image coordinate
+            system.
+         apply (bool, optional):
+            Option to directly apply the calibration. Defaults to False.
+
+        Raises:
+            ValueError: If no valid image is found fom which to ge the coordinates.
+        """
+
+        matplotlib.use("module://ipympl.backend_nbagg")
+        if self.slice_transformed is not None:
+            image = self.slice_transformed
+        elif self.slice_corrected is not None:
+            image = self.slice_corrected
+        elif self.slice is not None:
+            image = self.slice
+        else:
+            raise ValueError("No valid image loaded!")
+
+        if point_b is None:
+            point_b = self._config.get("momentum", {}).get(
+                "center_pixel",
+                [256, 256],
+            )
+
+        if point_a is None:
+            point_a = [0, 0]
+
+        fig, ax = plt.subplots(1, 1)
+        img = ax.imshow(image.T, origin="lower", cmap="terrain_r")
+
+        (marker_a,) = ax.plot(point_a[0], point_a[1], "o")
+        (marker_b,) = ax.plot(point_b[0], point_b[1], "ro")
+
+        def update(
+            point_a_x: int,
+            point_a_y: int,
+            point_b_x: int,
+            point_b_y: int,
+            k_distance: float,  # pylint: disable=unused-argument
+        ):
+            fig.canvas.draw_idle()
+            marker_a.set_xdata(point_a_x)
+            marker_a.set_ydata(point_a_y)
+            marker_b.set_xdata(point_b_x)
+            marker_b.set_ydata(point_b_y)
+
+        point_a_input_x = ipw.IntText(point_a[0])
+        point_a_input_y = ipw.IntText(point_a[1])
+        point_b_input_x = ipw.IntText(point_b[0])
+        point_b_input_y = ipw.IntText(point_b[1])
+        k_distance_input = ipw.FloatText(k_distance)
+        ipw.interact(
+            update,
+            point_a_x=point_a_input_x,
+            point_a_y=point_a_input_y,
+            point_b_x=point_b_input_x,
+            point_b_y=point_b_input_y,
+            k_distance=k_distance_input,
+        )
+
+        self._state = 0
+
+        def onclick(event):
+            if self._state == 0:
+                point_a_input_x.value = event.xdata
+                point_a_input_y.value = event.ydata
+                self._state = 1
+            else:
+                point_b_input_x.value = event.xdata
+                point_b_input_y.value = event.ydata
+                self._state = 0
+
+        cid = fig.canvas.mpl_connect("button_press_event", onclick)
+
+        def apply_func(apply: bool):  # pylint: disable=unused-argument
+            point_a = [point_a_input_x.value, point_a_input_y.value]
+            point_b = [point_b_input_x.value, point_b_input_y.value]
+            calibration = self.calibrate(
+                point_a=point_a,
+                point_b=point_b,
+                k_distance=k_distance,
+                equiscale=equiscale,
+                k_coord_a=k_coord_a,
+                k_coord_b=k_coord_b,
+            )
+
+            img.set_extent(calibration["extent"])
+            plt.title("Momentum calibrated data")
+            plt.xlabel("$k_x$", fontsize=15)
+            plt.ylabel("$k_y$", fontsize=15)
+            ax.axhline(0)
+            ax.axvline(0)
+
+            fig.canvas.mpl_disconnect(cid)
+
+            point_a_input_x.close()
+            point_a_input_y.close()
+            point_b_input_x.close()
+            point_b_input_y.close()
+            k_distance_input.close()
+            apply_button.close()
+
+            fig.canvas.draw_idle()
+
+        apply_button = ipw.Button(description="apply")
+        display(apply_button)
+        apply_button.on_click(apply_func)
+
+        if apply:
+            apply_func(True)
+
+        plt.show()
+
     def calibrate(
         self,
         point_a: Union[np.ndarray, List[int]],
@@ -1177,10 +1364,10 @@ class MomentumCorrector:
     def apply_distortion_correction(
         self,
         df: Union[pd.DataFrame, dask.dataframe.DataFrame],
-        x_column: str = "X",
-        y_column: str = "Y",
-        new_x_column: str = "Xm",
-        new_y_column: str = "Ym",
+        x_column: str = None,
+        y_column: str = None,
+        new_x_column: str = None,
+        new_y_column: str = None,
         **kwds: dict,
     ) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
         """Calculate and replace the X and Y values with their distortion-corrected
@@ -1198,6 +1385,16 @@ class MomentumCorrector:
             dataframe with added columns
         """
 
+        if x_column is None:
+            x_column = self.x_column
+        if y_column is None:
+            y_column = self.y_column
+
+        if new_x_column is None:
+            new_x_column = self.corrected_x_column
+        if new_y_column is None:
+            new_y_column = self.corrected_y_column
+
         if "dfield" in kwds:
             dfield = np.asarray(kwds.pop("dfield"))
         elif "rdeform_field" in kwds and "cdeform_field" in kwds:
@@ -1210,7 +1407,7 @@ class MomentumCorrector:
                 self.detector_ranges,
             )
         else:
-            if self.inverse_dfield is not None:
+            if self.inverse_dfield is not None and not self.dfield_updated:
                 dfield = self.inverse_dfield
             else:
                 self.inverse_dfield = generate_inverse_dfield(
@@ -1219,6 +1416,7 @@ class MomentumCorrector:
                     self.bin_ranges,
                     self.detector_ranges,
                 )
+                self.dfield_updated = False
                 dfield = self.inverse_dfield
 
         out_df = df.map_partitions(
@@ -1236,10 +1434,11 @@ class MomentumCorrector:
     def append_k_axis(
         self,
         df: Union[pd.DataFrame, dask.dataframe.DataFrame],
-        x_column: str = "Xm",
-        y_column: str = "Ym",
-        new_x_column: str = "kx",
-        new_y_column: str = "ky",
+        x_column: str = None,
+        y_column: str = None,
+        new_x_column: str = None,
+        new_y_column: str = None,
+        calibration: dict = None,
         **kwds,
     ) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
         """Calculate and append the k axis coordinates (kx, ky) to the events dataframe.
@@ -1251,12 +1450,41 @@ class MomentumCorrector:
                 Labels of the source columns
             newX, newY: | 'ky', 'ky'
                 Labels of the destination columns
+            calibration: dict, default None
+                Calibration dictionary. If provided, overrides calibration from
+                class or config
             **kwds:
                 additional keywords for the momentum conversion
 
         :Return:
             dataframe with added columns
         """
+
+        if x_column is None:
+            if self.corrected_x_column in df.columns:
+                x_column = self.corrected_x_column
+            else:
+                x_column = self.x_column
+        if y_column is None:
+            if self.corrected_y_column in df.columns:
+                y_column = self.corrected_y_column
+            else:
+                y_column = self.y_column
+
+        if new_x_column is None:
+            new_x_column = self.kx_column
+
+        if new_y_column is None:
+            new_y_column = self.ky_column
+
+        if calibration is None:
+            if self.calibration:
+                calibration = self.calibration
+            else:
+                calibration = self._config.get("momentum", {}).get(
+                    "calibration",
+                    {},
+                )
 
         try:
             (
@@ -1265,14 +1493,14 @@ class MomentumCorrector:
             ) = detector_coordiantes_2_k_koordinates(
                 r_det=df[x_column],
                 c_det=df[y_column],
-                r_start=self.calibration["rstart"],
-                c_start=self.calibration["cstart"],
-                r_center=self.calibration["x_center"],
-                c_center=self.calibration["y_center"],
-                r_conversion=self.calibration["coeffs"][0],
-                c_conversion=self.calibration["coeffs"][1],
-                r_step=self.calibration["rstep"],
-                c_step=self.calibration["cstep"],
+                r_start=calibration["rstart"],
+                c_start=calibration["cstart"],
+                r_center=calibration["x_center"],
+                c_center=calibration["y_center"],
+                r_conversion=calibration["coeffs"][0],
+                c_conversion=calibration["coeffs"][1],
+                r_step=calibration["rstep"],
+                c_step=calibration["cstep"],
             )
         except KeyError:
             (
@@ -1514,3 +1742,27 @@ def generate_inverse_dfield(
     inverse_dfield = np.asarray([inv_rdeform_field, inv_cdeform_field])
 
     return inverse_dfield
+
+
+def load_dfield(file: str) -> Tuple[np.ndarray, np.ndarray]:
+    """Load inverse dfield from file
+
+    Args:
+        file (str): Path to file containing the inverse dfield
+
+    Returns:
+        np.ndarray: the loaded inverse deformation field
+    """
+
+    rdeform_field: np.ndarray = None
+    cdeform_field: np.ndarray = None
+
+    try:
+        dfield = np.load(file)
+        rdeform_field = dfield[0]
+        cdeform_field = dfield[1]
+
+    except FileNotFoundError:
+        pass
+
+    return rdeform_field, cdeform_field

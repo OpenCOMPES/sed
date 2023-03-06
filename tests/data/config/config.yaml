@@ -21,10 +21,11 @@ dataframe:
   x_column: "X"
   y_column: "Y"
   tof_column: "t"
+  corrected_tof_column: "tm"
   adc_column: "ADC"
   energy_column: "E"
-  x_corrected_column: "Xm"
-  y_corrected_column: "Ym"
+  corrected_x_column: "Xm"
+  corrected_y_column: "Ym"
   kx_column: "kx"
   ky_column: "ky"
   delay_column: "delay"
@@ -49,10 +50,15 @@ energy:
   color_clip: 300
   correction:
     correction_type: "Lorentzian"
-    amplitude: 8
-    center: [750, 730]
+    amplitude: 2.5
+    center: [730.0, 730.0]
     kwds:
-      sigma: 900
+      gamma: 920.0
+  calibration:
+    d: 1.058206295066418
+    t0: 7.684410678887588e-07
+    E0: -30.440035779171833
+    energy_scale: "kinetic"
 
 momentum:
   axes: ["@x_column", "@y_column", "@tof_column"]
@@ -64,6 +70,15 @@ momentum:
   fwhm: 8
   sigma_radius: 1
   center_det: "centroidnn"
+  calibration:
+    coeffs: [0.012389400615413859, 0.012389400615413859]
+    x_center: 256.0
+    y_center: 256.0
+    rstart: -256.
+    cstart: -256.
+    rstep: 4.0
+    cstep: 4.0
+  dfield_file: "../tests/data/config/dfield.npy"
 
 delay:
   adc_range: [1900, 25600]

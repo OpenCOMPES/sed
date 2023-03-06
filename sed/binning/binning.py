@@ -1,6 +1,7 @@
 """This module contains the binning functions of the sed.binning module
 
 """
+import gc
 from functools import reduce
 from typing import cast
 from typing import List
@@ -344,19 +345,21 @@ def bin_dataframe(
             coords=coords,
             dims=dims,
         )
-        return data_array
 
-    if mode == "legacy":
-        # still need to combine all partition results
-        full_result = np.zeros_like(partition_results[0])
-        for partition_result in partition_results:
-            full_result += np.nan_to_num(partition_result)
+    else:
+        if mode == "legacy":
+            # still need to combine all partition results
+            full_result = np.zeros_like(partition_results[0])
+            for partition_result in partition_results:
+                full_result += np.nan_to_num(partition_result)
 
-    data_array = xr.DataArray(
-        data=full_result.astype("float32"),
-        coords=coords,
-        dims=list(axes),
-    )
+        data_array = xr.DataArray(
+            data=full_result.astype("float32"),
+            coords=coords,
+            dims=list(axes),
+        )
+
+    gc.collect()
     return data_array
 
 

@@ -2,9 +2,7 @@
 correction. Mostly ported from https://github.com/mpes-kit/mpes.
 """
 import itertools as it
-import pickle
 import warnings as wn
-from copy import deepcopy
 from functools import partial
 from typing import Any
 from typing import cast
@@ -16,14 +14,12 @@ from typing import Union
 
 import bokeh.plotting as pbk
 import dask.dataframe
-import deepdish.io as dio
 import h5py
 import ipywidgets as ipw
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import scipy.io as sio
 import xarray as xr
 from bokeh.io import output_notebook
 from bokeh.palettes import Category10 as ColorCycle
@@ -35,7 +31,6 @@ from lmfit.printfuncs import report_fit
 from numpy.linalg import lstsq
 from scipy.signal import savgol_filter
 from scipy.sparse.linalg import lsqr
-from silx.io import dictdump
 
 from sed.binning import bin_dataframe
 from sed.loader.base.loader import BaseLoader
@@ -86,6 +81,10 @@ class EnergyCalibrator:
             "tof_column",
             "t",
         )
+        self.corrected_tof_column = self._config.get("dataframe", {}).get(
+            "corrected_tof_column",
+            "t_corrected",
+        )
         self.energy_column = self._config.get("dataframe", {}).get(
             "energy_column",
             "E",
@@ -113,15 +112,7 @@ class EnergyCalibrator:
         )
         self.color_clip = self._config.get("energy", {}).get("color_clip", 300)
 
-        self.correction: Dict[Any, Any] = self._config.get("energy", {}).get(
-            "correction",
-            {
-                "correction_type": "Lorentzian",
-                "amplitude": 8,
-                "center": (750, 730),
-                "kwds": {"sigma": 920},
-            },
-        )
+        self.correction: Dict[Any, Any] = {}
 
     @property
     def ntraces(self) -> int:
@@ -614,17 +605,34 @@ class EnergyCalibrator:
         df: Union[pd.DataFrame, dask.dataframe.DataFrame],
         tof_column: str = None,
         energy_column: str = None,
+        calibration: dict = None,
         **kwds,
     ) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
         """Calculate and append the E axis to the events dataframe.
         This method can be reused.
 
-        **Parameter**\n
-        ...
+        :Parameters:
+            df : dataframe
+                Dataframe to apply the distotion correction to.
+            tof_column:
+                Label of the source column
+            energy_column:
+                Label of the destination column
+            calibration: dict, default None
+                Calibration dictionary. If provided, overrides calibration from
+                class or config
+            **kwds:
+                additional keywords for the momentum conversion
+
+        :Return:
+            dataframe with added column
         """
 
         if tof_column is None:
-            tof_column = self.tof_column
+            if self.corrected_tof_column in df.columns:
+                tof_column = self.corrected_tof_column
+            else:
+                tof_column = self.tof_column
 
         if energy_column is None:
             energy_column = self.energy_column
@@ -632,9 +640,25 @@ class EnergyCalibrator:
         binwidth = kwds.pop("binwidth", self.binwidth)
         binning = kwds.pop("binning", self.binning)
 
-        calib_type = ""
+        if calibration is None:
+            if self.calibration:
+                calibration = self.calibration
+            else:
+                calibration = self._config.get("energy", {}).get(
+                    "calibration",
+                    {},
+                )
 
-        if "t0" in kwds and "d" in kwds and "E0" in kwds:
+        calib_type = ""
+        time_offset = None
+        drift_distance = None
+        energy_scale = None
+        poly_a = None
+        energy_offset = None
+
+        if (
+            "t0" in kwds and "d" in kwds and "E0" in kwds
+        ):  # parameters from kwds
             time_offset = kwds.pop("t0")
             drift_distance = kwds.pop("d")
             energy_offset = kwds.pop("E0")
@@ -646,21 +670,25 @@ class EnergyCalibrator:
             energy_offset = kwds.pop("E0")
             calib_type = "poly"
 
-        elif (
-            "t0" in self.calibration
-            and "d" in self.calibration
-            and "E0" in self.calibration
-            and "energy_scale" in self.calibration
+        elif (  # Parameters from config dict
+            "t0" in calibration
+            and "d" in calibration
+            and "E0" in calibration
+            and "energy_scale" in calibration
         ):
-            time_offset = self.calibration["t0"]
-            drift_distance = self.calibration["d"]
-            energy_offset = self.calibration["E0"]
-            energy_scale = self.calibration["energy_scale"]
+            time_offset = calibration["t0"]
+            drift_distance = calibration["d"]
+            energy_offset = calibration["E0"]
+            energy_scale = calibration["energy_scale"]
             calib_type = "fit"
-        elif "coeffs" in self.calibration and "E0" in self.calibration:
-            poly_a = self.calibration["coeffs"]
-            energy_offset = self.calibration["E0"]
+
+        elif "coeffs" in calibration and "E0" in calibration:
+            poly_a = calibration["coeffs"]
+            energy_offset = calibration["E0"]
             calib_type = "poly"
+
+        else:
+            raise ValueError("No valid calibration parameters provided!")
 
         if calib_type == "fit":
             df[energy_column] = tof2ev(
@@ -738,16 +766,22 @@ class EnergyCalibrator:
                     profile, X-direction.
 
         """
+
         matplotlib.use("module://ipympl.backend_nbagg")
+
+        default_correction = self._config.get("energy", {}).get(
+            "correction",
+            {},
+        )
         if correction_type is None:
-            correction_type = self.correction["correction_type"]
+            correction_type = default_correction["correction_type"]
 
         if amplitude is None:
-            amplitude = self.correction["amplitude"]
+            amplitude = default_correction["amplitude"]
         if center is None:
-            center = self.correction["center"]
+            center = default_correction["center"]
 
-        kwds = {**(self.correction["kwds"]), **kwds}
+        kwds = {**(default_correction["kwds"]), **kwds}
 
         x_column = kwds.pop("x_column", self.x_column)
         y_column = kwds.pop("y_column", self.y_column)
@@ -1047,8 +1081,11 @@ class EnergyCalibrator:
     def apply_energy_correction(
         self,
         df: Union[pd.DataFrame, dask.dataframe.DataFrame],
+        tof_column: str = None,
+        new_tof_column: str = None,
         correction_type: str = None,
         amplitude: float = None,
+        correction: dict = None,
         **kwds,
     ) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
         """Apply correction to the time-of-flight (TOF) axis of single-event data.
@@ -1059,6 +1096,8 @@ class EnergyCalibrator:
                 Type of correction to apply to the TOF axis. Defaults to config value.
             :amplitude: numeric | config
                 Amplitude of the time-of-flight correction term
+            :correction: dict | config
+                Dictionary containing the correction parameters
             **kwds: keyword arguments
                 Additional parameters to use for the correction.
                 :x_column: str | config
@@ -1084,21 +1123,34 @@ class EnergyCalibrator:
 
         """
 
+        if correction is None:
+            if self.correction:
+                correction = self.correction
+            else:
+                correction = self._config.get("energy", {}).get(
+                    "correction",
+                    {},
+                )
+
         if correction_type is None:
-            correction_type = self.correction["correction_type"]
+            correction_type = correction["correction_type"]
 
         if amplitude is None:
-            amplitude = self.correction["amplitude"]
+            amplitude = correction["amplitude"]
 
-        kwds = {**(self.correction["kwds"]), **kwds}
+        kwds = {**(correction["kwds"]), **kwds}
 
-        center = kwds.pop("center", self.correction["center"])
+        center = kwds.pop("center", correction["center"])
 
         x_column = kwds.pop("x_column", self.x_column)
         y_column = kwds.pop("y_column", self.y_column)
-        tof_column = kwds.pop("tof_column", self.tof_column)
+        if tof_column is None:
+            tof_column = self.tof_column
 
-        df[tof_column] += correction_function(
+        if new_tof_column is None:
+            new_tof_column = self.corrected_tof_column
+
+        df[new_tof_column] = df[tof_column] + correction_function(
             x=df[x_column],
             y=df[y_column],
             correction_type=correction_type,
@@ -1108,74 +1160,6 @@ class EnergyCalibrator:
         )
 
         return df
-
-    def save_class_parameters(
-        self,
-        form: str = "dmp",
-        save_addr: str = "./energy",
-    ):
-        """
-        Save all the attributes of the workflow instance for later use
-        (e.g. energy scale conversion).
-
-        Parameters:
-            form: str | 'dmp'
-                The file format to save the attributes in
-                ('h5'/'hdf5', 'mat' or 'dmp'/'dump').
-            save_addr: str | './energy'
-                The filename to save the files with.
-        """
-        save_addr = append_extension(save_addr, form)
-
-        save_class_attributes(self, form, save_addr)
-
-
-def append_extension(filepath: str, extension: str) -> str:
-    """
-    Append an extension to the end of a file path.
-
-    **Parameters**\n
-    filepath: str
-        File path of interest.
-    extension: str
-        File extension
-    """
-
-    format_string = "." + extension
-    if filepath:
-        if not filepath.endswith(format_string):
-            filepath += format_string
-
-    return filepath
-
-
-def save_class_attributes(clss, form, save_addr):
-    """Save class attributes.
-
-    **Parameters**\n
-    clss: instance
-        Handle of the instance to be saved.
-    form: str
-        Format to save in ('h5'/'hdf5', 'mat', or 'dmp'/'dump').
-    save_addr: str
-        The address to save the attributes in.
-    """
-    # Modify the data type for HDF5-convertibility (temporary fix)
-    if form == "mat":
-        sio.savemat(save_addr, clss.__dict__)
-    elif form in ("dmp", "dump"):
-        with open(save_addr, "wb") as file_handle:
-            pickle.dump(clss, file_handle)
-    elif form in ("h5", "hdf5"):
-        dictcopy = deepcopy(clss.__dict__)
-        dictcopy["featranges"] = np.asarray(dictcopy["featranges"])
-        try:
-            dictdump.dicttoh5(dictcopy, save_addr)
-        except KeyError:
-            dio.save(save_addr, dictcopy, compression=None)
-
-    else:
-        raise NotImplementedError
 
 
 def extract_bias(files: List[str], bias_key: str) -> np.ndarray:

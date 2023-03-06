@@ -197,7 +197,7 @@ def test_energy_correction(correction_type: str, correction_kwd: dict):
         **correction_kwd,
     )
     df = ec.apply_energy_correction(sample_df)
-    t = df["t"]
+    t = df[config["dataframe"]["corrected_tof_column"]]
     assert t[0] == t[2]
     assert t[0] < t[1]
     assert t[3] == t[5]
