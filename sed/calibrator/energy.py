@@ -242,7 +242,7 @@ class EnergyCalibrator:
             if bias_key is None:
                 bias_key = self._config.get("energy", {}).get("bias_key", "")
 
-        dataframe = self.loader.read_dataframe(files=data_files)
+        dataframe, _ = self.loader.read_dataframe(files=data_files)
         traces = bin_dataframe(
             dataframe,
             bins=bins,
@@ -741,23 +741,33 @@ class EnergyCalibrator:
                 energy_offset,
                 df[tof_column].astype("float64"),
             )
-            metadata = self.gather_calibration_metadata()
         elif calib_type == "poly":
             df[energy_column] = tof2evpoly(
                 poly_a,
                 energy_offset,
                 df[tof_column].astype("float64"),
             )
-            metadata = self.gather_calibration_metadata()
         else:
             raise NotImplementedError
 
+        metadata = self.gather_calibration_metadata()
+
         return df, metadata
 
-    def gather_calibration_metadata(self):
-        """_summary_"""
+    def gather_calibration_metadata(self, calibration: dict = None) -> dict:
+        """Collects metadata from the energy calibration
+
+        Args:
+            calibration (dict, optional): Dictionary with energy calibration
+                parameters. Defaults to None.
+
+        Returns:
+            dict: Generated metadata dictionary.
+        """
+        if calibration is None:
+            calibration = self.calibration
         metadata = {}
-        metadata["calibration"] = self.calibration
+        metadata["calibration"] = calibration
 
         return metadata
 
@@ -1215,10 +1225,20 @@ class EnergyCalibrator:
 
         return df, metadata
 
-    def gather_correction_metadata(self):
-        """_summary_"""
+    def gather_correction_metadata(self, correction: dict = None) -> dict:
+        """Collect meta data for energy correction
+
+        Args:
+            correction (dict, optional): Dictionary with energy correction parameters.
+                Defaults to None.
+
+        Returns:
+            dict: Generated metadata dictionary.
+        """
+        if correction is None:
+            correction = self.correction
         metadata = {}
-        metadata["correction"] = self.correction
+        metadata["correction"] = correction
 
         return metadata
 

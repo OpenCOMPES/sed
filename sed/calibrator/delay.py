@@ -55,7 +55,7 @@ class DelayCalibrator:
         p1_key: str = None,
         p2_key: str = None,
         t0_key: str = None,
-    ) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
+    ) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
         """Calculate and append the delay axis to the events dataframe, by converting
         values from an analog-digital-converter (ADC).
 
@@ -146,7 +146,9 @@ class DelayCalibrator:
         else:
             raise NotImplementedError
 
-        return df
+        metadata = {"delay_start": delay_range[0], "delay_end": delay_range[1]}
+
+        return df, metadata
 
 
 def extract_delay_stage_parameters(

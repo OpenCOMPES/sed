@@ -1584,8 +1584,16 @@ class MomentumCorrector:
 
         return df, metadata
 
-    def gather_correction_metadata(self, dfield: np.ndarray = None):
-        """_summary_"""
+    def gather_correction_metadata(self, dfield: np.ndarray = None) -> dict:
+        """Collect meta data for momentum correction.
+
+        Args:
+            dfield (np.ndarray, optional): Inverse deformation field.
+                If omitted, it is taken from the class.
+
+        Returns:
+            dict: generated correction metadata dictionary.
+        """
         if dfield is None:
             dfield = self.inverse_dfield
         metadata = {}
@@ -1594,26 +1602,35 @@ class MomentumCorrector:
         metadata["pcent"] = self.pcent
         metadata["pouter_ord"] = self.pouter_ord
         metadata["ptargs"] = self.ptargs
-        metadata["pcent"] = np.array(metadata["pcent"])
-        metadata["adjust_params"]["center"] = np.array(
-            metadata["adjust_params"]["center"],
-        )
-        metadata["adjust_params"]["x_vector"] = np.array([1.0, 0.0, 0.0])
-        metadata["adjust_params"]["y_vector"] = np.array([0.0, 1.0, 0.0])
-        metadata["adjust_params"]["angle_radians"] = (
-            self.adjust_params["angle"] * np.pi / 180
-        )
-        metadata["adjust_params"]["rotation_vector"] = np.array(
-            [0.0, 0.0, 1.0],
-        )
-        metadata["adjust_params"]["offset"] = np.concatenate(
-            (self.adjust_params["center"], [0.0]),
-        )
+        metadata["pcent"] = np.asarray(metadata["pcent"])
+        if metadata["adjust_params"]:
+            metadata["adjust_params"]["center"] = np.asarray(
+                metadata["adjust_params"]["center"],
+            )
+            metadata["adjust_params"]["x_vector"] = np.asarray([1.0, 0.0, 0.0])
+            metadata["adjust_params"]["y_vector"] = np.asarray([0.0, 1.0, 0.0])
+            metadata["adjust_params"]["angle_radians"] = (
+                self.adjust_params["angle"] * np.pi / 180
+            )
+            metadata["adjust_params"]["rotation_vector"] = np.asarray(
+                [0.0, 0.0, 1.0],
+            )
+            metadata["adjust_params"]["offset"] = np.concatenate(
+                (self.adjust_params["center"], [0.0]),
+            )
 
         return metadata
 
-    def gather_calibration_metadata(self, calibration: dict = None):
-        """_summary_"""
+    def gather_calibration_metadata(self, calibration: dict = None) -> dict:
+        """Collect meta data for momentum calibration
+
+        Args:
+            calibration (dict, optional): Dictionary with momentum calibration
+                parameters. If omitted will be taken from the class.
+
+        Returns:
+            dict: Generated metadata dictionary.
+        """
         if calibration is None:
             calibration = self.calibration
         metadata = {}

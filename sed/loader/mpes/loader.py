@@ -435,7 +435,19 @@ class MpesLoader(BaseLoader):
 
         return df, metadata
 
-    def gather_metadata(self, files: Sequence[str], metadata: dict = None):
+    def gather_metadata(
+        self, files: Sequence[str], metadata: dict = None,
+    ) -> dict:
+        """Collect meta data from files
+
+        Args:
+            files (Sequence[str]): List of files loaded
+            metadata (dict, optional): Manual meta data dictionary. Auto-generated
+                meta data are added to it. Defaults to None.
+
+        Returns:
+            dict: The completed metadata dictionary.
+        """
 
         if metadata is None:
             metadata = {}

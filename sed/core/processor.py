@@ -456,6 +456,7 @@ class SedProcessor:
         rdeform_field: np.ndarray = None,
         cdeform_field: np.ndarray = None,
         inv_dfield: np.ndarray = None,
+        preview: bool = False,
     ):
         """Applies the distortion correction and pose adjustment (optional)
         to the dataframe.
@@ -467,6 +468,7 @@ class SedProcessor:
                 Defaults to None.
             inv_dfield (np.ndarray, optional): Inverse deformation field.
                 Defaults to None.
+            preview (bool): Option to preview the first elements of the data frame.
         """
         if self._dataframe is not None:
             print("Adding corrected X/Y columns to dataframe:")
@@ -481,6 +483,10 @@ class SedProcessor:
                 metadata,
                 "momentum_correction",
             )
+            if preview:
+                print(self._dataframe.head(10))
+            else:
+                print(self._dataframe)
 
     # 4. Calculate momentum calibration and apply correction and calibration
     # to the dataframe
@@ -542,6 +548,7 @@ class SedProcessor:
     def apply_momentum_calibration(
         self,
         calibration: dict = None,
+        preview: bool = False,
     ):
         """5. step of the momentum calibration/distortion correction work flow: Apply
         any distortion correction and/or pose adjustment stored in the MomentumCorrector
@@ -550,6 +557,7 @@ class SedProcessor:
         Args:
             calibration (dict, optional): Optional dictionary with calibration data to
                 use. Defaults to None.
+            preview (bool): Option to preview the first elements of the data frame.
         """
         if self._dataframe is not None:
 
@@ -566,7 +574,10 @@ class SedProcessor:
                 metadata,
                 "momentum_calibration",
             )
-            print(self._dataframe.head(10))
+            if preview:
+                print(self._dataframe.head(10))
+            else:
+                print(self._dataframe)
 
     # Energy correction workflow
     # 1. Adjust the energy correction parameters
@@ -615,13 +626,21 @@ class SedProcessor:
         )
 
     # 2. Apply energy correction to dataframe
-    def apply_energy_correction(self, correction: dict = None, **kwds):
+    def apply_energy_correction(
+        self, correction: dict = None, preview: bool = False, **kwds,
+    ):
         """2. step of the energy correction workflow: Apply the enery correction
         parameters stored in the class to the dataframe.
 
         Args:
             correction (dict, optional): Dictionary containing the correction
-                parameters. Defaults to config["energy"]["calibration"]
+                parameters. Defaults to config["energy"]["calibration"].
+            preview (bool): Option to preview the first elements of the data frame.
+            **kwds:
+                Keyword args passed to ``EnergyCalibrator.apply_energy_correction``.
+            preview (bool): Option to preview the first elements of the data frame.
+            **kwds:
+                Keyword args passed to ``EnergyCalibrator.apply_energy_correction``.
         """
         if self._dataframe is not None:
             print("Applying energy correction to dataframe...")
@@ -636,6 +655,10 @@ class SedProcessor:
                 metadata,
                 "energy_correction",
             )
+            if preview:
+                print(self._dataframe.head(10))
+            else:
+                print(self._dataframe)
 
     # Energy calibrator workflow
     # 1. Load and normalize data
@@ -855,6 +878,7 @@ class SedProcessor:
     def append_energy_axis(
         self,
         calibration: dict = None,
+        preview: bool = False,
         **kwds,
     ):
         """4. step of the energy calibration workflow: Apply the calibration function
@@ -866,6 +890,9 @@ class SedProcessor:
             calibration (dict, optional): Calibration dict containing calibration
                 parameters. Overrides calibration from class or config.
                 Defaults to None.
+            preview (bool): Option to preview the first elements of the data frame.
+            **kwds:
+                Keyword args passed to ``EnergyCalibrator.append_energy_axis``.
         """
         if self._dataframe is not None:
             print("Adding energy column to dataframe:")
@@ -880,13 +907,17 @@ class SedProcessor:
                 metadata,
                 "energy_calibration",
             )
-            print(self._dataframe.head(10))
+            if preview:
+                print(self._dataframe.head(10))
+            else:
+                print(self._dataframe)
 
     # Delay calibration function
     def calibrate_delay_axis(
         self,
         delay_range: Tuple[float, float] = None,
         datafile: str = None,
+        preview: bool = False,
         **kwds,
     ):
         """Append delay column to dataframe. Either provide delay ranges, or read
@@ -897,6 +928,7 @@ class SedProcessor:
                 picoseconds. Defaults to None.
             datafile (str, optional): The file from which to read the delay ranges.
                 Defaults to None.
+            preview (bool): Option to preview the first elements of the data frame.
             **kwds: Keyword args passed to ``DelayCalibrator.append_delay_axis``.
         """
         if self._dataframe is not None:
@@ -928,8 +960,12 @@ class SedProcessor:
             # Add Metadata
             self._attributes.add(
                 metadata,
-                "energy_calibration",
+                "delay_calibration",
             )
+            if preview:
+                print(self._dataframe.head(10))
+            else:
+                print(self._dataframe)
 
     def add_jitter(self, cols: Sequence[str] = None):
         """Add jitter to the selected dataframe columns.
