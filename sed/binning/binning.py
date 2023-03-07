@@ -47,7 +47,16 @@ def bin_partition(
         part (Union[dask.dataframe.core.DataFrame, pd.DataFrame]): dataframe on which
             to perform the histogram. Usually a partition of a dask DataFrame.
         bins (int, dict, tuple, List[int], List[np.ndarray], List[tuple], optional):
+            Definition of the bins. Can  be any of the following cases:
 
+                - an integer describing the number of bins in on all dimensions
+                - a tuple of 3 numbers describing start, end and step of the binning
+                  range
+                - a np.arrays defining the binning edges
+                - a list (NOT a tuple) of any of the above (int, tuple or np.ndarray)
+                - a dictionary made of the axes as keys and any of the above as values.
+
+            This takes priority over the axes and range arguments. Defaults to 100.
         axes (Union[str, Sequence[str]], optional): The names of the axes (columns) on
             which to calculate the histogram. The order will be the order of the
             dimensions in the resulting array. Defaults to None.
@@ -198,7 +207,6 @@ def bin_dataframe(
                 - "numba" use a numba powered similar method.
 
             Defaults to "numba".
-
         mode (str, optional): Defines how the results from each partition are combined.
 
                 - 'fast': Uses parallelized recombination of results.
