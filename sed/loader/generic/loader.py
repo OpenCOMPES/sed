@@ -3,9 +3,6 @@ module sed.loader.mpes, code for loading hdf5 files delayed into a dask datafram
 Mostly ported from https://github.com/mpes-kit/mpes.
 @author: L. Rettig
 """
-import os
-from typing import Any
-from typing import Dict
 from typing import Sequence
 from typing import Tuple
 
@@ -13,7 +10,6 @@ import dask.dataframe as ddf
 import numpy as np
 
 from sed.loader.base.loader import BaseLoader
-from sed.loader.utils import gather_files
 
 
 class GenericLoader(BaseLoader):
@@ -33,7 +29,9 @@ class GenericLoader(BaseLoader):
         self,
         files: Sequence[str] = None,
         folder: str = None,
-        ftype: str = "parquet",
+        ftype: str = None,
+        metadata: dict = None,
+        collect_metadata: bool = False,
         **kwds,
     ) -> Tuple[ddf.DataFrame, dict]:
         """Read stored files from a folder into a dataframe.
@@ -46,6 +44,8 @@ class GenericLoader(BaseLoader):
             ftype (str, optional): File type to read ('parquet', 'json', 'csv', etc).
                 If a folder path is given, all files with the specified extension are
                 read into the dataframe in the reading order. Defaults to "parquet".
+            collect_metadata: bool | True
+                Option to collect metadata from files. Requires a valid config dict.
             **kwds: keyword arguments. See the keyword arguments for the specific file
                 parser in``dask.dataframe`` module.
 
@@ -58,40 +58,31 @@ class GenericLoader(BaseLoader):
             Tuple[ddf.DataFrame, dict]: Dask dataframe and metadata read from specified
             files.
         """
-        metadata: Dict[Any, Any] = {}
-        # pylint: disable=duplicate-code
-        if folder is not None:
-            folder = os.path.realpath(folder)
-            files = gather_files(
-                folder=folder,
-                extension=ftype,
-                file_sorting=True,
-                **kwds,
-            )
+        super().read_dataframe(
+            files=files,
+            folder=folder,
+            ftype=ftype,
+            metadata=metadata,
+        )
 
-        elif folder is None:
-            if files is None:
-                raise ValueError(
-                    "Either the folder or file path should be provided!",
-                )
-            files = [os.path.realpath(file) for file in files]
-
-        self.files = files
-
-        if not files:
+        if not self.files:
             raise FileNotFoundError("No valid files found!")
 
+        if collect_metadata:
+            # TODO implementation
+            self.metadata = self.metadata
+
         if ftype == "parquet":
-            return (ddf.read_parquet(files, **kwds), metadata)
+            return (ddf.read_parquet(self.files, **kwds), self.metadata)
 
         if ftype == "json":
-            return (ddf.read_json(files, **kwds), metadata)
+            return (ddf.read_json(self.files, **kwds), self.metadata)
 
         if ftype == "csv":
-            return (ddf.read_csv(files, **kwds), metadata)
+            return (ddf.read_csv(self.files, **kwds), self.metadata)
 
         try:
-            return (ddf.read_table(files, **kwds), metadata)
+            return (ddf.read_table(self.files, **kwds), self.metadata)
         except (TypeError, ValueError, NotImplementedError) as exc:
             raise ValueError(
                 "The file format cannot be understood!",

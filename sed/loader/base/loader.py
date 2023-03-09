@@ -1,6 +1,10 @@
 """The abstract class off of which to implement loaders."""
+import os
 from abc import ABC
 from abc import abstractmethod
+from copy import deepcopy
+from typing import Any
+from typing import Dict
 from typing import List
 from typing import Sequence
 from typing import Tuple
@@ -8,7 +12,7 @@ from typing import Tuple
 import dask.dataframe as ddf
 import numpy as np
 
-from sed.core.metadata import MetaHandler
+from sed.loader.utils import gather_files
 
 
 class BaseLoader(ABC):
@@ -32,15 +36,11 @@ class BaseLoader(ABC):
     def __init__(
         self,
         config: dict = None,
-        meta_handler: MetaHandler = None,
     ):
         self._config = config if config is not None else {}
 
-        self._meta_handler = (
-            meta_handler if meta_handler is not None else MetaHandler()
-        )
-
         self.files: List[str] = []
+        self.metadata: Dict[Any, Any] = {}
 
     @abstractmethod
     def read_dataframe(
@@ -48,8 +48,10 @@ class BaseLoader(ABC):
         files: Sequence[str] = None,
         folder: str = None,
         ftype: str = None,
+        metadata: dict = None,
+        collect_metadata: bool = False,
         **kwds,
-    ) -> ddf.DataFrame:
+    ) -> Tuple[ddf.DataFrame, dict]:
         """Reads data from given files or folder and returns a dask dataframe.
         Metadata are added to the meta_handler object in the class.
 
@@ -68,7 +70,33 @@ class BaseLoader(ABC):
             ddf.DataFrame: Dask dataframe read from specified files.
         """
 
-        return None
+        if metadata is None:
+            metadata = {}
+
+        if folder is not None:
+            folder = os.path.realpath(folder)
+            files = gather_files(
+                folder=folder,
+                extension=ftype,
+                file_sorting=True,
+                **kwds,
+            )
+
+        elif files is None:
+            raise ValueError(
+                "Either the folder or file path should be provided!",
+            )
+        else:
+            files = [os.path.realpath(file) for file in files]
+
+        self.files = files
+
+        self.metadata = deepcopy(metadata)
+
+        if not files:
+            raise FileNotFoundError("No valid files found!")
+
+        return None, None
 
     @abstractmethod
     def get_count_rate(

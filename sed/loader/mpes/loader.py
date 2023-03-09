@@ -19,9 +19,7 @@ import h5py
 import numpy as np
 import scipy.interpolate as sint
 
-from sed.core.metadata import MetaHandler
 from sed.loader.base.loader import BaseLoader
-from sed.loader.utils import gather_files
 
 
 def hdf5_to_dataframe(
@@ -327,23 +325,21 @@ class MpesLoader(BaseLoader):
     def __init__(
         self,
         config: dict = None,
-        meta_handler: MetaHandler = None,
     ):
-        super().__init__(config=config, meta_handler=meta_handler)
+        super().__init__(config=config)
 
         self.read_timestamps = self._config.get("dataframe", {}).get(
             "read_timestamps",
             False,
         )
 
-        self.files: List[str] = []
-
     def read_dataframe(
         self,
         files: Sequence[str] = None,
         folder: str = None,
-        metadata: dict = None,
         ftype: str = "h5",
+        metadata: dict = None,
+        collect_metadata: bool = True,
         time_stamps: bool = False,
         **kwds,
     ) -> Tuple[ddf.DataFrame, dict]:
@@ -369,27 +365,12 @@ class MpesLoader(BaseLoader):
             Tuple[ddf.DataFrame, dict]: Dask dataframe and metadata read from specified
             files.
         """
-        # pylint: disable=duplicate-code
-        if folder is not None:
-            folder = os.path.realpath(folder)
-            files = gather_files(
-                folder=folder,
-                extension=ftype,
-                file_sorting=True,
-                **kwds,
-            )
-
-        elif folder is None:
-            if files is None:
-                raise ValueError(
-                    "Either the folder or file path should be provided!",
-                )
-            files = [os.path.realpath(file) for file in files]
-
-        self.files = files
-
-        if not files:
-            raise FileNotFoundError("No valid files found!")
+        super().read_dataframe(
+            files=files,
+            folder=folder,
+            ftype=ftype,
+            metadata=metadata,
+        )
 
         hdf5_groupnames = kwds.pop(
             "hdf5_groupnames",
@@ -421,7 +402,7 @@ class MpesLoader(BaseLoader):
             ),
         )
         df = hdf5_to_dataframe(
-            files=files,
+            files=self.files,
             group_names=hdf5_groupnames,
             alias_dict=hdf5_aliases,
             time_stamps=time_stamps,
@@ -431,12 +412,20 @@ class MpesLoader(BaseLoader):
             **kwds,
         )
 
-        metadata = self.gather_metadata(files=files, metadata=metadata)
+        if collect_metadata:
+            metadata = self.gather_metadata(
+                files=self.files,
+                metadata=self.metadata,
+            )
+        else:
+            metadata = self.metadata
 
         return df, metadata
 
     def gather_metadata(
-        self, files: Sequence[str], metadata: dict = None,
+        self,
+        files: Sequence[str],
+        metadata: dict = None,
     ) -> dict:
         """Collect meta data from files
 
