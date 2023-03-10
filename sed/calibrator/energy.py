@@ -693,57 +693,39 @@ class EnergyCalibrator:
         binwidth = kwds.pop("binwidth", self.binwidth)
         binning = kwds.pop("binning", self.binning)
 
+        # pylint: disable=duplicate-code
         if calibration is None:
             if self.calibration:
-                calibration = self.calibration
+                calibration = deepcopy(self.calibration)
             else:
-                calibration = self._config.get("energy", {}).get(
-                    "calibration",
-                    {},
+                calibration = deepcopy(
+                    self._config.get("energy", {}).get(
+                        "calibration",
+                        {},
+                    ),
                 )
 
-        calib_type = ""
-        time_offset = None
-        drift_distance = None
-        energy_scale = None
-        poly_a = None
-        energy_offset = None
+        for key, value in kwds.items():
+            calibration[key] = value
 
-        if (
-            "t0" in kwds and "d" in kwds and "E0" in kwds
-        ):  # parameters from kwds
-            time_offset = kwds.pop("t0")
-            drift_distance = kwds.pop("d")
-            energy_offset = kwds.pop("E0")
-            energy_scale = kwds.pop("energy_scale", "kinetic")
-            calib_type = "fit"
+        # try to determine calibration type if not provided
+        if "calib_type" not in calibration:
+            if (
+                "t0" in calibration
+                and "d" in calibration
+                and "E0" in calibration
+            ):
+                calibration["calib_type"] = "fit"
+                if "energy_scale" not in calibration:
+                    calibration["energy_scale"] = "kinetic"
 
-        elif "a" in kwds and "E0" in kwds:
-            poly_a = kwds.pop("a")
-            energy_offset = kwds.pop("E0")
-            calib_type = "poly"
+            elif "coeffs" in calibration and "E0" in calibration:
+                calibration["calib_type"] = "poly"
 
-        elif (  # Parameters from config dict
-            "t0" in calibration
-            and "d" in calibration
-            and "E0" in calibration
-            and "energy_scale" in calibration
-        ):
-            time_offset = calibration["t0"]
-            drift_distance = calibration["d"]
-            energy_offset = calibration["E0"]
-            energy_scale = calibration["energy_scale"]
-            calib_type = "fit"
+            else:
+                raise ValueError("No valid calibration parameters provided!")
 
-        elif "coeffs" in calibration and "E0" in calibration:
-            poly_a = calibration["coeffs"]
-            energy_offset = calibration["E0"]
-            calib_type = "poly"
-
-        else:
-            raise ValueError("No valid calibration parameters provided!")
-
-        if calib_type == "fit":
+        if calibration["calib_type"] == "fit":
             # Fitting metadata for nexus
             calibration["fit_function"] = "(a0/(x0-a1))**2 + a2"
             calibration["coefficients"] = np.array(
@@ -754,26 +736,26 @@ class EnergyCalibrator:
                 ],
             )
             df[energy_column] = tof2ev(
-                drift_distance,
-                time_offset,
+                calibration["d"],
+                calibration["t0"],
                 binwidth,
                 binning,
-                energy_scale,
-                energy_offset,
+                calibration["energy_scale"],
+                calibration["E0"],
                 df[tof_column].astype("float64"),
             )
-        elif calib_type == "poly":
+        elif calibration["calib_type"] == "poly":
             # Fitting metadata for nexus
             fit_function = "a0"
-            for term in range(1, len(poly_a) + 1):
+            for term in range(1, len(calibration["coeffs"]) + 1):
                 fit_function += f" + a{term}*x0**{term}"
             calibration["fit_function"] = fit_function
             calibration["coefficients"] = np.concatenate(
                 (calibration["coeffs"], [calibration["E0"]]),
             )[::-1]
             df[energy_column] = tof2evpoly(
-                poly_a,
-                energy_offset,
+                calibration["coeffs"],
+                calibration["E0"],
                 df[tof_column].astype("float64"),
             )
         else:

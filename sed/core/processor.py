@@ -488,6 +488,7 @@ class SedProcessor:
             self._attributes.add(
                 metadata,
                 "momentum_correction",
+                duplicate_policy="merge",
             )
             if preview:
                 print(self._dataframe.head(10))
@@ -579,6 +580,7 @@ class SedProcessor:
             self._attributes.add(
                 metadata,
                 "momentum_calibration",
+                duplicate_policy="merge",
             )
             if preview:
                 print(self._dataframe.head(10))
@@ -915,6 +917,7 @@ class SedProcessor:
             self._attributes.add(
                 metadata,
                 "energy_calibration",
+                duplicate_policy="merge",
             )
             if preview:
                 print(self._dataframe.head(10))
@@ -970,6 +973,7 @@ class SedProcessor:
             self._attributes.add(
                 metadata,
                 "delay_calibration",
+                duplicate_policy="merge",
             )
             if preview:
                 print(self._dataframe.head(10))

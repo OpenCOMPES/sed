@@ -1548,6 +1548,7 @@ class MomentumCorrector:
         if new_y_column is None:
             new_y_column = self.ky_column
 
+        # pylint: disable=duplicate-code
         if calibration is None:
             if self.calibration:
                 calibration = deepcopy(self.calibration)

@@ -5,6 +5,8 @@ import glob
 import itertools
 import os
 from importlib.util import find_spec
+from typing import Any
+from typing import Dict
 
 import numpy as np
 import pandas as pd
@@ -107,7 +109,7 @@ def test_calibrate_append(energy_scale: str, calibration_method: str):
         calibration_method (str): method used for ralibration
     """
     loader = get_loader(loader_name="mpes", config=config)
-    df, _ = loader.read_dataframe(folder=df_folder)
+    df, _ = loader.read_dataframe(folder=df_folder, collect_metadata=False)
     ec = EnergyCalibrator(config=config, loader=loader)
     ec.load_data(biases=biases, traces=traces, tof=tof)
     ec.normalize()
@@ -123,7 +125,7 @@ def test_calibrate_append(energy_scale: str, calibration_method: str):
         energy_scale=energy_scale,
         method=calibration_method,
     )
-    df, _ = ec.append_energy_axis(df)
+    df, metadata = ec.append_energy_axis(df)
     assert config["dataframe"]["energy_column"] in df.columns
     axis = calibdict["axis"]
     diff = np.diff(axis)
@@ -131,6 +133,50 @@ def test_calibrate_append(energy_scale: str, calibration_method: str):
         assert np.all(diff < 0)
     else:
         assert np.all(diff > 0)
+
+    for key in ec.calibration:  # pylint: disable=consider-using-dict-items
+        np.testing.assert_equal(
+            metadata["calibration"][key],
+            ec.calibration[key],
+        )
+
+
+calib_types = ["fit", "poly"]
+calib_dicts = [{"d": 1, "t0": 0, "E0": 0}, {"coeffs": [1, 2, 3], "E0": 0}]
+
+
+@pytest.mark.parametrize(
+    "calib_type, calib_dict",
+    zip(calib_types, calib_dicts),
+)
+def test_apply_correction_from_dict_kwds(calib_type: str, calib_dict: dict):
+    """Function to test if the energy calibration is correctly applied using a dict or
+    kwd parameters.
+
+    Args:
+        calib_type (str): type of calibration.
+        calib_dict (dict): Dictionary with calibration parameters.
+    """
+    loader = get_loader(loader_name="mpes", config=config)
+    # from dict
+    df, _ = loader.read_dataframe(folder=df_folder, collect_metadata=False)
+    ec = EnergyCalibrator(config=config, loader=loader)
+    df, metadata = ec.append_energy_axis(df, calibration=calib_dict)
+    assert config["dataframe"]["energy_column"] in df.columns
+
+    for key in calib_dict:
+        np.testing.assert_equal(metadata["calibration"][key], calib_dict[key])
+    assert metadata["calibration"]["calib_type"] == calib_type
+
+    # from kwds
+    df, _ = loader.read_dataframe(folder=df_folder, collect_metadata=False)
+    ec = EnergyCalibrator(config=config, loader=loader)
+    df, metadata = ec.append_energy_axis(df, **calib_dict)
+    assert config["dataframe"]["energy_column"] in df.columns
+
+    for key in calib_dict:
+        np.testing.assert_equal(metadata["calibration"][key], calib_dict[key])
+    assert metadata["calibration"]["calib_type"] == calib_type
 
 
 amplitude = 2.5  # pylint: disable=invalid-name
@@ -143,7 +189,6 @@ sample = np.array(
     ],
 ).T
 columns = ["X", "Y", "t"]
-sample_df = pd.DataFrame(sample, columns=columns)
 dims = ["X", "Y", "t"]
 shape = (100, 100, 100)
 tof_fermi = 132250  # pylint: disable=invalid-name
@@ -164,7 +209,7 @@ correction_types = [
     "Lorentzian_asymmetric",
 ]
 correction_kwds = [
-    {"diameter": 50},
+    {"diameter": 5000},
     {"gamma": 900},
     {"sigma": 500},
     {"gamma": 900, "gamma2": 900, "amplitude2": amplitude},
@@ -183,6 +228,7 @@ def test_energy_correction(correction_type: str, correction_kwd: dict):
         correction_type (str): type of correction to test
         correction_kwd (dict): parameters to pass to the function
     """
+    sample_df = pd.DataFrame(sample, columns=columns)
     ec = EnergyCalibrator(
         config=config,
         loader=get_loader("mpes", config=config),
@@ -196,10 +242,81 @@ def test_energy_correction(correction_type: str, correction_kwd: dict):
         apply=True,
         **correction_kwd,
     )
-    df, _ = ec.apply_energy_correction(sample_df)
+    df, metadata = ec.apply_energy_correction(sample_df)
     t = df[config["dataframe"]["corrected_tof_column"]]
     assert t[0] == t[2]
     assert t[0] < t[1]
     assert t[3] == t[5]
     assert t[3] < t[4]
     assert t[1] == t[4]
+
+    for key in ec.correction:
+        np.testing.assert_equal(
+            metadata["correction"][key],
+            ec.correction[key],
+        )
+
+
+@pytest.mark.parametrize(
+    "correction_type, correction_kwd",
+    zip(correction_types, correction_kwds),
+)
+def test_energy_correction_from_dict_kwds(
+    correction_type: str,
+    correction_kwd: dict,
+):
+    """Function to test if the energy correction is correctly applied using a dict or
+    kwd parameters.
+
+    Args:
+        correction_type (str): type of correction to test
+        correction_kwd (dict): parameters to pass to the function
+    """
+    # from dict
+    sample_df = pd.DataFrame(sample, columns=columns)
+    ec = EnergyCalibrator(
+        config=config,
+        loader=get_loader("mpes", config=config),
+    )
+    correction_dict: Dict[str, Any] = {
+        "correction_type": correction_type,
+        "amplitude": amplitude,
+        "center": center,
+        **correction_kwd,
+    }
+    df, metadata = ec.apply_energy_correction(
+        sample_df,
+        correction=correction_dict,
+    )
+    t = df[config["dataframe"]["corrected_tof_column"]]
+    assert t[0] == t[2]
+    assert t[0] < t[1]
+    assert t[3] == t[5]
+    assert t[3] < t[4]
+    assert t[1] == t[4]
+
+    for key in correction_dict:
+        np.testing.assert_equal(
+            metadata["correction"][key],
+            correction_dict[key],
+        )
+
+    # from kwds
+    sample_df = pd.DataFrame(sample, columns=columns)
+    ec = EnergyCalibrator(
+        config=config,
+        loader=get_loader("mpes", config=config),
+    )
+    df, metadata = ec.apply_energy_correction(sample_df, **correction_dict)
+    t = df[config["dataframe"]["corrected_tof_column"]]
+    assert t[0] == t[2]
+    assert t[0] < t[1]
+    assert t[3] == t[5]
+    assert t[3] < t[4]
+    assert t[1] == t[4]
+
+    for key in correction_dict:
+        np.testing.assert_equal(
+            metadata["correction"][key],
+            correction_dict[key],
+        )
