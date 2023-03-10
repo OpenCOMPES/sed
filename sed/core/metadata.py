@@ -1,6 +1,7 @@
 """This is a metadata handler class from the sed package
 
 """
+from copy import deepcopy
 from typing import Any
 from typing import Dict
 
@@ -11,7 +12,7 @@ class MetaHandler:
     """[summary]"""
 
     def __init__(self, meta: Dict = None) -> None:
-        self._m = meta if meta is not None else {}
+        self._m = deepcopy(meta) if meta is not None else {}
 
     def __getitem__(self, val: Any) -> None:
         return self._m[val]
@@ -20,9 +21,13 @@ class MetaHandler:
         # TODO: #35 add pretty print, possibly to HTML
         return str(self._m)
 
+    @property
+    def metadata(self) -> dict:
+        return self._m
+
     def add(
         self,
-        entry: Dict,
+        entry: Any,
         name: str,
         duplicate_policy: str = "raise",
     ) -> None:
@@ -42,7 +47,7 @@ class MetaHandler:
             DuplicateEntryError: [description]
         """
         if name not in self._m.keys() or duplicate_policy == "overwrite":
-            self._m[name] = entry
+            self._m[name] = deepcopy(entry)
         elif duplicate_policy == "raise":
             raise DuplicateEntryError(
                 f"an entry {name} already exists in metadata",
@@ -54,10 +59,17 @@ class MetaHandler:
                 newname = f"{name}_{i}"
                 if newname not in self._m.keys():
                     break
-            self._m[newname] = entry
+            self._m[newname] = deepcopy(entry)
 
         elif duplicate_policy == "merge":
-            insert_default_config(self._m[name], entry)
+            if isinstance(self._m[name], dict):
+                if not isinstance(entry, dict):
+                    raise ValueError(
+                        "Cannot merge dictionary with non-dictionary entry!",
+                    )
+                insert_default_config(self._m[name], deepcopy(entry))
+            else:
+                self._m[name] = deepcopy(entry)
 
         else:
             raise ValueError(
@@ -143,5 +155,5 @@ class DuplicateEntryError(Exception):
 
 if __name__ == "__main__":
     m = MetaHandler()
-    m.add({"name": "test", "start": 0, "stop": 1})
+    m.add({"start": 0, "stop": 1}, name="test")
     print(m)

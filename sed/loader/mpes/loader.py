@@ -561,9 +561,10 @@ class MpesLoader(BaseLoader):
                 "fa_size"
             ].items():
                 if v[0][0] < fa_in < v[0][1] and v[1][0] < fa_hor < v[1][1]:
-                    if isinstance(k, float):
-                        metadata["instrument"]["analyzer"]["fa_size"] = k
-                    else:  # considering that only int and str type values are present
+                    try:
+                        k_float = float(k)
+                        metadata["instrument"]["analyzer"]["fa_size"] = k_float
+                    except ValueError:  # store string if numeric interpretation fails
                         metadata["instrument"]["analyzer"]["fa_shape"] = k
                     break
             else:
@@ -576,9 +577,10 @@ class MpesLoader(BaseLoader):
                 "ca_size"
             ].items():
                 if v[0] < ca_in < v[1]:
-                    if isinstance(k, float):
-                        metadata["instrument"]["analyzer"]["ca_size"] = k
-                    else:  # considering that only int and str type values are present
+                    try:
+                        k_float = float(k)
+                        metadata["instrument"]["analyzer"]["ca_size"] = k_float
+                    except ValueError:  # store string if numeric interpretation fails
                         metadata["instrument"]["analyzer"]["ca_shape"] = k
                     break
             else:

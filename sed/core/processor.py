@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 import psutil
 import xarray as xr
+from nexusutils.dataconverter.convert import convert
 
 from sed.binning import bin_dataframe
 from sed.calibrator import DelayCalibrator
@@ -90,7 +91,6 @@ class SedProcessor:
         self.loader = get_loader(
             loader_name=loader_name,
             config=self._config,
-            meta_handler=self._attributes,
         )
 
         self.ec = EnergyCalibrator(
@@ -122,7 +122,13 @@ class SedProcessor:
 
         # Load data if provided:
         if dataframe is not None or files is not None or folder is not None:
-            self.load(dataframe=dataframe, files=files, folder=folder, **kwds)
+            self.load(
+                dataframe=dataframe,
+                metadata=metadata,
+                files=files,
+                folder=folder,
+                **kwds,
+            )
 
     def __repr__(self):
         if self._dataframe is None:
@@ -627,7 +633,10 @@ class SedProcessor:
 
     # 2. Apply energy correction to dataframe
     def apply_energy_correction(
-        self, correction: dict = None, preview: bool = False, **kwds,
+        self,
+        correction: dict = None,
+        preview: bool = False,
+        **kwds,
     ):
         """2. step of the energy correction workflow: Apply the enery correction
         parameters stored in the class to the dataframe.
@@ -985,6 +994,10 @@ class SedProcessor:
             cols=cols,
             cols_jittered=cols,
         )
+        metadata = ""
+        for col in cols:
+            metadata += col
+        self._attributes.add(metadata, "jittering", duplicate_policy="append")
 
     def pre_binning(
         self,
@@ -1123,6 +1136,19 @@ class SedProcessor:
             threadpool_api=threadpool_api,
             **kwds,
         )
+
+        for dim in self._binned.dims:
+            try:
+                self._binned[dim].attrs["unit"] = self._config["dataframe"][
+                    "units"
+                ][dim]
+            except KeyError:
+                pass
+
+        self._binned.attrs["units"] = "counts"
+        self._binned.attrs["long_name"] = "photoelectron counts"
+        self._binned.attrs["metadata"] = self._attributes.metadata
+
         return self._binned
 
     def view_event_histogram(
@@ -1201,6 +1227,38 @@ class SedProcessor:
             histkwds=histkwds,
             legkwds=legkwds,
             **kwds,
+        )
+
+    def to_nexus(
+        self,
+        filename: str,
+        reader: str = None,
+        definition: str = None,
+        config_file: str = None,
+    ):
+        """_summary_
+
+        Args:
+            filename (str): _description_
+            definition (str, optional): _description_. Defaults to None.
+            config_file (str, optional): _description_. Defaults to None.
+        """
+        if reader is None:
+            reader = self._config["nexus"]["reader"]
+        if definition is None:
+            definition = self._config["nexus"]["definition"]
+        if config_file is None:
+            config_file = self._config["nexus"]["config_file"]
+
+        if self._binned is None:
+            raise NameError("Need to bin data first!")
+
+        convert(
+            input_file=[config_file],
+            objects=self._binned,
+            reader=reader,
+            nxdl=definition,
+            output=filename,
         )
 
     def add_dimension(self, name: str, axis_range: Tuple):

@@ -11,6 +11,8 @@ llvmlite>=0.38.0rc1,<0.39
 lmfit>=1.0.3
 matplotlib>=3.5.1,<4.0.0
 natsort>=8.1.0
+--extra-index-url https://gitlab.mpcdf.mpg.de/api/v4/projects/2187/packages/pypi/simple
+nexusutils==0.0.1
 numba>=0.55.1,<0.56.0
 numpy>=1.21.5,<1.22
 scipy>=1.8.0

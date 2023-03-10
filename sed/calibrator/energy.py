@@ -3,6 +3,7 @@ correction. Mostly ported from https://github.com/mpes-kit/mpes.
 """
 import itertools as it
 import warnings as wn
+from copy import deepcopy
 from functools import partial
 from typing import Any
 from typing import cast
@@ -118,16 +119,18 @@ class EnergyCalibrator:
         self.tof_fermi = self._config.get("energy", {}).get(
             "tof_fermi",
             132250,
-        )
+        ) / 2 ** (self.binning - 1)
         self.x_width = self._config.get("energy", {}).get("x_width", (-20, 20))
         self.y_width = self._config.get("energy", {}).get("y_width", (-20, 20))
-        self.tof_width = self._config.get("energy", {}).get(
-            "tof_width",
-            (-300, 500),
-        )
+        self.tof_width = np.asarray(
+            self._config.get("energy", {}).get(
+                "tof_width",
+                (-300, 500),
+            ),
+        ) / 2 ** (self.binning - 1)
         self.color_clip = self._config.get("energy", {}).get("color_clip", 300)
 
-        self.correction: Dict[Any, Any] = {}
+        self.correction = self._config.get("energy", {}).get("correction", {})
 
     @property
     def ntraces(self) -> int:
@@ -219,7 +222,13 @@ class EnergyCalibrator:
             bins = [self._config.get("energy", {}).get("bins", 1000)]
         if ranges is None:
             ranges_ = [
-                self._config.get("energy", {}).get("ranges", [128000, 138000]),
+                np.array(
+                    self._config.get("energy", {}).get(
+                        "ranges",
+                        [128000, 138000],
+                    ),
+                )
+                / 2 ** (self.binning - 1),
             ]
             ranges = [cast(Tuple[float, float], tuple(v)) for v in ranges_]
         # pylint: disable=duplicate-code
@@ -242,7 +251,10 @@ class EnergyCalibrator:
             if bias_key is None:
                 bias_key = self._config.get("energy", {}).get("bias_key", "")
 
-        dataframe, _ = self.loader.read_dataframe(files=data_files)
+        dataframe, _ = self.loader.read_dataframe(
+            files=data_files,
+            collect_metadata=False,
+        )
         traces = bin_dataframe(
             dataframe,
             bins=bins,
@@ -732,6 +744,15 @@ class EnergyCalibrator:
             raise ValueError("No valid calibration parameters provided!")
 
         if calib_type == "fit":
+            # Fitting metadata for nexus
+            calibration["fit_function"] = "(a0/(x0-a1))**2 + a2"
+            calibration["coefficients"] = np.array(
+                [
+                    calibration["d"],
+                    calibration["t0"],
+                    calibration["E0"],
+                ],
+            )
             df[energy_column] = tof2ev(
                 drift_distance,
                 time_offset,
@@ -742,6 +763,14 @@ class EnergyCalibrator:
                 df[tof_column].astype("float64"),
             )
         elif calib_type == "poly":
+            # Fitting metadata for nexus
+            fit_function = "a0"
+            for n in range(1, len(poly_a) + 1):
+                fit_function += f" + a{n}*x0**{n}"
+            calibration["fit_function"] = fit_function
+            calibration["coefficients"] = np.concatenate(
+                (calibration["coeffs"], [calibration["E0"]]),
+            )[::-1]
             df[energy_column] = tof2evpoly(
                 poly_a,
                 energy_offset,
@@ -750,7 +779,7 @@ class EnergyCalibrator:
         else:
             raise NotImplementedError
 
-        metadata = self.gather_calibration_metadata()
+        metadata = self.gather_calibration_metadata(calibration)
 
         return df, metadata
 
@@ -767,7 +796,9 @@ class EnergyCalibrator:
         if calibration is None:
             calibration = self.calibration
         metadata = {}
-        metadata["calibration"] = calibration
+        metadata["applied"] = True
+        metadata["calibration"] = deepcopy(calibration)
+        metadata["tof"] = deepcopy(self.tof)
 
         return metadata
 
@@ -777,6 +808,7 @@ class EnergyCalibrator:
         correction_type: str = None,
         amplitude: float = None,
         center: Tuple[float, float] = None,
+        correction: dict = None,
         apply=False,
         **kwds,
     ):
@@ -827,19 +859,23 @@ class EnergyCalibrator:
         """
         matplotlib.use("module://ipympl.backend_nbagg")
 
-        default_correction = self._config.get("energy", {}).get(
-            "correction",
-            {},
-        )
-        if correction_type is None:
-            correction_type = default_correction["correction_type"]
+        if correction is None:
+            correction = deepcopy(self.correction)
 
-        if amplitude is None:
-            amplitude = default_correction["amplitude"]
-        if center is None:
-            center = default_correction["center"]
+        if correction_type is not None:
+            correction["correction_type"] = correction_type
 
-        kwds = {**(default_correction["kwds"]), **kwds}
+        correction_type = correction["correction_type"]
+
+        if amplitude is not None:
+            correction["amplitude"] = amplitude
+
+        amplitude = correction["amplitude"]
+
+        if center is not None:
+            correction["center"] = center
+
+        center = correction["center"]
 
         x_column = kwds.pop("x_column", self.x_column)
         y_column = kwds.pop("y_column", self.y_column)
@@ -902,9 +938,9 @@ class EnergyCalibrator:
             yincrease=False,
         )
         (trace1,) = ax[0].plot(x, correction_x)
-        line1 = ax[0].axvline(x=center[0])
+        line1 = ax[0].axvline(x=x_center)
         (trace2,) = ax[1].plot(y, correction_y)
-        line2 = ax[1].axvline(x=center[1])
+        line2 = ax[1].axvline(x=y_center)
 
         amplitude_slider = ipw.FloatSlider(
             value=amplitude,
@@ -957,15 +993,15 @@ class EnergyCalibrator:
             fig.canvas.draw_idle()
 
         if correction_type == "spherical":
-            diameter = kwds.pop("diameter", 50)
-
-            update(amplitude, x_center, y_center, d=diameter)
+            assert "diameter" in correction.keys()
+            diameter = correction["diameter"]
+            update(amplitude, x_center, y_center, diameter=diameter)
 
             diameter_slider = ipw.FloatSlider(
-                value=diameter,
+                value=correction["diameter"],
                 min=0,
-                max=100,
-                step=1,
+                max=10000,
+                step=100,
             )
 
             ipw.interact(
@@ -983,8 +1019,7 @@ class EnergyCalibrator:
                     y_center_slider.value,
                 )
                 self.correction["correction_type"] = correction_type
-                kwds["diameter"] = diameter_slider.value
-                self.correction["kwds"] = kwds
+                self.correction["diameter"] = diameter_slider.value
                 amplitude_slider.close()
                 x_center_slider.close()
                 y_center_slider.close()
@@ -992,7 +1027,8 @@ class EnergyCalibrator:
                 apply_button.close()
 
         elif correction_type == "Lorentzian":
-            gamma = kwds.pop("gamma", 700)
+            assert "gamma" in correction.keys()
+            gamma = correction["gamma"]
 
             update(amplitude, x_center, y_center, gamma=gamma)
 
@@ -1018,8 +1054,7 @@ class EnergyCalibrator:
                     y_center_slider.value,
                 )
                 self.correction["correction_type"] = correction_type
-                kwds["gamma"] = gamma_slider.value
-                self.correction["kwds"] = kwds
+                self.correction["gamma"] = gamma_slider.value
                 amplitude_slider.close()
                 x_center_slider.close()
                 y_center_slider.close()
@@ -1027,7 +1062,8 @@ class EnergyCalibrator:
                 apply_button.close()
 
         elif correction_type == "Gaussian":
-            sigma = kwds.pop("sigma", 400)
+            assert "sigma" in correction.keys()
+            sigma = correction["sigma"]
 
             update(amplitude, x_center, y_center, sigma=sigma)
 
@@ -1053,8 +1089,7 @@ class EnergyCalibrator:
                     y_center_slider.value,
                 )
                 self.correction["correction_type"] = correction_type
-                kwds["sigma"] = sigma_slider.value
-                self.correction["kwds"] = kwds
+                self.correction["sigma"] = sigma_slider.value
                 amplitude_slider.close()
                 x_center_slider.close()
                 y_center_slider.close()
@@ -1062,9 +1097,17 @@ class EnergyCalibrator:
                 apply_button.close()
 
         elif correction_type == "Lorentzian_asymmetric":
+            assert "gamma" in correction.keys()
+            gamma = correction["gamma"]
             gamma = kwds.pop("gamma", 700)
-            amplitude2 = kwds.pop("amplitude2", amplitude)
-            gamma2 = kwds.pop("gamma2", gamma)
+            if "amplitude2" in correction.keys():
+                amplitude2 = correction["amplitude2"]
+            else:
+                amplitude2 = amplitude
+            if "gamma2" in correction.keys():
+                gamma2 = correction["gamma2"]
+            else:
+                gamma2 = gamma
 
             update(
                 amplitude,
@@ -1113,10 +1156,9 @@ class EnergyCalibrator:
                     y_center_slider.value,
                 )
                 self.correction["correction_type"] = correction_type
-                kwds["gamma"] = gamma_slider.value
-                kwds["amplitude2"] = amplitude2_slider.value
-                kwds["gamma2"] = gamma2_slider.value
-                self.correction["kwds"] = kwds
+                self.correction["gamma"] = gamma_slider.value
+                self.correction["amplitude2"] = amplitude2_slider.value
+                self.correction["gamma2"] = gamma2_slider.value
                 amplitude_slider.close()
                 x_center_slider.close()
                 y_center_slider.close()
@@ -1188,25 +1230,27 @@ class EnergyCalibrator:
         """
         if correction is None:
             if self.correction:
-                correction = self.correction
+                correction = deepcopy(self.correction)
             else:
-                correction = self._config.get("energy", {}).get(
-                    "correction",
-                    {},
+                correction = deepcopy(
+                    self._config.get("energy", {}).get(
+                        "correction",
+                        {},
+                    ),
                 )
 
-        if correction_type is None:
-            correction_type = correction["correction_type"]
+        if correction_type is not None:
+            correction["correction_type"] = correction_type
 
-        if amplitude is None:
-            amplitude = correction["amplitude"]
-
-        kwds = {**(correction["kwds"]), **kwds}
-
-        center = kwds.pop("center", correction["center"])
+        if amplitude is not None:
+            correction["amplitude"] = amplitude
 
         x_column = kwds.pop("x_column", self.x_column)
         y_column = kwds.pop("y_column", self.y_column)
+
+        for key, value in kwds:
+            correction[key] = value
+
         if tof_column is None:
             tof_column = self.tof_column
 
@@ -1216,12 +1260,9 @@ class EnergyCalibrator:
         df[new_tof_column] = df[tof_column] + correction_function(
             x=df[x_column],
             y=df[y_column],
-            correction_type=correction_type,
-            center=center,
-            amplitude=amplitude,
-            **kwds,
+            **correction,
         )
-        metadata = self.gather_correction_metadata()
+        metadata = self.gather_correction_metadata(correction=correction)
 
         return df, metadata
 
@@ -1238,7 +1279,8 @@ class EnergyCalibrator:
         if correction is None:
             correction = self.correction
         metadata = {}
-        metadata["correction"] = correction
+        metadata["applied"] = True
+        metadata["correction"] = deepcopy(correction)
 
         return metadata
 
@@ -1300,13 +1342,14 @@ def correction_function(
         diameter = kwds.pop("diameter", 50)
         correction = -(
             (
-                np.sqrt(
+                1
+                - np.sqrt(
                     1
-                    + ((x - center[0]) ** 2 + (y - center[1]) ** 2)
+                    - ((x - center[0]) ** 2 + (y - center[1]) ** 2)
                     / diameter**2,
                 )
-                - 1
             )
+            * 100
             * amplitude
         )
 

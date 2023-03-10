@@ -2,6 +2,7 @@
 correction. Mostly ported from https://github.com/mpes-kit/mpes.
 """
 import itertools as it
+from copy import deepcopy
 from typing import Any
 from typing import Dict
 from typing import List
@@ -1389,10 +1390,12 @@ class MomentumCorrector:
 
         # Assemble into return dictionary
         self.calibration = {}
-        self.calibration["axes"] = (k_row, k_col)
-        self.calibration["extent"] = (k_row[0], k_row[-1], k_col[0], k_col[-1])
-        self.calibration["coeffs"] = (xratio, yratio)
+        self.calibration["kx_axis"] = k_row
+        self.calibration["ky_axis"] = k_col
         self.calibration["grid"] = (k_rowgrid, k_colgrid)
+        self.calibration["extent"] = (k_row[0], k_row[-1], k_col[0], k_col[-1])
+        self.calibration["kx_scale"] = xratio
+        self.calibration["ky_scale"] = yratio
         self.calibration["x_center"] = point_b[0] - k_coord_b[0] / xratio
         self.calibration["y_center"] = point_b[1] - k_coord_b[1] / yratio
         # copy parameters for applying calibration
@@ -1547,11 +1550,13 @@ class MomentumCorrector:
 
         if calibration is None:
             if self.calibration:
-                calibration = self.calibration
+                calibration = deepcopy(self.calibration)
             else:
-                calibration = self._config.get("momentum", {}).get(
-                    "calibration",
-                    {},
+                calibration = deepcopy(
+                    self._config.get("momentum", {}).get(
+                        "calibration",
+                        {},
+                    ),
                 )
 
         try:
@@ -1565,8 +1570,8 @@ class MomentumCorrector:
                 c_start=calibration["cstart"],
                 r_center=calibration["x_center"],
                 c_center=calibration["y_center"],
-                r_conversion=calibration["coeffs"][0],
-                c_conversion=calibration["coeffs"][1],
+                r_conversion=calibration["kx_scale"],
+                c_conversion=calibration["ky_scale"],
                 r_step=calibration["rstep"],
                 c_step=calibration["cstep"],
             )
@@ -1597,27 +1602,85 @@ class MomentumCorrector:
         if dfield is None:
             dfield = self.inverse_dfield
         metadata = {}
-        metadata["dfield"] = dfield
-        metadata["adjust_params"] = self.adjust_params
-        metadata["pcent"] = self.pcent
-        metadata["pouter_ord"] = self.pouter_ord
-        metadata["ptargs"] = self.ptargs
-        metadata["pcent"] = np.asarray(metadata["pcent"])
+        metadata["applied"] = True
+        metadata["rotsym"] = self.rotsym
+        if dfield is not None:
+            metadata["dfield"] = dfield
+        if self.adjust_params is not None:
+            metadata["adjust_params"] = self.adjust_params
+        if self.pcent is not None:
+            metadata["pcent"] = np.asarray(self.pcent)
+        if self.pouter_ord is not None:
+            metadata["pouter"] = self.pouter_ord
+        elif self.pouter is not None:
+            metadata["pouter"] = self.pouter
+        if self.ptargs is not None:
+            metadata["ptargs"] = self.ptargs
+        if self.rdeform_field is not None:
+            metadata["rdeform_field"] = self.rdeform_field
+        if self.cdeform_field is not None:
+            metadata["cdeform_field"] = self.cdeform_field
         if metadata["adjust_params"]:
-            metadata["adjust_params"]["center"] = np.asarray(
-                metadata["adjust_params"]["center"],
+            metadata["adjust_params"]["applied"] = True
+            metadata["adjust_params"]["depends_on"] = (
+                "/entry/process/registration/tranformations/rot_z"
+                if metadata["adjust_params"]["angle"]
+                else "/entry/process/registration/tranformations/trans_y"
+                if metadata["adjust_params"]["ytrans"]
+                else "/entry/process/registration/tranformations/trans_x"
+                if metadata["adjust_params"]["xtrans"]
+                else "/entry/process/registration/tranformations/trans_x"
+                if metadata["adjust_params"]["xtrans"]
+                else "."
             )
-            metadata["adjust_params"]["x_vector"] = np.asarray([1.0, 0.0, 0.0])
-            metadata["adjust_params"]["y_vector"] = np.asarray([0.0, 1.0, 0.0])
-            metadata["adjust_params"]["angle_radians"] = (
-                self.adjust_params["angle"] * np.pi / 180
-            )
-            metadata["adjust_params"]["rotation_vector"] = np.asarray(
-                [0.0, 0.0, 1.0],
-            )
-            metadata["adjust_params"]["offset"] = np.concatenate(
-                (self.adjust_params["center"], [0.0]),
-            )
+            if metadata["adjust_params"]["xtrans"]:
+                metadata["adjust_params"]["trans_x"] = {}
+                metadata["adjust_params"]["trans_x"]["value"] = metadata[
+                    "adjust_params"
+                ]["xtrans"]
+                metadata["adjust_params"]["trans_x"]["type"] = "translation"
+                metadata["adjust_params"]["trans_x"]["units"] = "pixel"
+                metadata["adjust_params"]["trans_x"]["vector"] = np.asarray(
+                    [1.0, 0.0, 0.0],
+                )
+                metadata["adjust_params"]["trans_x"]["depends_on"] = "."
+            if metadata["adjust_params"]["ytrans"]:
+                metadata["adjust_params"]["trans_y"] = {}
+                metadata["adjust_params"]["trans_y"]["value"] = metadata[
+                    "adjust_params"
+                ]["xtrans"]
+                metadata["adjust_params"]["trans_y"]["type"] = "translation"
+                metadata["adjust_params"]["trans_y"]["units"] = "pixel"
+                metadata["adjust_params"]["trans_y"]["vector"] = np.asarray(
+                    [0.0, 1.0, 0.0],
+                )
+                metadata["adjust_params"]["trans_y"]["depends_on"] = (
+                    "/entry/process/registration/tranformations/trans_x"
+                    if metadata["adjust_params"]["xtrans"]
+                    else "."
+                )
+            if metadata["adjust_params"]["angle"]:
+                metadata["adjust_params"]["rot_z"] = {}
+                metadata["adjust_params"]["rot_z"]["value"] = (
+                    metadata["adjust_params"]["angle"] * np.pi / 180
+                )
+                metadata["adjust_params"]["rot_z"]["type"] = "rotation"
+                metadata["adjust_params"]["rot_z"]["units"] = "degrees"
+                metadata["adjust_params"]["rot_z"]["vector"] = np.asarray(
+                    [0.0, 0.0, 1.0],
+                )
+                metadata["adjust_params"]["rot_z"]["offset"] = np.concatenate(
+                    (metadata["adjust_params"]["center"], [0.0]),
+                )
+                metadata["adjust_params"]["rot_z"]["depends_on"] = (
+                    "/entry/process/registration/tranformations/trans_y"
+                    if metadata["adjust_params"]["ytrans"]
+                    else "/entry/process/registration/tranformations/trans_x"
+                    if metadata["adjust_params"]["xtrans"]
+                    else "/entry/process/registration/tranformations/trans_x"
+                    if metadata["adjust_params"]["xtrans"]
+                    else "."
+                )
 
         return metadata
 
@@ -1634,10 +1697,8 @@ class MomentumCorrector:
         if calibration is None:
             calibration = self.calibration
         metadata = {}
+        metadata["applied"] = True
         metadata["calibration"] = calibration
-        metadata["calibration"]["coeffs"] = np.array(
-            metadata["calibration"]["coeffs"],
-        )
 
         return metadata
 

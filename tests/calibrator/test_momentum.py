@@ -130,7 +130,7 @@ def test_apply_correction():
     )
     mc.add_features(peaks=features)
     mc.spline_warp_estimate()
-    df = mc.apply_distortion_correction(df=df)
+    df, _ = mc.apply_distortion_correction(df=df)
     assert "Xm" in df.columns
     assert "Ym" in df.columns
 

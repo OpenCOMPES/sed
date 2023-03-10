@@ -123,8 +123,8 @@ def test_calibrate_append(energy_scale: str, calibration_method: str):
         energy_scale=energy_scale,
         method=calibration_method,
     )
-    df = ec.append_energy_axis(df)
-    assert "E" in df.columns
+    df, _ = ec.append_energy_axis(df)
+    assert config["dataframe"]["energy_column"] in df.columns
     axis = calibdict["axis"]
     diff = np.diff(axis)
     if energy_scale == "kinetic":
@@ -196,7 +196,7 @@ def test_energy_correction(correction_type: str, correction_kwd: dict):
         apply=True,
         **correction_kwd,
     )
-    df = ec.apply_energy_correction(sample_df)
+    df, _ = ec.apply_energy_correction(sample_df)
     t = df[config["dataframe"]["corrected_tof_column"]]
     assert t[0] == t[2]
     assert t[0] < t[1]
