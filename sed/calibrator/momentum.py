@@ -1601,7 +1601,7 @@ class MomentumCorrector:
         """
         if dfield is None:
             dfield = self.inverse_dfield
-        metadata = {}
+        metadata: Dict[Any, Any] = {}
         metadata["applied"] = True
         metadata["rotsym"] = self.rotsym
         if dfield is not None:
@@ -1696,7 +1696,7 @@ class MomentumCorrector:
         """
         if calibration is None:
             calibration = self.calibration
-        metadata = {}
+        metadata: Dict[Any, Any] = {}
         metadata["applied"] = True
         metadata["calibration"] = calibration
 

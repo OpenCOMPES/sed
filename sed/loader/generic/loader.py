@@ -58,6 +58,7 @@ class GenericLoader(BaseLoader):
             Tuple[ddf.DataFrame, dict]: Dask dataframe and metadata read from specified
             files.
         """
+        # pylint: disable=duplicate-code
         super().read_dataframe(
             files=files,
             folder=folder,

@@ -23,6 +23,11 @@ class MetaHandler:
 
     @property
     def metadata(self) -> dict:
+        """Property returning the metadata dict.
+
+        Returns:
+            dict: Dictionary of metadata.
+        """
         return self._m
 
     def add(

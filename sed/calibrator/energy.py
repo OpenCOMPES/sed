@@ -765,8 +765,8 @@ class EnergyCalibrator:
         elif calib_type == "poly":
             # Fitting metadata for nexus
             fit_function = "a0"
-            for n in range(1, len(poly_a) + 1):
-                fit_function += f" + a{n}*x0**{n}"
+            for term in range(1, len(poly_a) + 1):
+                fit_function += f" + a{term}*x0**{term}"
             calibration["fit_function"] = fit_function
             calibration["coefficients"] = np.concatenate(
                 (calibration["coeffs"], [calibration["E0"]]),
@@ -795,7 +795,7 @@ class EnergyCalibrator:
         """
         if calibration is None:
             calibration = self.calibration
-        metadata = {}
+        metadata: Dict[Any, Any] = {}
         metadata["applied"] = True
         metadata["calibration"] = deepcopy(calibration)
         metadata["tof"] = deepcopy(self.tof)
@@ -1248,7 +1248,7 @@ class EnergyCalibrator:
         x_column = kwds.pop("x_column", self.x_column)
         y_column = kwds.pop("y_column", self.y_column)
 
-        for key, value in kwds:
+        for key, value in kwds.items():
             correction[key] = value
 
         if tof_column is None:
@@ -1278,7 +1278,7 @@ class EnergyCalibrator:
         """
         if correction is None:
             correction = self.correction
-        metadata = {}
+        metadata: Dict[Any, Any] = {}
         metadata["applied"] = True
         metadata["correction"] = deepcopy(correction)
 

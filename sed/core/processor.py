@@ -994,9 +994,9 @@ class SedProcessor:
             cols=cols,
             cols_jittered=cols,
         )
-        metadata = ""
+        metadata = []
         for col in cols:
-            metadata += col
+            metadata.append(col)
         self._attributes.add(metadata, "jittering", duplicate_policy="append")
 
     def pre_binning(

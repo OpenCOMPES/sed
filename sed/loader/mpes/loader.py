@@ -247,25 +247,6 @@ def get_attribute(h5group: h5py.Group, attribute: str) -> str:
     return content
 
 
-def parse_metadata(
-    files: Sequence[str],
-) -> dict:
-    """Parses file metadata and returns corresponding dictionary
-
-    Args:
-        files (Sequence[str]): List of files from which to read metadata.
-
-    Returns:
-        dict: Metadata dictionary.
-    """
-
-    metadata_dict = {}
-    metadata_dict["name"] = "loader"
-    # Get time ranges
-
-    return {}
-
-
 def get_count_rate(
     h5file: h5py.File,
     ms_markers_group: str = "msMarkers",
@@ -365,6 +346,7 @@ class MpesLoader(BaseLoader):
             Tuple[ddf.DataFrame, dict]: Dask dataframe and metadata read from specified
             files.
         """
+        # pylint: disable=duplicate-code
         super().read_dataframe(
             files=files,
             folder=folder,
@@ -444,30 +426,30 @@ class MpesLoader(BaseLoader):
         # Read events in with ms time stamps
         print("Collecting time stamps...")
 
-        hf = h5py.File(files[0])
+        h5file = h5py.File(files[0])
         timestamps = hdf5_to_array(
-            hf,
+            h5file,
             group_names=self._config["dataframe"]["hdf5_groupnames"],
             time_stamps=True,
         )
-        tsFrom = timestamps[-1][1]
-        hf = h5py.File(files[-1])
+        ts_from = timestamps[-1][1]
+        h5file = h5py.File(files[-1])
         timestamps = hdf5_to_array(
-            hf,
+            h5file,
             group_names=self._config["dataframe"]["hdf5_groupnames"],
             time_stamps=True,
         )
-        tsTo = timestamps[-1][-1]
+        ts_to = timestamps[-1][-1]
 
         metadata["timing"] = {
-            "acquisition_start": datetime.datetime.utcfromtimestamp(tsFrom)
+            "acquisition_start": datetime.datetime.utcfromtimestamp(ts_from)
             .replace(tzinfo=datetime.timezone.utc)
             .isoformat(),
-            "acquisition_stop": datetime.datetime.utcfromtimestamp(tsTo)
+            "acquisition_stop": datetime.datetime.utcfromtimestamp(ts_to)
             .replace(tzinfo=datetime.timezone.utc)
             .isoformat(),
-            "acquisition_duration": int(tsTo - tsFrom),
-            "collection_time": float(tsTo - tsFrom),
+            "acquisition_duration": int(ts_to - ts_from),
+            "collection_time": float(ts_to - ts_from),
         }
 
         # import meta data from data file
@@ -477,10 +459,10 @@ class MpesLoader(BaseLoader):
             metadata["file"] = {}
 
         print("Collecting file metadata...")
-        with h5py.File(files[0], "r") as f:
-            for k, v in f.attrs.items():
-                k = k.replace("VSet", "V")
-                metadata["file"][k] = v
+        with h5py.File(files[0], "r") as h5file:
+            for key, value in h5file.attrs.items():
+                key = key.replace("VSet", "V")
+                metadata["file"][key] = value
 
         metadata["entry_identifier"] = os.path.dirname(
             os.path.realpath(files[0]),
@@ -488,8 +470,8 @@ class MpesLoader(BaseLoader):
 
         print("Collecting data from the EPICS archive...")
         # Get metadata from Epics archive if not present already
-        start = datetime.datetime.utcfromtimestamp(tsFrom).isoformat()
-        end = datetime.datetime.utcfromtimestamp(tsTo).isoformat()
+        start = datetime.datetime.utcfromtimestamp(ts_from).isoformat()
+        end = datetime.datetime.utcfromtimestamp(ts_to).isoformat()
         epics_channels = self._config["metadata"]["epics_pvs"]
 
         channels_missing = set(epics_channels) - set(
@@ -506,30 +488,30 @@ class MpesLoader(BaseLoader):
                     + end
                     + "Z"
                 )
-                req = urllib.request.urlopen(req_str)
-                data = json.load(req)
-                vals = [x["val"] for x in data[0]["data"]]
-                metadata["file"][f"{channel}"] = np.mean(vals)
+                with urllib.request.urlopen(req_str) as req:
+                    data = json.load(req)
+                    vals = [x["val"] for x in data[0]["data"]]
+                    metadata["file"][f"{channel}"] = np.mean(vals)
 
-            except (IndexError):
+            except IndexError:
                 metadata["file"][f"{channel}"] = np.nan
                 print(
                     f"Data for channel {channel} doesn't exist for time {start}",
                 )
-            except urllib.error.HTTPError as e:
+            except urllib.error.HTTPError as exc:
                 print(
                     f"Incorrect URL for the archive channel {channel}. "
                     "Make sure that the channel name and file start and end times are "
                     "correct.",
                 )
-                print("Error code: ", e)
-            except urllib.error.URLError as e:
+                print("Error code: ", exc)
+            except urllib.error.URLError as exc:
                 print(
                     f"Cannot access the archive URL for channel {channel}. "
                     f"Make sure that you are within the FHI network."
                     f"Skipping over channels {channels_missing}.",
                 )
-                print("Error code: ", e)
+                print("Error code: ", exc)
                 break
 
         # Determine the correct aperture_config
@@ -557,15 +539,18 @@ class MpesLoader(BaseLoader):
             fa_hor = metadata["file"][
                 self._config["metadata"]["fa_hor_channel"]
             ]
-            for k, v in self._config["metadata"]["aperture_config"][timestamp][
-                "fa_size"
-            ].items():
-                if v[0][0] < fa_in < v[0][1] and v[1][0] < fa_hor < v[1][1]:
+            for key, value in self._config["metadata"]["aperture_config"][
+                timestamp
+            ]["fa_size"].items():
+                if (
+                    value[0][0] < fa_in < value[0][1]
+                    and value[1][0] < fa_hor < value[1][1]
+                ):
                     try:
-                        k_float = float(k)
+                        k_float = float(key)
                         metadata["instrument"]["analyzer"]["fa_size"] = k_float
                     except ValueError:  # store string if numeric interpretation fails
-                        metadata["instrument"]["analyzer"]["fa_shape"] = k
+                        metadata["instrument"]["analyzer"]["fa_shape"] = key
                     break
             else:
                 print("Field aperture size not found.")
@@ -573,15 +558,15 @@ class MpesLoader(BaseLoader):
         # get contrast aperture shape and size
         if self._config["metadata"]["ca_in_channel"] in metadata["file"]:
             ca_in = metadata["file"][self._config["metadata"]["ca_in_channel"]]
-            for k, v in self._config["metadata"]["aperture_config"][timestamp][
-                "ca_size"
-            ].items():
-                if v[0] < ca_in < v[1]:
+            for key, value in self._config["metadata"]["aperture_config"][
+                timestamp
+            ]["ca_size"].items():
+                if value[0] < ca_in < value[1]:
                     try:
-                        k_float = float(k)
+                        k_float = float(key)
                         metadata["instrument"]["analyzer"]["ca_size"] = k_float
                     except ValueError:  # store string if numeric interpretation fails
-                        metadata["instrument"]["analyzer"]["ca_shape"] = k
+                        metadata["instrument"]["analyzer"]["ca_shape"] = key
                     break
             else:
                 print("Contrast aperture size not found.")
@@ -595,8 +580,10 @@ class MpesLoader(BaseLoader):
         lens_volts = np.array(
             [metadata["file"][f"KTOF:Lens:{lens}:V"] for lens in lens_list],
         )
-        for mode, v in self._config["metadata"]["lens_mode_config"].items():
-            lens_volts_config = np.array([v[k] for k in lens_list])
+        for mode, value in self._config["metadata"][
+            "lens_mode_config"
+        ].items():
+            lens_volts_config = np.array([value[k] for k in lens_list])
             if np.allclose(
                 lens_volts,
                 lens_volts_config,
