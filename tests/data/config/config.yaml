@@ -96,7 +96,8 @@ momentum:
     cstart: -256.
     rstep: 4.0
     cstep: 4.0
-  dfield_file: "../tests/data/config/dfield.npy"
+  correction:
+    feature_points: [[203.2, 341.96], [299.16, 345.32], [350.25, 243.70], [304.38, 149.88], [199.52, 152.48], [154.28, 242.27], [248.29, 248.62]]
 
 delay:
   adc_range: [1900, 25600]

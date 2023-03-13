@@ -62,20 +62,23 @@ class MomentumCorrector:
             rotsym (int, optional): Rotational symmetry of the data. Defaults to 6.
             config (dict, optional): Config dictionary. Defaults to None.
         """
+        if config is None:
+            config = {}
+
+        self._config = config
+
         self.image: np.ndarray = None
         self.img_ndim: int = None
         self.slice: np.ndarray = None
         self.slice_corrected: np.ndarray = None
         self.slice_transformed: np.ndarray = None
-        self.bin_ranges: List[Tuple] = []
+        self.bin_ranges: List[Tuple] = self._config.get("momentum", {}).get(
+            "ranges",
+            [],
+        )
 
         if data is not None:
             self.load_data(data=data, bin_ranges=bin_ranges, rotsym=rotsym)
-
-        if config is None:
-            config = {}
-
-        self._config = config
 
         self.detector_ranges = self._config.get("momentum", {}).get(
             "detector_ranges",
@@ -86,7 +89,6 @@ class MomentumCorrector:
         self.rotsym_angle = int(360 / self.rotsym)
         self.arot = np.array([0] + [self.rotsym_angle] * (self.rotsym - 1))
         self.ascale = np.array([1.0] * self.rotsym)
-        self.adjust_params: Dict[Any, Any] = {}
         self.peaks: np.ndarray = None
         self.pouter: np.ndarray = None
         self.pcent: Tuple[float, ...] = None
@@ -104,15 +106,9 @@ class MomentumCorrector:
         self.inverse_dfield: np.ndarray = None
         self.dfield_updated: bool = False
         self.transformations: Dict[Any, Any] = {}
+        self.correction: Dict[Any, Any] = {"applied": False}
+        self.adjust_params: Dict[Any, Any] = {"applied": False}
         self.calibration: Dict[Any, Any] = {}
-        if "dfield_file" in self._config.get("momentum", {}):
-            (self.rdeform_field, self.cdeform_field) = load_dfield(
-                self._config["momentum"]["dfield_file"],
-            )
-            self.bin_ranges = self._config.get("momentum", {}).get(
-                "ranges",
-                [],
-            )
 
         self.x_column = self._config.get("dataframe", {}).get(
             "x_column",
@@ -346,7 +342,7 @@ class MomentumCorrector:
 
     def add_features(
         self,
-        peaks: np.ndarray,
+        peaks: np.ndarray = None,
         direction: str = "ccw",
         symscores: bool = True,
         **kwds,
@@ -374,6 +370,11 @@ class MomentumCorrector:
         Raises:
             ValueError: Raised if the number of points does not match the rotsym.
         """
+        if peaks is None:
+            peaks = np.asarray(
+                self._config["momentum"]["correction"]["feature_points"],
+            )
+
         if peaks.shape[0] == self.rotsym:  # assume no center present
             self.pcent, self.pouter = po.pointset_center(
                 peaks,
@@ -521,7 +522,11 @@ class MomentumCorrector:
             np.ndarray: The corrected image.
         """
         if image is None:
-            image = self.slice
+            if self.slice is not None:
+                image = self.slice
+            else:
+                image = np.zeros(self._config["momentum"]["bins"][0:2])
+                self.bin_ranges
 
         if self.pouter_ord is None:
             assert self.pouter is not None, "No landmarks defined!"
@@ -559,7 +564,7 @@ class MomentumCorrector:
                 ).T
 
         # Non-iterative estimation of deformation field
-        self.slice_corrected, splinewarp = tps.tpsWarping(
+        corrected_image, splinewarp = tps.tpsWarping(
             self.prefs,
             self.ptargs,
             image,
@@ -576,7 +581,17 @@ class MomentumCorrector:
             splinewarp[1],
         )
 
-        return self.slice_corrected
+        self.correction["applied"] = True
+        self.correction["pouter"] = self.pouter_ord
+        self.correction["pcent"] = np.asarray(self.pcent)
+        self.correction["prefs"] = self.prefs
+        self.correction["ptargs"] = self.ptargs
+        self.correction["rotsym"] = self.rotsym
+
+        if self.slice is not None:
+            self.slice_corrected = corrected_image
+
+        return corrected_image
 
     def apply_correction(
         self,
@@ -762,7 +777,6 @@ class MomentumCorrector:
                 ret="displacement",
                 **kwds,
             )
-        self.adjust_params = dictmerge(self.adjust_params, kwds)
 
         # Compute deformation field
         if stackax == 0:
@@ -812,6 +826,8 @@ class MomentumCorrector:
                 rdeform,
                 cdeform,
             )
+            self.adjust_params["applied"] = True
+            self.adjust_params = dictmerge(self.adjust_params, kwds)
 
         return slice_transformed
 
@@ -1413,16 +1429,13 @@ class MomentumCorrector:
 
         return self.calibration
 
-    def apply_distortion_correction(
+    def apply_corrections(
         self,
         df: Union[pd.DataFrame, dask.dataframe.DataFrame],
         x_column: str = None,
         y_column: str = None,
         new_x_column: str = None,
         new_y_column: str = None,
-        rdeform_field: np.ndarray = None,
-        cdeform_field: np.ndarray = None,
-        inv_dfield: np.ndarray = None,
         **kwds,
     ) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
         """Calculate and replace the X and Y values with their distortion-corrected
@@ -1463,31 +1476,23 @@ class MomentumCorrector:
         if new_y_column is None:
             new_y_column = self.corrected_y_column
 
-        if inv_dfield is not None:
-            dfield = inv_dfield
-        elif rdeform_field is not None and cdeform_field is not None:
-            dfield = generate_inverse_dfield(
-                rdeform_field,
-                cdeform_field,
+        if self.inverse_dfield is None or self.dfield_updated:
+            if self.rdeform_field is None and self.cdeform_field is None:
+                # Apply defaults
+                self.add_features()
+                self.spline_warp_estimate()
+
+            self.inverse_dfield = generate_inverse_dfield(
+                self.rdeform_field,
+                self.cdeform_field,
                 self.bin_ranges,
                 self.detector_ranges,
             )
-        else:
-            if self.inverse_dfield is not None and not self.dfield_updated:
-                dfield = self.inverse_dfield
-            else:
-                self.inverse_dfield = generate_inverse_dfield(
-                    self.rdeform_field,
-                    self.cdeform_field,
-                    self.bin_ranges,
-                    self.detector_ranges,
-                )
-                self.dfield_updated = False
-                dfield = self.inverse_dfield
+            self.dfield_updated = False
 
         out_df = df.map_partitions(
             apply_dfield,
-            dfield,
+            dfield=self.inverse_dfield,
             x_column=x_column,
             y_column=y_column,
             new_x_column=new_x_column,
@@ -1496,9 +1501,95 @@ class MomentumCorrector:
             **kwds,
         )
 
-        metadata = self.gather_correction_metadata(dfield=dfield)
+        metadata = self.gather_correction_metadata()
 
         return out_df, metadata
+
+    def gather_correction_metadata(self) -> dict:
+        """Collect meta data for momentum correction.
+
+        Returns:
+            dict: generated correction metadata dictionary.
+        """
+        metadata: Dict[Any, Any] = {}
+        if self.correction["applied"]:
+            metadata["correction"] = self.correction
+            metadata["correction"]["cdeform_field"] = self.cdeform_field
+            metadata["correction"]["rdeform_field"] = self.rdeform_field
+        if self.adjust_params["applied"]:
+            metadata["registration"] = self.adjust_params
+            metadata["registration"]["depends_on"] = (
+                "/entry/process/registration/tranformations/rot_z"
+                if "angle" in metadata["registration"]
+                and metadata["registration"]["angle"]
+                else "/entry/process/registration/tranformations/trans_y"
+                if "xtrans" in metadata["registration"]
+                and metadata["registration"]["xtrans"]
+                else "/entry/process/registration/tranformations/trans_x"
+                if "ytrans" in metadata["registration"]
+                and metadata["registration"]["ytrans"]
+                else "."
+            )
+            if (
+                "ytrans" in metadata["registration"]
+                and metadata["registration"]["ytrans"]
+            ):  # swapped definitions
+                metadata["registration"]["trans_x"] = {}
+                metadata["registration"]["trans_x"]["value"] = metadata[
+                    "registration"
+                ]["ytrans"]
+                metadata["registration"]["trans_x"]["type"] = "translation"
+                metadata["registration"]["trans_x"]["units"] = "pixel"
+                metadata["registration"]["trans_x"]["vector"] = np.asarray(
+                    [1.0, 0.0, 0.0],
+                )
+                metadata["registration"]["trans_x"]["depends_on"] = "."
+            if (
+                "xtrans" in metadata["registration"]
+                and metadata["registration"]["xtrans"]
+            ):
+                metadata["registration"]["trans_y"] = {}
+                metadata["registration"]["trans_y"]["value"] = metadata[
+                    "registration"
+                ]["xtrans"]
+                metadata["registration"]["trans_y"]["type"] = "translation"
+                metadata["registration"]["trans_y"]["units"] = "pixel"
+                metadata["registration"]["trans_y"]["vector"] = np.asarray(
+                    [0.0, 1.0, 0.0],
+                )
+                metadata["registration"]["trans_y"]["depends_on"] = (
+                    "/entry/process/registration/tranformations/trans_x"
+                    if "ytrans" in metadata["registration"]
+                    and metadata["registration"]["ytrans"]
+                    else "."
+                )
+            if (
+                "angle" in metadata["registration"]
+                and metadata["registration"]["angle"]
+            ):
+                metadata["registration"]["rot_z"] = {}
+                metadata["registration"]["rot_z"]["value"] = metadata[
+                    "registration"
+                ]["angle"]
+                metadata["registration"]["rot_z"]["type"] = "rotation"
+                metadata["registration"]["rot_z"]["units"] = "degrees"
+                metadata["registration"]["rot_z"]["vector"] = np.asarray(
+                    [0.0, 0.0, 1.0],
+                )
+                metadata["registration"]["rot_z"]["offset"] = np.concatenate(
+                    (metadata["registration"]["center"], [0.0]),
+                )
+                metadata["registration"]["rot_z"]["depends_on"] = (
+                    "/entry/process/registration/tranformations/trans_y"
+                    if "xtrans" in metadata["registration"]
+                    and metadata["registration"]["xtrans"]
+                    else "/entry/process/registration/tranformations/trans_x"
+                    if "ytrans" in metadata["registration"]
+                    and metadata["registration"]["ytrans"]
+                    else "."
+                )
+
+        return metadata
 
     def append_k_axis(
         self,
@@ -1560,6 +1651,9 @@ class MomentumCorrector:
                     ),
                 )
 
+        for key, value in kwds.items():
+            calibration[key] = value
+
         try:
             (
                 df[new_x_column],
@@ -1576,114 +1670,14 @@ class MomentumCorrector:
                 r_step=calibration["rstep"],
                 c_step=calibration["cstep"],
             )
-        except KeyError:
-            (
-                df[new_x_column],
-                df[new_y_column],
-            ) = detector_coordiantes_2_k_koordinates(
-                r_det=df[x_column],
-                c_det=df[y_column],
-                **kwds,
-            )
+        except KeyError as exc:
+            raise ValueError(
+                "Required calibration parameters missing!",
+            ) from exc
 
         metadata = self.gather_calibration_metadata(calibration=calibration)
 
         return df, metadata
-
-    def gather_correction_metadata(self, dfield: np.ndarray = None) -> dict:
-        """Collect meta data for momentum correction.
-
-        Args:
-            dfield (np.ndarray, optional): Inverse deformation field.
-                If omitted, it is taken from the class.
-
-        Returns:
-            dict: generated correction metadata dictionary.
-        """
-        if dfield is None:
-            dfield = self.inverse_dfield
-        metadata: Dict[Any, Any] = {}
-        metadata["applied"] = True
-        metadata["rotsym"] = self.rotsym
-        if dfield is not None:
-            metadata["dfield"] = dfield
-        if self.adjust_params is not None:
-            metadata["adjust_params"] = self.adjust_params
-        if self.pcent is not None:
-            metadata["pcent"] = np.asarray(self.pcent)
-        if self.pouter_ord is not None:
-            metadata["pouter"] = self.pouter_ord
-        elif self.pouter is not None:
-            metadata["pouter"] = self.pouter
-        if self.ptargs is not None:
-            metadata["ptargs"] = self.ptargs
-        if self.rdeform_field is not None:
-            metadata["rdeform_field"] = self.rdeform_field
-        if self.cdeform_field is not None:
-            metadata["cdeform_field"] = self.cdeform_field
-        if metadata["adjust_params"]:
-            metadata["adjust_params"]["applied"] = True
-            metadata["adjust_params"]["depends_on"] = (
-                "/entry/process/registration/tranformations/rot_z"
-                if metadata["adjust_params"]["angle"]
-                else "/entry/process/registration/tranformations/trans_y"
-                if metadata["adjust_params"]["ytrans"]
-                else "/entry/process/registration/tranformations/trans_x"
-                if metadata["adjust_params"]["xtrans"]
-                else "/entry/process/registration/tranformations/trans_x"
-                if metadata["adjust_params"]["xtrans"]
-                else "."
-            )
-            if metadata["adjust_params"]["xtrans"]:
-                metadata["adjust_params"]["trans_x"] = {}
-                metadata["adjust_params"]["trans_x"]["value"] = metadata[
-                    "adjust_params"
-                ]["xtrans"]
-                metadata["adjust_params"]["trans_x"]["type"] = "translation"
-                metadata["adjust_params"]["trans_x"]["units"] = "pixel"
-                metadata["adjust_params"]["trans_x"]["vector"] = np.asarray(
-                    [1.0, 0.0, 0.0],
-                )
-                metadata["adjust_params"]["trans_x"]["depends_on"] = "."
-            if metadata["adjust_params"]["ytrans"]:
-                metadata["adjust_params"]["trans_y"] = {}
-                metadata["adjust_params"]["trans_y"]["value"] = metadata[
-                    "adjust_params"
-                ]["xtrans"]
-                metadata["adjust_params"]["trans_y"]["type"] = "translation"
-                metadata["adjust_params"]["trans_y"]["units"] = "pixel"
-                metadata["adjust_params"]["trans_y"]["vector"] = np.asarray(
-                    [0.0, 1.0, 0.0],
-                )
-                metadata["adjust_params"]["trans_y"]["depends_on"] = (
-                    "/entry/process/registration/tranformations/trans_x"
-                    if metadata["adjust_params"]["xtrans"]
-                    else "."
-                )
-            if metadata["adjust_params"]["angle"]:
-                metadata["adjust_params"]["rot_z"] = {}
-                metadata["adjust_params"]["rot_z"]["value"] = (
-                    metadata["adjust_params"]["angle"] * np.pi / 180
-                )
-                metadata["adjust_params"]["rot_z"]["type"] = "rotation"
-                metadata["adjust_params"]["rot_z"]["units"] = "degrees"
-                metadata["adjust_params"]["rot_z"]["vector"] = np.asarray(
-                    [0.0, 0.0, 1.0],
-                )
-                metadata["adjust_params"]["rot_z"]["offset"] = np.concatenate(
-                    (metadata["adjust_params"]["center"], [0.0]),
-                )
-                metadata["adjust_params"]["rot_z"]["depends_on"] = (
-                    "/entry/process/registration/tranformations/trans_y"
-                    if metadata["adjust_params"]["ytrans"]
-                    else "/entry/process/registration/tranformations/trans_x"
-                    if metadata["adjust_params"]["xtrans"]
-                    else "/entry/process/registration/tranformations/trans_x"
-                    if metadata["adjust_params"]["xtrans"]
-                    else "."
-                )
-
-        return metadata
 
     def gather_calibration_metadata(self, calibration: dict = None) -> dict:
         """Collect meta data for momentum calibration

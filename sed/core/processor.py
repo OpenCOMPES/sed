@@ -361,11 +361,6 @@ class SedProcessor:
             include_center (bool, optional): Option to fix the position of the center
                 point for the correction. Defaults to True.
         """
-        if self.mc.slice is None:
-            raise ValueError(
-                "No slice for corrections and transformations loaded!",
-            )
-
         if auto_detect:  # automatic feature selection
             sigma = kwds.pop(
                 "sigma",
@@ -386,30 +381,30 @@ class SedProcessor:
                 **kwds,
             )
         else:  # Manual feature selection
-            assert features is not None
             self.mc.add_features(features, **kwds)
-
-        print("Original slice with reference features")
-        self.mc.view(annotated=True, backend="bokeh", crosshair=True)
 
         self.mc.spline_warp_estimate(include_center=include_center, **kwds)
 
-        print("Corrected slice with target features")
-        self.mc.view(
-            image=self.mc.slice_corrected,
-            annotated=True,
-            points={"feats": self.mc.ptargs},
-            backend="bokeh",
-            crosshair=True,
-        )
+        if self.mc.slice:
+            print("Original slice with reference features")
+            self.mc.view(annotated=True, backend="bokeh", crosshair=True)
 
-        print("Original slice with target features")
-        self.mc.view(
-            image=self.mc.slice,
-            points={"feats": self.mc.ptargs},
-            annotated=True,
-            backend="bokeh",
-        )
+            print("Corrected slice with target features")
+            self.mc.view(
+                image=self.mc.slice_corrected,
+                annotated=True,
+                points={"feats": self.mc.ptargs},
+                backend="bokeh",
+                crosshair=True,
+            )
+
+            print("Original slice with target features")
+            self.mc.view(
+                image=self.mc.slice,
+                points={"feats": self.mc.ptargs},
+                annotated=True,
+                backend="bokeh",
+            )
 
     # 3. Pose corrections. Provide interactive interface for correcting
     # scaling, shift and rotation
@@ -459,9 +454,6 @@ class SedProcessor:
 
     def apply_momentum_correction(
         self,
-        rdeform_field: np.ndarray = None,
-        cdeform_field: np.ndarray = None,
-        inv_dfield: np.ndarray = None,
         preview: bool = False,
     ):
         """Applies the distortion correction and pose adjustment (optional)
@@ -478,11 +470,8 @@ class SedProcessor:
         """
         if self._dataframe is not None:
             print("Adding corrected X/Y columns to dataframe:")
-            self._dataframe, metadata = self.mc.apply_distortion_correction(
+            self._dataframe, metadata = self.mc.apply_corrections(
                 df=self._dataframe,
-                rdeform_field=rdeform_field,
-                cdeform_field=cdeform_field,
-                inv_dfield=inv_dfield,
             )
             # Add Metadata
             self._attributes.add(
