@@ -140,13 +140,6 @@ class WorkflowStep(ABC):
             s += f"{k}={v}, "
         return s[:-2] + ")"
 
-    #     return self.__str__()
-    # s = f"Workflow step: {self.name}\n"
-    # s += "Parameters:\n"
-    # for k, v in self.metadata.items():
-    #     s += f" - {k}: {v}\n"
-    # return s
-
     def __str__(self) -> str:
         s = f"{self.name} | "
         for k, v in self.metadata.items():
