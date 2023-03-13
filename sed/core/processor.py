@@ -22,7 +22,7 @@ from sed.calibrator.energy import EnergyCalibrator
 from sed.calibrator.momentum import MomentumCorrector
 from sed.config.settings import parse_config
 from sed.core.dfops import apply_jitter
-from sed.core.metadata import MetaHandler
+from sed.core.metadata import MetadataManager
 from sed.diagnostics import grid_histogram
 from sed.loader.loader_interface import get_loader
 from sed.loader.mirrorutil import CopyTool
@@ -58,7 +58,7 @@ class SedProcessor:
         self._dimensions: List[str] = []
         self._coordinates: Dict[Any, Any] = {}
         self.axis: Dict[Any, Any] = {}
-        self._attributes = MetaHandler(meta=metadata)
+        self._attributes = MetadataManager(meta=metadata)
 
         loader_name = self._config["core"]["loader"]
         self.loader = get_loader(
