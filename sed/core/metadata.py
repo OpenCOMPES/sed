@@ -5,7 +5,7 @@ from typing import Any
 from typing import Dict
 
 
-class MetaHandler:
+class MetadataManager:
     """[summary]"""
 
     def __init__(self, meta: Dict = None) -> None:
@@ -138,6 +138,6 @@ class DuplicateEntryError(Exception):
 
 
 if __name__ == "__main__":
-    m = MetaHandler()
+    m = MetadataManager()
     m.add({"name": "test", "start": 0, "stop": 1})
     print(m)
