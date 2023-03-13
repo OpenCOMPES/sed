@@ -141,17 +141,17 @@ def test_apply_correction():
     assert metadata["correction"]["rdeform_field"].shape == momentum_map.shape
 
 
-transformations = [
-    {"xtrans": np.random.randint(0, 50)},
-    {"ytrans": np.random.randint(0, 50)},
-    {"angle": np.random.randint(0, 50)},
+transformations_list = [
+    {"xtrans": np.random.randint(1, 50)},
+    {"ytrans": np.random.randint(1, 50)},
+    {"angle": np.random.randint(1, 50)},
     {
-        "xtrans": np.random.randint(0, 50),
-        "ytrans": np.random.randint(0, 50),
+        "xtrans": np.random.randint(1, 50),
+        "ytrans": np.random.randint(1, 50),
     },
     {
-        "xtrans": np.random.randint(0, 50),
-        "angle": np.random.randint(0, 50),
+        "xtrans": np.random.randint(1, 50),
+        "angle": np.random.randint(1, 50),
     },
     {
         "ytrans": np.random.randint(0, 50),
@@ -163,7 +163,7 @@ transformations = [
         "angle": np.random.randint(0, 50),
     },
 ]
-depends_on = [
+depends_on_list = [
     {
         "root": "/entry/process/registration/tranformations/trans_x",
         "axes": {"trans_x": "."},
@@ -210,7 +210,7 @@ depends_on = [
 
 @pytest.mark.parametrize(
     "transformations, depends_on",
-    zip(transformations, depends_on),
+    zip(transformations_list, depends_on_list),
 )
 def test_apply_registration(
     transformations: Dict[Any, Any],
@@ -284,11 +284,8 @@ def test_momentum_calibration_equiscale():
     df, metadata = mc.append_k_axis(df, x_column="X", y_column="Y")
     assert "kx" in df.columns
     assert "ky" in df.columns
-    for key in mc.calibration:
-        np.testing.assert_equal(
-            metadata["calibration"][key],
-            mc.calibration[key],
-        )
+    for key, value in mc.calibration.items():
+        np.testing.assert_equal(metadata["calibration"][key], value)
 
 
 def test_momentum_calibration_two_points():
@@ -313,8 +310,8 @@ def test_momentum_calibration_two_points():
     df, metadata = mc.append_k_axis(df, x_column="X", y_column="Y")
     assert "kx" in df.columns
     assert "ky" in df.columns
-    for key in mc.calibration:
+    for key, value in mc.calibration.items():
         np.testing.assert_equal(
             metadata["calibration"][key],
-            mc.calibration[key],
+            value,
         )

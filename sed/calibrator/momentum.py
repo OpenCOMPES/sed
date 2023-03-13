@@ -72,10 +72,7 @@ class MomentumCorrector:
         self.slice: np.ndarray = None
         self.slice_corrected: np.ndarray = None
         self.slice_transformed: np.ndarray = None
-        self.bin_ranges: List[Tuple] = self._config.get("momentum", {}).get(
-            "ranges",
-            [],
-        )
+        self.bin_ranges: List[Tuple] = []
 
         if data is not None:
             self.load_data(data=data, bin_ranges=bin_ranges, rotsym=rotsym)
@@ -526,7 +523,7 @@ class MomentumCorrector:
                 image = self.slice
             else:
                 image = np.zeros(self._config["momentum"]["bins"][0:2])
-                self.bin_ranges
+                self.bin_ranges = self._config["momentum"]["ranges"]
 
         if self.pouter_ord is None:
             assert self.pouter is not None, "No landmarks defined!"

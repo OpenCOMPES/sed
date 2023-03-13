@@ -134,10 +134,10 @@ def test_calibrate_append(energy_scale: str, calibration_method: str):
     else:
         assert np.all(diff > 0)
 
-    for key in ec.calibration:  # pylint: disable=consider-using-dict-items
+    for key, value in ec.calibration.items():
         np.testing.assert_equal(
             metadata["calibration"][key],
-            ec.calibration[key],
+            value,
         )
 
 
@@ -250,10 +250,10 @@ def test_energy_correction(correction_type: str, correction_kwd: dict):
     assert t[3] < t[4]
     assert t[1] == t[4]
 
-    for key in ec.correction:
+    for key, value in ec.correction.items():
         np.testing.assert_equal(
             metadata["correction"][key],
-            ec.correction[key],
+            value,
         )
 
 
@@ -295,10 +295,10 @@ def test_energy_correction_from_dict_kwds(
     assert t[3] < t[4]
     assert t[1] == t[4]
 
-    for key in correction_dict:
+    for key, value in correction_dict.items():
         np.testing.assert_equal(
             metadata["correction"][key],
-            correction_dict[key],
+            value,
         )
 
     # from kwds
@@ -315,8 +315,8 @@ def test_energy_correction_from_dict_kwds(
     assert t[3] < t[4]
     assert t[1] == t[4]
 
-    for key in correction_dict:
+    for key, value in correction_dict.items():
         np.testing.assert_equal(
             metadata["correction"][key],
-            correction_dict[key],
+            value,
         )
