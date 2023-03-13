@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 from abc import ABC
 from abc import abstractmethod
+from copy import deepcopy
+from pathlib import Path
 from typing import Any
-from typing import List
 from typing import Sequence
-from typing import Tuple
-from typing import Union
 
 import dask.dataframe as ddf
 import numpy as np
@@ -12,14 +13,23 @@ import pandas as pd
 import xarray as xr
 from dask.diagnostics import ProgressBar
 
+import sed
 from ..binning import bin_dataframe
 from ..config.settings import parse_config
-from .metadata import MetaHandler
+from .metadata import MetadataManager
 
-
-__version__ = "0.0.1_alpha"  # TODO: infer from sed package version
-
+__version__ = "0.0.1"  # TODO: infer from sed package version
 # TODO: add save to parquet option
+
+
+class ConfigManager(dict):
+    """Dummy class for config manager.
+
+    *** This should be moved to the config section of SED. ***
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
 
 
 class WorkflowStep(ABC):
@@ -27,19 +37,31 @@ class WorkflowStep(ABC):
 
     def __init__(
         self,
-        out_cols: Union[str, Sequence[str]],
+        out_cols: str | Sequence[str],
         duplicate_policy: str = "raise",  # TODO implement duplicate policy
         notes: str = "",
+        name: str | None = None,
+        step_class: str | None = None,
+        **kwargs,
     ) -> None:
         assert isinstance(out_cols, (str, list, tuple)), (
             "New columns defined in out_cols"
             " must be a string or list of strings"
         )
-
+        if step_class is not None:
+            assert step_class == self._get_step_class_name(), (
+                "Warning!"
+                " you are trying to load parameters of an other WorkflowStep"
+            )
         self.out_cols = out_cols
         self.duplicate_policy = duplicate_policy
         self.notes = notes
         self.version = __version__
+        self._name = (
+            name
+            if name is not None
+            else str(self.__class__).split(".")[-1][:-2]
+        )
 
     @abstractmethod
     def func(
@@ -57,7 +79,8 @@ class WorkflowStep(ABC):
 
     @property
     def name(self):
-        return str(self.__class__).split(".")[-1][:-2]
+        return self._name
+        # return str(self.__class__).split(".")[-1][:-2]
 
     @property
     def metadata(self):
@@ -66,36 +89,87 @@ class WorkflowStep(ABC):
         Returns:
             dictionary containing metadata
         """
-        d = {
-            n: getattr(self, n)
-            for n in self.__init__.__code__.co_varnames
-            if hasattr(self, n)
-        }
-        d["name"] = self.name
+        d = {"name": self.name}
+        d.update(
+            {
+                n: getattr(self, n)
+                for n in self.__init__.__code__.co_varnames
+                if hasattr(self, n)
+            },
+        )
+        d["step_class"] = self._get_step_class_name()
         return d
+
+    def _get_step_class_name(self):
+        return str(self.__class__).split("'")[1]
+
+    @staticmethod
+    def from_dict(
+        wf_dict: dict,
+    ) -> WorkflowStep:  # TODO: move to workflow class...
+        """Load parameters from a dict-like structure
+
+        Args:
+            wf_dict: _description_
+
+        Returns:
+            _description_
+        """
+        dict_ = deepcopy(wf_dict)
+        step_class_tree = dict_["step_class"].split(".")
+        step_class = sed
+        for next in step_class_tree[1:]:
+            step_class = getattr(step_class, next)
+        return step_class(**dict_)
 
     def __call__(
         self,
         dd,
-    ) -> None:  # Alternative use format, maybe less intuitive
+    ) -> Any:  # Alternative use format, maybe less intuitive
         """Allows the usage of this class as a function
 
         alternative application method, maybe less intuitive than "apply_to"
         """
         return self.apply_to(dd)
 
-    def __repr__(self):
-        s = f"Workflow step: {self.name}\n"
-        s += "Parameters:\n"
+    def __repr__(self) -> str:
+        s = f"{str(self.__class__).split('.')[-1][:-2]}("
         for k, v in self.metadata.items():
-            s += f" - {k}: {v}\n"
-        return s
+            if isinstance(v, str):
+                v = f"'{v}'"
+            s += f"{k}={v}, "
+        return s[:-2] + ")"
 
-    def __str__(self):
+    #     return self.__str__()
+    # s = f"Workflow step: {self.name}\n"
+    # s += "Parameters:\n"
+    # for k, v in self.metadata.items():
+    #     s += f" - {k}: {v}\n"
+    # return s
+
+    def __str__(self) -> str:
         s = f"{self.name} | "
         for k, v in self.metadata.items():
             s += f"{k}: {v}, "
         return s
+
+    def _repr_html_(self) -> str:
+        s = f"Workflow step: <strong>{self.name}</strong><br>"
+        s += "<table>"
+        s += "<tr><th>Parameter</th><th>Value</th></tr>"
+        for k, v in self.metadata.items():
+            s += f"<tr><td>{k}</td><td>{v}</td></tr>"
+        s += "</table>"
+        return s
+
+    def to_json(self) -> dict:
+        """summarize the workflow step as a dictionary
+
+        Intended for json serializing the workflow step.
+
+        Returns:
+            _description_
+        """
 
     def apply_to(self, dd, return_=True) -> None:  # TODO: add inplace option?
         """Map the main function self.func on a dataframe.
@@ -127,23 +201,14 @@ class WorkflowManager:
 
     def __init__(
         self,
-        dataframe: Union[pd.DataFrame, ddf.DataFrame] = None,
-        metadata: dict = None,
-        config: Union[dict, str] = None,
-        workflow: Union[Sequence, None] = None,
+        dataframe: pd.DataFrame | ddf.DataFrame = None,
+        workflow: Sequence[WorkflowStep] | str | Path | None = None,
+        metadata: MetadataManager | dict = None,
+        config: dict | ConfigManager | str | Path | None = None,
     ) -> None:
-        """_summary_
-
-        Args:
-            dataframe: _description_. Defaults to None.
-            metadata: _description_. Defaults to None.
-            config: _description_. Defaults to None.
-            steps: _description_. Defaults to None.
-        """
-
-        self._metadata: MetaHandler = metadata
-        self._config = parse_config(config)
-        self._dataframe = dataframe
+        self._metadata: MetadataManager = metadata
+        self._config: ConfigManager = parse_config(config)
+        self._dataframe: pd.DataFrame | ddf.DataFrame = dataframe
 
         if workflow is None:
             self._workflow_queue = []
@@ -160,28 +225,31 @@ class WorkflowManager:
             s += f"{i+1}. {str(step)}\n"
         return s
 
-    def add_step(
+    def add(
         self,
-        step: Union[WorkflowStep, Sequence[WorkflowStep]],
-        **kwargs,
+        steps: WorkflowStep | Sequence[WorkflowStep],
     ):
-        """Add a workflow step to the queue
+        """Add one or a list of workflow step to the queue
 
         Args:
-            step: _description_
+            step: Workflow steps to add
         """
-        self._workflow_queue.append(step(**kwargs))
+        if not isinstance(steps, list):
+            steps = [steps]
+        for s in steps:
+            self._workflow_queue.append(s)
+
+    def add_step(self, step_class, **kwargs) -> None:
+        pass
+
+    def _add_step_from_dict(self, wf_dict) -> None:
+        pass
 
     def apply_workflow(self):
         """Run the workflow steps on the dataframe"""
         for step in self._workflow_queue:
             self._dataframe = step(self._dataframe)
             self._metadata.add(step.metadata)
-
-    def add_binning(
-        self,
-    ) -> None:
-        raise NotImplementedError
 
     def fast_binning(
         self,
@@ -195,16 +263,11 @@ class WorkflowManager:
 
     def compute_binning(
         self,
-        bins: Union[
-            int,
-            dict,
-            tuple,
-            List[int],
-            List[np.ndarray],
-            List[tuple],
-        ] = 100,
-        axes: Union[str, Sequence[str]] = None,
-        ranges: Sequence[Tuple[float, float]] = None,
+        bins: (
+            int | dict | tuple | list[int] | list[np.ndarray] | list[tuple]
+        ) = 100,
+        axes: str | Sequence[str] = None,
+        ranges: Sequence[tuple[float, float]] = None,
         **kwds,
     ) -> xr.DataArray:
         """Compute the histogram along the given dimensions.
@@ -277,7 +340,7 @@ class WorkflowManager:
         ncol: int = 2,
         bins: Sequence[int] = None,
         axes: Sequence[str] = None,
-        ranges: Sequence[Tuple[float, float]] = None,
+        ranges: Sequence[tuple[float, float]] = None,
         backend: str = "bokeh",
         legend: bool = True,
         histkwds: dict = None,
@@ -344,3 +407,36 @@ class WorkflowManager:
             legkwds=legkwds,
             **kwds,
         )
+
+    def to_json(self, fname: str | Path = None, key: str = "") -> dict:
+        """Save the current workflow to a json file
+
+        Args:
+            fname: file where to write the workflow. If none, no file is saved.
+                Defaults to None
+            key: key in the file where to write. Defaults to ''
+
+        Raises:
+            NotImplementedError: # TODO: make this
+
+        Returns:
+            dictionary with the workflow steps
+        """
+        raise NotImplementedError
+
+    def to_parquet(
+        self,
+        fname: str | Path,
+        run_workflow: bool = True,
+    ) -> None:
+        """Save the dataframe as parquet
+
+        Args:
+            fname: path where to save the dataframe
+            run_workflow: if true, it computes the workflow before saving, else
+                it saves the current version of the dataframe.
+
+        Raises:
+            NotImplementedError: # TODO: make this
+        """
+        raise NotImplementedError
