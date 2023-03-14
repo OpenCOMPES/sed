@@ -36,16 +36,21 @@ def hdf5_to_dataframe(
     dataframe from provided groups in the files. Optionally, aliases can be defined.
 
     Args:
-        files (List[str]):
-            A list of the file paths to load.
-        group_names (List[str], optional):
-            hdf5 group names to load. Defaults to load all groups containing "Stream"
-        alias_dict (Dict[str, str], optional):
-            dictionary of aliases for the dataframe columns. Keys are the hdf5
-            groupnames, and values the aliases. If an alias is not found, its group
-            name is used. Defaults to read the attribute "Name" from each group.
-        time_stamps (bool, optional):
-            Option to calculate time stamps. Defaults to False.
+        files (List[str]): A list of the file paths to load.
+        group_names (List[str], optional): hdf5 group names to load. Defaults to load
+            all groups containing "Stream"
+        alias_dict (Dict[str, str], optional): Dictionary of aliases for the dataframe
+            columns. Keys are the hdf5 groupnames, and values the aliases. If an alias
+            is not found, its group name is used. Defaults to read the attribute
+            "Name" from each group.
+        time_stamps (bool, optional): Option to calculate time stamps. Defaults to
+            False.
+        time_stamp_alias (str): Alias name for the timestamp column.
+            Defaults to "timeStamps".
+        ms_markers_group (str): h5 column containing timestamp information.
+            Defaults to "msMarkers".
+        first_event_time_stamp_key (str): h5 attribute containing the start
+            timestamp of a file. Defaults to "FirstEventTimeStamp".
 
     Returns:
         ddf.DataFrame: The delayed Dask DataFrame
@@ -154,6 +159,10 @@ def hdf5_to_array(
             Data type of the output data. Defaults to "float32".
         time_stamps (bool, optional):
             Option to calculate time stamps. Defaults to False.
+        ms_markers_group (str): h5 column containing timestamp information.
+            Defaults to "msMarkers".
+        first_event_time_stamp_key (str): h5 attribute containing the start
+            timestamp of a file. Defaults to "FirstEventTimeStamp".
 
     Returns:
         np.ndarray: The 2-dimensional data array containing the values of the groups.
@@ -241,13 +250,13 @@ def get_attribute(h5group: h5py.Group, attribute: str) -> str:
 def parse_metadata(
     files: Sequence[str],  # pylint: disable=unused-argument
 ) -> dict:
-    """Dummy
+    """Dummy for a parse MetaData function.
 
     Args:
-        files (Sequence[str]): _description_
+        files (Sequence[str]): List of files from which to read metadata.
 
     Returns:
-        dict: _description_
+        dict: Metadata dictionary.
     """
     return {}
 
@@ -256,21 +265,17 @@ def get_count_rate(
     h5file: h5py.File,
     ms_markers_group: str = "msMarkers",
 ) -> Tuple[np.ndarray, np.ndarray]:
+    """Create count rate in the file from the msMarker column.
+
+    Args:
+        h5file (h5py.File): The h5file from which to get the count rate.
+        ms_markers_group (str, optional): The hdf5 group where the millisecond markers
+            are stored. Defaults to "msMarkers".
+
+    Returns:
+        Tuple[np.ndarray, np.ndarray]: The count rate in Hz and the seconds into the
+        scan.
     """
-    Create count rate trace from the msMarker field in the hdf5 file.
-
-    Parameters:
-        h5file: The h5file from which to get the count rate
-        ms_marker_group: The hdf5 group where the millisecond markers are stored
-
-    Return:
-        countRate: ndarray
-            The count rate in Hz.
-        secs: ndarray
-            The seconds into the scan.
-
-    """
-
     ms_markers = np.asarray(h5file[ms_markers_group])
     secs = np.arange(0, len(ms_markers)) / 1000
     msmarker_spline = sint.InterpolatedUnivariateSpline(secs, ms_markers, k=1)
@@ -284,12 +289,16 @@ def get_elapsed_time(
     h5file: h5py.File,
     ms_markers_group: str = "msMarkers",
 ) -> float:
-    """
-    Return the elapsed time in the file from the msMarkers wave
+    """Return the elapsed time in the file from the msMarkers wave
 
-        return: secs: the acquision time of the file in seconds.
-    """
+    Args:
+        h5file (h5py.File): The h5file from which to get the count rate.
+        ms_markers_group (str, optional): The hdf5 group where the millisecond markers
+            are stored. Defaults to "msMarkers".
 
+    Return:
+        float: The acquision time of the file in seconds.
+    """
     secs = h5file[ms_markers_group].len() / 1000
 
     return secs
@@ -297,7 +306,12 @@ def get_elapsed_time(
 
 class MpesLoader(BaseLoader):
     """Mpes implementation of the Loader. Reads from h5 files or folders of the
-    SPECS Metis 1000 (FHI Berlin)"""
+    SPECS Metis 1000 (FHI Berlin)
+
+    Args:
+        config (dict, optional): Config dictionary. Defaults to None.
+        meta_handler (MetaHandler, optional): MetaHandler object. Defaults to None.
+    """
 
     __name__ = "mpes"
 
@@ -327,23 +341,25 @@ class MpesLoader(BaseLoader):
     ) -> Tuple[ddf.DataFrame, dict]:
         """Read stored hdf5 files from a list or from folder into a dataframe.
 
-        Parameters:
-        folder, files: str, list/tuple | None, None
-            Folder path of the files or a list of file paths. The folder path has
-            the priority such that if it's specified, the specified files will
-            be ignored.
-        extension: str | 'h5'
-            File extension to use.
-            If a folder path is given, all files with the specified extension are read
-            into the dataframe in the reading order.
-        time_stamps: bool | False
-            Option to create a time_stamp column in the dataframe from ms-Markers
-            in the files.
+        Args:
+            files (Sequence[str], optional): List of file paths. Defaults to None.
+            folder (str, optional): Path to folder where files are stored. Path has
+                the priority such that if it's specified, the specified files will
+                be ignored. Defaults to None.
+            ftype (str, optional): File extension to use. If a folder path is given,
+                all files with the specified extension are read into the dataframe
+                in the reading order. Defaults to "h5".
+            time_stamps (bool, optional): Option to create a time_stamp column in
+                the dataframe from ms-Markers in the files. Defaults to False.
+            **kwds: Keyword parameters for gather_files.
 
-        **kwds: Keyword parameters for gather_files.
+        Raises:
+            ValueError: raised if neither files or folder provided.
+            FileNotFoundError: Raised if a file or folder is not found.
 
-        **Return**\n
-            Dask dataframe read from specified files.
+        Returns:
+            Tuple[ddf.DataFrame, dict]: Dask dataframe and metadata read from specified
+            files.
         """
         # pylint: disable=duplicate-code
         if folder is not None:
@@ -415,19 +431,20 @@ class MpesLoader(BaseLoader):
         fids: Sequence[int] = None,
         **kwds,
     ) -> Tuple[np.ndarray, np.ndarray]:
-        """
-        Create count rate data for the files specified in ``fids`` from the msMarkers.
+        """Create count rate from the msMarker column for the files specified in
+        ``fids``.
 
-        Parameters:
-            fids: the file ids to include. None | list of file ids.
-            kwds: Keyword arguments
-                ms_markers_group: Name of the hdf5 group containing the ms-markers
+        Args:
+            fids (Sequence[int], optional): fids (Sequence[int]): the file ids to
+                include. Defaults to list of all file ids.
+            kwds: Keyword arguments:
 
-        Return:
-            countrate, seconds: Arrays containing countrate and seconds
+                - **ms_markers_group**: Name of the hdf5 group containing the ms-markers
+
+        Returns:
+            Tuple[np.ndarray, np.ndarray]: Arrays containing countrate and seconds
             into the scan.
         """
-
         if fids is None:
             fids = range(0, len(self.files))
 
@@ -457,17 +474,19 @@ class MpesLoader(BaseLoader):
         return count_rate, secs
 
     def get_elapsed_time(self, fids: Sequence[int] = None, **kwds) -> float:
-        """
-        Return the elapsed time in the file from the msMarkers wave.
+        """Return the elapsed time in the files specified in ``fids`` from
+        the msMarkers column.
 
-        Parameters:
-            fids: the file ids to include. None | list of file ids.
-            kwds: Keyword arguments
+        Args:
+            fids (Sequence[int], optional): fids (Sequence[int]): the file ids to
+                include. Defaults to list of all file ids.
+            kwds: Keyword arguments:
+
+                - **ms_markers_group**: Name of the hdf5 group containing the ms-markers
 
         Return:
-            The elapsed time in the files in seconds.
+            float: The elapsed time in the files in seconds.
         """
-
         if fids is None:
             fids = range(0, len(self.files))
 

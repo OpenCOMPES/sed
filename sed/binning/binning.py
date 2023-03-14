@@ -44,34 +44,44 @@ def bin_partition(
     """Compute the n-dimensional histogram of a single dataframe partition.
 
     Args:
-        part: dataframe on which to perform the histogram.
-            Usually a partition of a dask DataFrame.
-        bins: Definition of the bins. Can  be any of the following cases:
-            - an integer describing the number of bins in on all dimensions
-            - a tuple of 3 numbers describing start, end and step of the binning range
-            - a np.arrays defining the binning edges
-            - a list (NOT a tuple) of any of the above (int, tuple or np.ndarray)
-            - a dictionary made of the axes as keys and any of the above as values.
-            This takes priority over the axes and range arguments.
-        axes: The names of the axes (columns) on which to calculate the histogram.
-            The order will be the order of the dimensions in the resulting array.
-        ranges: list of tuples containing the start and end point of the binning range.
-        histMode: Histogram calculation method. Choose between
-            "numpy" which uses numpy.histogramdd, and "numba" which uses a
-            numba powered similar method.
-        jitter: a list of the axes on which to apply jittering.
-            To specify the jitter amplitude or method (normal or uniform noise)
-            a dictionary can be passed.
-            This should look like jitter={'axis':{'amplitude':0.5,'mode':'uniform'}}.
+        part (Union[dask.dataframe.core.DataFrame, pd.DataFrame]): dataframe on which
+            to perform the histogram. Usually a partition of a dask DataFrame.
+        bins (int, dict, tuple, List[int], List[np.ndarray], List[tuple], optional):
+            Definition of the bins. Can  be any of the following cases:
+
+                - an integer describing the number of bins in on all dimensions
+                - a tuple of 3 numbers describing start, end and step of the binning
+                  range
+                - a np.arrays defining the binning edges
+                - a list (NOT a tuple) of any of the above (int, tuple or np.ndarray)
+                - a dictionary made of the axes as keys and any of the above as values.
+
+            This takes priority over the axes and range arguments. Defaults to 100.
+        axes (Union[str, Sequence[str]], optional): The names of the axes (columns) on
+            which to calculate the histogram. The order will be the order of the
+            dimensions in the resulting array. Defaults to None.
+        ranges (Sequence[Tuple[float, float]], optional): list of tuples containing the
+            start and end point of the binning range. Defaults to None.
+        hist_mode (str, optional): Histogram calculation method.
+
+                - "numpy": use ``numpy.histogramdd``,
+                - "numba" use a numba powered similar method.
+
+            Defaults to "numba".
+        jitter (Union[list, dict], optional): a list of the axes on which to apply
+            jittering. To specify the jitter amplitude or method (normal or uniform
+            noise) a dictionary can be passed. This should look like
+            jitter={'axis':{'amplitude':0.5,'mode':'uniform'}}.
             This example also shows the default behaviour, in case None is
             passed in the dictionary, or jitter is a list of strings.
             Warning: this is not the most performing approach. applying jitter
             on the dataframe before calling the binning is much faster.
-        returnEdges: If true, returns a list of D arrays
+            Defaults to None.
+        return_edges (bool, optional): If True, returns a list of D arrays
             describing the bin edges for each dimension, similar to the
-            behaviour of np.histogramdd.
-        skipTest: turns off input check and data transformation. Defaults to
-            False as it is intended for internal use only.
+            behaviour of ``np.histogramdd``. Defaults to False.
+        skip_test (bool, optional): Turns off input check and data transformation.
+            Defaults to False as it is intended for internal use only.
             Warning: setting this True might make error tracking difficult.
 
     Raises:
@@ -81,12 +91,11 @@ def bin_partition(
             present in the dataframe
 
     Returns:
-        2-element tuple returned only when returnEdges is True. Otherwise
-            only hist is returned.
+        Union[np.ndarray, Tuple[np.ndarray, list]]: 2-element tuple returned only when
+        returnEdges is True. Otherwise only hist is returned.
 
-            - **hist**: The result of the n-dimensional binning
-            - **edges**: A list of D arrays describing the bin edges for
-                each dimension.
+        - **hist**: The result of the n-dimensional binning
+        - **edges**: A list of D arrays describing the bin edges for each dimension.
     """
     if not skip_test:
         bins, axes, ranges = _simplify_binning_arguments(bins, axes, ranges)
@@ -174,50 +183,68 @@ def bin_dataframe(
     parallelized.
 
     Args:
-        df: a dask.DataFrame on which to perform the histogram.
-        bins: Definition of the bins. Can  be any of the following cases:
-            - an integer describing the number of bins in on all dimensions
-            - a tuple of 3 numbers describing start, end and step of the binning range
-            - a np.arrays defining the binning edges
-            - a list (NOT a tuple) of any of the above (int, tuple or np.ndarray)
-            - a dictionary made of the axes as keys and any of the above as values.
-            This takes priority over the axes and range arguments.
-        axes: The names of the axes (columns) on which to calculate the histogram.
-            The order will be the order of the dimensions in the resulting array.
-        ranges: list of tuples containing the start and end point of the binning range.
-        hist_mode: Histogram calculation method. Choose between
-            "numpy" which uses numpy.histogramdd, and "numba" which uses a
-            numba powered similar method.
-        mode: Defines how the results from each partition are
-            combined.
-            Available modes are 'fast', 'lean' and 'legacy'.
-        jitter: a list of the axes on which to apply jittering.
-            To specify the jitter amplitude or method (normal or uniform noise)
-            a dictionary can be passed.
-            This should look like jitter={'axis':{'amplitude':0.5,'mode':'uniform'}}.
+        df (dask.dataframe.DataFrame): a dask.DataFrame on which to perform the
+            histogram.
+        bins (int, dict, tuple, List[int], List[np.ndarray], List[tuple], optional):
+            Definition of the bins. Can  be any of the following cases:
+
+                - an integer describing the number of bins in on all dimensions
+                - a tuple of 3 numbers describing start, end and step of the binning
+                  range
+                - a np.arrays defining the binning edges
+                - a list (NOT a tuple) of any of the above (int, tuple or np.ndarray)
+                - a dictionary made of the axes as keys and any of the above as values.
+
+            This takes priority over the axes and range arguments. Defaults to 100.
+        axes (Union[str, Sequence[str]], optional): The names of the axes (columns) on
+            which to calculate the histogram. The order will be the order of the
+            dimensions in the resulting array. Defaults to None.
+        ranges (Sequence[Tuple[float, float]], optional): list of tuples containing the
+            start and end point of the binning range. Defaults to None.
+        hist_mode (str, optional): Histogram calculation method.
+
+                - "numpy": use ``numpy.histogramdd``,
+                - "numba" use a numba powered similar method.
+
+            Defaults to "numba".
+        mode (str, optional): Defines how the results from each partition are combined.
+
+                - 'fast': Uses parallelized recombination of results.
+                - 'lean': Store all partition results in a list, and recombine at the
+                  end.
+                - 'legacy': Single-core recombination of partition results.
+
+            Defaults to "fast".
+        jitter (Union[list, dict], optional): a list of the axes on which to apply
+            jittering. To specify the jitter amplitude or method (normal or uniform
+            noise) a dictionary can be passed. This should look like
+            jitter={'axis':{'amplitude':0.5,'mode':'uniform'}}.
             This example also shows the default behaviour, in case None is
             passed in the dictionary, or jitter is a list of strings.
-        pbar: Allows to deactivate the tqdm progress bar.
-        n_cores: Number of CPU cores to use for parallelization. Defaults to
-            all but one of the available cores.
-        threads_per_worker: Limit the number of threads that
-            multiprocessing can spawn.
-        threadpool_api: The API to use for multiprocessing.
-        return_partitions: Option to return a hypercube of dimension n+1,
-            where the last dimension corresponds to the dataframe partitions.
-        kwds: passed to dask.compute()
+            Warning: this is not the most performing approach. applying jitter
+            on the dataframe before calling the binning is much faster.
+            Defaults to None.
+        pbar (bool, optional): Option to show the tqdm progress bar. Defaults to True.
+        n_cores (int, optional): Number of CPU cores to use for parallelization.
+            Defaults to all but one of the available cores. Defaults to N_CPU-1.
+        threads_per_worker (int, optional): Limit the number of threads that
+            multiprocessing can spawn. Defaults to 4.
+        threadpool_api (str, optional): The API to use for multiprocessing.
+            Defaults to "blas".
+        return_partitions (bool, optional): Option to return a hypercube of dimension
+            n+1, where the last dimension corresponds to the dataframe partitions.
+            Defaults to False.
+        **kwds: Keyword arguments passed to ``dask.compute()``
 
     Raises:
-        Warning: Warns if there are unimplemented features the user is trying
-            to use.
-        ValueError: Rises when there is a mismatch in dimensions between the
-            binning parameters
+        Warning: Warns if there are unimplemented features the user is trying to use.
+        ValueError: Raised when there is a mismatch in dimensions between the
+            binning parameters.
 
     Returns:
-        The result of the n-dimensional binning represented in an
-            xarray object, combining the data with the axes.
+        xr.DataArray: The result of the n-dimensional binning represented in an
+        xarray object, combining the data with the axes.
     """
-
     bins, axes, ranges = _simplify_binning_arguments(bins, axes, ranges)
 
     # create the coordinate axes for the xarray output
@@ -372,15 +399,15 @@ def apply_jitter_on_column(
     """Add jittering to the column of a dataframe.
 
     Args:
-        df: Dataframe to add noise/jittering to.
-        amp: Amplitude scaling for the jittering noise.
-        col: Name of the column to add jittering to.
-        mode: Choose between 'uniform' for uniformly
+        df (Union[dask.dataframe.core.DataFrame, pd.DataFrame]): Dataframe to add
+            noise/jittering to.
+        amp (float): Amplitude scaling for the jittering noise.
+        col (str): Name of the column to add jittering to.
+        mode (str, optional): Choose between 'uniform' for uniformly
             distributed noise, or 'normal' for noise with normal distribution.
             For columns with digital values, one should choose 'uniform' as
-            well as amplitude (amp) equal to the step size.
+            well as amplitude (amp) equal to the step size. Defaults to "uniform".
     """
-
     colsize = df[col].size
     if mode == "uniform":
         # Uniform Jitter distribution

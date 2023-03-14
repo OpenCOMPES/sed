@@ -3,6 +3,7 @@
 """
 # Note: some of the functions presented here were
 # inspired by https://github.com/mpes-kit/mpes
+from typing import Callable
 from typing import Sequence
 from typing import Union
 
@@ -20,19 +21,20 @@ def apply_jitter(
 ) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
     """Add jittering to one or more dataframe columns.
 
-    :Parameters:
-        df : dataframe
-            Dataframe to add noise/jittering to.
-        amps : numer or list of numbers
-            Amplitude scalings for the jittering noise. If one number is given,
-            the same is used for all axes
-        cols : str list
-            Names of the columns to add jittering to.
-        cols_jittered : str list
-            Names of the columns with added jitter.
-        type: the type of jitter to add. 'uniform' or 'normal' distributed noise.
-    :Return:
-        dataframe with added columns
+    Args:
+        df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to add
+            noise/jittering to.
+        cols (Union[str, Sequence[str]]): Names of the columns to add jittering to.
+        cols_jittered (Union[str, Sequence[str]], optional): Names of the columns
+            with added jitter. Defaults to None.
+        amps (Union[float, Sequence[float]], optional): Amplitude scalings for the
+            jittering noise. If one number is given, the same is used for all axes.
+            Defaults to 0.5.
+        jitter_type (str, optional): the type of jitter to add. 'uniform' or 'normal'
+            distributed noise. Defaults to "uniform".
+
+    Returns:
+        Union[pd.DataFrame, dask.dataframe.DataFrame]: dataframe with added columns.
     """
     assert cols is not None, "cols needs to be provided!"
     assert jitter_type in (
@@ -65,49 +67,67 @@ def apply_jitter(
     return df
 
 
-def drop_column(df, column_name):
+def drop_column(
+    df: Union[pd.DataFrame, dask.dataframe.DataFrame],
+    column_name: Union[str, Sequence[str]],
+) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
     """Delete columns.
 
-    **Parameters**\n
-    colnames: str/list/tuple
-        List of column names to be dropped.
-    """
+    Args:
+        df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to use.
+        column_name (Union[str, Sequence[str]])): List of column names to be dropped.
 
+    Returns:
+        Union[pd.DataFrame, dask.dataframe.DataFrame]: Dataframe with dropped columns.
+    """
     out_df = df.drop(column_name, axis=1)
 
     return out_df
 
 
-def apply_filter(df, col, lower_bound=-np.inf, upper_bound=np.inf):
+def apply_filter(
+    df: Union[pd.DataFrame, dask.dataframe.DataFrame],
+    col: str,
+    lower_bound: float = -np.inf,
+    upper_bound: float = np.inf,
+) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
     """Application of bound filters to a specified column (can be used consecutively).
 
-    **Parameters**\n
-    colname: str
-        Name of the column to filter.
-    lb, ub: numeric, numeric | -infinity, infinity
-        The lower and upper bounds used in the filtering.
-    update: str | 'replace'
-        Update option for the filtered dataframe.
-    ret: bool | False
-        Return option for the filtered dataframe.
+    Args:
+        df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to use.
+        col (str): Name of the column to filter.
+        lower_bound (float, optional): The lower bound used in the filtering.
+            Defaults to -np.inf.
+        upper_bound (float, optional): The lower bound used in the filtering.
+            Defaults to np.inf.
+
+    Returns:
+        Union[pd.DataFrame, dask.dataframe.DataFrame]: The filtered dataframe.
     """
     out_df = df[(df[col] > lower_bound) & (df[col] < upper_bound)]
 
     return out_df
 
 
-def map_columns_2d(df, map_2d, x_column, y_column, **kwds):
+def map_columns_2d(
+    df: Union[pd.DataFrame, dask.dataframe.DataFrame],
+    map_2d: Callable,
+    x_column: np.ndarray,
+    y_column: np.ndarray,
+    **kwds,
+) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
     """Apply a 2-dimensional mapping simultaneously to two dimensions.
 
-    **Parameters**\n
-    map_2d: function
-        2D mapping function.
-    X, Y: series, series
-        The two columns of the dataframe to apply mapping to.
-    **kwds: keyword arguments
-        Additional arguments for the 2D mapping function.
-    """
+    Args:
+        df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to use.
+        map_2d (Callable): 2D mapping function.
+        x_column (np.ndarray): The X column of the dataframe to apply mapping to.
+        y_column (np.ndarray): The Y column of the dataframe to apply mapping to.
+        **kwds: Additional arguments for the 2D mapping function.
 
+    Returns:
+        Union[pd.DataFrame, dask.dataframe.DataFrame]: Dataframe with mapped columns.
+    """
     new_x_column = kwds.pop("new_x_column", x_column)
     new_y_column = kwds.pop("new_y_column", y_column)
 

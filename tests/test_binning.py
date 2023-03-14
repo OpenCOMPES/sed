@@ -68,8 +68,8 @@ def test_histdd_bins_as_numpy(args: Tuple[np.ndarray, np.ndarray, int]):
     as np.histogramdd if called with a list of bin edgees
 
     Args:
-        args (Tuple[np.ndarray, np.ndarray, int]):
-        Tuple of (samples, bin_edges, dimension)
+        args (Tuple[np.ndarray, np.ndarray, int]): Tuple of
+            (samples, bin_edges, dimension)
     """
     sample_, bins_, _ = args
     hist1, edges1 = np.histogramdd(sample_, bins_)
@@ -93,8 +93,8 @@ def test_histdd_ranges_as_numpy(args: Tuple[np.ndarray, tuple, tuple, int]):
     as np.histogramdd if called with bin numbers and ranges
 
     Args:
-        args (Tuple[np.ndarray, np.ndarray, np.ndarray, int]):
-        Tuple of (samples, bins, ranges, dimension)
+        args (Tuple[np.ndarray, np.ndarray, np.ndarray, int]): Tuple of
+            (samples, bins, ranges, dimension)
     """
     sample_, bins_, ranges_, _ = args
     hist1, edges1 = np.histogramdd(sample_, bins_, ranges_)
@@ -118,8 +118,8 @@ def test_histdd_one_bins_as_numpy(args: Tuple[np.ndarray, int, tuple, int]):
     as np.histogramdd if called with bin numbers and ranges
 
     Args:
-        args (Tuple[np.ndarray, np.ndarray, np.ndarray, int]):
-        Tuple of (samples, bins, ranges, dimension)
+        args (Tuple[np.ndarray, np.ndarray, np.ndarray, int]): Tuple of
+            (samples, bins, ranges, dimension)
     """
     sample_, bins_, ranges_, _ = args
     hist1, edges1 = np.histogramdd(sample_, bins_, ranges_)
@@ -145,8 +145,8 @@ def test_from_bins_equals_from_bin_range(
     if called with bin numbers and ranges or with bin edges.
 
     Args:
-        args (Tuple[np.ndarray, int, tuple, np.ndarray, int]):
-        Tuple of (samples, bins, ranges, bin_edges, dimension)
+        args (Tuple[np.ndarray, int, tuple, np.ndarray, int]): Tuple of
+            (samples, bins, ranges, bin_edges, dimension)
     """
     sample_, bins_, ranges_, arrays_, _ = args
     hist1, edges1 = numba_histogramdd(sample_, bins_, ranges_)

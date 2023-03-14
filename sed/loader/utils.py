@@ -15,20 +15,24 @@ def gather_files(
     f_step: int = 1,
     file_sorting: bool = True,
 ) -> List[str]:
-    """
-    Collects and sorts files with specified extension from a given folder.
+    """Collects and sorts files with specified extension from a given folder.
 
-    Parameters:
-        folder: str
-            The folder to search
-        extension: str | r'/*.h5'
-            File extension used for glob.glob().
-        f_start, f_end, f_step: int, int, int | None, None, 1
-            Starting, ending file id and the step. Used to construct a file selector.
-        file_sorting: bool | True
-            Option to sort the files by their names.
-    """
+    Args:
+        folder (str): The folder to search
+        extension (str, optional):  File extension used for glob.glob().
+            Defaults to "h5".
+        f_start (int, optional): Start file id used to construct a file selector.
+            Defaults to None.
+        f_end (int, optional): End file id used to construct a file selector.
+            Defaults to None.
+        f_step (int, optional): Step of file id incrementation, used to construct
+            a file selector. Defaults to 1.
+        file_sorting (bool, optional): Option to sort the files by their names.
+            Defaults to True.
 
+    Returns:
+        List[str]: List of collected file names.
+    """
     try:
         files = glob(folder + "/*." + extension)
 

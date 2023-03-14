@@ -14,7 +14,19 @@ def get_loader(
     config: dict = None,
     meta_handler: MetaHandler = None,
 ) -> BaseLoader:
-    """Helper function to get the loader object from it's given name"""
+    """Helper function to get the loader object from it's given name.
+
+    Args:
+        loader_name (str): Name of the loader
+        config (dict, optional): Configuration dictionary. Defaults to None.
+        meta_handler (MetaHandler, optional): Metadata handler. Defaults to None.
+
+    Raises:
+        ValueError: Raised if the loader cannot be found
+
+    Returns:
+        BaseLoader: The loader object.
+    """
 
     if config is None:
         config = {}
@@ -42,7 +54,11 @@ def get_loader(
 
 
 def get_names_of_all_loaders() -> List[str]:
-    """Helper function to populate a list of all available loaders"""
+    """Helper function to populate a list of all available loaders.
+
+    Returns:
+        List[str]: List of all detected loader names.
+    """
     path_prefix = (
         f"{os.path.dirname(__file__)}{os.sep}"
         if os.path.dirname(__file__)

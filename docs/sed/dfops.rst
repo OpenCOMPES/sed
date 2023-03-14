@@ -1,5 +1,5 @@
-Diagnostics
+Dataframe Operations
 ===================================================
-.. automodule:: sed.diagnostics
+.. automodule:: sed.core.dfops
    :members:
    :undoc-members:

@@ -40,30 +40,29 @@ def to_tiff(
     data: Union[xr.DataArray, np.ndarray],
     faddr: Union[Path, str],
     alias_dict: dict = None,
-) -> None:
+):
     """Save an array as a .tiff stack compatible with ImageJ
 
     Args:
-        data: data to be saved. If a np.ndarray, the order is retained. If it
-            is an xarray.DataArray, the order is inferred from axis_dict instead.
-            ImageJ likes tiff files with axis order as
+        data (Union[xr.DataArray, np.ndarray]): data to be saved. If a np.ndarray,
+            the order is retained. If it is an xarray.DataArray, the order is inferred
+            from axis_dict instead. ImageJ likes tiff files with axis order as
             TZCYXS. Therefore, best axis order in input should be: Time, Energy,
             posY, posX. The channels 'C' and 'S' are automatically added and can
             be ignored.
-        faddr: full path and name of file to save.
-        alias_dict: name pairs for correct axis ordering. Keys should be any of
-            T,Z,C,Y,X,S. The Corresponding value should be a dimension of the xarray or
-            the dimension number if a numpy array. This is used to sort the data in the
-            correct order for imagej standards. If None it tries to guess the order
-            from the name of the axes or assumes T,Z,C,Y,X,S order for numpy arrays.
-            Defaults to None
+        faddr (Union[Path, str]): full path and name of file to save.
+        alias_dict (dict, optional): name pairs for correct axis ordering. Keys should
+            be any of T,Z,C,Y,X,S. The Corresponding value should be a dimension of the
+            xarray or the dimension number if a numpy array. This is used to sort the
+            data in the correct order for imagej standards. If None it tries to guess
+            the order from the name of the axes or assumes T,Z,C,Y,X,S order for numpy
+            arrays. Defaults to None.
 
-    Raise:
+    Raises:
         AttributeError: if more than one axis corresponds to a single dimension
         NotImplementedError: if data is not 2,3 or 4 dimensional
         TypeError: if data is not a np.ndarray or an xarray.DataArray
     """
-
     out: Union[np.ndarray, xr.DataArray] = None
     if isinstance(data, np.ndarray):
         # TODO: add sorting by dictionary keys
@@ -98,35 +97,47 @@ def to_tiff(
     print(f"Successfully saved {faddr}\n Axes order: {dims_order}")
 
 
-def _sort_dims_for_imagej(dims: list, alias_dict: dict = None) -> list:
-    """Guess the order of the dimensions from the alias dictionary
+def _sort_dims_for_imagej(dims: Sequence, alias_dict: dict = None) -> list:
+    """Guess the order of the dimensions from the alias dictionary.
 
     Args:
-        dims: the list of dimensions to sort
+        dims (Sequence): the list of dimensions to sort
+        alias_dict (dict, optional): name pairs for correct axis ordering. Keys should
+            be any of T,Z,C,Y,X,S. The Corresponding value should be a dimension of the
+            xarray or the dimension number if a numpy array. This is used to sort the
+            data in the correct order for imagej standards. If None it tries to guess
+            the order from the name of the axes or assumes T,Z,C,Y,X,S order for numpy
+            arrays. Defaults to None.
 
     Raises:
         ValueError: for duplicate entries for a single imagej dimension
         NameError: when a dimension cannot be found in the alias dictionary
 
     Returns:
-        _description_
+        list: List of sorted dimension names.
     """
     order = _fill_missing_dims(dims=dims, alias_dict=alias_dict)
     return [d for d in order if d in dims]
 
 
-def _fill_missing_dims(dims: list, alias_dict: dict = None) -> list:
-    """Guess the order of the dimensions from the alias dictionary
+def _fill_missing_dims(dims: Sequence, alias_dict: dict = None) -> list:
+    """Fill in the missing dimensions from the alias dictionary.
 
     Args:
-        dims: the list of dimensions to sort
+        dims (Sequence): the list of dimensions that are provided
+        alias_dict (dict, optional): name pairs for correct axis ordering. Keys should
+            be any of T,Z,C,Y,X,S. The Corresponding value should be a dimension of the
+            xarray or the dimension number if a numpy array. This is used to sort the
+            data in the correct order for imagej standards. If None it tries to guess
+            the order from the name of the axes or assumes T,Z,C,Y,X,S order for numpy
+            arrays. Defaults to None.
 
     Raises:
         ValueError: for duplicate entries for a single imagej dimension
         NameError: when a dimension cannot be found in the alias dictionary
 
     Returns:
-        _description_
+        list: augmented list of TIFF dimensions.
     """
     order: list = []
     # overwrite the default values with the provided dict
@@ -172,19 +183,20 @@ def load_tiff(
 
     The .tiff format does not retain information on the axes, so these need to
     be manually added with the axes argument. Otherwise, this returns the data
-    only as np.ndarray
+    only as np.ndarray.
 
     Args:
-        faddr: Path to file to load.
-        coords: The axes describing the data, following the tiff stack order:
-        dims: the order of the coordinates provided, considering the data is
-        ordered as TZCYXS. If None (default) it infers the order from the order
-        of the coords dictionary.
-        attrs: dictionary to add as attributes to the xarray.DataArray
+        faddr (Union[str, Path]): Path to file to load.
+        coords (dict, optional): The axes describing the data, following the tiff
+            stack order. Defaults to None.
+        dims (Sequence, optional): the order of the coordinates provided, considering
+            the data is ordered as TZCYXS. If None (default) it infers the order from
+            the order of the coords dictionary.
+        attrs (dict, optional): dictionary to add as attributes to the
+            xarray.DataArray. Defaults to None.
 
     Returns:
-        data: an xarray representing the data loaded from the .tiff
-        file
+        xr.DataArray: an xarray representing the data loaded from the .tiff file
     """
     data = tifffile.imread(faddr)
 

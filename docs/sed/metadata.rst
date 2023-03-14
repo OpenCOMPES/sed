@@ -1,5 +1,5 @@
 Metadata
 ===================================================
-.. automodule:: sed.metadata
+.. automodule:: sed.core.metadata
    :members:
    :undoc-members:

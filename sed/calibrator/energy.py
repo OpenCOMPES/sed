@@ -37,8 +37,20 @@ from sed.loader.base.loader import BaseLoader
 
 
 class EnergyCalibrator:
-    """
-    Electron binding energy calibration workflow.
+    """Electron binding energy calibration workflow.
+
+    For the initialization of the EnergyCalibrator class an instance of a
+    loader is required. The data can be loaded using the optional arguments,
+    or using the load_data method or bin_data method.
+
+    Args:
+        loader (BaseLoader): Instance of a loader, subclassed from BaseLoader.
+        biases (np.ndarray, optional): Bias voltages used. Defaults to None.
+        traces (np.ndarray, optional): TOF-Data traces corresponding to the bias
+            values. Defaults to None.
+        tof (np.ndarray, optional): TOF-values for the data traces.
+            Defaults to None.
+        config (dict, optional): Config dictionary. Defaults to None.
     """
 
     def __init__(
@@ -49,16 +61,19 @@ class EnergyCalibrator:
         tof: np.ndarray = None,
         config: dict = None,
     ):
-        """The initialization of the EnergyCalibrator class, can happen by passing
-        the following parameters:
-            biases: Bias voltages used
-            traces: TOF-Data traces corresponding to the bias values
-            tof: TOF-values for the data traces
+        """For the initialization of the EnergyCalibrator class an instance of a
+        loader is required. The data can be loaded using the optional arguments,
+        or using the load_data method or bin_data method.
 
-        Otherwise, data can be loaded by the load_data method, or by binning data
-        using the bin_data method.
+        Args:
+            loader (BaseLoader): Instance of a loader, subclassed from BaseLoader.
+            biases (np.ndarray, optional): Bias voltages used. Defaults to None.
+            traces (np.ndarray, optional): TOF-Data traces corresponding to the bias
+                values. Defaults to None.
+            tof (np.ndarray, optional): TOF-values for the data traces.
+                Defaults to None.
+            config (dict, optional): Config dictionary. Defaults to None.
         """
-
         self.loader = loader
         self.biases: np.ndarray = None
         self.traces: np.ndarray = None
@@ -116,20 +131,31 @@ class EnergyCalibrator:
 
     @property
     def ntraces(self) -> int:
-        """The number of loaded/calculated traces."""
+        """Property returning the number of traces.
 
+        Returns:
+            int: The number of loaded/calculated traces.
+        """
         return len(self.traces)
 
     @property
     def nranges(self) -> int:
-        """The number of specified feature ranges."""
+        """Property returning the number of specified feature ranges which Can be a
+        multiple of ntraces.
 
+        Returns:
+            int: The number of specified feature ranges.
+        """
         return len(self.featranges)
 
     @property
     def dup(self) -> int:
-        """The duplication number."""
+        """Property returning the duplication number, i.e. the number of feature
+        ranges per trace.
 
+        Returns:
+            int: The duplication number.
+        """
         return int(np.round(self.nranges / self.ntraces))
 
     def load_data(
@@ -138,12 +164,15 @@ class EnergyCalibrator:
         traces: np.ndarray = None,
         tof: np.ndarray = None,
     ):
-        """Load data to the class
+        """Load data into the class. Not provided parameters will be overwritten by
+        empty arrays.
 
-        Parameters:
-            biases: Bias voltages used
-            traces: TOF-Data traces corresponding to the bias values
-            tof: TOF-values for the data traces
+        Args:
+            biases (np.ndarray, optional): Bias voltages used. Defaults to None.
+            traces (np.ndarray, optional): TOF-Data traces corresponding to the bias
+                values. Defaults to None.
+            tof (np.ndarray, optional): TOF-values for the data traces.
+                Defaults to None.
         """
         if biases is not None:
             self.biases = biases
@@ -168,18 +197,21 @@ class EnergyCalibrator:
         bias_key: str = None,
         **kwds,
     ):
-        """Load and bin data from single-event files
+        """Bin data from single-event files, and load into class.
 
-        Parameters:
-            data_files: list of file names to bin
-            axes: bin axes | _config["dataframe"]["tof_column"] / "t"
-            bins: number of bins | _config["energy"]["bins"] / 1000
-            ranges: bin ranges | _config["energy"]["ranges"] / [128000, 138000]
-            biases: Bias voltages used
-            bias_key: hdf5 path where bias values are stored.
-                    | _config["energy"]["bias_key"]
+        Args:
+            data_files (List[str]): list of file names to bin
+            axes (List[str], optional): bin axes. Defaults to
+                config["dataframe"]["tof_column"].
+            bins (List[int], optional): number of bins.
+                Defaults to config["energy"]["bins"].
+            ranges (Sequence[Tuple[float, float]], optional): bin ranges.
+                Defaults to config["energy"]["ranges"].
+            biases (np.ndarray, optional): Bias voltages used.
+                If not provided, biases are extracted from the file meta data.
+            bias_key (str, optional): hdf5 path where bias values are stored.
+                Defaults to config["energy"]["bias_key"].
             **kwds: Keyword parameters for bin_dataframe
-
         """
         if axes is None:
             axes = [self.tof_column]
@@ -235,14 +267,14 @@ class EnergyCalibrator:
     def normalize(self, smooth: bool = False, span: int = 7, order: int = 1):
         """Normalize the spectra along an axis.
 
-        **Parameters**\n
-        smooth: bool | False
-            Option to smooth the signals before normalization.
-        span, order: int, int | 7, 1
-            Smoothing parameters of the LOESS method
-            (see ``scipy.signal.savgol_filter()``).
+        Args:
+            smooth (bool, optional): Option to smooth the signals before normalization.
+                Defaults to False.
+            span (int, optional): span smoothing parameters of the LOESS method
+                (see ``scipy.signal.savgol_filter()``). Defaults to 7.
+            order (int, optional): order smoothing parameters of the LOESS method
+                (see ``scipy.signal.savgol_filter()``). Defaults to 1.
         """
-
         self.traces_normed = normspec(
             self.traces,
             smooth=smooth,
@@ -261,24 +293,21 @@ class EnergyCalibrator:
     ):
         """Select or extract the equivalent landmarks (e.g. peaks) among all traces.
 
-        **Parameters**\n
-        ranges: list/tuple
-            Collection of feature detection ranges, within which an algorithm
-            (i.e. 1D peak detector) with look for the feature.
-        ref_id: int | 0
-            Index of the reference trace (EDC).
-        traces: 2D array | None
-            Collection of energy dispersion curves (EDCs).
-        infer_others: bool | True
-            Option to infer the feature detection range in other traces (EDCs) from a
-            given one.
-        mode: str | 'append'
-            Specification on how to change the feature ranges ('append' or 'replace').
-        **kwds: keyword arguments
-            Dictionarized keyword arguments for trace alignment
-            (See ``self.findCorrespondence()``)
+        Args:
+            ranges (Union[List[Tuple], Tuple]):
+                Collection of feature detection ranges, within which an algorithm
+                (i.e. 1D peak detector) with look for the feature.
+            ref_id (int, optional): Index of the reference trace. Defaults to 0.
+            traces (np.ndarray, optional): Collection of energy dispersion curves.
+                Defaults to self.traces_normed.
+            infer_others (bool, optional): Option to infer the feature detection range
+                in other traces from a given one using a time warp algorthm.
+                Defaults to True.
+            mode (str, optional): Specification on how to change the feature ranges
+                ('append' or 'replace'). Defaults to "replace".
+            **kwds:
+                keyword arguments for trace alignment (see ``find_correspondence()``).
         """
-
         if traces is None:
             traces = self.traces_normed
 
@@ -315,15 +344,14 @@ class EnergyCalibrator:
     ):
         """Select or extract the equivalent landmarks (e.g. peaks) among all traces.
 
-        **Parameters**\n
-        ranges: list/tuple | None
-            Range in each trace to look for the peak feature, [start, end].
-        traces: 2D array | None
-            Collection of 1D spectra to use for calibration.
-        peak_window:
-            area around a peak to check for other peaks.
+        Args:
+            ranges (List[Tuple], optional):  List of ranges in each trace to look for
+                the peak feature, [start, end]. Defaults to self.featranges.
+            traces (np.ndarray, optional): Collection of 1D spectra to use for
+                calibration. Defaults to self.traces_normed.
+            peak_window (int, optional): area around a peak to check for other peaks.
+                Defaults to 7.
         """
-
         if ranges is None:
             ranges = self.featranges
 
@@ -353,21 +381,36 @@ class EnergyCalibrator:
         """Calculate the functional mapping between time-of-flight and the energy
         scale using optimization methods.
 
-        **Parameters**\n
-        refid: int | 0
-            The reference trace index (an integer).
-        ret: list | ['coeffs']
-            Options for return values (see ``mpes.analysis.calibrateE()``).
-        method: str | lmfit
-            Method for determining the energy calibration. "lmfit" or "lstsq", "lsqr"
-        energy_scale: str | kinetic
-            Direction of increasing energy scale. "kinetic" (decreasing TOF) or
-            "binding" (increasing TOF).
-        **kwds: keyword arguments
-            See available keywords for ``poly_energy_calibration()`` and
-            ``fit_energy_calibation()``
-        """
+        Args:
+            ref_id (int, optional): The reference trace index (an integer).
+                Defaults to 0.
+            method (str, optional):  Method for determining the energy calibration.
 
+                - **'lmfit'**: Energy calibration using lmfit and 1/t^2 form.
+                - **'lstsq'**, **'lsqr'**: Energy calibration using polynomial form.
+
+                Defaults to 'lmfit'.
+            energy_scale (str, optional): Direction of increasing energy scale.
+
+                - **'kinetic'**: increasing energy with decreasing TOF.
+                - **'binding'**: increasing energy with increasing TOF.
+
+                Defaults to "kinetic".
+            landmarks (np.ndarray, optional): Extracted peak positions (TOF) used for
+                calibration. Defaults to self.peaks.
+            biases (np.ndarray, optional): Bias values. Defaults to self.biases.
+            t (np.ndarray, optional): TOF values. Defaults to self.tof.
+            **kwds: keyword arguments.
+                See available keywords for ``poly_energy_calibration()`` and
+                ``fit_energy_calibration()``
+
+        Raises:
+            ValueError: Raised if invalid 'energy_scale' is passed.
+            NotImplementedError: Raised if invalid 'method' is passed.
+
+        Returns:
+            dict: Calibration dictionary with coefficients.
+        """
         if landmarks is None:
             landmarks = self.peaks[:, 0]
         if biases is None:
@@ -428,36 +471,32 @@ class EnergyCalibrator:
     ):
         """Display a plot showing line traces with annotation.
 
-        **Parameters**\n
-        traces: 2d array
-            Matrix of traces to visualize.
-        segs: list/tuple
-            Segments to be highlighted in the visualization.
-        peaks: 2d array
-            Peak positions for labelling the traces.
-        ret: bool
-            Return specification.
-        backend: str | 'matplotlib'
-            Backend specification, choose between 'matplotlib' (static) or 'bokeh'
-            (interactive).
-        linekwds: dict | {}
-            Keyword arguments for line plotting (see ``matplotlib.pyplot.plot()``).
-        scatterkwds: dict | {}
-            Keyword arguments for scatter plot (see ``matplotlib.pyplot.scatter()``).
-        legkwds: dict | {}
-            Keyword arguments for legend (see ``matplotlib.pyplot.legend()``).
-        **kwds: keyword arguments
-            ===============  ==========  ================================
-            keyword          data type   meaning
-            ===============  ==========  ================================
-            labels           list        Labels for each curve
-            xaxis            1d array    x (horizontal) axis values
-            title            str         Title of the plot
-            legend_location  str         Location of the plot legend
-            align            bool        Option to shift traces by bias voltage
-            ===============  ==========  ================================
-        """
+        Args:
+            traces (np.ndarray): Matrix of traces to visualize.
+            segs (List[Tuple], optional): Segments to be highlighted in the
+                visualization. Defaults to None.
+            peaks (np.ndarray, optional): Peak positions for labelling the traces.
+                Defaults to None.
+            show_legend (bool, optional): Option to display bias voltages as legends.
+                Defaults to True.
+            backend (str, optional): Backend specification, choose between 'matplotlib'
+                (static) or 'bokeh' (interactive). Defaults to "matplotlib".
+            linekwds (dict, optional): Keyword arguments for line plotting
+                (see ``matplotlib.pyplot.plot()``). Defaults to {}.
+            linesegkwds (dict, optional): Keyword arguments for line segments plotting
+                (see ``matplotlib.pyplot.plot()``). Defaults to {}.
+            scatterkwds (dict, optional): Keyword arguments for scatter plot
+                (see ``matplotlib.pyplot.scatter()``). Defaults to {}.
+            legkwds (dict, optional): Keyword arguments for legend
+                (see ``matplotlib.pyplot.legend()``). Defaults to {}.
+            **kwds: keyword arguments:
 
+                - **labels** (list): Labels for each curve
+                - **xaxis** (np.ndarray): x (horizontal) axis values
+                - **title** (str): Title of the plot
+                - **legend_location** (str): Location of the plot legend
+                - **align** (bool): Option to shift traces by bias voltage
+        """
         lbs = kwds.pop("labels", [str(b) + " V" for b in self.biases])
         xaxis = kwds.pop("xaxis", self.tof)
         ttl = kwds.pop("title", "")
@@ -608,26 +647,28 @@ class EnergyCalibrator:
         calibration: dict = None,
         **kwds,
     ) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
-        """Calculate and append the E axis to the events dataframe.
-        This method can be reused.
+        """Calculate and append the energy axis to the events dataframe.
 
-        :Parameters:
-            df : dataframe
-                Dataframe to apply the distotion correction to.
-            tof_column:
-                Label of the source column
-            energy_column:
-                Label of the destination column
-            calibration: dict, default None
-                Calibration dictionary. If provided, overrides calibration from
-                class or config
+        Args:
+            df (Union[pd.DataFrame, dask.dataframe.DataFrame]):
+                Dataframe to apply the energy axis calibration to.
+            tof_column (str, optional): Label of the source column.
+                Defaults to config["dataframe"]["tof_column"].
+            energy_column (str, optional): Label of the destination column.
+                Defaults to config["dataframe"]["energy_column"].
+            calibration (dict, optional): Calibration dictionary. If provided,
+                overrides calibration from class or config.
+                Defaults to self.calibration or config["energy"]["calibration"].
             **kwds:
-                additional keywords for the momentum conversion
+                additional keyword arguments for the energy conversion.
 
-        :Return:
-            dataframe with added column
+        Raises:
+            ValueError: Raised if expected calibration parameters are missing.
+            NotImplementedError: Raised if an invalid calib_type is found.
+
+        Returns:
+            Union[pd.DataFrame, dask.dataframe.DataFrame]: dataframe with added column.
         """
-
         if tof_column is None:
             if self.corrected_tof_column in df.columns:
                 tof_column = self.corrected_tof_column
@@ -720,53 +761,51 @@ class EnergyCalibrator:
         apply=False,
         **kwds,
     ):
-        """Visualize the energy correction function ontop of the TOF/X/Y graphs.
+        """Visualize the energy correction function on top of the TOF/X/Y graphs.
 
-        :Parameters:
-            image: xarray
-                Image data cube (x, y, tof) of binned data to plot
-            correction_type: str
-                Type of correction to apply to the TOF axis. Defaults to config value.
-            :amplitude: numeric | config
-                Amplitude of the time-of-flight correction term
-            apply: bool | False
-                whether to store the provided parameters within the class
-            **kwds: keyword arguments
-                Additional parameters to use for the correction.
-                :x_column: str | config
-                    String name of the x axis.
-                :y_column: str | config
-                    String name of the y axis.
-                :tof_column: str | config
-                    String name of the tof axis to correct.
-                :center: list/tuple | config
-                    Image center pixel positions in (x, y) format.
-                :x_width: (int, int):
-                    x range to integrate around the center
-                :y_width: (int, int):
-                    y range to integrate around the center
-                :tof_fermi: int:
-                    TOF value of the Fermi level
-                :tof_width: (int, int):
-                    TOF range to plot around tof_fermi
-                :color_clip: int:
-                    highest value to plot in the color range
-                *** Additional parameters for correction functions: ***
-                :d: numeric | 0.9
-                    Field-free drift distance.
-                :gamma: numeric
-                    Linewidth value for correction using a 2D Lorentz profile.
-                :sigma: numeric
-                    Standard deviation for correction using a 2D Gaussian profile.
-                :gamma2: numeric
-                    Linewidth value for correction using an asymmetric 2D Lorentz
-                    profile, X-direction.
-                :amplitude2: numeric
-                    Amplitude value for correction using an asymmetric 2D Lorentz
-                    profile, X-direction.
+        Args:
+            image (xr.DataArray): Image data cube (x, y, tof) of binned data to plot.
+            correction_type (str, optional): Type of correction to apply to the TOF
+                axis. Valid values are:
 
+                - 'spherical'
+                - 'Lorentzian'
+                - 'Gaussian'
+                - 'Lorentzian_asymmetric'
+
+                Defaults to config["energy"]["correction_type"].
+            amplitude (float, optional): Amplitude of the time-of-flight correction
+                term. Defaults to config["energy"]["correction"]["correction_type"].
+            center (Tuple[float, float], optional): Center (x/y) coordinates for the
+                correction. Defaults to config["energy"]["correction"]["center"].
+            apply (bool, optional): whether to store the provided parameters within
+                the class. Defaults to False.
+            **kwds: Additional parameters to use for the adjustment plots:
+
+                - **x_column** (str): Name of the x column.
+                - **y_column** (str): Name of the y column.
+                - **tof_column** (str): Name of the tog column to convert.
+                - **x_width** (int, int): x range to integrate around the center
+                - **y_width** (int, int): y range to integrate around the center
+                - **tof_fermi** (int): TOF value of the Fermi level
+                - **tof_width** (int, int): TOF range to plot around tof_fermi
+                - **color_clip** (int): highest value to plot in the color range
+
+                Additional parameters for the correction functions:
+
+                - **d** (float): Field-free drift distance.
+                - **gamma** (float): Linewidth value for correction using a 2D
+                  Lorentz profile.
+                - **sigma** (float): Standard deviation for correction using a 2D
+                  Gaussian profile.
+                - **gamma2** (float): Linewidth value for correction using an
+                  asymmetric 2D Lorentz profile, X-direction.
+                - **amplitude2** (float): Amplitude value for correction using an
+                  asymmetric 2D Lorentz profile, X-direction.
+
+        Raises:
+            NotImplementedError: Raised for invalid correction_type.
         """
-
         matplotlib.use("module://ipympl.backend_nbagg")
 
         default_correction = self._config.get("energy", {}).get(
@@ -1090,39 +1129,44 @@ class EnergyCalibrator:
     ) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
         """Apply correction to the time-of-flight (TOF) axis of single-event data.
 
-        :Parameters:
-            df: The dataframe where to apply the energy correction to
-            correction_type: str
-                Type of correction to apply to the TOF axis. Defaults to config value.
-            :amplitude: numeric | config
-                Amplitude of the time-of-flight correction term
-            :correction: dict | config
-                Dictionary containing the correction parameters
-            **kwds: keyword arguments
-                Additional parameters to use for the correction.
-                :x_column: str | config
-                    String name of the x axis.
-                :y_column: str | config
-                    String name of the y axis.
-                :tof_column: str | config
-                    String name of the tof axis to correct.
-                :center: list/tuple | config
-                    Image center pixel positions in (x, y) format.
-                :diameter: numeric | 0.9
-                    Field-free drift distance.
-                :gamma: numeric
-                    Linewidth value for correction using a 2D Lorentz profile.
-                :sigma: numeric
-                    Standard deviation for correction using a 2D Gaussian profile.
-                :gamma2: numeric
-                    Linewidth value for correction using an asymmetric 2D Lorentz
-                    profile, X-direction.
-                :amplitude2: numeric
-                    Amplitude value for correction using an asymmetric 2D Lorentz
-                    profile, X-direction.
+        Args:
+            df (Union[pd.DataFrame, dask.dataframe.DataFrame]): The dataframe where
+                to apply the energy correction to.
+            tof_column (str, optional): Name of the source column to convert.
+                Defaults to config["dataframe"]["tof_column"].
+            new_tof_column (str, optional): Name of the destination column to convert.
+                Defaults to config["dataframe"]["corrected_tof_column"].
+            correction_type (str, optional): Type of correction to apply to the TOF
+                axis. Valid values are:
 
+                - 'spherical'
+                - 'Lorentzian'
+                - 'Gaussian'
+                - 'Lorentzian_asymmetric'
+
+                Defaults to config["energy"]["correction_type"].
+            amplitude (float, optional): Amplitude of the time-of-flight correction
+                term. Defaults to config["energy"]["correction"]["correction_type"].
+            correction (dict, optional): Correction dictionary containing paramters
+                for the correction. Defaults to self.correction or
+                config["energy"]["correction"].
+            **kwds: Additional parameters to use for the correction:
+
+                - **x_column** (str): Name of the x column.
+                - **y_column** (str): Name of the y column.
+                - **d** (float): Field-free drift distance.
+                - **gamma** (float): Linewidth value for correction using a 2D
+                  Lorentz profile.
+                - **sigma** (float): Standard deviation for correction using a 2D
+                  Gaussian profile.
+                - **gamma2** (float): Linewidth value for correction using an
+                  asymmetric 2D Lorentz profile, X-direction.
+                - **amplitude2** (float): Amplitude value for correction using an
+                  asymmetric 2D Lorentz profile, X-direction.
+
+        Returns:
+            Union[pd.DataFrame, dask.dataframe.DataFrame]: dataframe with added column.
         """
-
         if correction is None:
             if self.correction:
                 correction = self.correction
@@ -1163,15 +1207,14 @@ class EnergyCalibrator:
 
 
 def extract_bias(files: List[str], bias_key: str) -> np.ndarray:
-    """
-    Read bias value from hdf5 file
+    """Read bias values from hdf5 files
 
-    Parameters:
-        file: filename
-        bias_key: hdf5 path to the bias value
+    Args:
+        files (List[str]): List of filenames
+        bias_key (str): hdf5 path to the bias value
 
     Returns:
-        bias value
+        np.ndarray: Array of bias values.
     """
     bias_list: List[float] = []
     for file in files:
@@ -1192,7 +1235,7 @@ def correction_function(
     amplitude: float,
     **kwds,
 ) -> Union[float, np.ndarray]:
-    """Calculate the TOF correction based on the given X/Y coordinates and a model
+    """Calculate the TOF correction based on the given X/Y coordinates and a model.
 
     Args:
         x (float): x coordinate
@@ -1202,18 +1245,16 @@ def correction_function(
         center (Tuple[int, int]): center position of the distribution (x,y)
         amplitude (float): Amplitude of the correction
         **kwds: Keyword arguments:
-            :diameter: numeric | 0.9
-                Field-free drift distance.
-            :gamma: numeric
-                Linewidth value for correction using a 2D Lorentz profile.
-            :sigma: numeric
-                Standard deviation for correction using a 2D Gaussian profile.
-            :gam2: numeric
-                Linewidth value for correction using an asymmetric 2D Lorentz
-                profile, X-direction.
-            :amplitude2: numeric
-                Amplitude value for correction using an asymmetric 2D Lorentz
-                profile, X-direction.
+
+            - **diameter** (float): Field-free drift distance.
+            - **gamma** (float): Linewidth value for correction using a 2D
+              Lorentz profile.
+            - **sigma** (float): Standard deviation for correction using a 2D
+              Gaussian profile.
+            - **gamma2** (float): Linewidth value for correction using an
+              asymmetric 2D Lorentz profile, X-direction.
+            - **amplitude2** (float): Amplitude value for correction using an
+              asymmetric 2D Lorentz profile, X-direction.
 
     Returns:
         float: calculated correction value
@@ -1289,22 +1330,20 @@ def normspec(
     span: int = 7,
     order: int = 1,
 ) -> np.ndarray:
+    """Normalize a series of 1D signals.
+
+    Args:
+        specs (np.ndarray): Collection of 1D signals.
+        smooth (bool, optional): Option to smooth the signals before normalization.
+            Defaults to False.
+        span (int, optional): Smoothing span parameters of the LOESS method
+            (see ``scipy.signal.savgol_filter()``). Defaults to 7.
+        order (int, optional): Smoothing order parameters of the LOESS method
+            (see ``scipy.signal.savgol_filter()``).. Defaults to 1.
+
+    Returns:
+        np.ndarray: The matrix assembled from a list of maximum-normalized signals.
     """
-    Normalize a series of 1D signals.
-
-    Parameters:
-    *specs: list/2D array
-        Collection of 1D signals.
-    smooth: bool | False
-        Option to smooth the signals before normalization.
-    span, order: int, int | 7, 1
-        Smoothing parameters of the LOESS method (see ``scipy.signal.savgol_filter()``).
-
-    **Return**\n
-    normalized_specs: 2D array
-        The matrix assembled from a list of maximum-normalized signals.
-    """
-
     nspec = len(specs)
     specnorm = []
 
@@ -1332,22 +1371,18 @@ def find_correspondence(
     sig_mov: np.ndarray,
     **kwds,
 ) -> np.ndarray:
-    """Determine the correspondence between two 1D traces by alignment.
+    """Determine the correspondence between two 1D traces by alignment using a
+    time-warp algorithm.
 
-    **Parameters**\n
-    sig_still, sig_mov: 1D array, 1D array
-        Input 1D signals.
-    **kwds: keyword arguments
-        See available keywords for the following functions,
-        (1) ``fastdtw.fastdtw()`` (when ``method=='dtw'``)
-        (2) ``ptw.ptw.timeWarp()`` (when ``method=='ptw'``)
+    Args:
+        sig_still (np.ndarray): Reference 1D signals.
+        sig_mov (np.ndarray): 1D signal to be aligned.
+        **kwds: keyword arguments for ``fastdtw.fastdtw()``
 
-    **Return**\n
-    pathcorr: list
-        Pixel-wise path correspondences between two input 1D arrays
+    Returns:
+        np.ndarray: Pixel-wise path correspondences between two input 1D arrays
         (sig_still, sig_mov).
     """
-
     dist = kwds.pop("dist_metric", None)
     rad = kwds.pop("radius", 1)
     _, pathcorr = fastdtw(sig_still, sig_mov, dist=dist, radius=rad)
@@ -1360,22 +1395,18 @@ def range_convert(
     pathcorr: np.ndarray,
 ) -> Tuple:
     """Convert value range using a pairwise path correspondence (e.g. obtained
-    from time warping techniques).
+    from time warping algorithm).
 
-    **Parameters**\n
-    x: 1D array
-        Values of the x axis (e.g. time-of-flight values).
-    xrng: list/tuple
-        Boundary value range on the x axis.
-    pathcorr: list/tuple
-        Path correspondence between two 1D arrays in the following form,
-        [(id_1_trace_1, id_1_trace_2), (id_2_trace_1, id_2_trace_2), ...]
+    Args:
+        x (np.ndarray): Values of the x axis (e.g. time-of-flight values).
+        xrng (Tuple): Boundary value range on the x axis.
+        pathcorr (np.ndarray): Path correspondence between two 1D arrays in the
+            following form,
+            [(id_1_trace_1, id_1_trace_2), (id_2_trace_1, id_2_trace_2), ...]
 
-    **Return**\n
-    xrange_trans: tuple
-        Transformed range according to the path correspondence.
+    Returns:
+        Tuple: Transformed range according to the path correspondence.
     """
-
     pathcorr = np.asarray(pathcorr)
     xrange_trans = []
 
@@ -1389,20 +1420,15 @@ def range_convert(
 
 
 def find_nearest(val: float, narray: np.ndarray) -> int:
+    """Find the value closest to a given one in a 1D array.
+
+    Args:
+        val (float): Value of interest.
+        narray (np.ndarray):  The array to look for the nearest value.
+
+    Returns:
+        int: Array index of the value nearest to the given one.
     """
-    Find the value closest to a given one in a 1D array.
-
-    **Parameters**\n
-    val: float
-        Value of interest.
-    narray: 1D numeric array
-        The array to look for the nearest value.
-
-    **Return**\n
-    ind: int
-        Array index of the value nearest to the given one.
-    """
-
     return int(np.argmin(np.abs(narray - val)))
 
 
@@ -1412,28 +1438,23 @@ def peaksearch(
     ranges: List[Tuple] = None,
     pkwindow: int = 3,
     plot: bool = False,
-):
-    """
-    Detect a list of peaks in the corresponding regions of multiple EDCs
+) -> np.ndarray:
+    """Detect a list of peaks in the corresponding regions of multiple spectra.
 
-    **Parameters**\n
-    traces: 2D array
-        Collection of EDCs.
-    tof: 1D array
-        Time-of-flight values.
-    ranges: list of tuples/lists | None
-        List of ranges for peak detection in the format
+    Args:
+        traces (np.ndarray): Collection of 1D spectra.
+        tof (np.ndarray): Time-of-flight values.
+        ranges (List[Tuple], optional): List of ranges for peak detection in the format
         [(LowerBound1, UpperBound1), (LowerBound2, UpperBound2), ....].
-    pkwindow: int | 3
-        Window width of a peak (amounts to lookahead in ``peakdetect1d``).
-    plot: bool | False
-        Specify whether to display a custom plot of the peak search results.
+            Defaults to None.
+        pkwindow (int, optional): Window width of a peak (amounts to lookahead in
+            ``peakdetect1d``). Defaults to 3.
+        plot (bool, optional): Specify whether to display a custom plot of the peak
+            search results. Defaults to False.
 
-    **Returns**\n
-    pkmaxs: 1D array
-        Collection of peak positions.
+    Returns:
+        np.ndarray: Collection of peak positions.
     """
-
     pkmaxs = []
     if plot:
         plt.figure(figsize=(10, 4))
@@ -1464,8 +1485,17 @@ def _datacheck_peakdetect(
     x_axis: np.ndarray,
     y_axis: np.ndarray,
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Input format checking
+    """Input format checking for 1D peakdtect algorithm
+
+    Args:
+        x_axis (np.ndarray): x-axis array
+        y_axis (np.ndarray): y-axis array
+
+    Raises:
+        ValueError: Raised if x and y values don't have the same length.
+
+    Returns:
+        Tuple[np.ndarray, np.ndarray]: Tuple of checked (x/y) arrays.
     """
 
     if x_axis is None:
@@ -1489,38 +1519,35 @@ def peakdetect1d(
     lookahead: int = 200,
     delta: int = 0,
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Function for detecting local maxima and minima in a signal.
+    """Function for detecting local maxima and minima in a signal.
     Discovers peaks by searching for values which are surrounded by lower
     or larger values for maxima and minima respectively
 
     Converted from/based on a MATLAB script at:
     http://billauer.co.il/peakdet.html
 
-    **Parameters**\n
-    y_axis: list
-        A list containing the signal over which to find peaks
-    x_axis: list | None
-        A x-axis whose values correspond to the y_axis list and is used
-        in the return to specify the position of the peaks. If omitted an
-        index of the y_axis is used.
-    lookahead: int | 200
-        distance to look ahead from a peak candidate to determine if
-        it is the actual peak
-        '(samples / period) / f' where '4 >= f >= 1.25' might be a good value
-    delta: numeric | 0
-        this specifies a minimum difference between a peak and
-        the following points, before a peak may be considered a peak. Useful
-        to hinder the function from picking up false peaks towards to end of
-        the signal. To work well delta should be set to delta >= RMSnoise * 5.
+    Args:
+        y_axis (np.ndarray): A list containing the signal over which to find peaks.
+        x_axis (np.ndarray, optional): A x-axis whose values correspond to the y_axis
+            list and is used in the return to specify the position of the peaks. If
+            omitted an index of the y_axis is used.
+        lookahead (int, optional): distance to look ahead from a peak candidate to
+            determine if it is the actual peak
+            '(samples / period) / f' where '4 >= f >= 1.25' might be a good value.
+            Defaults to 200.
+        delta (int, optional): this specifies a minimum difference between a peak and
+            the following points, before a peak may be considered a peak. Useful
+            to hinder the function from picking up false peaks towards to end of
+            the signal. To work well delta should be set to delta >= RMSnoise * 5.
+            Defaults to 0.
 
-    **Returns**\n
-    max_peaks: list
-        positions of the positive peaks
-    min_peaks: list
+    Raises:
+        ValueError: Raised if lookahead and delta are out of range.
+
+    Returns:
+        Tuple[np.ndarray, np.ndarray]: Tuple of positions of the positive peaks,
         positions of the negative peaks
     """
-
     max_peaks = []
     min_peaks = []
     dump = []  # Used to pop the first hit which almost always is false
@@ -1618,34 +1645,33 @@ def fit_energy_calibation(
     energy_scale: str = "kinetic",
     **kwds,
 ) -> dict:
-    """
-    Energy calibration by nonlinear least squares fitting of spectral landmarks on
+    """Energy calibration by nonlinear least squares fitting of spectral landmarks on
     a set of (energy dispersion curves (EDCs). This is done here by fitting to the
     function d/(t-t0)**2.
 
-    **Parameters**\n
-    pos: list/array
-        Positions of the spectral landmarks (e.g. peaks) in the EDCs.
-    vals: list/array
-        Bias voltage value associated with each EDC.
-    refid: int | 0
-        Reference dataset index, varies from 0 to vals.size - 1.
-    Eref: float | None
-        Energy of the reference value.
-    t: numeric array | None
-        Drift time.
-    binwidth: float | 4.125e-12
-        time width in ns of a TOF bin
-    binning: int | 1
-        exponent of binning steps in TOF (i.e. 1 bin=binwidth*2^binning)
+    Args:
+        pos (Union[List[float], np.ndarray]): Positions of the spectral landmarks
+            (e.g. peaks) in the EDCs.
+        vals (Union[List[float], np.ndarray]): Bias voltage value associated with
+            each EDC.
+        binwidth (float): Time width of each original TOF bin in ns.
+        binning (int): Binning factor of the TOF values.
+        ref_id (int, optional): Reference dataset index. Defaults to 0.
+        ref_energy (float, optional): Energy value of the feature in the refence
+            trace (eV). required to output the calibration. Defaults to None.
+        t (Union[List[float], np.ndarray], optional): Array of TOF values. Required
+            to calculate calibration trace. Defaults to None.
+        energy_scale (str, optional): Direction of increasing energy scale.
 
-    **Returns**\n
-    ecalibdict: dict
-        A dictionary of fitting parameters including the following,
-        :coeffs: Fitted function coefficents.
-        :axis: Fitted energy axis.
+            - **'kinetic'**: increasing energy with decreasing TOF.
+            - **'binding'**: increasing energy with increasing TOF.
+
+    Returns:
+        dict: A dictionary of fitting parameters including the following,
+
+        - "coeffs": Fitted function coefficents.
+        - "axis": Fitted energy axis.
     """
-
     vals = np.asarray(vals)
     nvals = vals.size
 
@@ -1723,45 +1749,43 @@ def poly_energy_calibration(
     method: str = "lstsq",
     **kwds,
 ) -> dict:
-    """
-    Energy calibration by nonlinear least squares fitting of spectral landmarks on
+    """Energy calibration by nonlinear least squares fitting of spectral landmarks on
     a set of (energy dispersion curves (EDCs). This amounts to solving for the
     coefficient vector, a, in the system of equations T.a = b. Here T is the
     differential drift time matrix and b the differential bias vector, and
     assuming that the energy-drift-time relationship can be written in the form,
     E = sum_n (a_n * t**n) + E0
 
-    **Parameters**\n
-    pos: list/array
-        Positions of the spectral landmarks (e.g. peaks) in the EDCs.
-    vals: list/array
-        Bias voltage value associated with each EDC.
-    order: int | 3
-        Polynomial order of the fitting function.
-    refid: int | 0
-        Reference dataset index, varies from 0 to vals.size - 1.
-    ret: str | 'func'
-        Return type, including 'func', 'coeffs', 'full', and 'axis' (see below).
-    E0: float | None
-        Constant energy offset.
-    t: numeric array | None
-        Drift time.
-    aug: int | 1
-        Fitting dimension augmentation (1=no change, 2=double, etc).
 
-    **Returns**\n
-    pfunc: partial function
-        Calibrating function with determined polynomial coefficients
-        (except the constant offset).
-    ecalibdict: dict
-        A dictionary of fitting parameters including the following,
-        :coeffs: Fitted polynomial coefficients (the a's).
-        :offset: Minimum time-of-flight corresponding to a peak.
-        :Tmat: the T matrix (differential time-of-flight) in the equation Ta=b.
-        :bvec: the b vector (differential bias) in the fitting Ta=b.
-        :axis: Fitted energy axis.
+    Args:
+        pos (Union[List[float], np.ndarray]): Positions of the spectral landmarks
+            (e.g. peaks) in the EDCs.
+        vals (Union[List[float], np.ndarray]): Bias voltage value associated with
+            each EDC.
+        order (int, optional): Polynomial order of the fitting function. Defaults to 3.
+        ref_id (int, optional): Reference dataset index. Defaults to 0.
+        ref_energy (float, optional): Energy value of the feature in the refence
+            trace (eV). required to output the calibration. Defaults to None.
+        t (Union[List[float], np.ndarray], optional): Array of TOF values. Required
+            to calculate calibration trace. Defaults to None.
+        aug (int, optional): Fitting dimension augmentation
+            (1=no change, 2=double, etc). Defaults to 1.
+        method (str, optional): Method for determining the energy calibration.
+
+            - **'lmfit'**: Energy calibration using lmfit and 1/t^2 form.
+            - **'lstsq'**, **'lsqr'**: Energy calibration using polynomial form..
+
+            Defaults to "lstsq".
+
+    Returns:
+        dict: A dictionary of fitting parameters including the following,
+
+        - "coeffs": Fitted polynomial coefficients (the a's).
+        - "offset": Minimum time-of-flight corresponding to a peak.
+        - "Tmat": the T matrix (differential time-of-flight) in the equation Ta=b.
+        - "bvec": the b vector (differential bias) in the fitting Ta=b.
+        - "axis": Fitted energy axis.
     """
-
     vals = np.asarray(vals)
     nvals = vals.size
 
@@ -1829,25 +1853,25 @@ def tof2ev(
     energy_offset: float,
     t: float,
 ) -> float:
-    """
-    (d/(t-t0))**2 expression of the time-of-flight to electron volt
+    """(d/(t-t0))**2 expression of the time-of-flight to electron volt
     conversion formula.
 
-    Parameters:
-    tof_distance: float
-        Drift distance
-    time_offset: float
-        time offset
-    energy_offset: float
-        Energy offset.
-    t: numeric array
-        Drift time of electron.
+    Args:
+        tof_distance (float): Drift distance in meter.
+        time_offset (float): time offset in ns.
+        binwidth (float): Time width of each original TOF bin in ns.
+        binning (int): Binning factor of the TOF values.
+        energy_scale (str, optional): Direction of increasing energy scale.
 
-    **Return**\n
-    E: numeric array
-        Converted energy
+            - **'kinetic'**: increasing energy with decreasing TOF.
+            - **'binding'**: increasing energy with increasing TOF.
+
+        energy_offset (float): Energy offset in eV.
+        t (float): TOF value in bin number.
+
+    Returns:
+        float: Converted energy in eV
     """
-
     sign = 1 if energy_scale == "kinetic" else -1
 
     #         m_e/2 [eV]                      bin width [s]
@@ -1866,23 +1890,17 @@ def tof2evpoly(
     energy_offset: float,
     t: float,
 ) -> float:
-    """
-    Polynomial approximation of the time-of-flight to electron volt
+    """Polynomial approximation of the time-of-flight to electron volt
     conversion formula.
 
-    **Parameters**\n
-    a: 1D array
-        Polynomial coefficients.
-    E0: float
-        Energy offset.
-    t: numeric array
-        Drift time of electron.
+    Args:
+        poly_a (Union[List[float], np.ndarray]): Polynomial coefficients.
+        energy_offset (float): Energy offset in eV.
+        t (float): TOF value in bin number.
 
-    **Return**\n
-    E: numeric array
-        Converted energy
+    Returns:
+        float: Converted energy.
     """
-
     odr = len(poly_a)  # Polynomial order
     poly_a = poly_a[::-1]
     energy = 0.0
