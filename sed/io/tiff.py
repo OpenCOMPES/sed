@@ -97,11 +97,11 @@ def to_tiff(
     print(f"Successfully saved {faddr}\n Axes order: {dims_order}")
 
 
-def _sort_dims_for_imagej(dims: list, alias_dict: dict = None) -> list:
+def _sort_dims_for_imagej(dims: Sequence, alias_dict: dict = None) -> list:
     """Guess the order of the dimensions from the alias dictionary.
 
     Args:
-        dims (list): the list of dimensions to sort
+        dims (Sequence): the list of dimensions to sort
         alias_dict (dict, optional): name pairs for correct axis ordering. Keys should
             be any of T,Z,C,Y,X,S. The Corresponding value should be a dimension of the
             xarray or the dimension number if a numpy array. This is used to sort the
@@ -120,11 +120,11 @@ def _sort_dims_for_imagej(dims: list, alias_dict: dict = None) -> list:
     return [d for d in order if d in dims]
 
 
-def _fill_missing_dims(dims: list, alias_dict: dict = None) -> list:
+def _fill_missing_dims(dims: Sequence, alias_dict: dict = None) -> list:
     """Fill in the missing dimensions from the alias dictionary.
 
     Args:
-        dims (list): the list of dimensions that are provided
+        dims (Sequence): the list of dimensions that are provided
         alias_dict (dict, optional): name pairs for correct axis ordering. Keys should
             be any of T,Z,C,Y,X,S. The Corresponding value should be a dimension of the
             xarray or the dimension number if a numpy array. This is used to sort the

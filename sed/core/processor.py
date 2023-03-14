@@ -133,14 +133,14 @@ class SedProcessor:
         pretty_str = df_str + "\n" + coordinates_str + "\n" + dimensions_str
         return pretty_str
 
-    def __getitem__(self, val: Any) -> pd.DataFrame:
+    def __getitem__(self, val: str) -> pd.DataFrame:
         """Accessor to the underlying data structure.
 
         Args:
-            val: Name of the dataframe column to retrieve.
+            val (str): Name of the dataframe column to retrieve.
 
         Returns:
-            Selected dataframe column.
+            pd.DataFrame: Selected dataframe column.
         """
         return self._dataframe[val]
 
@@ -342,13 +342,11 @@ class SedProcessor:
         algortihm.
 
         Args:
-            features (np.ndarray, optional):
-                np.ndarray of features. Defaults to None.
-            auto_detect (bool, optional):
-                Whether to auto-detect the features. Defaults to False.
-            include_center (bool, optional):
-                Option to fix the position of the center point for the correction.
-                Defaults to True.
+            features (np.ndarray, optional): np.ndarray of features. Defaults to None.
+            auto_detect (bool, optional): Whether to auto-detect the features.
+                Defaults to False.
+            include_center (bool, optional): Option to fix the position of the center
+                point for the correction. Defaults to True.
         """
         if self.mc.slice is None:
             raise ValueError(
@@ -416,17 +414,16 @@ class SedProcessor:
         the image.
 
         Args:
-            scale (float, optional):
-                Initial value of the scaling slider. Defaults to 1.
-            xtrans (float, optional):
-                Initial value of the xtrans slider. Defaults to 0.
-            ytrans (float, optional):
-                Initial value of the ytrans slider. Defaults to 0.
-            angle (float, optional):
-                Initial value of the angle slider. Defaults to 0.
-            apply (bool, optional):
-                Option to directly apply the provided transformations.
-                Defaults to False.
+            scale (float, optional): Initial value of the scaling slider.
+                Defaults to 1.
+            xtrans (float, optional): Initial value of the xtrans slider.
+                Defaults to 0.
+            ytrans (float, optional): Initial value of the ytrans slider.
+                Defaults to 0.
+            angle (float, optional): Initial value of the angle slider.
+                Defaults to 0.
+            apply (bool, optional): Option to directly apply the provided
+                transformations. Defaults to False.
         """
         # Generate homomorphy as default if no distortion correction has been applied
         if self.mc.slice_corrected is None:
@@ -466,28 +463,26 @@ class SedProcessor:
         the points.
 
         Args:
-            point_a (Union[np.ndarray, List[int]]):
-                Pixel coordinates of the first point used for momentum calibration.
-            point_b (Union[np.ndarray, List[int]], optional):
-                Pixel coordinates of the second point used for momentum calibration.
-                Defaults to the center pixel, _config["momentum"]["center_pixel".
-            k_distance (float, optional):
-                Momentum distance between point a and b. Needs to be provided if no
-                specific k-koordinates for the two points are given. Defaults to None.
-            k_coord_a (Union[np.ndarray, List[float]], optional):
-                Momentum coordinate of the first point used for calibration.
-                Used if equiscale is False. Defaults to None.
-            k_coord_b (Union[np.ndarray, List[float]], optional):
-                Momentum coordinate of the second point used for calibration.
-                Defaults to [0.0, 0.0].
-            equiscale (bool, optional):
-                Option to apply different scales to kx and ky. If True, the distance
-                between points a and b, and the absolute position of point a are used
-                for defining the scale. If False, the scale is calculated from the k-
-                positions of both points a and b. Defaults to True.
-            apply (bool, optional):
-                Option to directly store the momentum calibration in the class.
-                Defaults to False.
+            point_a (Union[np.ndarray, List[int]]): Pixel coordinates of the first
+                point used for momentum calibration.
+            point_b (Union[np.ndarray, List[int]], optional): Pixel coordinates of the
+                second point used for momentum calibration.
+                Defaults to config["momentum"]["center_pixel"].
+            k_distance (float, optional): Momentum distance between point a and b.
+                Needs to be provided if no specific k-koordinates for the two points
+                are given. Defaults to None.
+            k_coord_a (Union[np.ndarray, List[float]], optional): Momentum coordinate
+                of the first point used for calibration. Used if equiscale is False.
+                Defaults to None.
+            k_coord_b (Union[np.ndarray, List[float]], optional): Momentum coordinate
+                of the second point used for calibration. Defaults to [0.0, 0.0].
+            equiscale (bool, optional): Option to apply different scales to kx and ky.
+                If True, the distance between points a and b, and the absolute
+                position of point a are used for defining the scale. If False, the
+                scale is calculated from the k-positions of both points a and b.
+                Defaults to True.
+            apply (bool, optional): Option to directly store the momentum calibration
+                in the class. Defaults to False.
         """
         if point_b is None:
             point_b = self._config.get("momentum", {}).get(
@@ -515,9 +510,8 @@ class SedProcessor:
         class and the momentum calibration to the dataframe.
 
         Args:
-            calibration (dict, optional):
-            Optional dictionary with calibration data to use.
-            Defaults to None.
+            calibration (dict, optional): Optional dictionary with calibration data to
+                use. Defaults to None.
         """
         if self._dataframe is not None:
             if (
@@ -561,7 +555,7 @@ class SedProcessor:
         they are not present yet.
 
         Args:
-            correction_type (str, optional):Type of correction to apply to the TOF
+            correction_type (str, optional): Type of correction to apply to the TOF
                 axis. Valid values are:
 
                 - 'spherical'
@@ -570,15 +564,12 @@ class SedProcessor:
                 - 'Lorentzian_asymmetric'
 
                 Defaults to config["energy"]["correction_type"].
-            amplitude (float, optional):
-                Amplitude of the correction.
-                Defaults to _config["energy"]["correction"]["amplitude"].
-            center (Tuple[float, float], optional):
-                Center X/Y coordinates for the correction.
-                Defaults to _config["energy"]["correction"]["center"].
-            apply (bool, optional):
-                Option to directly apply the provided or default correction
-                parameters. Defaults to False.
+            amplitude (float, optional): Amplitude of the correction.
+                Defaults to config["energy"]["correction"]["amplitude"].
+            center (Tuple[float, float], optional): Center X/Y coordinates for the
+                correction. Defaults to config["energy"]["correction"]["center"].
+            apply (bool, optional): Option to directly apply the provided or default
+                correction parameters. Defaults to False.
         """
         if self._pre_binned is None:
             print(
@@ -599,9 +590,10 @@ class SedProcessor:
     def apply_energy_correction(self, correction: dict = None, **kwds):
         """2. step of the energy correction workflow: Apply the enery correction
         parameters stored in the class to the dataframe.
+
         Args:
-            correction (dict, optional):
-            Dictionary containing the correction parameters
+            correction (dict, optional): Dictionary containing the correction
+                parameters. Defaults to config["energy"]["calibration"]
         """
         if self._dataframe is not None:
             print("Applying energy correction to dataframe...")
@@ -694,21 +686,19 @@ class SedProcessor:
         Alternatively, a list of ranges for all traces can be provided.
 
         Args:
-            ranges (Union[List[Tuple], Tuple]):
-                Tuple of TOF values indicating a range. Alternatively, a list of
-                ranges for all traces can be given.
-            refid (int, optional):
-                The id of the trace the range refers to. Defaults to 0.
-            infer_others (bool, optional):
-                Whether to determine the range for the other traces. Defaults to True.
-            mode (str, optional):
-                whether to "add" or "replace" existing ranges. Defaults to "replace".
+            ranges (Union[List[Tuple], Tuple]): Tuple of TOF values indicating a range.
+                Alternatively, a list of ranges for all traces can be given.
+            refid (int, optional): The id of the trace the range refers to.
+                Defaults to 0.
+            infer_others (bool, optional): Whether to determine the range for the other
+                traces. Defaults to True.
+            mode (str, optional): Whether to "add" or "replace" existing ranges.
+                Defaults to "replace".
             radius (int, optional): Radius parameter for fast_dtw.
                 Defaults to config["energy"]["fastdtw_radius"].
-            peak_window (int, optional):
-                peak_window parameter for the peak detection algorthm. amount of points
-                that have to have to behave monotoneously around a peak. Defaults to
-                config["energy"]["peak_window"].
+            peak_window (int, optional): Peak_window parameter for the peak detection
+                algorthm. amount of points that have to have to behave monotoneously
+                around a peak. Defaults to config["energy"]["peak_window"].
         """
         if radius is None:
             radius = self._config.get("energy", {}).get("fastdtw_radius", 2)
@@ -754,11 +744,11 @@ class SedProcessor:
         approximation, and a d^2/(t-t0)^2 relation.
 
         Args:
-            ref_id (int):
-                id of the trace at the bias where the reference energy is given.
-            ref_energy (float):
-                absolute energy of the detected feature at the bias of ref_id
-            method (str, optional):  Method for determining the energy calibration.
+            ref_id (int): id of the trace at the bias where the reference energy is
+                given.
+            ref_energy (float): Absolute energy of the detected feature at the bias
+                of ref_id
+            method (str, optional): Method for determining the energy calibration.
 
                 - **'lmfit'**: Energy calibration using lmfit and 1/t^2 form.
                 - **'lstsq'**, **'lsqr'**: Energy calibration using polynomial form.
@@ -864,12 +854,11 @@ class SedProcessor:
         them from a file.
 
         Args:
-            delay_range (Tuple[float, float], optional):
-                The scanned delay range in picoseconds. Defaults to None.
-            datafile (str, optional):
-                The file from which to read the delay ranges. Defaults to None.
-            **kwds:
-                Keyword args passed to ``DelayCalibrator.append_delay_axis``.
+            delay_range (Tuple[float, float], optional): The scanned delay range in
+                picoseconds. Defaults to None.
+            datafile (str, optional): The file from which to read the delay ranges.
+                Defaults to None.
+            **kwds: Keyword args passed to ``DelayCalibrator.append_delay_axis``.
         """
         if self._dataframe is not None:
             print("Adding delay column to dataframe:")
@@ -904,7 +893,7 @@ class SedProcessor:
 
         Args:
             cols (Sequence[str], optional): The colums onto which to apply jitter.
-                config["dataframe"]["jitter_cols"].
+                Defaults to config["dataframe"]["jitter_cols"].
         """
         if cols is None:
             cols = self._config.get("dataframe", {}).get(
@@ -929,18 +918,15 @@ class SedProcessor:
         """Function to do an initial binning of the dataframe loaded to the class.
 
         Args:
-            df_partitions (int, optional):
-                Number of dataframe partitions to use for the initial binning.
-                Defaults to 100.
-            axes (List[str], optional):
-                Axes to bin. Defaults to config["momentum"]["axes"].
-            bins (List[int], optional):
-                Bin numbers to use for binning.
+            df_partitions (int, optional): Number of dataframe partitions to use for
+                the initial binning. Defaults to 100.
+            axes (List[str], optional): Axes to bin.
+                Defaults to config["momentum"]["axes"].
+            bins (List[int], optional): Bin numbers to use for binning.
                 Defaults to config["momentum"]["bins"].
-            ranges (List[Tuple], optional):
-                Ranges to use for binning. Defaults to config["momentum"]["ranges"].
-            **kwds:
-                Keyword argument passed to the compute function.
+            ranges (List[Tuple], optional): Ranges to use for binning.
+                Defaults to config["momentum"]["ranges"].
+            **kwds: Keyword argument passed to the compute function.
 
         Returns:
             xr.DataArray: pre-binned data-array.
@@ -1079,8 +1065,8 @@ class SedProcessor:
         Args:
             dfpid (int): Number of the data frame partition to look at.
             ncol (int, optional): Number of columns in the plot grid. Defaults to 2.
-            bins (Sequence[int], optional): Number of bins to use for the speicified axes.
-                Defaults to config["histogram"]["bins"].
+            bins (Sequence[int], optional): Number of bins to use for the speicified
+                axes. Defaults to config["histogram"]["bins"].
             axes (Sequence[str], optional): Names of the axes to display.
                 Defaults to config["histogram"]["axes"].
             ranges (Sequence[Tuple[float, float]], optional): Value ranges of all

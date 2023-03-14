@@ -18,7 +18,7 @@ def recursive_write_metadata(h5group: h5py.Group, node: dict):
 
     Raises:
         Warning: warns if elements have been converted into strings for saving.
-        ValueError: Raises when elements cannot be saved even as strings.
+        ValueError: Raised when elements cannot be saved even as strings.
     """
     for key, item in node.items():
         if isinstance(

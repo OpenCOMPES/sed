@@ -265,7 +265,7 @@ def get_count_rate(
     h5file: h5py.File,
     ms_markers_group: str = "msMarkers",
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """_summary_
+    """Create count rate in the file from the msMarker column.
 
     Args:
         h5file (h5py.File): The h5file from which to get the count rate.
@@ -289,8 +289,7 @@ def get_elapsed_time(
     h5file: h5py.File,
     ms_markers_group: str = "msMarkers",
 ) -> float:
-    """ "
-    Return the elapsed time in the file from the msMarkers wave
+    """Return the elapsed time in the file from the msMarkers wave
 
     Args:
         h5file (h5py.File): The h5file from which to get the count rate.
@@ -432,11 +431,12 @@ class MpesLoader(BaseLoader):
         fids: Sequence[int] = None,
         **kwds,
     ) -> Tuple[np.ndarray, np.ndarray]:
-        """_summary_
+        """Create count rate from the msMarker column for the files specified in
+        ``fids``.
 
         Args:
             fids (Sequence[int], optional): fids (Sequence[int]): the file ids to
-                include. None: list of file ids. Defaults to None.
+                include. Defaults to list of all file ids.
             kwds: Keyword arguments:
 
                 - **ms_markers_group**: Name of the hdf5 group containing the ms-markers
@@ -474,11 +474,12 @@ class MpesLoader(BaseLoader):
         return count_rate, secs
 
     def get_elapsed_time(self, fids: Sequence[int] = None, **kwds) -> float:
-        """Return the elapsed time in the file from the msMarkers wave.
+        """Return the elapsed time in the files specified in ``fids`` from
+        the msMarkers column.
 
         Args:
             fids (Sequence[int], optional): fids (Sequence[int]): the file ids to
-                include. None: list of file ids. Defaults to None.
+                include. Defaults to list of all file ids.
             kwds: Keyword arguments:
 
                 - **ms_markers_group**: Name of the hdf5 group containing the ms-markers

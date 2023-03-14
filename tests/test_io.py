@@ -31,7 +31,7 @@ def test_save_and_load_tiff_array(_da: xr.DataArray):
     """Test the tiff saving/loading function for np.ndarrays.
 
     Args:
-        _da (DataArray): binned DataArray
+        _da (xr.DataArray): binned DataArray
     """
     nd_array = _da.data
     if nd_array.ndim > 1:
@@ -45,11 +45,11 @@ def test_save_and_load_tiff_array(_da: xr.DataArray):
     binned_arrays,
     ids=lambda x: f"ndims:{len(x.shape)}",
 )
-def test_save_xarr_to_tiff(_da):
+def test_save_xarr_to_tiff(_da: xr.DataArray):
     """Test the tiff saving function for xr.DataArrays.
 
     Args:
-        _da (DataArray): binned DataArray
+        _da (xr.DataArray): binned DataArray
     """
     to_tiff(_da, "test")
     assert Path("test.tiff").is_file()
@@ -60,11 +60,11 @@ def test_save_xarr_to_tiff(_da):
     binned_arrays,
     ids=lambda x: f"ndims:{len(x.shape)}",
 )
-def test_save_and_load_tiff_xarray(_da):
+def test_save_and_load_tiff_xarray(_da: xr.DataArray):
     """Test the tiff saving/loading function for xr.DataArrays.
 
     rgs:
-        _da (DataArray): binned DataArray
+        _da (xr.DataArray): binned DataArray
     """
     to_tiff(_da, "test")
     loaded = load_tiff("test.tiff")
@@ -81,11 +81,11 @@ def test_save_and_load_tiff_xarray(_da):
     binned_arrays,
     ids=lambda x: f"ndims:{len(x.shape)}",
 )
-def test_save_and_load_hdf5(_da):
+def test_save_and_load_hdf5(_da: xr.DataArray):
     """Test the hdf5 saving/loading function.
 
     Args:
-        _da (DataArray): binned DataArray
+        _da (xr.DataArray): binned DataArray
     """
     faddr = "test.h5"
     to_h5(_da, faddr, mode="w")

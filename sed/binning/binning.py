@@ -238,7 +238,7 @@ def bin_dataframe(
 
     Raises:
         Warning: Warns if there are unimplemented features the user is trying to use.
-        ValueError: Rises when there is a mismatch in dimensions between the
+        ValueError: Raised when there is a mismatch in dimensions between the
             binning parameters.
 
     Returns:

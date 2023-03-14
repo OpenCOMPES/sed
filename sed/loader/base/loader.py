@@ -81,7 +81,7 @@ class BaseLoader(ABC):
 
         Args:
             fids (Sequence[int], optional): fids (Sequence[int]): the file ids to
-                include. None: list of file ids. Defaults to None.
+                include. Defaults to list of all file ids.
             kwds: Keyword arguments
 
         Return:
@@ -92,12 +92,11 @@ class BaseLoader(ABC):
 
     @abstractmethod
     def get_elapsed_time(self, fids: Sequence[int] = None, **kwds) -> float:
-        """
-        Return the elapsed time in the file.
+        """Return the elapsed time in the specified in ``fids``.
 
         Args:
             fids (Sequence[int], optional): fids (Sequence[int]): the file ids to
-                include. None: list of file ids. Defaults to None.
+                include. Defaults to list of all file ids.
             kwds: Keyword arguments
 
         Return:

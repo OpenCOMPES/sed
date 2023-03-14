@@ -635,7 +635,7 @@ class MomentumCorrector:
 
         Parameters:
             rdeform (np.ndarray): 2D array of row-ordered deformation field.
-            cdeform (np.ndarray): 2D arrays of column-ordered deformation field.
+            cdeform (np.ndarray): 2D array of column-ordered deformation field.
         """
         self.rdeform_field = ndi.map_coordinates(
             self.rdeform_field,
@@ -1159,7 +1159,7 @@ class MomentumCorrector:
                 symmetry point a.
             point_b (Union[np.ndarray, List[int]], optional): Pixel coordinates of the
                 symmetry point b. Defaults to the center pixel of the image, defined by
-                'config.momentum.center_pixel'.
+                config["momentum"]["center_pixel"].
             k_distance (float, optional): The known momentum space distance between the
                 two symmetry points.
             k_coord_a (Union[np.ndarray, List[float]], optional): Momentum coordinate
@@ -1185,7 +1185,7 @@ class MomentumCorrector:
                 to the class. Defaults to False.
 
         Raises:
-            ValueError: If no valid image is found fom which to ge the coordinates.
+            ValueError: If no valid image is found from which to ge the coordinates.
         """
         matplotlib.use("module://ipympl.backend_nbagg")
         if self.slice_transformed is not None:
@@ -1313,7 +1313,7 @@ class MomentumCorrector:
                 symmetry point a.
             point_b (Union[np.ndarray, List[int]], optional): Pixel coordinates of the
                 symmetry point b. Defaults to the center pixel of the image, defined by
-                'config.momentum.center_pixel'.
+                config["momentum"]["center_pixel"].
             k_distance (float, optional): The known momentum space distance between the
                 two symmetry points.
             k_coord_a (Union[np.ndarray, List[float]], optional): Momentum coordinate
@@ -1347,6 +1347,12 @@ class MomentumCorrector:
                 - "grid": Tuple of 2D arrays
                   Row and column mesh grid generated from the coordinates
                   (can be used directly in pcolormesh).
+                - "coeffs": Tuple of (x, y) calibration coefficients
+                - "x_center", "y_center": Pixel positions of the k-space center
+                - "cstart", "rstart": Detector positions of the image used for
+                  calibration
+                - "cstep", "rstep": Step size of detector coordinates in the image
+                  used for calibration
         """
         if image is None:
             image = self.slice_corrected
@@ -1411,7 +1417,7 @@ class MomentumCorrector:
         y_column: str = None,
         new_x_column: str = None,
         new_y_column: str = None,
-        **kwds: dict,
+        **kwds,
     ) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
         """Calculate and replace the X and Y values with their distortion-corrected
         version.
@@ -1420,15 +1426,22 @@ class MomentumCorrector:
             df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to apply
                 the distotion correction to.
             x_column (str, optional): Label of the 'X' column before momentum
-                distortion correction. Defaults to 'config.momentum.x_column'.
+                distortion correction. Defaults to config["momentum"]["x_column"].
             y_column (str, optional): Label of the 'Y' column before momentum
-                distortion correction. Defaults to 'config.momentum.y_column'.
+                distortion correction. Defaults to config["momentum"]["y_column"].
             new_x_column (str, optional): Label of the 'X' column after momentum
                 distortion correction.
-                Defaults to 'config.momentum.corrected_x_column'.
+                Defaults to config["momentum"]["corrected_x_column"].
             new_y_column (str, optional): Label of the 'Y' column after momentum
                 distortion correction.
-                Defaults to 'config.momentum.corrected_y_column'.
+                Defaults to config["momentum"]["corrected_y_column"].
+            **kwds: Keyword arguments:
+
+                - **dfield**: Inverse dfield
+                - **cdeform_field**, **rdeform_field**: Column- and row-wise forward
+                  deformation fields.
+
+                Additional keyword arguments are passed to ``apply_dfield``.
 
         Returns:
             Union[pd.DataFrame, dask.dataframe.DataFrame]: Dataframe with added
@@ -1496,17 +1509,17 @@ class MomentumCorrector:
             df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to apply the
                 distotion correction to.
             x_column (str, optional): Label of the source 'X' column.
-                Defaults to 'config.momentum.corrected_x_column' or
-                'config.momentum.x_column'.
+                Defaults to config["momentum"]["corrected_x_column"] or
+                config["momentum"]["x_column"] (whichever is present).
             y_column (str, optional): Label of the source 'Y' column.
-                Defaults to 'config.momentum.corrected_y_column' or
-                'config.momentum.y_column'.
+                Defaults to config["momentum"]["corrected_y_column"] or
+                config["momentum"]["y_column"] (whichever is present).
             new_x_column (str, optional): Label of the destination 'X' column after
-                momentum calibration. Defaults to 'config.momentum.kx_column'.
+                momentum calibration. Defaults to config["momentum"]["kx_column"].
             new_y_column (str, optional): Label of the destination 'Y' column after
-                momentum calibration. Defaults to 'config.momentum.ky_column'.
+                momentum calibration. Defaults to config["momentum"]["ky_column"].
             calibration (dict, optional): Dictionary containing calibration parameters.
-                Defaults to 'self.calibration' or 'config.momentum.calibration'.
+                Defaults to 'self.calibration' or config["momentum"]["calibration"].
 
         Returns:
             Union[pd.DataFrame, dask.dataframe.DataFrame]: Dataframe with added columns.

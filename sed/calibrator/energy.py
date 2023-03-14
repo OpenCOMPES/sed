@@ -37,8 +37,8 @@ from sed.loader.base.loader import BaseLoader
 
 
 class EnergyCalibrator:
-    """
-    Electron binding energy calibration workflow.
+    """Electron binding energy calibration workflow.
+
     For the initialization of the EnergyCalibrator class an instance of a
     loader is required. The data can be loaded using the optional arguments,
     or using the load_data method or bin_data method.
@@ -402,7 +402,7 @@ class EnergyCalibrator:
             t (np.ndarray, optional): TOF values. Defaults to self.tof.
             **kwds: keyword arguments.
                 See available keywords for ``poly_energy_calibration()`` and
-                ``fit_energy_calibation()``
+                ``fit_energy_calibration()``
 
         Raises:
             ValueError: Raised if invalid 'energy_scale' is passed.
@@ -1542,8 +1542,7 @@ def peakdetect1d(
             Defaults to 0.
 
     Raises:
-        ValueError: _description_
-        ValueError: _description_
+        ValueError: Raised if lookahead and delta are out of range.
 
     Returns:
         Tuple[np.ndarray, np.ndarray]: Tuple of positions of the positive peaks,

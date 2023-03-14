@@ -19,16 +19,14 @@ class CopyTool:
     """File collecting and sorting class.
 
     Args:
-        source (str, optional): Dource path for the copy tool.
-            Defaults to "/".
-        dest (str, optional): Destination path for the copy tool.
-            Defaults to "/".
+        source (str): Dource path for the copy tool.
+        dest (str): Destination path for the copy tool.
     """
 
     def __init__(
         self,
-        source: str = "/",
-        dest: str = "/",
+        source: str,
+        dest: str,
         **kwds,
     ):
         self.source = source
@@ -117,11 +115,8 @@ class CopyTool:
         if size_src - size_dst > free - self.safety_margin:
             raise OSError(
                 errno.ENOSPC,
-                "Target disk full, only "
-                + str(free / 2**30)
-                + " GB free, but "
-                + str((size_src - size_dst) / 2**30)
-                + " GB needed!",
+                f"Target disk full, only {free / 2**30} GB free, "
+                + f"but {(size_src - size_dst) / 2**30} GB needed!",
             )
 
         # make directories
@@ -191,11 +186,7 @@ class CopyTool:
         """
 
         size = 0
-        for (
-            path,  # pylint: disable=unused-variable
-            dirs,  # pylint: disable=unused-variable
-            filenames,
-        ) in os.walk(
+        for path, dirs, filenames in os.walk(  # pylint: disable=W0612
             sdir,
         ):
             # Check space left
@@ -224,7 +215,7 @@ class CopyTool:
 
         # get list of all Scan directories (leaf directories)
         scan_dirs = []
-        for root, dirs, files in os.walk(  # pylint: disable=unused-variable
+        for root, dirs, files in os.walk(  # pylint: disable=W0612
             self.dest,
         ):
             if not dirs:
@@ -238,11 +229,7 @@ class CopyTool:
             total_size = 0
             for scan in scan_dirs:
                 size = 0
-                for (
-                    path,  # pylint: disable=unused-variable
-                    dirs,
-                    filenames,
-                ) in os.walk(
+                for (path, dirs, filenames) in os.walk(  # pylint: disable=W0612
                     scan,
                 ):
                     for sfile in filenames:
@@ -257,11 +244,7 @@ class CopyTool:
         oldest_scan = None
         for scan in scan_dirs:
             size = 0
-            for (
-                path,  # pylint: disable=unused-variable
-                dirs,
-                filenames,
-            ) in os.walk(
+            for (path, dirs, filenames) in os.walk(  # pylint: disable=W0612
                 scan,
             ):
                 for sfile in filenames:
@@ -352,7 +335,7 @@ def mymakedirs(path: str, mode: int, gid: int) -> List[str]:
 
     if not path or os.path.exists(path):
         return []
-    head, tail = os.path.split(path)  # pylint: disable=unused-variable
+    head, tail = os.path.split(path)  # pylint: disable=W0612
     res = mymakedirs(head, mode, gid)
     os.mkdir(path)
     os.chmod(path, mode)

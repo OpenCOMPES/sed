@@ -74,7 +74,7 @@ def drop_column(
     """Delete columns.
 
     Args:
-        df (Union[pd.DataFrame, dask.dataframe.DataFrame]): _description_
+        df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to use.
         column_name (Union[str, Sequence[str]])): List of column names to be dropped.
 
     Returns:
@@ -94,7 +94,7 @@ def apply_filter(
     """Application of bound filters to a specified column (can be used consecutively).
 
     Args:
-        df (Union[pd.DataFrame, dask.dataframe.DataFrame]): _description_
+        df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to use.
         col (str): Name of the column to filter.
         lower_bound (float, optional): The lower bound used in the filtering.
             Defaults to -np.inf.
@@ -119,7 +119,7 @@ def map_columns_2d(
     """Apply a 2-dimensional mapping simultaneously to two dimensions.
 
     Args:
-        df (Union[pd.DataFrame, dask.dataframe.DataFrame]): _description_
+        df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to use.
         map_2d (Callable): 2D mapping function.
         x_column (np.ndarray): The X column of the dataframe to apply mapping to.
         y_column (np.ndarray): The Y column of the dataframe to apply mapping to.
