@@ -17,6 +17,10 @@ class BaseLoader(ABC):
 
     The reader's folder name is the identifier.
     For this BaseLoader with filename base/loader.py the ID  becomes 'base'
+
+    Args:
+        config (dict, optional): Config dictionary. Defaults to None.
+        meta_handler (MetaHandler, optional): MetaHandler object. Defaults to None.
     """
 
     # pylint: disable=too-few-public-methods
@@ -47,7 +51,24 @@ class BaseLoader(ABC):
         **kwds,
     ) -> Tuple[ddf.DataFrame, dict]:
         """Reads data from given files or folder and returns a dask dataframe,
-        and a dictionary with metadata"""
+        and a dictionary with metadata
+
+        Args:
+            files (Sequence[str], optional): List of file paths. Defaults to None.
+            folder (str, optional): Path to folder where files are stored. Path has
+                the priority such that if it's specified, the specified files will
+                be ignored. Defaults to None.
+            ftype (str, optional): File type to read ('parquet', 'json', 'csv', etc).
+                If a folder path is given, all files with the specified extension are
+                read into the dataframe in the reading order. Defaults to None.
+            **kwds: keyword arguments. See the keyword arguments for the specific file
+                parser in``dask.dataframe`` module.
+
+        Returns:
+            Tuple[ddf.DataFrame, dict]: Dask dataframe and metadata read from specified
+            files.
+        """
+
         return None, None
 
     @abstractmethod
@@ -56,15 +77,15 @@ class BaseLoader(ABC):
         fids: Sequence[int] = None,
         **kwds,
     ) -> Tuple[np.ndarray, np.ndarray]:
-        """
-        Create count rate data for the files specified in ``fids``.
+        """Create count rate data for the files specified in ``fids``.
 
-        Parameters:
-            fids: the file ids to include. None | list of file ids.
+        Args:
+            fids (Sequence[int], optional): fids (Sequence[int]): the file ids to
+                include. None: list of file ids. Defaults to None.
             kwds: Keyword arguments
 
         Return:
-            countrate, seconds: Arrays containing countrate and seconds
+            Tuple[np.ndarray, np.ndarray]: Arrays containing countrate and seconds
             into the scan.
         """
         return None, None
@@ -72,14 +93,15 @@ class BaseLoader(ABC):
     @abstractmethod
     def get_elapsed_time(self, fids: Sequence[int] = None, **kwds) -> float:
         """
-        Return the elapsed time in the files.
+        Return the elapsed time in the file.
 
-        Parameters:
-            fids: the file ids to include. None | list of file ids.
+        Args:
+            fids (Sequence[int], optional): fids (Sequence[int]): the file ids to
+                include. None: list of file ids. Defaults to None.
             kwds: Keyword arguments
 
         Return:
-            The elapsed time in the files in seconds.
+            float: The elapsed time in the files in seconds.
         """
         return None
 

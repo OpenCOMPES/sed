@@ -7,12 +7,12 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from tests.helpers import simulate_binned_data
 from sed.io.hdf5 import load_h5
 from sed.io.hdf5 import to_h5
 from sed.io.tiff import _sort_dims_for_imagej
 from sed.io.tiff import load_tiff
 from sed.io.tiff import to_tiff
+from tests.helpers import simulate_binned_data
 
 shapes = []
 for n in range(4):
@@ -27,8 +27,12 @@ binned_arrays = [simulate_binned_data(s, axes_names[: len(s)]) for s in shapes]
     binned_arrays,
     ids=lambda x: f"ndims:{len(x.shape)}",
 )
-def test_save_and_load_tiff_array(_da):
-    """Test the tiff saving/loading function for np.ndarrays."""
+def test_save_and_load_tiff_array(_da: xr.DataArray):
+    """Test the tiff saving/loading function for np.ndarrays.
+
+    Args:
+        _da (DataArray): binned DataArray
+    """
     nd_array = _da.data
     if nd_array.ndim > 1:
         to_tiff(nd_array, "test")
@@ -42,7 +46,11 @@ def test_save_and_load_tiff_array(_da):
     ids=lambda x: f"ndims:{len(x.shape)}",
 )
 def test_save_xarr_to_tiff(_da):
-    """Test the tiff saving function for xr.DataArrays."""
+    """Test the tiff saving function for xr.DataArrays.
+
+    Args:
+        _da (DataArray): binned DataArray
+    """
     to_tiff(_da, "test")
     assert Path("test.tiff").is_file()
 
@@ -53,7 +61,11 @@ def test_save_xarr_to_tiff(_da):
     ids=lambda x: f"ndims:{len(x.shape)}",
 )
 def test_save_and_load_tiff_xarray(_da):
-    """Test the tiff saving/loading function for xr.DataArrays."""
+    """Test the tiff saving/loading function for xr.DataArrays.
+
+    rgs:
+        _da (DataArray): binned DataArray
+    """
     to_tiff(_da, "test")
     loaded = load_tiff("test.tiff")
     dims_order = _sort_dims_for_imagej(_da.dims)
@@ -70,7 +82,11 @@ def test_save_and_load_tiff_xarray(_da):
     ids=lambda x: f"ndims:{len(x.shape)}",
 )
 def test_save_and_load_hdf5(_da):
-    """Test the hdf5 saving/loading function."""
+    """Test the hdf5 saving/loading function.
+
+    Args:
+        _da (DataArray): binned DataArray
+    """
     faddr = "test.h5"
     to_h5(_da, faddr, mode="w")
     loaded = load_h5(faddr)

@@ -16,7 +16,14 @@ from dask.diagnostics import ProgressBar
 
 
 class CopyTool:
-    """File collecting and sorting class."""
+    """File collecting and sorting class.
+
+    Args:
+        source (str, optional): Dource path for the copy tool.
+            Defaults to "/".
+        dest (str, optional): Destination path for the copy tool.
+            Defaults to "/".
+    """
 
     def __init__(
         self,
@@ -24,7 +31,6 @@ class CopyTool:
         dest: str = "/",
         **kwds,
     ):
-
         self.source = source
         self.dest = dest
         self.safety_margin = kwds.pop(
@@ -185,7 +191,11 @@ class CopyTool:
         """
 
         size = 0
-        for path, dirs, filenames in os.walk(  # pylint: disable=unused-variable
+        for (
+            path,  # pylint: disable=unused-variable
+            dirs,  # pylint: disable=unused-variable
+            filenames,
+        ) in os.walk(
             sdir,
         ):
             # Check space left
@@ -200,7 +210,7 @@ class CopyTool:
         report: bool = False,
     ):
         """Remove scans in old directories. Looks for the directory with the oldest
-            ctime and queries the user to confirm for its deletion.
+        ctime and queries the user to confirm for its deletion.
 
         Args:
             force (bool, optional): Forces to automatically remove the oldest scan.
@@ -228,7 +238,11 @@ class CopyTool:
             total_size = 0
             for scan in scan_dirs:
                 size = 0
-                for path, dirs, filenames in os.walk(  # pylint: disable=unused-variable
+                for (
+                    path,  # pylint: disable=unused-variable
+                    dirs,
+                    filenames,
+                ) in os.walk(
                     scan,
                 ):
                     for sfile in filenames:
@@ -243,7 +257,11 @@ class CopyTool:
         oldest_scan = None
         for scan in scan_dirs:
             size = 0
-            for path, dirs, filenames in os.walk(  # pylint: disable=unused-variable
+            for (
+                path,  # pylint: disable=unused-variable
+                dirs,
+                filenames,
+            ) in os.walk(
                 scan,
             ):
                 for sfile in filenames:

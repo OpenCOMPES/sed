@@ -7,6 +7,8 @@ Single-Event DataFrame (SED) documentation
    :caption: SED Core Modules
 
    sed/core
+   sed/dfops
+   sed/loader
    sed/binning
    sed/calibrator
    sed/diagnostic

@@ -58,13 +58,14 @@ def load_config(config_path: str) -> dict:
     """Loads config parameter files.
 
     Args:
-        config_path: Path to the config file. Json or Yaml format are supported.
+        config_path (str): Path to the config file. Json or Yaml format are supported.
 
     Raises:
-        TypeError, FileNotFoundError
+        FileNotFoundError: Raised if the config file cannot be found.
+        TypeError: Raised if the provided file is neither *json* nor *yaml*.
 
     Returns:
-        config_dict: loaded config dictionary
+        dict: loaded config dictionary
     """
     config_file = Path(config_path)
     if not config_file.is_file():
@@ -88,11 +89,11 @@ def insert_default_config(config: dict, default_config: dict) -> dict:
     """Inserts missing config parameters from a default config file.
 
     Args:
-        config: the config dictionary
-        default_config: the default config dictionary.
+        config (dict): the config dictionary
+        default_config (dict): the default config dictionary.
 
     Returns:
-        config: merged dictionary
+        dict: merged dictionary
     """
     for k, v in default_config.items():
         if isinstance(v, dict):

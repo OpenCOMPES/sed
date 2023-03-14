@@ -399,15 +399,15 @@ def apply_jitter_on_column(
     """Add jittering to the column of a dataframe.
 
     Args:
-        df: Dataframe to add noise/jittering to.
-        amp: Amplitude scaling for the jittering noise.
-        col: Name of the column to add jittering to.
-        mode: Choose between 'uniform' for uniformly
+        df (Union[dask.dataframe.core.DataFrame, pd.DataFrame]): Dataframe to add
+            noise/jittering to.
+        amp (float): Amplitude scaling for the jittering noise.
+        col (str): Name of the column to add jittering to.
+        mode (str, optional): Choose between 'uniform' for uniformly
             distributed noise, or 'normal' for noise with normal distribution.
             For columns with digital values, one should choose 'uniform' as
-            well as amplitude (amp) equal to the step size.
+            well as amplitude (amp) equal to the step size. Defaults to "uniform".
     """
-
     colsize = df[col].size
     if mode == "uniform":
         # Uniform Jitter distribution

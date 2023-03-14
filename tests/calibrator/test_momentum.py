@@ -61,8 +61,12 @@ def test_feature_extract():
     "include_center",
     [True, False],
 )
-def test_splinewarp(include_center):
-    """Test the generation of the splinewarp etimate."""
+def test_splinewarp(include_center: bool):
+    """Test the generation of the splinewarp etimate.
+
+    Args:
+        include_center (bool): Option to include the center point.
+    """
     mc = MomentumCorrector(config=config)
     mc.load_data(
         data=momentum_map,

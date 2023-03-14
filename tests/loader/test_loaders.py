@@ -19,8 +19,15 @@ test_data_dir = os.path.join(package_dir, "..", "tests", "data")
 read_types = ["folder", "files"]
 
 
-def get_loader_name_from_loader_object(loader) -> str:
-    """Helper function to find the name of a loader given the loader object."""
+def get_loader_name_from_loader_object(loader: BaseLoader) -> str:
+    """Helper function to find the name of a loader given the loader object.
+
+    Args:
+        loader (BaseLoader): Loader object from which to get the name.
+
+    Returns:
+        str: extracted name.
+    """
     for loader_name in get_names_of_all_loaders():
         gotten_loader = get_loader(loader_name)
         if loader.__name__ is gotten_loader.__name__:

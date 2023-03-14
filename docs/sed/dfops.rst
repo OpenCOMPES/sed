@@ -1,5 +1,5 @@
-Config
+Dataframe Operations
 ===================================================
-.. automodule:: sed.config.settings
+.. automodule:: sed.core.dfops
    :members:
    :undoc-members:

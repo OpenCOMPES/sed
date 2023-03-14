@@ -1248,13 +1248,13 @@ def correction_function(
 
             - **diameter** (float): Field-free drift distance.
             - **gamma** (float): Linewidth value for correction using a 2D
-                Lorentz profile.
+              Lorentz profile.
             - **sigma** (float): Standard deviation for correction using a 2D
-                Gaussian profile.
+              Gaussian profile.
             - **gamma2** (float): Linewidth value for correction using an
-                asymmetric 2D Lorentz profile, X-direction.
+              asymmetric 2D Lorentz profile, X-direction.
             - **amplitude2** (float): Amplitude value for correction using an
-                asymmetric 2D Lorentz profile, X-direction.
+              asymmetric 2D Lorentz profile, X-direction.
 
     Returns:
         float: calculated correction value
@@ -1401,8 +1401,8 @@ def range_convert(
         x (np.ndarray): Values of the x axis (e.g. time-of-flight values).
         xrng (Tuple): Boundary value range on the x axis.
         pathcorr (np.ndarray): Path correspondence between two 1D arrays in the
-        following form,
-        [(id_1_trace_1, id_1_trace_2), (id_2_trace_1, id_2_trace_2), ...]
+            following form,
+            [(id_1_trace_1, id_1_trace_2), (id_2_trace_1, id_2_trace_2), ...]
 
     Returns:
         Tuple: Transformed range according to the path correspondence.
@@ -1547,7 +1547,7 @@ def peakdetect1d(
 
     Returns:
         Tuple[np.ndarray, np.ndarray]: Tuple of positions of the positive peaks,
-            positions of the negative peaks
+        positions of the negative peaks
     """
     max_peaks = []
     min_peaks = []

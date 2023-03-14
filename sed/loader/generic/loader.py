@@ -18,7 +18,12 @@ from sed.loader.utils import gather_files
 
 class GenericLoader(BaseLoader):
     """Dask implementation of the Loader. Reads from various file types using the
-    utilities of Dask."""
+    utilities of Dask.
+
+    Args:
+        config (dict, optional): Config dictionary. Defaults to None.
+        meta_handler (MetaHandler, optional): MetaHandler object. Defaults to None.
+    """
 
     __name__ = "dask"
 
@@ -33,23 +38,26 @@ class GenericLoader(BaseLoader):
     ) -> Tuple[ddf.DataFrame, dict]:
         """Read stored files from a folder into a dataframe.
 
-        Parameters:
-        folder, files: str, list/tuple | None, None
-            Folder path of the files or a list of file paths. The folder path has
-            the priority such that if it's specified, the specified files will
-            be ignored.
-        ftype: str | 'parquet'
-            File type to read ('parquet', 'json', 'csv', etc).
-            If a folder path is given, all files of the specified type are read
-            into the dataframe in the reading order.
-        **kwds: keyword arguments
-            See the keyword arguments for the specific file parser in
-            ``dask.dataframe`` module.
+        Args:
+            files (Sequence[str], optional): List of file paths. Defaults to None.
+            folder (str, optional): Path to folder where files are stored. Path has
+                the priority such that if it's specified, the specified files will
+                be ignored. Defaults to None.
+            ftype (str, optional): File type to read ('parquet', 'json', 'csv', etc).
+                If a folder path is given, all files with the specified extension are
+                read into the dataframe in the reading order. Defaults to "parquet".
+            **kwds: keyword arguments. See the keyword arguments for the specific file
+                parser in``dask.dataframe`` module.
 
-        **Return**\n
-            Dask dataframe read from specified files.
+        Raises:
+            ValueError: Raised if neither files nor folder provided.
+            FileNotFoundError: Raised if the fileds or folder cannot be found.
+            ValueError: Raised if the file type is not supported.
+
+        Returns:
+            Tuple[ddf.DataFrame, dict]: Dask dataframe and metadata read from specified
+            files.
         """
-
         metadata: Dict[Any, Any] = {}
         # pylint: disable=duplicate-code
         if folder is not None:
@@ -94,17 +102,18 @@ class GenericLoader(BaseLoader):
         fids: Sequence[int] = None,
         **kwds,
     ) -> Tuple[np.ndarray, np.ndarray]:
-        """
-        Create count rate data for the files specified in ``fids``.
+        """Create count rate data for the files specified in ``fids``.
 
-        Parameters:
-            fids: the file ids to include. None | list of file ids.
+        Args:
+            fids (Sequence[int], optional): fids (Sequence[int]): the file ids to
+                include. None: list of file ids. Defaults to None.
             kwds: Keyword arguments
 
         Return:
-            countrate, seconds: Arrays containing countrate and seconds
+            Tuple[np.ndarray, np.ndarray]: Arrays containing countrate and seconds
             into the scan.
         """
+        # TODO
         return None, None
 
     def get_elapsed_time(  # Pylint: disable=unused_parameter
@@ -112,15 +121,15 @@ class GenericLoader(BaseLoader):
         fids: Sequence[int] = None,
         **kwds,
     ) -> float:
-        """
-        Return the elapsed time in the files.
+        """Return the elapsed time in the file.
 
-        Parameters:
-            fids: the file ids to include. None | list of file ids.
+        Args:
+            fids (Sequence[int], optional): fids (Sequence[int]): the file ids to
+                include. None: list of file ids. Defaults to None.
             kwds: Keyword arguments
 
-        Return:
-            The elapsed time in the files in seconds.
+        Returns:
+            float: The elapsed time in the files in seconds.
         """
         return None
 

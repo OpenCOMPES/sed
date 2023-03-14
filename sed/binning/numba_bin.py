@@ -19,15 +19,14 @@ def _hist_from_bin_range(
     bins: Sequence[int],
     ranges: np.ndarray,
 ) -> np.ndarray:
-    """
-    N dimensional binning function, pre-compiled by Numba for performance.
+    """N dimensional binning function, pre-compiled by Numba for performance.
     Behaves much like numpy.histogramdd, but calculates and returns unsigned 32
     bit integers.
 
     Args:
-        sample: The data to be histogrammed with shape N,D.
-        bins: the number of bins for each dimension D.
-        range: A sequence of length D, each an optional (lower,
+        sample (np.ndarray): The data to be histogrammed with shape N,D.
+        bins (Sequence[int]): The number of bins for each dimension D.
+        ranges (np.ndarray): A sequence of length D, each an optional (lower,
             upper) tuple giving the outer bin edges to be used if the edges are
             not given explicitly in bins.
 
@@ -35,7 +34,7 @@ def _hist_from_bin_range(
         ValueError: In case of dimension mismatch.
 
     Returns:
-        The computed histogram.
+        np.ndarray: The computed histogram.
     """
     ndims = len(bins)
     if sample.shape[1] != ndims:
@@ -76,8 +75,8 @@ def binsearch(bins: np.ndarray, val: float) -> int:
     returns -1 when the value is outside the bin range.
 
     Args:
-        bins: the array on which
-        val: value to search for
+        bins (np.ndarray): the array on which
+        val (float): value to search for
 
     Returns:
         int: index of the bin array, returns -1 when value is outside the bins range
@@ -110,13 +109,13 @@ def _hist_from_bins(
     Computes the histogram on pre-defined bins.
 
     Args:
-        sample : the array of shape (N,D) on which to compute the histogram
-        bins : array of shape (N,D) defining the D bins on which to compute
-            the histogram, i.e. the desired output axes.
-        shape: shape of the resulting array. Workaround for the fact numba
+        sample (np.ndarray) : the array of shape (N,D) on which to compute the histogram
+        bins (Sequence[np.ndarray]): array of shape (N,D) defining the D bins on which
+            to compute the histogram, i.e. the desired output axes.
+        shape (Tuple): shape of the resulting array. Workaround for the fact numba
             does not allow to create tuples.
     Returns:
-        hist : the computed n-dimensional histogram
+        hist: the computed n-dimensional histogram
     """
     ndims = len(bins)
     if sample.shape[1] != ndims:
@@ -162,26 +161,27 @@ def numba_histogramdd(
     sizes.
 
     Args:
-        sample: The data to be histogrammed with shape N,D
-        bins: the number of bins for each dimension D, or a sequence of bins
-        on which to calculate the histogram.
-        range: The range to use for binning when bins is a list of integers.
+        sample (np.ndarray): The data to be histogrammed with shape N,D
+        bins (Union[int, Sequence[int], Sequence[np.ndarray], np.ndarray]): The number
+            of bins for each dimension D, or a sequence of bins on which to calculate
+            the histogram.
+        ranges (Sequence, optional): The range to use for binning when bins is a list
+            of integers. Defaults to None.
 
     Raises:
         ValueError: In case of dimension mismatch.
-        NotImplementedError: When attempting binning in too high number of
-        dimensions (>4)
+        TypeError: Wrong type for bins.
+        ValueError: In case of wrong shape of bins
         RuntimeError: Internal shape error after binning
 
     Returns:
-        2-element tuple returned only when returnEdges is True. Otherwise
-        only hist is returned.
+        Tuple[np.ndarray, List[np.ndarray]]: 2-element tuple of The computed histogram
+        and s list of D arrays describing the bin edges for each dimension.
 
         - **hist**: The computed histogram
         - **edges**: A list of D arrays describing the bin edges for
-            each dimension.
+          each dimension.
     """
-
     try:
         # Sample is an ND-array.
         num_rows, num_cols = sample.shape  # pylint: disable=unused-variable
