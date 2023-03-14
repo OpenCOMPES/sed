@@ -334,6 +334,10 @@ class MpesLoader(BaseLoader):
             ftype (str, optional): File extension to use. If a folder path is given,
                 all files with the specified extension are read into the dataframe
                 in the reading order. Defaults to "h5".
+            metadata (dict, optional): Manual meta data dictionary. Auto-generated
+                meta data are added to it. Defaults to None.
+            collect_metadata (bool): Option to collect metadata from files. Requires
+                a valid config dict. Defaults to False.
             time_stamps (bool, optional): Option to create a time_stamp column in
                 the dataframe from ms-Markers in the files. Defaults to False.
             **kwds: Keyword parameters for gather_files.

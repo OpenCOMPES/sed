@@ -385,7 +385,7 @@ class SedProcessor:
 
         self.mc.spline_warp_estimate(include_center=include_center, **kwds)
 
-        if self.mc.slice:
+        if self.mc.slice is not None:
             print("Original slice with reference features")
             self.mc.view(annotated=True, backend="bokeh", crosshair=True)
 

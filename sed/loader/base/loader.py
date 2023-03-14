@@ -63,6 +63,10 @@ class BaseLoader(ABC):
             ftype (str, optional): File type to read ('parquet', 'json', 'csv', etc).
                 If a folder path is given, all files with the specified extension are
                 read into the dataframe in the reading order. Defaults to None.
+            metadata (dict, optional): Manual meta data dictionary. Auto-generated
+                meta data are added to it. Defaults to None.
+            collect_metadata (bool): Option to collect metadata from files. Requires
+                a valid config dict. Defaults to False.
             **kwds: keyword arguments. See the keyword arguments for the specific file
                 parser in``dask.dataframe`` module.
 
