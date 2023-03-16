@@ -438,7 +438,10 @@ class MomentumCorrector:
                 Raised for undefined feature_types.
         """
         if image is None:
-            image = self.slice
+            if self.slice is not None:
+                image = self.slice
+            else:
+                raise ValueError("No image loaded for feature extraction!")
 
         if feature_type == "points":
 
