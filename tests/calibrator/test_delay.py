@@ -18,6 +18,7 @@ def test_delay_parameters_from_file():
     """Test the option to extract the delay parameters from a file"""
     df, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
         files=[file],
+        collect_metadata=False,
     )
     dc = DelayCalibrator(config=config)
     df, metadata = dc.append_delay_axis(df, datafile=file)
@@ -34,6 +35,7 @@ def test_delay_parameters_from_delay_range():
     # from keywords
     df, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
         files=[file],
+        collect_metadata=False,
     )
     dc = DelayCalibrator(config=config)
     df, metadata = dc.append_delay_axis(df, delay_range=(-100, 200))
@@ -44,6 +46,7 @@ def test_delay_parameters_from_delay_range():
     # from calibration
     df, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
         files=[file],
+        collect_metadata=False,
     )
     dc = DelayCalibrator(config=config)
     calibration = {"delay_range": (-100, 200), "adc_range": (100, 1000)}
@@ -59,6 +62,7 @@ def test_delay_parameters_from_delay_range_mm():
     # from keywords
     df, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
         files=[file],
+        collect_metadata=False,
     )
     dc = DelayCalibrator(config=config)
     with pytest.raises(NotImplementedError):
@@ -73,6 +77,7 @@ def test_delay_parameters_from_delay_range_mm():
     # from dict
     df, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
         files=[file],
+        collect_metadata=False,
     )
     dc = DelayCalibrator(config=config)
     calibration = {"delay_range_mm": (1, 15)}
