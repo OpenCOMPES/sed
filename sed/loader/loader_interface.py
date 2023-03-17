@@ -17,10 +17,9 @@ def get_loader(
     Args:
         loader_name (str): Name of the loader
         config (dict, optional): Configuration dictionary. Defaults to None.
-        meta_handler (MetaHandler, optional): Metadata handler. Defaults to None.
 
     Raises:
-        ValueError: Raised if the loader cannot be found
+        ValueError: Raised if the loader cannot be found.
 
     Returns:
         BaseLoader: The loader object.

@@ -52,9 +52,8 @@ def test_feature_extract():
     mc.load_data(
         data=momentum_map,
         bin_ranges=[(-256, 1792), (-256, 1792)],
-        rotsym=6,
     )
-    mc.feature_extract(fwhm=10, sigma=12, sigma_radius=4)
+    mc.feature_extract(fwhm=10, sigma=12, sigma_radius=4, rotsym=6)
     assert len(mc.pcent) == 2
     assert len(mc.pouter_ord) == 6
 
@@ -73,7 +72,6 @@ def test_splinewarp(include_center: bool):
     mc.load_data(
         data=momentum_map,
         bin_ranges=[(-256, 1792), (-256, 1792)],
-        rotsym=6,
     )
     features = np.array(
         [
@@ -88,7 +86,7 @@ def test_splinewarp(include_center: bool):
     )
     if not include_center:
         features = features[0:-1]
-    mc.add_features(peaks=features)
+    mc.add_features(peaks=features, rotsym=6)
     mc.spline_warp_estimate(include_center=include_center)
     assert mc.cdeform_field.shape == mc.rdeform_field.shape == mc.image.shape
     assert len(mc.ptargs) == len(mc.prefs)
@@ -100,7 +98,6 @@ def test_pose_correction():
     mc.load_data(
         data=momentum_map,
         bin_ranges=[(-256, 1792), (-256, 1792)],
-        rotsym=6,
     )
     mc.reset_deformation()
     dfield = np.array([mc.cdeform_field, mc.rdeform_field])
@@ -117,7 +114,6 @@ def test_apply_correction():
     mc.load_data(
         data=momentum_map,
         bin_ranges=[(-256, 1792), (-256, 1792)],
-        rotsym=6,
     )
     features = np.array(
         [
@@ -130,7 +126,7 @@ def test_apply_correction():
             [248.29, 248.62],
         ],
     )
-    mc.add_features(peaks=features)
+    mc.add_features(peaks=features, rotsym=6)
     mc.spline_warp_estimate()
     df, metadata = mc.apply_corrections(df=df)
     assert "Xm" in df.columns
@@ -224,7 +220,6 @@ def test_apply_registration(
     mc.load_data(
         data=momentum_map,
         bin_ranges=[(-256, 1792), (-256, 1792)],
-        rotsym=6,
     )
     mc.add_features()
     mc.spline_warp_estimate()  # use spline warp with default parameters

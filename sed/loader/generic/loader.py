@@ -29,7 +29,7 @@ class GenericLoader(BaseLoader):
         self,
         files: Sequence[str] = None,
         folder: str = None,
-        ftype: str = None,
+        ftype: str = "parquet",
         metadata: dict = None,
         collect_metadata: bool = False,
         **kwds,

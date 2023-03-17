@@ -96,7 +96,8 @@ class DelayCalibrator:
             NotImplementedError: Raised if no sufficient information passed.
 
         Returns:
-            Union[pd.DataFrame, dask.dataframe.DataFrame]: dataframe with added column.
+            Union[pd.DataFrame, dask.dataframe.DataFrame]: dataframe with added column
+            and delay calibration metdata dictionary.
         """
         # pylint: disable=duplicate-code
         if calibration is None:

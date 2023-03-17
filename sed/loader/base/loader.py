@@ -52,8 +52,8 @@ class BaseLoader(ABC):
         collect_metadata: bool = False,
         **kwds,
     ) -> Tuple[ddf.DataFrame, dict]:
-        """Reads data from given files or folder and returns a dask dataframe.
-        Metadata are added to the meta_handler object in the class.
+        """Reads data from given files or folder and returns a dask dataframe
+        and corresponding metadata.
 
         Args:
             files (Sequence[str], optional): List of file paths. Defaults to None.
@@ -67,11 +67,11 @@ class BaseLoader(ABC):
                 meta data are added to it. Defaults to None.
             collect_metadata (bool): Option to collect metadata from files. Requires
                 a valid config dict. Defaults to False.
-            **kwds: keyword arguments. See the keyword arguments for the specific file
-                parser in``dask.dataframe`` module.
+            **kwds: keyword arguments. Se describtion in respective loader.
 
         Returns:
-            ddf.DataFrame: Dask dataframe read from specified files.
+            Tuple[ddf.DataFrame, dict]: Dask dataframe and metadata read from
+            specified files.
         """
 
         if metadata is None:

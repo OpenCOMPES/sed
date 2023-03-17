@@ -324,7 +324,8 @@ class MpesLoader(BaseLoader):
         time_stamps: bool = False,
         **kwds,
     ) -> Tuple[ddf.DataFrame, dict]:
-        """Read stored hdf5 files from a list or from folder into a dataframe.
+        """Read stored hdf5 files from a list or from folder and returns a dask
+        dataframe and corresponding metadata.
 
         Args:
             files (Sequence[str], optional): List of file paths. Defaults to None.
@@ -340,7 +341,16 @@ class MpesLoader(BaseLoader):
                 a valid config dict. Defaults to False.
             time_stamps (bool, optional): Option to create a time_stamp column in
                 the dataframe from ms-Markers in the files. Defaults to False.
-            **kwds: Keyword parameters for gather_files.
+            **kwds: Keyword parameters.
+
+                - **hdf5_groupnames** : List of groupnames to look for in the file.
+                - **hdf5_aliases**: Dictionary of aliases for the groupnames.
+                - **time_stamp_alias**: Alias for the timestamp column
+                - **ms_markers_group**: Group name of the millisecond marker column.
+                - **first_event_time_stamp_key**: Attribute name containing the start
+                  timestamp of the file.
+
+                Additional keywords are passed to ``hdf5_to_dataframe``.
 
         Raises:
             ValueError: raised if neither files or folder provided.

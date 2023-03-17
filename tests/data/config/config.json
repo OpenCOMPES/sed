@@ -564,6 +564,8 @@
   "nexus": {
     "reader": "mpes",
     "definition": "NXmpes",
-    "config_file": "../tests/data/config/NXmpes_config.json"
+    "input_files": [
+      "../tests/data/config/NXmpes_config.json"
+    ]
   }
 }

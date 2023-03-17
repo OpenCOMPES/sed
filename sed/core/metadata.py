@@ -42,14 +42,17 @@ class MetaHandler:
             entry: dictionary containing the metadata to add.
             name: name of the dictionary key under which to add entry.
             duplicate_policy: Control behaviour in case the 'name' key
-                is already present in the metadata dictionary. If raise, raises
-                a DuplicateEntryError.
-                If 'overwrite' it overwrites the previous data with the new
-                one.
-                If 'append' it adds a trailing number, keeping both entries.
+                is already present in the metadata dictionary. Can be any of:
+
+                    - "raise": raises a DuplicateEntryError.
+                    - "overwrite": overwrites the previous data with the new one.
+                    - "merge": If ``entry`` is a dictionary, recursively merges it
+                      into the existing one, overwriting existing entries. Otherwise
+                      the same as "overwrite".
+                    - "append": adds a trailing number, keeping both entries.
 
         Raises:
-            DuplicateEntryError: [description]
+            DuplicateEntryError: Raised if an entry already exists.
         """
         if name not in self._m.keys() or duplicate_policy == "overwrite":
             self._m[name] = deepcopy(entry)

@@ -75,7 +75,7 @@ class MomentumCorrector:
         self.bin_ranges: List[Tuple] = []
 
         if data is not None:
-            self.load_data(data=data, bin_ranges=bin_ranges, rotsym=rotsym)
+            self.load_data(data=data, bin_ranges=bin_ranges)
 
         self.detector_ranges = self._config.get("momentum", {}).get(
             "detector_ranges",
@@ -169,7 +169,6 @@ class MomentumCorrector:
         self,
         data: Union[xr.DataArray, np.ndarray],
         bin_ranges: List[Tuple] = None,
-        rotsym: int = 6,
     ):
         """Load binned data into the momentum calibrator class
 
@@ -180,7 +179,6 @@ class MomentumCorrector:
                 Binning ranges. Needs to be provided in case the data are given
                 as np.ndarray. Otherwise, they are determined from the coords of
                 the xr.DataArray. Defaults to None.
-            rotsym (int, optional): Rotational symmetry of the data. Defaults to 6.
 
         Raises:
             ValueError: Raised if the dimensions of the input data do not fit.
@@ -208,11 +206,6 @@ class MomentumCorrector:
 
         if self.slice is not None:
             self.slice_corrected = self.slice_transformed = self.slice
-
-        self.rotsym = int(rotsym)
-        self.rotsym_angle = int(360 / self.rotsym)
-        self.arot = np.array([0] + [self.rotsym_angle] * (self.rotsym - 1))
-        self.ascale = np.array([1.0] * self.rotsym)
 
     def select_slicer(
         self,
@@ -341,6 +334,7 @@ class MomentumCorrector:
         self,
         peaks: np.ndarray = None,
         direction: str = "ccw",
+        rotsym: int = 6,
         symscores: bool = True,
         **kwds,
     ):
@@ -348,17 +342,16 @@ class MomentumCorrector:
         detects the center of the points and orders the points.
 
         Args:
-            peaks (np.ndarray):
+            peaks (np.ndarray, optional):
                 Array of peaks, possibly including a center peak. Its shape should be
                 (nx2), where n is equal to the rotation symmetry, or the rotation
-                symmetry+1, if the center is included
-            center_det (str, optional):
-                Method to use for detecting the center. Defaults to "centroidnn".
-                If no center is included, set center_det to None.
+                symmetry+1, if the center is included.
+                Defaults to config["momentum"]["correction"]["feature_points"].
             direction (str, optional):
                 Direction for ordering the points. Defaults to "ccw".
             symscores (bool, optional):
                 Option to calculate symmetry scores. Defaults to False.
+            rotsym (int, optional): Rotational symmetry of the data. Defaults to 6.
             **kwds: Keyword arguments.
 
                 - **symtype** (str): Type of symmetry scores to calculte
@@ -367,6 +360,11 @@ class MomentumCorrector:
         Raises:
             ValueError: Raised if the number of points does not match the rotsym.
         """
+        self.rotsym = int(rotsym)
+        self.rotsym_angle = int(360 / self.rotsym)
+        self.arot = np.array([0] + [self.rotsym_angle] * (self.rotsym - 1))
+        self.ascale = np.array([1.0] * self.rotsym)
+
         if peaks is None:
             peaks = np.asarray(
                 self._config["momentum"]["correction"]["feature_points"],
@@ -413,6 +411,7 @@ class MomentumCorrector:
         image: np.ndarray = None,
         direction: str = "ccw",
         feature_type: str = "points",
+        rotsym: int = 6,
         symscores: bool = True,
         **kwds,
     ):
@@ -428,6 +427,7 @@ class MomentumCorrector:
                 Defaults to "ccw".
             feature_type (str, optional):
                 The type of features to extract. Defaults to "points".
+            rotsym (int, optional): Rotational symmetry of the data. Defaults to 6.
             symscores (bool, optional):
                 Option for calculating symmetry scores. Defaults to True.
             **kwds:
@@ -451,6 +451,7 @@ class MomentumCorrector:
             self.add_features(
                 peaks=self.peaks,
                 direction=direction,
+                rotsym=rotsym,
                 symscores=symscores,
                 **kwds,
             )
@@ -1463,8 +1464,8 @@ class MomentumCorrector:
                 Additional keyword arguments are passed to ``apply_dfield``.
 
         Returns:
-            Union[pd.DataFrame, dask.dataframe.DataFrame]: Dataframe with added
-            columns.
+            Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]: Dataframe with
+            added columns and momentum correction metadata dictionary.
         """
         if x_column is None:
             x_column = self.x_column
@@ -1618,9 +1619,12 @@ class MomentumCorrector:
                 momentum calibration. Defaults to config["momentum"]["ky_column"].
             calibration (dict, optional): Dictionary containing calibration parameters.
                 Defaults to 'self.calibration' or config["momentum"]["calibration"].
+            **kwds: Keyword parameters for momentum calibration. Parameters are added
+                to the calibration dictionary.
 
         Returns:
-            Union[pd.DataFrame, dask.dataframe.DataFrame]: Dataframe with added columns.
+            Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]: Dataframe with
+            added columns and momentum calibration metadata dictionary.
         """
         if x_column is None:
             if self.corrected_x_column in df.columns:

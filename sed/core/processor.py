@@ -1,6 +1,7 @@
 """This module contains the core class for the sed package
 
 """
+import pathlib
 from typing import Any
 from typing import cast
 from typing import Dict
@@ -15,7 +16,6 @@ import numpy as np
 import pandas as pd
 import psutil
 import xarray as xr
-from nexusutils.dataconverter.convert import convert
 
 from sed.binning import bin_dataframe
 from sed.calibrator import DelayCalibrator
@@ -25,6 +25,9 @@ from sed.config import parse_config
 from sed.core.dfops import apply_jitter
 from sed.core.metadata import MetaHandler
 from sed.diagnostics import grid_histogram
+from sed.io import to_h5
+from sed.io import to_nexus
+from sed.io import to_tiff
 from sed.loader import CopyTool
 from sed.loader import get_loader
 
@@ -254,6 +257,7 @@ class SedProcessor:
             dataframe (Union[pd.DataFrame, ddf.DataFrame], optional): data in tabular
                 format. Accepts anything which can be interpreted by pd.DataFrame as
                 an input. Defaults to None.
+            metadata (dict, optional): Dict of external Metadata. Defaults to None.
             files (List[str], optional): List of file paths to pass to the loader.
                 Defaults to None.
             folder (str, optional): Folder path to pass to the loader.
@@ -299,7 +303,6 @@ class SedProcessor:
     def bin_and_load_momentum_calibration(
         self,
         df_partitions: int = 100,
-        rotation_symmetry: int = 6,
         axes: List[str] = None,
         bins: List[int] = None,
         ranges: Sequence[Tuple[float, float]] = None,
@@ -315,8 +318,6 @@ class SedProcessor:
         Args:
             df_partitions (int, optional): Number of dataframe partitions to use for
                 the initial binning. Defaults to 100.
-            rotation_symmetry (int, optional): Number of rotational symmetry axes.
-                Defaults to 6.
             axes (List[str], optional): Axes to bin.
                 Defaults to config["momentum"]["axes"].
             bins (List[int], optional): Bin numbers to use for binning.
@@ -337,7 +338,7 @@ class SedProcessor:
             **kwds,
         )
 
-        self.mc.load_data(data=self._pre_binned, rotsym=rotation_symmetry)
+        self.mc.load_data(data=self._pre_binned)
         self.mc.select_slicer(plane=plane, width=width, apply=apply)
 
     # 2. Generate the spline warp correction from momentum features.
@@ -345,6 +346,7 @@ class SedProcessor:
     def generate_splinewarp(
         self,
         features: np.ndarray = None,
+        rotation_symmetry: int = 6,
         auto_detect: bool = False,
         include_center: bool = True,
         **kwds,
@@ -356,6 +358,8 @@ class SedProcessor:
 
         Args:
             features (np.ndarray, optional): np.ndarray of features. Defaults to None.
+            rotation_symmetry (int, optional): Number of rotational symmetry axes.
+                Defaults to 6.
             auto_detect (bool, optional): Whether to auto-detect the features.
                 Defaults to False.
             include_center (bool, optional): Option to fix the position of the center
@@ -378,10 +382,15 @@ class SedProcessor:
                 sigma=sigma,
                 fwhm=fwhm,
                 sigma_radius=sigma_radius,
+                rotsym=rotation_symmetry,
                 **kwds,
             )
         else:  # Manual feature selection
-            self.mc.add_features(features, **kwds)
+            self.mc.add_features(
+                features=features,
+                rotsym=rotation_symmetry,
+                **kwds,
+            )
 
         self.mc.spline_warp_estimate(include_center=include_center, **kwds)
 
@@ -1011,7 +1020,7 @@ class SedProcessor:
                 Defaults to config["momentum"]["bins"].
             ranges (List[Tuple], optional): Ranges to use for binning.
                 Defaults to config["momentum"]["ranges"].
-            **kwds: Keyword argument passed to the compute function.
+            **kwds: Keyword argument passed to ``compute``.
 
         Returns:
             xr.DataArray: pre-binned data-array.
@@ -1069,14 +1078,12 @@ class SedProcessor:
             bins (int, dict, tuple, List[int], List[np.ndarray], List[tuple], optional):
                 Definition of the bins. Can be any of the following cases:
 
-                    - an integer describing the number of bins in on all dimensions
-                    - a tuple of 3 numbers describing start, end and step of the
-                      binning range
-                    - a np.arrays defining the binning edges
-                    - a list (NOT a tuple) of any of the above
-                      (int, tuple or np.ndarray)
-                    - a dictionary made of the axes as keys and any of the above as
-                      values.
+                - an integer describing the number of bins in on all dimensions
+                - a tuple of 3 numbers describing start, end and step of the binning
+                  range
+                - a np.arrays defining the binning edges
+                - a list (NOT a tuple) of any of the above (int, tuple or np.ndarray)
+                - a dictionary made of the axes as keys and any of the above as values.
 
                 This takes priority over the axes and range arguments. Defaults to 100.
             axes (Union[str, Sequence[str]], optional): The names of the axes (columns)
@@ -1084,6 +1091,28 @@ class SedProcessor:
                 dimensions in the resulting array. Defaults to None.
             ranges (Sequence[Tuple[float, float]], optional): list of tuples containing
                 the start and end point of the binning range. Defaults to None.
+            **kwds: Keyword arguments:
+
+                - **hist_mode**: Histogram calculation method. "numpy" or "numba". See
+                  ``bin_dataframe`` for details. Defaults to
+                  config["binning"]["hist_mode"].
+                - **mode**: Defines how the results from each partition are combined.
+                  "fast", "lean" or "legacy". See ``bin_dataframe`` for details.
+                  Defaults to config["binning"]["mode"].
+                - **pbar**: Option to show the tqdm progress bar. Defaults to
+                  config["binning"]["pbar"].
+                - **n_cores**: Number of CPU cores to use for parallelization.
+                  Defaults to config["binning"]["num_cores"] or N_CPU-1.
+                - **threads_per_worker**: Limit the number of threads that
+                  multiprocessing can spawn per binning thread. Defaults to
+                  config["binning"]["threads_per_worker"].
+                - **threadpool_api**: The API to use for multiprocessing. "blas",
+                  "openmp" or None. See ``threadpool_limit`` for details. Defaults to
+                  config["binning"]["threadpool_API"].
+                - **df_partitions**: A list of dataframe partitions. Defaults to all
+                  partitions.
+
+                Additional kwds are passed to ``bin_dataframe``.
 
         Raises:
             AssertError: Rises when no dataframe has been loaded.
@@ -1155,7 +1184,7 @@ class SedProcessor:
         legend: bool = True,
         histkwds: dict = None,
         legkwds: dict = None,
-        **kwds: Any,
+        **kwds,
     ):
         """Plot individual histograms of specified dimensions (axes) from a substituent
         dataframe partition.
@@ -1222,37 +1251,83 @@ class SedProcessor:
             **kwds,
         )
 
-    def to_nexus(
+    def save(
         self,
-        filename: str,
-        reader: str = None,
-        definition: str = None,
-        config_file: str = None,
+        faddr: str,
+        **kwds,
     ):
-        """_summary_
+        """Saves the binned data to the provided path and filename.
 
         Args:
-            filename (str): _description_
-            definition (str, optional): _description_. Defaults to None.
-            config_file (str, optional): _description_. Defaults to None.
-        """
-        if reader is None:
-            reader = self._config["nexus"]["reader"]
-        if definition is None:
-            definition = self._config["nexus"]["definition"]
-        if config_file is None:
-            config_file = self._config["nexus"]["config_file"]
+            faddr (str): Path and name of the file to write. Its extension determines
+                the file type to write. Valid file types are:
 
+                - "*.tiff", "*.tif": Saves a TIFF stack.
+                - "*.h5", "*.hdf5": Saves an HDF5 file.
+                - "*.nxs", "*.nexus": Saves a NeXus file.
+
+            **kwds: Keyword argumens, which are passed to the writer functions:
+                For TIFF writing:
+
+                - **alias_dict**: Dictionary of dimension aliases to use.
+
+                For HDF5 writing:
+
+                - **mode**: hdf5 read/write mode. Defaults to "w".
+
+                For NeXus:
+
+                - **reader**: Name of the nexustools reader to use.
+                  Defaults to config["nexus"]["reader"]
+                - **definiton**: NeXus application definition to use for saving.
+                  Must be supported by the used ``reader``. Defaults to
+                  config["nexus"]["definition"]
+                - **input_files**: A list of input files to pass to the reader.
+                  Defaults to config["nexus"]["input_files"]
+        """
         if self._binned is None:
             raise NameError("Need to bin data first!")
 
-        convert(
-            input_file=[config_file],
-            objects=self._binned,
-            reader=reader,
-            nxdl=definition,
-            output=filename,
-        )
+        extension = pathlib.Path(faddr).suffix
+
+        if extension in (".tif", ".tiff"):
+            to_tiff(
+                data=self._binned,
+                faddr=faddr,
+                **kwds,
+            )
+        elif extension in (".h5", ".hdf5"):
+            to_h5(
+                data=self._binned,
+                faddr=faddr,
+                **kwds,
+            )
+        elif extension in (".nxs", ".nexus"):
+            reader = kwds.pop("reader", self._config["nexus"]["reader"])
+            definition = kwds.pop(
+                "definition",
+                self._config["nexus"]["definition"],
+            )
+            input_files = kwds.pop(
+                "input_files",
+                self._config["nexus"]["input_files"],
+            )
+            if isinstance(input_files, str):
+                input_files = [input_files]
+
+            to_nexus(
+                data=self._binned,
+                faddr=faddr,
+                reader=reader,
+                definition=definition,
+                input_files=input_files,
+                **kwds,
+            )
+
+        else:
+            raise NotImplementedError(
+                f"Unrecognized file format: {extension}.",
+            )
 
     def add_dimension(self, name: str, axis_range: Tuple):
         """Add a dimension axis.

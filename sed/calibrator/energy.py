@@ -671,15 +671,16 @@ class EnergyCalibrator:
             calibration (dict, optional): Calibration dictionary. If provided,
                 overrides calibration from class or config.
                 Defaults to self.calibration or config["energy"]["calibration"].
-            **kwds:
-                additional keyword arguments for the energy conversion.
+            **kwds: additional keyword arguments for the energy conversion. They are
+                added to the calibration dictionary.
 
         Raises:
             ValueError: Raised if expected calibration parameters are missing.
             NotImplementedError: Raised if an invalid calib_type is found.
 
         Returns:
-            Union[pd.DataFrame, dask.dataframe.DataFrame]: dataframe with added column.
+            Union[pd.DataFrame, dask.dataframe.DataFrame]: dataframe with added column
+            and energy calibration metadata dictionary.
         """
         if tof_column is None:
             if self.corrected_tof_column in df.columns:
@@ -721,7 +722,6 @@ class EnergyCalibrator:
 
             elif "coeffs" in calibration and "E0" in calibration:
                 calibration["calib_type"] = "poly"
-
             else:
                 raise ValueError("No valid calibration parameters provided!")
 
@@ -1208,7 +1208,8 @@ class EnergyCalibrator:
                   asymmetric 2D Lorentz profile, X-direction.
 
         Returns:
-            Union[pd.DataFrame, dask.dataframe.DataFrame]: dataframe with added column.
+            Union[pd.DataFrame, dask.dataframe.DataFrame]: dataframe with added column
+            and Energy correction metadata dictionary.
         """
         if correction is None:
             if self.correction:
