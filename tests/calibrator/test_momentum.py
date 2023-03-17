@@ -154,9 +154,9 @@ transformations_list = [
         "angle": np.random.randint(0, 50),
     },
     {
-        "xtrans": np.random.randint(0, 50),
-        "ytrans": np.random.randint(0, 50),
-        "angle": np.random.randint(0, 50),
+        "xtrans": np.random.randint(1, 50),
+        "ytrans": np.random.randint(1, 50),
+        "angle": np.random.randint(1, 50),
     },
 ]
 depends_on_list = [
