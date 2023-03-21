@@ -77,11 +77,10 @@ class FlashLoader(BaseLoader):
             year = self._config.get("year")
             beamtime_dir = Path(f'/asap3/flash/gpfs/pg2/{year}/data/{beamtime_id}/')
 
-            # Folder naming convention till end of October
-            self.data_raw_dir = beamtime_dir.joinpath('raw/hdf/express')
-            # Use new convention if express doesn't exist
-            if not self.data_raw_dir.exists():
-                self.data_raw_dir = beamtime_dir.joinpath(f'raw/hdf/express-0/{self.daq}')
+            # Use os walk to reach the raw data directory
+            # the walk outputs a list of tuples,
+            # the last tuple contains the path to the raw data
+            self.data_raw_dir = list(os.walk(beamtime_dir.joinpath("raw/")))[-1][0]
 
             parquet_path = 'processed/parquet'
             self.data_parquet_dir = beamtime_dir.joinpath(parquet_path)
