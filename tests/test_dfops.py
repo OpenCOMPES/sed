@@ -3,10 +3,10 @@
 import numpy as np
 import pandas as pd
 
-from sed.core.dfops import apply_filter
-from sed.core.dfops import apply_jitter
-from sed.core.dfops import drop_column
-from sed.core.dfops import map_columns_2d
+from sed.mpes.core.dfops import apply_filter
+from sed.mpes.core.dfops import apply_jitter
+from sed.mpes.core.dfops import drop_column
+from sed.mpes.core.dfops import map_columns_2d
 
 N_PTS = 100
 cols = ["posx", "posy", "energy"]

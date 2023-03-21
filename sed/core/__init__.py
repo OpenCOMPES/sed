@@ -1,6 +1,6 @@
 """sed.core module easy access APIs
 
 """
-from .processor import SedProcessor
+from .workflow import WorkflowManager
 
-__all__ = ["SedProcessor"]
+__all__ = ["WorkflowManager"]

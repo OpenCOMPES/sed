@@ -21,11 +21,11 @@ from sed.calibrator.delay import DelayCalibrator
 from sed.calibrator.energy import EnergyCalibrator
 from sed.calibrator.momentum import MomentumCorrector
 from sed.config.settings import parse_config
-from sed.core.dfops import apply_jitter
 from sed.core.metadata import MetadataManager
 from sed.diagnostics import grid_histogram
 from sed.loader.loader_interface import get_loader
 from sed.loader.mirrorutil import CopyTool
+from sed.mpes.core.dfops import apply_jitter
 
 N_CPU = psutil.cpu_count()
 

@@ -32,7 +32,7 @@ class ConfigManager(dict):
         super().__init__()
 
 
-class WorkflowStep(ABC):
+class PreProcessingStep(ABC):
     """A generic worflow step class intended to be subclassed by any workflow step"""
 
     def __init__(
@@ -106,7 +106,7 @@ class WorkflowStep(ABC):
     @staticmethod
     def from_dict(
         wf_dict: dict,
-    ) -> WorkflowStep:  # TODO: move to workflow class...
+    ) -> PreProcessingStep:  # TODO: move to workflow class...
         """Load parameters from a dict-like structure
 
         Args:
@@ -156,13 +156,14 @@ class WorkflowStep(ABC):
         return s
 
     def to_json(self) -> dict:
-        """summarize the workflow step as a dictionary
+        """summarize the workflow step as a string
 
         Intended for json serializing the workflow step.
 
         Returns:
             _description_
         """
+        return self.__repr__()
 
     def apply_to(self, dd, return_=True) -> None:  # TODO: add inplace option?
         """Map the main function self.func on a dataframe.
@@ -176,17 +177,56 @@ class WorkflowStep(ABC):
         if isinstance(dd, ddf.DataFrame):
             dd[self.out_cols] = dd.map_partitions(
                 self.func,
-            )  # ,**self._kwargs)
+                # *self.args,
+                # **self.kwargs,
+            )
         elif isinstance(dd, pd.DataFrame):
-            dd[self.out_cols] = dd.map(self.func)  # ,**self._kwargs)
+            dd[self.out_cols] = dd.map(self.func)
         else:
             raise TypeError("Only Dask or Pandas DataFrames are supported")
         if return_:
             return dd
 
 
+class ParameterGenerator(ABC):
+    """Class template to generate parameters for a preprocessing step
+
+    Args:
+        ABC: _description_
+
+    Raises:
+        NotImplementedError: _description_
+
+    Returns:
+        _description_
+    """
+
+    @abstractmethod
+    def generate_parameters(self) -> dict:
+        """Core method to be defined, which generates and returns the parameters
+
+        Returns:
+            _description_
+        """
+        pass
+
+    def get_preprocessing_step(self):
+        """Return an instance of the associated preprocessing step with the
+        defined parameters
+        """
+        assert isinstance(self._preprocessing_step, PreProcessingStep)
+        return self._preprocessing_step(**self.parameters)
+
+    def metadata(self) -> dict:
+        raise NotImplementedError
+
+
+class PostProcessingStep(ABC):
+    pass
+
+
 class WorkflowManager:
-    """Single event dataframe workflow manager
+    """Single event dataframe workflow manager, from loading to binning
 
     Allows to apply serial transformations to the single event dataframe keeping track
     of functions and parameters called as metadata
@@ -195,7 +235,10 @@ class WorkflowManager:
     def __init__(
         self,
         dataframe: pd.DataFrame | ddf.DataFrame = None,
-        workflow: Sequence[WorkflowStep] | str | Path | None = None,
+        preprocessing_pipeline: Sequence[PreProcessingStep]
+        | str
+        | Path
+        | None = None,
         metadata: MetadataManager | dict = None,
         config: dict | ConfigManager | str | Path | None = None,
     ) -> None:
@@ -203,24 +246,31 @@ class WorkflowManager:
         self._config: ConfigManager = parse_config(config)
         self._dataframe: pd.DataFrame | ddf.DataFrame = dataframe
 
-        if workflow is None:
-            self._workflow_queue = []
-        elif isinstance(workflow, (list, tuple)):
-            self._workflow_queue = workflow
-        elif isinstance(workflow, WorkflowStep):
-            self._workflow_queue = [workflow]
+        if preprocessing_pipeline is None:
+            self._preprocessing_pipeline = []
+        elif isinstance(preprocessing_pipeline, (list, tuple)):
+            self._preprocessing_pipeline = preprocessing_pipeline
+        elif isinstance(preprocessing_pipeline, PreProcessingStep):
+            self._preprocessing_pipeline = [preprocessing_pipeline]
 
     def __repr__(self):
         s = "Workflow Manager:\n"
         s += f"data:\n{self._dataframe.__repr__()}\n"
         s += "Workflow:\n"
-        for i, step in enumerate(self._workflow_queue):
+        for i, step in enumerate(self._preprocessing_pipeline):
             s += f"{i+1}. {str(step)}\n"
         return s
 
-    def add(
+    # loading
+
+    def load_datarame(self, source) -> None:
+        raise NotImplementedError
+
+    # pre-processing
+
+    def add_preprocessing_step(
         self,
-        steps: WorkflowStep | Sequence[WorkflowStep],
+        steps: PreProcessingStep | Sequence[PreProcessingStep],
     ):
         """Add one or a list of workflow step to the queue
 
@@ -230,29 +280,47 @@ class WorkflowManager:
         if not isinstance(steps, list):
             steps = [steps]
         for s in steps:
-            self._workflow_queue.append(s)
+            if isinstance(s, (PreProcessingStep, ParameterGenerator)):
+                self._preprocessing_pipeline.append(s)
+            else:
+                raise TypeError(f"{s} is not a valid pre-processing step")
 
-    def add_step(self, step_class, **kwargs) -> None:
-        pass
-
-    def _add_step_from_dict(self, wf_dict) -> None:
-        pass
-
-    def apply_workflow(self):
+    def preprocess(self):
         """Run the workflow steps on the dataframe"""
-        for step in self._workflow_queue:
-            self._dataframe = step(self._dataframe)
-            self._metadata.add(step.metadata)
+        for step in self._preprocessing_pipeline:
+            if isinstance(step, ParameterGenerator):
+                step.get = (
+                    self._dataframe
+                )  # give the dataframe to the paramter generator
+
+                parameter_dict = (
+                    step.make_parameter_dict()
+                )  # this is an interactive gui which when complete returns the params
+                step = step.get_preprocessing_step(
+                    **parameter_dict,
+                )  # this is the function for which the parameters are being generated
+            if isinstance(step, PreProcessingStep):
+                self._dataframe = step(self._dataframe)
+                self._metadata.add(step.metadata)
+            else:
+                raise AttributeError(
+                    f"{step} is not a valid preprocessing step or parameter generator.",
+                )
 
     def fast_binning(
         self,
     ) -> xr.DataArray:
         raise NotImplementedError
 
+    # binning and output
+
     def compute_dataframe(self) -> ddf.DataFrame:
         """compute the dask dataframe and store it in memory."""
         with ProgressBar():
             return self._dataframe.compute()
+
+    def add_binning_dimension(self) -> None:
+        raise NotImplementedError
 
     def compute_binning(
         self,
@@ -327,79 +395,18 @@ class WorkflowManager:
         )
         return self._binned
 
-    def view_event_histogram(
-        self,
-        dfpid: int,
-        ncol: int = 2,
-        bins: Sequence[int] = None,
-        axes: Sequence[str] = None,
-        ranges: Sequence[tuple[float, float]] = None,
-        backend: str = "bokeh",
-        legend: bool = True,
-        histkwds: dict = None,
-        legkwds: dict = None,
-        **kwds: Any,
-    ):
-        """
-        Plot individual histograms of specified dimensions (axes) from a substituent
-        dataframe partition.
+    # post-processing
+    # for example the per-pulse normalizations
 
-        Args:
-            dfpid: Number of the data frame partition to look at.
-            ncol: Number of columns in the plot grid.
-            bins: Number of bins to use for the speicified axes.
-            axes: Name of the axes to display.
-            ranges: Value ranges of all specified axes.
-            jittered: Option to use the jittered dataframe.
-            backend: Backend of the plotting library ('matplotlib' or 'bokeh').
-            legend: Option to include a legend in the histogram plots.
-            histkwds, legkwds, **kwds: Extra keyword arguments passed to
-            ``sed.diagnostics.grid_histogram()``.
+    def add_postprocessing_step(self) -> None:
+        raise NotImplementedError
 
-        Raises:
-            AssertError if Jittering is requested, but the jittered dataframe
-            has not been created.
-            TypeError: Raises when the input values are not of the correct type.
-        """
-        if bins is None:
-            bins = self._config["histogram"]["bins"]
-        if axes is None:
-            axes = self._config["histogram"]["axes"]
-        if ranges is None:
-            ranges = self._config["histogram"]["ranges"]
+    def postprocess(self) -> None:
+        if self._binned is None:
+            raise RuntimeError("Must bin first!")
+        raise NotImplementedError
 
-        input_types = map(type, [axes, bins, ranges])
-        allowed_types = [list, tuple]
-
-        df = self._dataframe
-
-        if not set(input_types).issubset(allowed_types):
-            raise TypeError(
-                "Inputs of axes, bins, ranges need to be list or tuple!",
-            )
-
-        # Read out the values for the specified groups
-        group_dict = {}
-        dfpart = df.get_partition(dfpid)
-        cols = dfpart.columns
-        for ax in axes:
-            group_dict[ax] = dfpart.values[:, cols.get_loc(ax)].compute()
-
-        # Plot multiple histograms in a grid
-        from ..diagnostics import grid_histogram
-
-        grid_histogram(
-            group_dict,
-            ncol=ncol,
-            rvs=axes,
-            rvbins=bins,
-            rvranges=ranges,
-            backend=backend,
-            legend=legend,
-            histkwds=histkwds,
-            legkwds=legkwds,
-            **kwds,
-        )
+    # I/O
 
     def to_json(self, fname: str | Path = None, key: str = "") -> dict:
         """Save the current workflow to a json file
@@ -431,5 +438,13 @@ class WorkflowManager:
 
         Raises:
             NotImplementedError: # TODO: make this
+        """
+        raise NotImplementedError
+
+    def to_nexus(self) -> Path:
+        """creates a nexus file from the binned data
+
+        Returns:
+            path to the file generated
         """
         raise NotImplementedError
