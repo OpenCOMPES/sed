@@ -18,6 +18,7 @@ class Tof2Energy(WorkflowStep):
         sign: float = 1.0,
         out_cols="energy",
         duplicate_policy="raise",
+        **kwargs,
     ) -> None:
         """Convert time of flight to energy.
 
@@ -39,6 +40,7 @@ class Tof2Energy(WorkflowStep):
         super().__init__(
             out_cols=out_cols,
             duplicate_policy=duplicate_policy,
+            **kwargs,
         )
 
     def func(self, df: ddf.DataFrame) -> ddf.DataFrame:
@@ -62,6 +64,7 @@ class DLDSectorCorrection(WorkflowStep):
         out_cols: Union[str, Sequence[str]] = None,
         duplicate_policy: str = "raise",
         notes: str = "",
+        **kwargs,
     ) -> None:
         """Correct the shift in tof on each sector a the dld detector
 
@@ -76,7 +79,7 @@ class DLDSectorCorrection(WorkflowStep):
         """
         if out_cols is None:
             out_cols = tof_column
-        super().__init__(out_cols, duplicate_policy, notes)
+        super().__init__(out_cols, duplicate_policy, notes, **kwargs)
         self.tof_column = tof_column
         self.sector_id_column = sector_id_column
         if not isinstance(sector_shifts, dda.Array):
@@ -99,6 +102,7 @@ class SumColumns(WorkflowStep):
         out_cols: Union[str, Sequence[str]] = None,
         duplicate_policy: str = "raise",
         notes: str = "",
+        **kwargs,
     ) -> None:
         """Sum values in two columns
 
@@ -114,7 +118,7 @@ class SumColumns(WorkflowStep):
         """
         if out_cols is None:
             out_cols = col_a
-        super().__init__(out_cols, duplicate_policy, notes)
+        super().__init__(out_cols, duplicate_policy, notes, **kwargs)
         self.col_a = col_a
         self.col_b = col_b
         self.factor = factor
@@ -133,8 +137,9 @@ class MultiplyColumns(WorkflowStep):
         out_cols: Union[str, Sequence[str]],
         duplicate_policy: str = "raise",
         notes: str = "",
+        **kwargs,
     ) -> None:
-        super().__init__(out_cols, duplicate_policy, notes)
+        super().__init__(out_cols, duplicate_policy, notes, **kwargs)
         """ Multiplies values in two columns
 
         follows the equation out = a * b
@@ -167,8 +172,9 @@ class DivideColumns(WorkflowStep):
         out_cols: Union[str, Sequence[str]],
         duplicate_policy: str = "raise",
         notes: str = "",
+        **kwargs,
     ) -> None:
-        super().__init__(out_cols, duplicate_policy, notes)
+        super().__init__(out_cols, duplicate_policy, notes, **kwargs)
         """ Divides values in a column by the values in an other column
 
         follows the equation out = a / b
@@ -202,11 +208,11 @@ class AddJitter(WorkflowStep):
         inplace: bool = True,
         out_cols: Union[str, Sequence[str]] = None,
         duplicate_policy: str = "append",
-        notes: str = "",
+        **kwargs,
     ) -> None:
         if out_cols is None:
             out_cols = column if inplace else f"{column}_jit"
-        super().__init__(out_cols, duplicate_policy, notes)
+        super().__init__(out_cols, duplicate_policy, **kwargs)
         assert jitter_type in [
             "uniform",
             "normal",
