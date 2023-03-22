@@ -11,7 +11,6 @@ import numpy as np
 import pandas as pd
 
 import sed
-from .workflow import __version__
 
 
 class PreProcessingStep(ABC):
@@ -38,7 +37,6 @@ class PreProcessingStep(ABC):
         self.out_cols = out_cols
         self.duplicate_policy = duplicate_policy
         self.notes = notes
-        self.version = __version__
         self._name = (
             name
             if name is not None
@@ -175,7 +173,7 @@ class SumColumns(PreProcessingStep):
         self,
         col_a: str,
         col_b: str,
-        factor: int = 1,
+        factor: float = 1,
         out_cols: str | Sequence[str] = None,
         duplicate_policy: str = "raise",
         notes: str = "",
