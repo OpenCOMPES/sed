@@ -1,10 +1,6 @@
 from __future__ import annotations
 
-from abc import ABC
-from abc import abstractmethod
-from copy import deepcopy
 from pathlib import Path
-from typing import Any
 from typing import Sequence
 
 import dask.dataframe as ddf
@@ -13,10 +9,11 @@ import pandas as pd
 import xarray as xr
 from dask.diagnostics import ProgressBar
 
-import sed
 from ..binning import bin_dataframe
 from ..config.settings import parse_config
 from .metadata import MetadataManager
+from .parameter_generation import ParameterGenerator
+from .preprocessing import PreProcessingStep
 
 __version__ = "0.0.1"  # TODO: infer from sed package version
 # TODO: add save to parquet option
@@ -30,199 +27,6 @@ class ConfigManager(dict):
 
     def __init__(self) -> None:
         super().__init__()
-
-
-class PreProcessingStep(ABC):
-    """A generic worflow step class intended to be subclassed by any workflow step"""
-
-    def __init__(
-        self,
-        out_cols: str | Sequence[str],
-        duplicate_policy: str = "raise",  # TODO implement duplicate policy
-        notes: str = "",
-        name: str | None = None,
-        step_class: str | None = None,
-        **kwargs,
-    ) -> None:
-        assert isinstance(out_cols, (str, list, tuple)), (
-            "New columns defined in out_cols"
-            " must be a string or list of strings"
-        )
-        if step_class is not None:
-            assert step_class == self._get_step_class_name(), (
-                "Warning!"
-                " you are trying to load parameters of an other WorkflowStep"
-            )
-        self.out_cols = out_cols
-        self.duplicate_policy = duplicate_policy
-        self.notes = notes
-        self.version = __version__
-        self._name = (
-            name
-            if name is not None
-            else str(self.__class__).split(".")[-1][:-2]
-        )
-
-    @abstractmethod
-    def func(
-        self,
-        x,
-    ) -> ddf.DataFrame:
-        """The main function to map on the dataframe.
-        Args:
-            x: the input column(s)
-
-        Returns:
-            the generated series or dataframe (column or columns)
-        """
-        pass
-
-    @property
-    def name(self):
-        return self._name
-        # return str(self.__class__).split(".")[-1][:-2]
-
-    @property
-    def metadata(self):
-        """generate a dictionary with all relevant metadata
-
-        Returns:
-            dictionary containing metadata
-        """
-        d = {"name": self.name}
-        d.update(
-            {
-                n: getattr(self, n)
-                for n in self.__init__.__code__.co_varnames
-                if hasattr(self, n)
-            },
-        )
-        d["step_class"] = self._get_step_class_name()
-        return d
-
-    def _get_step_class_name(self):
-        return str(self.__class__).split("'")[1]
-
-    @staticmethod
-    def from_dict(
-        wf_dict: dict,
-    ) -> PreProcessingStep:  # TODO: move to workflow class...
-        """Load parameters from a dict-like structure
-
-        Args:
-            wf_dict: _description_
-
-        Returns:
-            _description_
-        """
-        dict_ = deepcopy(wf_dict)
-        step_class_tree = dict_["step_class"].split(".")
-        step_class = sed
-        for next in step_class_tree[1:]:
-            step_class = getattr(step_class, next)
-        return step_class(**dict_)
-
-    def __call__(
-        self,
-        dd,
-    ) -> Any:  # Alternative use format, maybe less intuitive
-        """Allows the usage of this class as a function
-
-        alternative application method, maybe less intuitive than "apply_to"
-        """
-        return self.apply_to(dd)
-
-    def __repr__(self) -> str:
-        s = f"{str(self.__class__).split('.')[-1][:-2]}("
-        for k, v in self.metadata.items():
-            if isinstance(v, str):
-                v = f"'{v}'"
-            s += f"{k}={v}, "
-        return s[:-2] + ")"
-
-    def __str__(self) -> str:
-        s = f"{self.name} | "
-        for k, v in self.metadata.items():
-            s += f"{k}: {v}, "
-        return s
-
-    def _repr_html_(self) -> str:
-        s = f"Workflow step: <strong>{self.name}</strong><br>"
-        s += "<table>"
-        s += "<tr><th>Parameter</th><th>Value</th></tr>"
-        for k, v in self.metadata.items():
-            s += f"<tr><td>{k}</td><td>{v}</td></tr>"
-        s += "</table>"
-        return s
-
-    def to_json(self) -> dict:
-        """summarize the workflow step as a string
-
-        Intended for json serializing the workflow step.
-
-        Returns:
-            _description_
-        """
-        return self.__repr__()
-
-    def apply_to(self, dd, return_=True) -> None:  # TODO: add inplace option?
-        """Map the main function self.func on a dataframe.
-
-        Args:
-            dd: the dataframe on which to map the function
-
-        Raises:
-            TypeError: if the dataframe is of an unsupported format.
-        """
-        if isinstance(dd, ddf.DataFrame):
-            dd[self.out_cols] = dd.map_partitions(
-                self.func,
-                # *self.args,
-                # **self.kwargs,
-            )
-        elif isinstance(dd, pd.DataFrame):
-            dd[self.out_cols] = dd.map(self.func)
-        else:
-            raise TypeError("Only Dask or Pandas DataFrames are supported")
-        if return_:
-            return dd
-
-
-class ParameterGenerator(ABC):
-    """Class template to generate parameters for a preprocessing step
-
-    Args:
-        ABC: _description_
-
-    Raises:
-        NotImplementedError: _description_
-
-    Returns:
-        _description_
-    """
-
-    @abstractmethod
-    def generate_parameters(self) -> dict:
-        """Core method to be defined, which generates and returns the parameters
-
-        Returns:
-            _description_
-        """
-        pass
-
-    def get_preprocessing_step(self):
-        """Return an instance of the associated preprocessing step with the
-        defined parameters
-        """
-        assert isinstance(self._preprocessing_step, PreProcessingStep)
-        return self._preprocessing_step(**self.parameters)
-
-    def metadata(self) -> dict:
-        raise NotImplementedError
-
-
-class PostProcessingStep(ABC):
-    pass
 
 
 class WorkflowManager:
