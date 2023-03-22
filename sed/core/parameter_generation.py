@@ -3,7 +3,6 @@ from abc import abstractmethod
 
 from .preprocessing import AddJitter
 from .preprocessing import PreProcessingStep
-from .workflow import __version__
 
 
 class ParameterGenerator(ABC):
@@ -36,8 +35,7 @@ class ParameterGenerator(ABC):
         return self.PREPROCESSING_STEP(**self.parameters)
 
     def metadata(self) -> dict:
-        metadict = {"version": __version__}
-        return metadict
+        pass
 
 
 class CalibrateJitter(ParameterGenerator):
