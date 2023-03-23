@@ -20,15 +20,17 @@ def parse_config(config: Union[dict, str] = None) -> dict:
     Returns:
         dict: Loaded and possibly completed config dictionary.
     """
-    config = load_config(DEFAULT_CONFIG_PATH)
+    default_config = load_config(DEFAULT_CONFIG_PATH)
 
     if config is not None:
         user_config = (
             load_config(Path(config)) if isinstance(config, str) else config
         )
-        config.update(user_config)
+        insert_default_config(user_config, default_config)
+    else:
+        user_config = default_config
 
-    return config
+    return user_config
 
 
 def load_config(config_path: Path) -> dict:
@@ -60,3 +62,26 @@ def load_config(config_path: Path) -> dict:
         raise TypeError("config file must be of type json or yaml!")
 
     return config_dict
+
+
+def insert_default_config(config: dict, default_config: dict) -> dict:
+    """Inserts missing config parameters from a default config file.
+
+    Args:
+        config (dict): the config dictionary
+        default_config (dict): the default config dictionary.
+
+    Returns:
+        dict: merged dictionary
+    """
+    for k, v in default_config.items():
+        if isinstance(v, dict):
+            if k not in config.keys():
+                config[k] = v
+            else:
+                config[k] = insert_default_config(config[k], v)
+        else:
+            if k not in config.keys():
+                config[k] = v
+
+    return config
