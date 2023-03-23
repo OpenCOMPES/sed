@@ -21,7 +21,7 @@ from sed.binning import bin_dataframe
 from sed.calibrator import DelayCalibrator
 from sed.calibrator import EnergyCalibrator
 from sed.calibrator import MomentumCorrector
-from sed.config import parse_config
+from sed.core.config import parse_config
 from sed.core.dfops import apply_jitter
 from sed.core.metadata import MetaHandler
 from sed.diagnostics import grid_histogram
