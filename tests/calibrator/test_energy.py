@@ -14,7 +14,7 @@ import pytest
 import xarray as xr
 
 from sed.calibrator.energy import EnergyCalibrator
-from sed.config.settings import parse_config
+from sed.core.config import parse_config
 from sed.loader.loader_interface import get_loader
 
 package_dir = os.path.dirname(find_spec("sed").origin)
