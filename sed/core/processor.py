@@ -18,6 +18,7 @@ import psutil
 import xarray as xr
 
 from sed.binning import bin_dataframe
+from sed.binning.utils import bin_centers_to_bin_edges
 from sed.calibrator import DelayCalibrator
 from sed.calibrator import EnergyCalibrator
 from sed.calibrator import MomentumCorrector
@@ -96,6 +97,7 @@ class SedProcessor:
         self._config["binning"]["num_cores"] = num_cores
 
         self._dataframe: Union[pd.DataFrame, ddf.DataFrame] = None
+        self._timed_dataframe: Union[pd.DataFrame, ddf.DataFrame] = None
         self._files: List[str] = []
 
         self._binned: xr.DataArray = None
@@ -281,12 +283,13 @@ class SedProcessor:
             metadata = {}
         if dataframe is not None:
             self._dataframe = dataframe
+            self._timed_dataframe = None
         elif runs is not None:
             # If runs are provided, we only use the copy tool if also folder is provided.
             # In that case, we copy the whole provided base folder tree, and pass the copied
             # version to the loader as base folder to look for the runs.
             if folder is not None:
-                dataframe, metadata = self.loader.read_dataframe(
+                dataframe, timed_dataframe, metadata = self.loader.read_dataframe(
                     folders=cast(str, self.cpy(folder)),
                     runs=runs,
                     metadata=metadata,
@@ -294,7 +297,7 @@ class SedProcessor:
                     **kwds,
                 )
             else:
-                dataframe, metadata = self.loader.read_dataframe(
+                dataframe, timed_dataframe, metadata = self.loader.read_dataframe(
                     runs=runs,
                     metadata=metadata,
                     collect_metadata=collect_metadata,
@@ -302,7 +305,7 @@ class SedProcessor:
                 )
 
         elif folder is not None:
-            dataframe, metadata = self.loader.read_dataframe(
+            dataframe, timed_dataframe, metadata = self.loader.read_dataframe(
                 folders=cast(str, self.cpy(folder)),
                 metadata=metadata,
                 collect_metadata=collect_metadata,
@@ -310,7 +313,7 @@ class SedProcessor:
             )
 
         elif files is not None:
-            dataframe, metadata = self.loader.read_dataframe(
+            dataframe, timed_dataframe, metadata = self.loader.read_dataframe(
                 files=cast(List[str], self.cpy(files)),
                 metadata=metadata,
                 collect_metadata=collect_metadata,
@@ -323,6 +326,7 @@ class SedProcessor:
             )
 
         self._dataframe = dataframe
+        self._timed_dataframe = timed_dataframe
         self._files = self.loader.files
 
         for key in metadata:
@@ -582,6 +586,10 @@ class SedProcessor:
             self._dataframe, metadata = self.mc.apply_corrections(
                 df=self._dataframe,
             )
+            if self._timed_dataframe is not None:
+                self._timed_dataframe, _ = self.mc.apply_corrections(
+                    self._timed_dataframe,
+                )
             # Add Metadata
             self._attributes.add(
                 metadata,
@@ -705,6 +713,11 @@ class SedProcessor:
                 df=self._dataframe,
                 calibration=calibration,
             )
+            if self._timed_dataframe is not None:
+                self._timed_dataframe, _ = self.mc.append_k_axis(
+                    df=self._timed_dataframe,
+                    calibration=calibration,
+                )
 
             # Add Metadata
             self._attributes.add(
@@ -823,6 +836,12 @@ class SedProcessor:
                 correction=correction,
                 **kwds,
             )
+            if self._timed_dataframe is not None:
+                self._timed_dataframe, _ = self.ec.apply_energy_correction(
+                    df=self._timed_dataframe,
+                    correction=correction,
+                    **kwds,
+                )
 
             # Add Metadata
             self._attributes.add(
@@ -1147,6 +1166,12 @@ class SedProcessor:
                 calibration=calibration,
                 **kwds,
             )
+            if self._timed_dataframe is not None:
+                self._timed_dataframe, _ = self.ec.append_energy_axis(
+                    df=self._timed_dataframe,
+                    calibration=calibration,
+                    **kwds,
+                )
 
             # Add Metadata
             self._attributes.add(
@@ -1187,6 +1212,12 @@ class SedProcessor:
                     delay_range=delay_range,
                     **kwds,
                 )
+                if self._timed_dataframe is not None:
+                    self._timed_dataframe, _ = self.dc.append_delay_axis(
+                        self._timed_dataframe,
+                        delay_range=delay_range,
+                        **kwds,
+                    )
             else:
                 if datafile is None:
                     try:
@@ -1203,6 +1234,12 @@ class SedProcessor:
                     datafile=datafile,
                     **kwds,
                 )
+                if self._timed_dataframe is not None:
+                    self._timed_dataframe, _ = self.dc.append_delay_axis(
+                        self._timed_dataframe,
+                        datafile=datafile,
+                        **kwds,
+                    )
 
             # Add Metadata
             self._attributes.add(
@@ -1412,6 +1449,57 @@ class SedProcessor:
         self._binned.attrs["metadata"] = self._attributes.metadata
 
         return self._binned
+
+    def get_normalization_histogram(
+        self,
+        axis: str = "delay",
+        **kwds,
+    ) -> np.ndarray:
+        """Generates a normalization histogram from the TimeStamps column of the
+        dataframe.
+
+        Args:
+            axis (str, optional): The axis for which to compute histogram.
+                Defaults to "delay".
+            **kwds: Keyword arguments:
+
+                -df_partitions (int, optional): Number of dataframe partitions to use.
+                  Defaults to all.
+
+        Raises:
+            ValueError: Raised if no data are binned.
+            ValueError: Raised if 'axis' not in binned coordinates.
+            ValueError: Raised if config["dataframe"]["time_stamp_alias"] not found
+                in Dataframe.
+
+        Returns:
+            np.ndarray: The computed normalization histogram (in TimeStamp units
+            per bin).
+        """
+
+        if self._binned is None:
+            raise ValueError("Need to bin data first!")
+        if axis not in self._binned.coords:
+            raise ValueError(f"Axis '{axis}' not found in binned data!")
+
+        df_partitions = kwds.pop("df_partitions", None)
+        if df_partitions is not None:
+            timed_dataframe = self._timed_dataframe.partitions[
+                0 : min(df_partitions, self._timed_dataframe.npartitions)
+            ]
+        else:
+            timed_dataframe = self._timed_dataframe
+
+        bins = timed_dataframe[axis].map_partitions(
+            pd.cut,
+            bins=bin_centers_to_bin_edges(self._binned.coords[axis].values),
+        )
+
+        histogram = (
+            timed_dataframe[axis].groupby([bins]).count().compute().values
+        ) / 1000
+
+        return histogram
 
     def view_event_histogram(
         self,

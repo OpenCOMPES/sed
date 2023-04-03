@@ -109,28 +109,28 @@ def test_has_correct_read_dataframe_func(loader: BaseLoader, read_type: str):
                 extension=supported_file_type,
             )
             if read_type == "one_file":
-                loaded_dataframe, loaded_metadata = loader.read_dataframe(
+                loaded_dataframe, _, loaded_metadata = loader.read_dataframe(
                     files=input_files[0],
                     ftype=supported_file_type,
                     collect_metadata=False,
                 )
                 expected_size = 1
             elif read_type == "files":
-                loaded_dataframe, loaded_metadata = loader.read_dataframe(
+                loaded_dataframe, _, loaded_metadata = loader.read_dataframe(
                     files=list(input_files),
                     ftype=supported_file_type,
                     collect_metadata=False,
                 )
                 expected_size = len(input_files)
             elif read_type == "one_folder":
-                loaded_dataframe, loaded_metadata = loader.read_dataframe(
+                loaded_dataframe, _, loaded_metadata = loader.read_dataframe(
                     folders=input_folder,
                     ftype=supported_file_type,
                     collect_metadata=False,
                 )
                 expected_size = len(input_files)
             elif read_type == "folders":
-                loaded_dataframe, loaded_metadata = loader.read_dataframe(
+                loaded_dataframe, _, loaded_metadata = loader.read_dataframe(
                     folders=[input_folder],
                     ftype=supported_file_type,
                     collect_metadata=False,
@@ -139,7 +139,7 @@ def test_has_correct_read_dataframe_func(loader: BaseLoader, read_type: str):
             elif read_type == "one_run":
                 if runs[get_loader_name_from_loader_object(loader)] is None:
                     pytest.skip("Not implemented")
-                loaded_dataframe, loaded_metadata = loader.read_dataframe(
+                loaded_dataframe, _, loaded_metadata = loader.read_dataframe(
                     runs=runs[get_loader_name_from_loader_object(loader)][0],
                     ftype=supported_file_type,
                     collect_metadata=False,
@@ -148,7 +148,7 @@ def test_has_correct_read_dataframe_func(loader: BaseLoader, read_type: str):
             elif read_type == "runs":
                 if runs[get_loader_name_from_loader_object(loader)] is None:
                     pytest.skip("Not implemented")
-                loaded_dataframe, loaded_metadata = loader.read_dataframe(
+                loaded_dataframe, _, loaded_metadata = loader.read_dataframe(
                     runs=runs[get_loader_name_from_loader_object(loader)],
                     ftype=supported_file_type,
                     collect_metadata=False,
@@ -263,7 +263,7 @@ def test_mpes_timestamps():
     loader_name = "mpes"
     loader = get_loader(loader_name)
     input_folder = os.path.join(test_data_dir, "loader", loader_name)
-    df, _ = loader.read_dataframe(
+    df, _, _ = loader.read_dataframe(
         folders=input_folder,
         collect_metadata=False,
         time_stamps=True,

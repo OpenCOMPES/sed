@@ -54,7 +54,7 @@ class BaseLoader(ABC):
         metadata: dict = None,
         collect_metadata: bool = False,
         **kwds,
-    ) -> Tuple[ddf.DataFrame, dict]:
+    ) -> Tuple[ddf.DataFrame, ddf.DataFrame, dict]:
         """Reads data from given files, folder, or runs and returns a dask dataframe
         and corresponding metadata.
 
@@ -77,8 +77,8 @@ class BaseLoader(ABC):
             **kwds: keyword arguments. See description in respective loader.
 
         Returns:
-            Tuple[ddf.DataFrame, dict]: Dask dataframe and metadata read from
-            specified files.
+            Tuple[ddf.DataFrame, dict]: Dask dataframe, timed dataframe and metadata
+            read from specified files.
         """
 
         if metadata is None:
@@ -123,7 +123,29 @@ class BaseLoader(ABC):
         if not files:
             raise FileNotFoundError("No valid files or runs found!")
 
-        return None, None
+        return None, None, None
+
+    @abstractmethod
+    def get_files_from_run_id(
+        self,
+        run_id: str,
+        folders: Union[str, Sequence[str]] = None,
+        extension: str = None,
+        **kwds,
+    ) -> List[str]:
+        """Locate the files for a given run identifier.
+
+        Args:
+            run_id (str): The run identifier to locate.
+            folders (Union[str, Sequence[str]], optional): The directory(ies) where the raw
+                data is located. Defaults to None.
+            extension (str, optional): The file extension. Defaults to None.
+            kwds: Keyword arguments
+
+        Return:
+            List[str]: List of files for the given run.
+        """
+        raise NotImplementedError
 
     @abstractmethod
     def get_files_from_run_id(

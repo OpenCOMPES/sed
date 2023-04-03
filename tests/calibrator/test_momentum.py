@@ -136,7 +136,7 @@ def test_apply_correction():
         user_config={},
         system_config={},
     )
-    df, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
+    df, _, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
         folders=df_folder,
         collect_metadata=False,
     )
@@ -249,7 +249,7 @@ def test_apply_registration(
         user_config={},
         system_config={},
     )
-    df, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
+    df, _, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
         folders=df_folder,
         collect_metadata=False,
     )
@@ -321,7 +321,7 @@ def test_momentum_calibration_equiscale():
         user_config={},
         system_config={},
     )
-    df, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
+    df, _, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
         folders=df_folder,
         collect_metadata=False,
     )
@@ -352,7 +352,7 @@ def test_momentum_calibration_two_points():
         user_config={},
         system_config={},
     )
-    df, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
+    df, _, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
         folders=df_folder,
         collect_metadata=False,
     )

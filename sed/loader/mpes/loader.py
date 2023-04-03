@@ -105,6 +105,87 @@ def hdf5_to_dataframe(
     return ddf.from_dask_array(array_stack, columns=column_names)
 
 
+def hdf5_to_timed_dataframe(
+    files: Sequence[str],
+    group_names: Sequence[str] = None,
+    alias_dict: Dict[str, str] = None,
+    time_stamps: bool = False,
+    time_stamp_alias: str = "timeStamps",
+    ms_markers_group: str = "msMarkers",
+    first_event_time_stamp_key: str = "FirstEventTimeStamp",
+    **kwds,
+) -> ddf.DataFrame:
+    """Function to read a selection of hdf5-files, and generate a delayed dask
+    dataframe from provided groups in the files. Optionally, aliases can be defined.
+    Returns a dataframe for evenly spaced time intervals.
+
+    Args:
+        files (List[str]): A list of the file paths to load.
+        group_names (List[str], optional): hdf5 group names to load. Defaults to load
+            all groups containing "Stream"
+        alias_dict (Dict[str, str], optional): Dictionary of aliases for the dataframe
+            columns. Keys are the hdf5 groupnames, and values the aliases. If an alias
+            is not found, its group name is used. Defaults to read the attribute
+            "Name" from each group.
+        time_stamps (bool, optional): Option to calculate time stamps. Defaults to
+            False.
+        time_stamp_alias (str): Alias name for the timestamp column.
+            Defaults to "timeStamps".
+        ms_markers_group (str): h5 column containing timestamp information.
+            Defaults to "msMarkers".
+        first_event_time_stamp_key (str): h5 attribute containing the start
+            timestamp of a file. Defaults to "FirstEventTimeStamp".
+
+    Returns:
+        ddf.DataFrame: The delayed Dask DataFrame
+    """
+    if group_names is None:
+        group_names = []
+    if alias_dict is None:
+        alias_dict = {}
+
+    # Read a file to parse the file structure
+    test_fid = kwds.pop("test_fid", 0)
+    test_proc = h5py.File(files[test_fid])
+    if group_names == []:
+        group_names, alias_dict = get_groups_and_aliases(
+            h5file=test_proc,
+            seach_pattern="Stream",
+        )
+
+    column_names = [alias_dict.get(group, group) for group in group_names]
+
+    if time_stamps:
+        column_names.append(time_stamp_alias)
+
+    test_array = hdf5_to_timed_array(
+        h5file=test_proc,
+        group_names=group_names,
+        time_stamps=time_stamps,
+        ms_markers_group=ms_markers_group,
+        first_event_time_stamp_key=first_event_time_stamp_key,
+    )
+
+    # Delay-read all files
+    arrays = [
+        da.from_delayed(
+            dask.delayed(hdf5_to_timed_array)(
+                h5file=h5py.File(f),
+                group_names=group_names,
+                time_stamps=time_stamps,
+                ms_markers_group=ms_markers_group,
+                first_event_time_stamp_key=first_event_time_stamp_key,
+            ),
+            dtype=test_array.dtype,
+            shape=(test_array.shape[0], np.nan),
+        )
+        for f in files
+    ]
+    array_stack = da.concatenate(arrays, axis=1).T
+
+    return ddf.from_dask_array(array_stack, columns=column_names)
+
+
 def get_groups_and_aliases(
     h5file: h5py.File,
     seach_pattern: str = None,
@@ -224,6 +305,81 @@ def hdf5_to_array(
     return np.asarray(data_list)
 
 
+def hdf5_to_timed_array(
+    h5file: h5py.File,
+    group_names: Sequence[str],
+    data_type: str = "float32",
+    time_stamps=False,
+    ms_markers_group: str = "msMarkers",
+    first_event_time_stamp_key: str = "FirstEventTimeStamp",
+) -> np.ndarray:
+    """Reads the content of the given groups in an hdf5 file, and returns a
+    timed version of a 2-dimensional array with the corresponding values.
+
+    Args:
+        h5file (h5py.File):
+            hdf5 file handle to read from
+        group_names (str):
+            group names to read
+        data_type (str, optional):
+            Data type of the output data. Defaults to "float32".
+        time_stamps (bool, optional):
+            Option to calculate time stamps. Defaults to False.
+        ms_markers_group (str): h5 column containing timestamp information.
+            Defaults to "msMarkers".
+        first_event_time_stamp_key (str): h5 attribute containing the start
+            timestamp of a file. Defaults to "FirstEventTimeStamp".
+
+    Returns:
+        np.ndarray: the array of the values at evently spaced timing obtained from
+        the ms_markers.
+    """
+
+    # Delayed array for loading an HDF5 file of reasonable size (e.g. < 1GB)
+
+    # Read out groups:
+    data_list = []
+    ms_marker = np.asarray(h5file[ms_markers_group])
+    for group in group_names:
+
+        g_dataset = np.asarray(h5file[group])
+        if bool(data_type):
+            g_dataset = g_dataset.astype(data_type)
+
+        timed_dataset = np.zeros_like(ms_marker)
+        for i, point in enumerate(ms_marker):
+            timed_dataset[i] = (
+                g_dataset[point]
+                if point < len(g_dataset)
+                else g_dataset[len(g_dataset) - 1]
+            )
+
+        data_list.append(timed_dataset)
+
+    # calculate time stamps
+    if time_stamps:
+        # try to get start timestamp from "FirstEventTimeStamp" attribute
+        try:
+            start_time_str = get_attribute(h5file, first_event_time_stamp_key)
+            start_time = datetime.datetime.strptime(
+                start_time_str,
+                "%Y-%m-%dT%H:%M:%S.%f%z",
+            ).timestamp()
+        except KeyError:
+            # get the start time of the file from its modification date if the key
+            # does not exist (old files)
+            start_time = os.path.getmtime(h5file.filename)  # convert to ms
+            # the modification time points to the time when the file was finished, so we
+            # need to correct for the time it took to write the file
+            start_time -= len(ms_marker) / 1000
+
+        time_stamp_data = start_time + ms_marker / 1000
+
+        data_list.append(time_stamp_data)
+
+    return np.asarray(data_list)
+
+
 def get_attribute(h5group: h5py.Group, attribute: str) -> str:
     """Reads, decodes and returns an attrubute from an hdf5 group
 
@@ -323,7 +479,7 @@ class MpesLoader(BaseLoader):
         collect_metadata: bool = False,
         time_stamps: bool = False,
         **kwds,
-    ) -> Tuple[ddf.DataFrame, dict]:
+    ) -> Tuple[ddf.DataFrame, ddf.DataFrame, dict]:
         """Read stored hdf5 files from a list or from folder and returns a dask
         dataframe and corresponding metadata.
 
@@ -361,8 +517,8 @@ class MpesLoader(BaseLoader):
             FileNotFoundError: Raised if a file or folder is not found.
 
         Returns:
-            Tuple[ddf.DataFrame, dict]: Dask dataframe and metadata read from specified
-            files.
+            Tuple[ddf.DataFrame, ddf.DataFrame, dict]: Dask dataframe, timed Dask
+            dataframe and metadata read from specified files.
         """
         # if runs is provided, try to locate the respective files relative to the provided folder.
         if runs is not None:  # pylint: disable=duplicate-code
@@ -428,6 +584,16 @@ class MpesLoader(BaseLoader):
             first_event_time_stamp_key=first_event_time_stamp_key,
             **kwds,
         )
+        timed_df = hdf5_to_timed_dataframe(
+            files=self.files,
+            group_names=hdf5_groupnames,
+            alias_dict=hdf5_aliases,
+            time_stamps=time_stamps,
+            time_stamp_alias=time_stamp_alias,
+            ms_markers_group=ms_markers_group,
+            first_event_time_stamp_key=first_event_time_stamp_key,
+            **kwds,
+        )
 
         if collect_metadata:
             metadata = self.gather_metadata(
@@ -437,7 +603,7 @@ class MpesLoader(BaseLoader):
         else:
             metadata = self.metadata
 
-        return df, metadata
+        return df, timed_df, metadata
 
     def get_files_from_run_id(
         self,

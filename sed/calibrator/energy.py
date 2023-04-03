@@ -232,7 +232,7 @@ class EnergyCalibrator:
                         "Either Bias Values or a valid bias_key has to be present!",
                     ) from exc
 
-        dataframe, _ = self.loader.read_dataframe(
+        dataframe, _, _ = self.loader.read_dataframe(
             files=data_files,
             collect_metadata=False,
         )
