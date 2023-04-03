@@ -18,6 +18,7 @@ import psutil
 import xarray as xr
 
 from sed.binning import bin_dataframe
+from sed.binning.utils import bin_centers_to_bin_edges
 from sed.calibrator import DelayCalibrator
 from sed.calibrator import EnergyCalibrator
 from sed.calibrator import MomentumCorrector
@@ -1191,6 +1192,71 @@ class SedProcessor:
         self._binned.attrs["metadata"] = self._attributes.metadata
 
         return self._binned
+
+    def get_normalization_histogram(
+        self,
+        axis: str = "delay",
+        **kwds,
+    ) -> np.ndarray:
+        """Generates a normalization histogram from the TimeStamps column of the
+        dataframe.
+
+        Args:
+            axis (str, optional): The axis for which to compute histogram.
+                Defaults to "delay".
+            **kwds: Keyword arguments:
+
+                -df_partitions (int, optional): Number of dataframe partitions to use.
+                  Defaults to all.
+
+        Raises:
+            ValueError: Raised if no data are binned.
+            ValueError: Raised if 'axis' not in binned coordinates.
+            ValueError: Raised if config["dataframe"]["time_stamp_alias"] not found
+                in Dataframe.
+
+        Returns:
+            np.ndarray: The computed normalization histogram (in TimeStamp units
+            per bin).
+        """
+
+        if self._binned is None:
+            raise ValueError("Need to bin data first!")
+        if axis not in self._binned.coords:
+            raise ValueError(f"Axis '{axis}' not found in binned data!")
+
+        if (
+            self._config["dataframe"]["time_stamp_alias"]
+            not in self._dataframe
+        ):
+            raise ValueError("TimeStamp data not found in Dataframe!")
+
+        self._dataframe["time_per_electron"] = self._dataframe[
+            self._config["dataframe"]["time_stamp_alias"]
+        ].diff()
+
+        df_partitions = kwds.pop("df_partitions", None)
+        if df_partitions is not None:
+            dataframe = self._dataframe.partitions[
+                0 : min(df_partitions, self._dataframe.npartitions)
+            ]
+        else:
+            dataframe = self._dataframe
+
+        bins = dataframe[axis].map_partitions(
+            pd.cut,
+            bins=bin_centers_to_bin_edges(self._binned.coords[axis].values),
+        )
+
+        histogram = (
+            dataframe["time_per_electron"]
+            .groupby([bins])
+            .sum()
+            .compute()
+            .values
+        )
+
+        return histogram
 
     def view_event_histogram(
         self,
