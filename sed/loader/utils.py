@@ -7,7 +7,7 @@ from typing import List
 
 from natsort import natsorted
 
-from sed.loader.exception_handlers import NoFilesFoundError
+from sed.loader.exception_handlers import NoFilesFoundError, H5ParsingError
 
 
 def gather_files(
@@ -105,7 +105,7 @@ def parse_h5_keys(h5_file, prefix=""):
                 file_channel_list.append(s)
                 for s in parse_h5_keys(h5_file[key], prefix=prefix + "/" + key)
             ]
-        except Exception:
-            file_channel_list.append(prefix + "/" + key)
+        except Exception as exception:
+            raise H5ParsingError(prefix + "/" + key, cause=exception) from exception
 
     return file_channel_list
