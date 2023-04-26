@@ -1,0 +1,43 @@
+core:
+  loader: flash
+
+dataframe:
+  paths:
+    data_raw_dir: raw/hdf/express-0/fl1user3
+    data_parquet_dir: parquet
+  ubid_offset: 5
+  daq: fl1user3
+  channels:
+    pulseId:
+      axis: 1
+      format: per_electron
+      group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
+      slice: 2
+    dldPosX:
+      axis: 1
+      format: per_electron
+      group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
+      slice: 1
+    dldPosY:
+      axis: 1
+      format: per_electron
+      group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
+      slice: 0
+    dldTime:
+      axis: 1
+      format: per_electron
+      group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
+      slice: 3
+    dldAux:
+      axis: 1
+      format: per_pulse
+      group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
+      slice: 4
+      dldAuxChannels:
+        sampleBias: 0
+        tofVoltage: 1
+        extractorVoltage: 2
+        extractorCurrent: 3
+        cryoTemperature: 4
+        sampleTemperature: 5
+        dldTimeBinSize: 15
