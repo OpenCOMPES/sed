@@ -38,21 +38,33 @@ def _simplify_binning_arguments(
     binning functions defined here.
 
     Args:
-        bins: Definition of the bins. Can  be any of the following cases:
-            - an integer describing the number of bins in on all dimensions
-            - a tuple of 3 numbers describing start, end and step of the binning range
-            - a np.arrays defining the binning edges
-            - a list (NOT a tuple) of any of the above (int, tuple or np.ndarray)
-            - a dictionary made of the axes as keys and any of the above as values.
-            This takes priority over the axes and range arguments. Defaults to 100
-        axes: The names of the axes (columns) on which to calculate the histogram.
-            The order will be the order of the dimensions in the resulting array.
-            Defaults to None
-        ranges: list of tuples containing the start and end point of the binning range.
-            Defaults to None
+        bins (int, dict, tuple, List[int], List[np.ndarray], List[tuple], optional):
+            Definition of the bins. Can  be any of the following cases:
+
+                - an integer describing the number of bins in on all dimensions
+                - a tuple of 3 numbers describing start, end and step of the binning
+                  range.
+                - a np.arrays defining the binning edges
+                - a list (NOT a tuple) of any of the above (int, tuple or np.ndarray)
+                - a dictionary made of the axes as keys and any of the above as
+                  values.
+
+            This takes priority over the axes and range arguments. Defaults to 100.
+        axes (Union[str, Sequence[str]], optional): The names of the axes (columns)
+            on which to calculate the histogram. The order will be the order of the
+            dimensions in the resulting array. Defaults to None.
+        ranges (Sequence[Tuple[float, float]], optional): list of tuples containing
+            the start and end point of the binning range. Defaults to None.
+
+    Raises:
+        ValueError: Wrong shape of bins,
+        TypeError: Wrong type of bins
+        AttributeError: Axes not defined
+        AttributeError: Shape mismatch
 
     Returns:
-        tuple containing axes, bins and ranges.
+        Tuple[List[np.ndarray], Sequence[str], Sequence[Tuple[float, float]]]:
+        Tuple containing bins, axes, and ranges.
     """
     if isinstance(axes, str):
         axes = [axes]
@@ -90,7 +102,7 @@ def _simplify_binning_arguments(
         for tpl in bins:
             assert isinstance(tpl, tuple)
             ranges.append((tpl[0], tpl[1]))
-            bins_.append(int((tpl[1] - tpl[0])/tpl[2]))
+            bins_.append(tpl[2])
         bins = bins_
     elif not isinstance(bins[0], (int, np.ndarray)):
         raise TypeError(f"Could not interpret bins of type {type(bins[0])}")
