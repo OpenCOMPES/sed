@@ -9,6 +9,7 @@ from itertools import compress
 from pathlib import Path
 from typing import cast
 from typing import List
+from typing import Sequence
 from typing import Tuple
 from typing import Union
 
@@ -40,11 +41,11 @@ class FlashLoader(BaseLoader):
 
     def __init__(self, config: dict, meta_handler) -> None:
 
+        super().__init__(config=config, meta_handler=meta_handler)
         self._config: dict = config.get("dataframe", {})
         self.config_parser()
         # Set all channels, exluding pulseId as default
         self.all_channels: dict = self._config.get("channels", {})
-        self.files: List[Path] = []
         self.index_per_electron: Union[MultiIndex, None] = None
         self.index_per_pulse: Union[MultiIndex, None] = None
         self.parquet_names: List[Path] = []
@@ -467,7 +468,10 @@ class FlashLoader(BaseLoader):
 
         return dd.concat(dataframes)
 
-    def parse_metadata(self, files) -> dict:
+    def parse_metadata(
+        self,
+        files: Sequence[str],  # pylint: disable=unused-argument
+    ) -> dict:
         """Dummy
 
         Args:
@@ -480,17 +484,17 @@ class FlashLoader(BaseLoader):
 
     def get_count_rate(
         self,
-        fids = None,
+        fids: Sequence[int] = None,
         **kwds,
     ):
         return None, None
 
-    def get_elapsed_time(self, fids = None, **kwds):
+    def get_elapsed_time(self, fids=None, **kwds):
         return None
 
     def read_dataframe(
         self,
-        files: Union[List[int], int] = 0,
+        files: Sequence[str] = "",
         folder: str = "",
         ftype: str = "h5",
         **kwds,
@@ -500,15 +504,13 @@ class FlashLoader(BaseLoader):
         temp_parquet_dir = self.data_parquet_dir.joinpath("per_file")
         os.makedirs(temp_parquet_dir, exist_ok=True)
 
-        self.files = files
-        runs = files
         folder = str(self.data_raw_dir)
         # Prepare a list of names for the files to read and parquets to write
         runs = files if isinstance(files, list) else [files]
         all_files = []
         for run in runs:
             run_files = gather_flash_files(
-                run,
+                cast(int, run),
                 self.daq,
                 folder,
                 extension=ftype,
@@ -571,7 +573,9 @@ class FlashLoader(BaseLoader):
         )
         dataframe = dataframe.dropna(subset=self.channels_per_electron)
 
-        return dataframe, self.parse_metadata(all_files)
+        return dataframe, self.parse_metadata(
+            [str(path) for path in all_files],
+        )
 
 
 LOADER = FlashLoader
