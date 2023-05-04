@@ -271,7 +271,7 @@ class FlashLoader(BaseLoader):
         train_id,
         channel,
         channel_dict,
-    ) -> DataFrame:
+    ) -> DataFrame:  # pylint: disable=no-self-use
         """Returns a pandas DataFrame for a given channel name of type [per pulse]"""
         # Special case for auxillary channels which checks the channel
         # dictionary for correct slices and creates a multicolumn
@@ -290,7 +290,7 @@ class FlashLoader(BaseLoader):
             )
 
             # Multiindex set and combined dataframe returned
-            return reduce(DataFrame.combine_first, data_frames)
+            data = reduce(DataFrame.combine_first, data_frames)
 
         else:
             # For all other pulse resolved channels, macrobunch resolved
@@ -298,13 +298,16 @@ class FlashLoader(BaseLoader):
 
             # Creates the index_per_pulse for the given channel
             self.create_multi_index_per_pulse(train_id, np_array)
-            return (
+            data = (
                 Series((np_array[i] for i in train_id.index), name=channel)
                 .explode()
                 .to_frame()
                 .set_index(self.index_per_pulse)
             )
 
+        return data
+
+    # pylint: disable=R0201
     def create_dataframe_per_train(
         self,
         np_array,
@@ -335,7 +338,7 @@ class FlashLoader(BaseLoader):
         # If np_array is size zero, fill with NaNs
         if np_array.size == 0:
             np_array = np.full_like(train_id, np.nan, dtype=np.double)
-            return Series(
+            data = Series(
                 (np_array[i] for i in train_id.index),
                 name=channel,
                 index=train_id,
@@ -347,7 +350,7 @@ class FlashLoader(BaseLoader):
             if self.index_per_electron is None:
                 self.create_multi_index_per_electron(h5_file)
 
-            return self.create_dataframe_per_electron(
+            data = self.create_dataframe_per_electron(
                 np_array,
                 train_id,
                 channel,
@@ -355,7 +358,7 @@ class FlashLoader(BaseLoader):
 
         # Pulse resolved data is treated here
         elif channel_dict["format"] == "per_pulse":
-            return self.create_dataframe_per_pulse(
+            data = self.create_dataframe_per_pulse(
                 np_array,
                 train_id,
                 channel,
@@ -364,7 +367,7 @@ class FlashLoader(BaseLoader):
 
         # Train resolved data is treated here
         elif channel_dict["format"] == "per_train":
-            return self.create_dataframe_per_train(np_array, train_id, channel)
+            data = self.create_dataframe_per_train(np_array, train_id, channel)
 
         else:
             raise ValueError(
@@ -372,6 +375,8 @@ class FlashLoader(BaseLoader):
                 + "has an undefined format. Available formats are \
                 per_pulse, per_electron and per_train",
             )
+
+        return data
 
     def concatenate_channels(
         self,
@@ -431,7 +436,9 @@ class FlashLoader(BaseLoader):
             )
             self.parquet_names.remove(parquet_path)
 
-    def fill_na(self, dataframes: List) -> dd.DataFrame:
+    def fill_na(
+        self, dataframes: List,
+    ) -> dd.DataFrame:  # pylint: disable=no-self-use
         """Routine to fill the NaN values with intrafile forward filling."""
         channels: List[str] = self.channels_per_pulse + self.channels_per_train
         for i, _ in enumerate(dataframes):
@@ -468,6 +475,7 @@ class FlashLoader(BaseLoader):
 
         return dd.concat(dataframes)
 
+    # pylint: disable=R0201
     def parse_metadata(
         self,
         files: Sequence[str],  # pylint: disable=unused-argument
@@ -551,8 +559,8 @@ class FlashLoader(BaseLoader):
                 "Conversion failed for the following files: \n"
                 + "\n".join(self.failed_files_error),
             )
-        else:
-            print("All files converted successfully!")
+
+        print("All files converted successfully!")
 
         if len(self.parquet_names) == 0:
             raise ValueError(

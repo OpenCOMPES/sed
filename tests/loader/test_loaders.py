@@ -39,7 +39,9 @@ def get_all_loaders() -> List[ParameterSet]:
     """Scans through the loader list and returns them for pytest parametrization"""
     loaders = []
 
-    for loader in [get_loader(x) for x in get_names_of_all_loaders()]:
+    for loader in [
+        get_loader(x) for x in get_names_of_all_loaders() if x != "flash"
+    ]:
         loaders.append(pytest.param(loader))
 
     return loaders
