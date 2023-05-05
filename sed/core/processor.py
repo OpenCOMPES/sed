@@ -356,18 +356,19 @@ class SedProcessor:
 
     # 2. Generate the spline warp correction from momentum features.
     # Either autoselect features, or input features from view above.
-    def generate_splinewarp(
+    def define_features(
         self,
         features: np.ndarray = None,
         rotation_symmetry: int = 6,
         auto_detect: bool = False,
         include_center: bool = True,
+        apply: bool = False,
         **kwds,
     ):
-        """2. Step of the distortion correction workflow: Detect feature points in
-        momentum space, or assign the provided feature points, and generate a
-        correction function restoring the symmetry in the image using a splinewarp
-        algortihm.
+        """2. Step of the distortion correction workflow: Define feature points in
+        momentum space. They can be either manually selected using a GUI tool, be
+        ptovided as list of feature points, or auto-generated using a
+        feature-detection algorithm.
 
         Args:
             features (np.ndarray, optional): np.ndarray of features. Defaults to None.
@@ -375,8 +376,10 @@ class SedProcessor:
                 Defaults to 6.
             auto_detect (bool, optional): Whether to auto-detect the features.
                 Defaults to False.
-            include_center (bool, optional): Option to fix the position of the center
-                point for the correction. Defaults to True.
+            include_center (bool, optional): Option to include a point at the center
+                in the feature list. Defaults to True.
+            ***kwds: Keyword arguments for MomentumCorrector.feature_extract() and
+                MomentumCorrector.feature_select()
         """
         if auto_detect:  # automatic feature selection
             sigma = kwds.pop(
@@ -398,13 +401,31 @@ class SedProcessor:
                 rotsym=rotation_symmetry,
                 **kwds,
             )
-        else:  # Manual feature selection
-            self.mc.add_features(
-                features=features,
-                rotsym=rotation_symmetry,
-                **kwds,
-            )
+            features = self.mc.peaks
 
+        self.mc.feature_select(
+            rotsym=rotation_symmetry,
+            include_center=include_center,
+            features=features,
+            apply=apply,
+            **kwds,
+        )
+
+    # 3. Generate the spline warp correction from momentum features.
+    # If no features have been selected before, use class defaults.
+    def generate_splinewarp(
+        self,
+        include_center: bool = True,
+        **kwds,
+    ):
+        """3. Step of the distortion correction workflow: Generate the correction
+        function restoring the symmetry in the image using a splinewarp algortihm.
+
+        Args:
+            include_center (bool, optional): Option to include the position of the
+                center point in the correction. Defaults to True.
+            **kwds: Keyword arguments for MomentumCorrector.spline_warp_estimate().
+        """
         self.mc.spline_warp_estimate(include_center=include_center, **kwds)
 
         if self.mc.slice is not None:
@@ -428,7 +449,7 @@ class SedProcessor:
                 backend="bokeh",
             )
 
-    # 3. Pose corrections. Provide interactive interface for correcting
+    # 4. Pose corrections. Provide interactive interface for correcting
     # scaling, shift and rotation
     def pose_adjustment(
         self,
@@ -482,6 +503,7 @@ class SedProcessor:
             apply=apply,
         )
 
+    # 5. Apply the momentum correction to the dataframe
     def apply_momentum_correction(
         self,
         preview: bool = False,
@@ -514,8 +536,8 @@ class SedProcessor:
             else:
                 print(self._dataframe)
 
-    # 4. Calculate momentum calibration and apply correction and calibration
-    # to the dataframe
+    # Momentum calibration work flow
+    # 1. Calculate momentum calibration
     def calibrate_momentum_axes(
         self,
         point_a: Union[np.ndarray, List[int]] = None,
@@ -526,7 +548,7 @@ class SedProcessor:
         equiscale: bool = True,
         apply=False,
     ):
-        """4. step of the momentum correction/calibration workflow. Calibrate momentum
+        """1. step of the momentum calibration workflow. Calibrate momentum
         axes using either provided pixel coordinates of a high-symmetry point and its
         distance to the BZ center, or the k-coordinates of two points in the BZ
         (depending on the equiscale option). Opens an interactive panel for selecting
@@ -570,15 +592,15 @@ class SedProcessor:
             apply=apply,
         )
 
-    # 5. Apply correction and calibration to the dataframe
+    # 2. Apply correction and calibration to the dataframe
     def apply_momentum_calibration(
         self,
         calibration: dict = None,
         preview: bool = False,
     ):
-        """5. step of the momentum calibration/distortion correction work flow: Apply
-        any distortion correction and/or pose adjustment stored in the MomentumCorrector
-        class and the momentum calibration to the dataframe.
+        """2. step of the momentum calibration work flow: Apply the momentum
+        calibration stored in the class to the dataframe. If corrected X/Y axis exist,
+        these are used.
 
         Args:
             calibration (dict, optional): Optional dictionary with calibration data to
@@ -590,8 +612,6 @@ class SedProcessor:
             print("Adding kx/ky columns to dataframe:")
             self._dataframe, metadata = self.mc.append_k_axis(
                 df=self._dataframe,
-                x_column="X",
-                y_column="Y",
                 calibration=calibration,
             )
 

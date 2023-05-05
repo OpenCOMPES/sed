@@ -86,7 +86,7 @@ def test_splinewarp(include_center: bool):
     )
     if not include_center:
         features = features[0:-1]
-    mc.add_features(peaks=features, rotsym=6)
+    mc.add_features(features=features, rotsym=6)
     mc.spline_warp_estimate(include_center=include_center)
     assert mc.cdeform_field.shape == mc.rdeform_field.shape == mc.image.shape
     assert len(mc.ptargs) == len(mc.prefs)
@@ -127,7 +127,7 @@ def test_apply_correction():
             [248.29, 248.62],
         ],
     )
-    mc.add_features(peaks=features, rotsym=6)
+    mc.add_features(features=features, rotsym=6)
     mc.spline_warp_estimate()
     df, metadata = mc.apply_corrections(df=df)
     assert "Xm" in df.columns
