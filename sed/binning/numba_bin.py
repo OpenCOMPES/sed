@@ -163,10 +163,10 @@ def numba_histogramdd(
     Args:
         sample (np.ndarray): The data to be histogrammed with shape N,D
         bins (Union[int, Sequence[int], Sequence[np.ndarray], np.ndarray]): The number
-            of bins for each dimension D, or a sequence of bins on which to calculate
+            of bins for each dimension D, or a sequence of bin edges on which to calculate
             the histogram.
-        ranges (Sequence, optional): The range to use for binning when bins is a list
-            of integers. Defaults to None.
+        ranges (Sequence, optional): The range(s) to use for binning when bins is a sequence
+            of integers or sequence of arrays. Defaults to None.
 
     Raises:
         ValueError: In case of dimension mismatch.
