@@ -271,7 +271,7 @@ class FlashLoader(BaseLoader):
         train_id,
         channel,
         channel_dict,
-    ) -> DataFrame:  # pylint: disable=no-self-use
+    ) -> DataFrame:
         """Returns a pandas DataFrame for a given channel name of type [per pulse]"""
         # Special case for auxillary channels which checks the channel
         # dictionary for correct slices and creates a multicolumn
@@ -307,7 +307,6 @@ class FlashLoader(BaseLoader):
 
         return data
 
-    # pylint: disable=R0201
     def create_dataframe_per_train(
         self,
         np_array,
@@ -437,8 +436,9 @@ class FlashLoader(BaseLoader):
             self.parquet_names.remove(parquet_path)
 
     def fill_na(
-        self, dataframes: List,
-    ) -> dd.DataFrame:  # pylint: disable=no-self-use
+        self,
+        dataframes: List,
+    ) -> dd.DataFrame:
         """Routine to fill the NaN values with intrafile forward filling."""
         channels: List[str] = self.channels_per_pulse + self.channels_per_train
         for i, _ in enumerate(dataframes):
@@ -475,7 +475,6 @@ class FlashLoader(BaseLoader):
 
         return dd.concat(dataframes)
 
-    # pylint: disable=R0201
     def parse_metadata(
         self,
         files: Sequence[str],  # pylint: disable=unused-argument
