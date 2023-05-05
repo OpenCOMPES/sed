@@ -7,6 +7,7 @@ import dask.dataframe as ddf
 import pytest
 from _pytest.mark.structures import ParameterSet
 
+from sed.config import parse_config
 from sed.loader.base.loader import BaseLoader
 from sed.loader.loader_interface import get_loader
 from sed.loader.loader_interface import get_names_of_all_loaders
@@ -29,7 +30,17 @@ def get_loader_name_from_loader_object(loader: BaseLoader) -> str:
         str: extracted name.
     """
     for loader_name in get_names_of_all_loaders():
-        gotten_loader = get_loader(loader_name)
+        gotten_loader = get_loader(
+            loader_name,
+            config=parse_config(
+                os.path.join(
+                    test_data_dir,
+                    "loader",
+                    loader_name,
+                    "config.yaml",
+                ),
+            ),
+        )
         if loader.__name__ is gotten_loader.__name__:
             return loader_name
     return ""
@@ -40,7 +51,18 @@ def get_all_loaders() -> List[ParameterSet]:
     loaders = []
 
     for loader in [
-        get_loader(x) for x in get_names_of_all_loaders() if x != "flash"
+        get_loader(
+            loader_name,
+            config=parse_config(
+                os.path.join(
+                    test_data_dir,
+                    "loader",
+                    loader_name,
+                    "config.yaml",
+                ),
+            ),
+        )
+        for loader_name in get_names_of_all_loaders()
     ]:
         loaders.append(pytest.param(loader))
 

@@ -21,7 +21,7 @@ class GenericLoader(BaseLoader):
         meta_handler (MetaHandler, optional): MetaHandler object. Defaults to None.
     """
 
-    __name__ = "dask"
+    __name__ = "generic"
 
     supported_file_types = ["parquet", "csv", "json"]
 
