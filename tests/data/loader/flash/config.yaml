@@ -3,8 +3,8 @@ core:
 
 dataframe:
   paths:
-    data_raw_dir: ../data/loader/flash/
-    data_parquet_dir: ../data/loader/flash/parquet
+    data_raw_dir: "./tests/data/loader/flash/"
+    data_parquet_dir: "./tests/data/loader/flash/parquet"
   ubid_offset: 5
   daq: fl1user3
   channels:
