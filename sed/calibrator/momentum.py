@@ -508,7 +508,7 @@ class MomentumCorrector:
         for peak in features:
             markers.append(ax.plot(peak[0], peak[1], "o")[0])
 
-        def update_radio(
+        def update_point_no(
             point_no: int,
         ):
             fig.canvas.draw_idle()
@@ -516,10 +516,10 @@ class MomentumCorrector:
             point_x = features[point_no][0]
             point_y = features[point_no][1]
 
-            markers[point_no].set_xdata(point_x)
-            markers[point_no].set_ydata(point_y)
+            point_input_x.value = point_x
+            point_input_y.value = point_y
 
-        def update_boxes(
+        def update_point_pos(
             point_x: int,
             point_y: int,
         ):
@@ -531,18 +531,19 @@ class MomentumCorrector:
             markers[point_no].set_xdata(point_x)
             markers[point_no].set_ydata(point_y)
 
-        point_no_input = ipw.RadioButtons(
-            options=[n for n in range(features.shape[0])],
-            description="Point #:",
+        point_no_input = ipw.Dropdown(
+            options=range(features.shape[0]),
+            description="Point:",
         )
+
         point_input_x = ipw.IntText(features[0][0])
         point_input_y = ipw.IntText(features[0][1])
         ipw.interact(
-            update_radio,
+            update_point_no,
             point_no=point_no_input,
         )
         ipw.interact(
-            update_boxes,
+            update_point_pos,
             point_y=point_input_y,
             point_x=point_input_x,
         )
