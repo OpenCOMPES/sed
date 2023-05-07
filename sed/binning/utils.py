@@ -19,42 +19,43 @@ def _simplify_binning_arguments(
     bins: Union[
         int,
         dict,
-        tuple,
-        List[int],
-        List[np.ndarray],
-        List[tuple],
-    ] = 100,
-    axes: Union[str, Sequence[str]] = None,
+        Sequence[int],
+        Sequence[np.ndarray],
+        Sequence[tuple],
+    ],
+    axes: Sequence[str] = None,
     ranges: Sequence[Tuple[float, float]] = None,
-) -> Tuple[
-    Union[List[int], List[np.ndarray]],
-    Sequence[str],
-    Sequence[Tuple[float, float]],
-]:
+) -> Tuple[List[np.ndarray], List[str]]:
     """Convert the flexible input for defining bins into a
-    simple "axes" "bins" "ranges" tuple.
-
-    This allows to mimic the input used in numpy.histogramdd flexibility into the
-    binning functions defined here.
+    simple "axes", "bins" tuple, and expresses the bins as bin centers.
 
     Args:
-        bins (int, dict, tuple, List[int], List[np.ndarray], List[tuple], optional):
+        bins (int, dict, Sequence[int], Sequence[np.ndarray], Sequence[tuple]):
             Definition of the bins. Can  be any of the following cases:
 
-                - an integer describing the number of bins in on all dimensions
-                - a tuple of 3 numbers describing start, end and step of the binning
-                  range.
-                - a np.arrays defining the binning edges
-                - a list (NOT a tuple) of any of the above (int, tuple or np.ndarray)
+                - an integer describing the number of bins for all dimensions. This
+                  requires "ranges" to be defined as well.
+                - A sequence containing one entry of the following types for each
+                  dimenstion:
+
+                    - an inteter describing the number of bins. This requires "ranges"
+                      to be defined as well.
+                    - a np.arrays defining the bin centers
+                    - a tuple of 3 numbers describing start, end and step of the binning
+                      range.
+
                 - a dictionary made of the axes as keys and any of the above as
                   values.
 
-            This takes priority over the axes and range arguments. Defaults to 100.
-        axes (Union[str, Sequence[str]], optional): The names of the axes (columns)
-            on which to calculate the histogram. The order will be the order of the
-            dimensions in the resulting array. Defaults to None.
-        ranges (Sequence[Tuple[float, float]], optional): list of tuples containing
-            the start and end point of the binning range. Defaults to None.
+            The last option takes priority over the axes and range arguments.
+        axes (Sequence[str], optional): Sequence containing the names of
+            the axes (columns) on which to calculate the histogram. The order will be
+            the order of the dimensions in the resulting array. Only not required if
+            bins are provided as dictionary containing the axis names.
+            Defaults to None.
+        ranges (Sequence[Tuple[float, float]], optional): Sequence of tuples containing
+            the start and end point of the binning range. Required if bins given as
+            int or Sequence[int]. Defaults to None.
 
     Raises:
         ValueError: Wrong shape of bins,
@@ -63,13 +64,13 @@ def _simplify_binning_arguments(
         AttributeError: Shape mismatch
 
     Returns:
-        Tuple[List[np.ndarray], Sequence[str], Sequence[Tuple[float, float]]]:
-        Tuple containing bins, axes, and ranges.
+        Tuple[List[np.ndarray], List[str]]: Tuple containing lists of bin centers and
+        axes.
     """
     if isinstance(axes, str):
         axes = [axes]
-    # if bins is a dictionary: unravel to axes and bins
 
+    # if bins is a dictionary: unravel to axes and bins
     if isinstance(bins, dict):
         axes = []
         bins_ = []
@@ -77,59 +78,72 @@ def _simplify_binning_arguments(
             axes.append(k)
             bins_.append(v)
         bins = bins_
-    elif isinstance(bins, (int, np.ndarray)):
+
+    # i bins provided as single int, apply to all dimensions
+    if isinstance(bins, int):
         bins = [bins] * len(axes)
-    elif isinstance(bins, tuple):
-        if len(bins) == 3:
-            bins = [bins]
-        else:
-            raise ValueError(
-                "Bins defined as tuples should only be used to define start ",
-                "stop and step of the bins. i.e. should always have lenght 3.",
-            )
-    if not isinstance(bins, list):
+
+    # Check that we have a sequence of bins now
+    if not isinstance(bins, Sequence):
         raise TypeError(f"Cannot interpret bins of type {type(bins)}")
+
+    # check that we have axes
     if axes is None:
         raise AttributeError("Must define on which axes to bin")
-    if not all(isinstance(x, type(bins[0])) for x in bins):
-        raise TypeError('All elements in "bins" must be of the same type')
 
-    if isinstance(bins[0], tuple):
-        bins = cast(List[tuple], bins)
-        assert len(bins[0]) == 3
+    # check that we have a sequence of axes strings
+    if not isinstance(axes, Sequence):
+        raise TypeError(f"Cannot interpret axes of type {type(axes)}")
+
+    # check that all elements of axes are str
+    if not all(isinstance(axis, str) for axis in axes):
+        raise TypeError("Axes has to contain only strings!")
+
+    # we got tuples as bins, expand to bins and ranges
+    if all(isinstance(x, tuple) for x in bins):
+        bins = cast(Sequence[tuple], bins)
+        assert (
+            len(bins[0]) == 3
+        ), "Tuples as bins need to have format (start, end, num_bins)."
         ranges = []
         bins_ = []
         for tpl in bins:
             assert isinstance(tpl, tuple)
             ranges.append((tpl[0], tpl[1]))
-            bins_.append(int((tpl[1] - tpl[0])/tpl[2]))
+            bins_.append(tpl[2])
         bins = bins_
-    elif not isinstance(bins[0], (int, np.ndarray)):
-        raise TypeError(f"Could not interpret bins of type {type(bins[0])}")
 
-    if ranges is not None:
-        if (len(axes) == len(bins) == 1) and isinstance(
-            ranges[0],
-            (int, float),
-        ):
-            ranges = (cast(Tuple[float, float], ranges),)
-        elif not len(axes) == len(bins) == len(ranges):
+    # explode bins given as int to np.ndarrays of bin centers.
+    if all(isinstance(x, int) for x in bins):
+        bins = cast(Sequence[int], bins)
+        if ranges is None:
             raise AttributeError(
-                "axes and range and bins must have the same number of elements",
+                "Must provide a range if bins is an integer or list of integers",
             )
-    elif isinstance(bins[0], int):
-        raise AttributeError(
-            "Must provide a range if bins is an integer or list of integers",
-        )
-    elif len(axes) != len(bins):
+        bins_ = []
+        for i, x in enumerate(bins):
+            bins_.append(
+                np.linspace(
+                    ranges[i][0],
+                    ranges[i][1],
+                    x + 1,
+                    endpoint=True,
+                ),
+            )
+        bins = bins_
+
+    # check that we now have a sequence of np.ndarray as bins
+    if not all(isinstance(x, np.ndarray) for x in bins):
+        raise TypeError(f"Could not interpret bins of type {type(bins)}")
+    bins = cast(Sequence[np.ndarray], bins)
+
+    # check that number of bins and number of axes is the same.
+    if len(axes) != len(bins):
         raise AttributeError(
             "axes and bins must have the same number of elements",
         )
 
-    # TODO: mypy still thinks List[tuple] is a possible type for bins, nut sure why.
-    bins = cast(Union[List[int], List[np.ndarray]], bins)
-
-    return bins, axes, ranges
+    return list(bins), list(axes)
 
 
 def bin_edges_to_bin_centers(bin_edges: np.ndarray) -> np.ndarray:
@@ -174,4 +188,3 @@ def bin_centers_to_bin_edges(bin_centers: np.ndarray) -> np.ndarray:
     )
 
     return bin_edges
-    

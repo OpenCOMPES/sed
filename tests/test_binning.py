@@ -1,8 +1,11 @@
 """This file contains code that performs several tests for the sed.binning module
 """
+from typing import Any
+from typing import Dict
 from typing import List
 from typing import Sequence
 from typing import Tuple
+from typing import Union
 
 import numpy as np
 import pandas as pd
@@ -199,44 +202,86 @@ axes = ["a", "b", "c"]
 ranges = [(-1, 1), (-2, 2), (-3, 3)]
 
 
-def test_simplify_binning_arguments_direct():
+@pytest.mark.parametrize(
+    "args",
+    [
+        (bins[:1], axes[:1], ranges[:1], 1),
+        (bins[:2], axes[:2], ranges[:2], 2),
+        (bins[:3], axes[:3], ranges[:3], 3),
+    ],
+    ids=lambda x: f"ndim: {x[3]}",
+)
+@pytest.mark.parametrize(
+    "arg_type",
+    [
+        "int",
+        "list_int",
+        "array",
+        "tuple",
+        "dict_int",
+        "dict_tuple",
+        "dict_array",
+    ],
+)
+def test_simplify_binning_arguments(
+    args: Tuple[List[int], List[str], List[Tuple[float, float]]],
+    arg_type: str,
+):
     """Test the result of the _simplify_binning_arguments functions for number of
     bins and ranges
     """
-    bins_, axes_, ranges_ = _simplify_binning_arguments(bins, axes, ranges)
-    assert bins_ == bins
-    assert axes_ == axes
-    assert ranges_ == ranges
+    bins_in = args[0]
+    bins_: Union[int, list, dict]
+    bins__: Union[List[Any], Dict[Any, Any]]
+    axes_ = args[1]
+    ranges_ = args[2]
 
+    bin_centers = []
+    for i in range(len(axes_)):
+        bin_centers.append(
+            np.linspace(ranges_[i][0], ranges_[i][1], bins_in[i] + 1),
+        )
 
-def test_simplify_binning_arguments_1d():
-    """Test the result of the _simplify_binning_arguments functions for number of
-    bins and ranges, 1D case
-    """
-    bins_, axes_, ranges_ = _simplify_binning_arguments(
-        bins[0],
-        axes[0],
-        ranges[0],
+    if arg_type == "int":
+        bins_ = bins_in[0]
+        bin_centers = []
+        for i in range(len(axes_)):
+            bin_centers.append(
+                np.linspace(ranges_[i][0], ranges_[i][1], bins_ + 1),
+            )
+    elif arg_type == "list_int":
+        bins_ = bins_in
+    elif arg_type == "array":
+        bins__ = []
+        for i in range(len(axes_)):
+            bins__.append(bin_centers[i])
+        bins_ = bins__
+    elif arg_type == "tuple":
+        bins__ = []
+        for i in range(len(axes_)):
+            bins__.append((ranges_[i][0], ranges_[i][1], bins_in[i]))
+        bins_ = bins__
+    elif arg_type == "dict_int":
+        bins__ = {}
+        for i, axis in enumerate(axes_):
+            bins__[axis] = bins_in[i]
+        bins_ = bins__
+    elif arg_type == "dict_array":
+        bins__ = {}
+        for i, axis in enumerate(axes_):
+            bins__[axis] = bin_centers[i]
+        bins_ = bins__
+    elif arg_type == "dict_tuple":
+        bins__ = {}
+        for i, axis in enumerate(axes_):
+            bins__[axis] = (ranges_[i][0], ranges_[i][1], bins_in[i])
+        bins_ = bins__
+
+    bins__, axes__ = _simplify_binning_arguments(
+        bins_,
+        axes_,
+        ranges_,
     )
-    assert bins_ == [bins[0]]
-    assert axes_ == [axes[0]]
-    assert ranges_ == (ranges[0],)
-
-
-def test_simplify_binning_arguments_edges():
-    """Test the result of the _simplify_binning_arguments functions for bin edges"""
-    bin_edges = [np.linspace(r[0], r[1], b) for r, b in zip(ranges, bins)]
-    bin_edges_, axes_, ranges_ = _simplify_binning_arguments(bin_edges, axes)
-    for bin_, bin_edges_ in zip(bin_edges_, bin_edges):
-        np.testing.assert_allclose(bin_, bin_edges_)
-    assert axes_ == axes
-    assert ranges_ is None
-
-
-def test_simplify_binning_arguments_tuple():
-    """Test the result of the _simplify_binning_arguments functions for bin tuples"""
-    bin_tuple = [tuple((r[0], r[1], b)) for r, b in zip(ranges, bins)]
-    bins_, axes_, ranges_ = _simplify_binning_arguments(bin_tuple, axes)
-    assert bins_ == bins
-    assert axes_ == axes
-    assert ranges_ == ranges
+    for (bin_, bin__) in zip(bins__, bin_centers):
+        np.testing.assert_array_equal(bin_, bin__)
+    assert axes__ == axes_

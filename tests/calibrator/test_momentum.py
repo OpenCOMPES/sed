@@ -41,7 +41,7 @@ def test_bin_data_and_slice_image():
         width=10,
         apply=True,
     )
-    assert sed_processor.mc.slice.shape == (512, 512)
+    assert sed_processor.mc.slice.shape == (513, 513)
 
 
 def test_feature_extract():

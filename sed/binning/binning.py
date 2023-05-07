@@ -3,8 +3,6 @@
 """
 import gc
 from functools import reduce
-from typing import cast
-from typing import List
 from typing import Sequence
 from typing import Tuple
 from typing import Union
@@ -20,21 +18,21 @@ from tqdm.auto import tqdm
 from .numba_bin import numba_histogramdd
 from .utils import _arraysum
 from .utils import _simplify_binning_arguments
+from .utils import bin_centers_to_bin_edges
 
 N_CPU = psutil.cpu_count()
 
 
 def bin_partition(
-    part: Union[dask.dataframe.core.DataFrame, pd.DataFrame],
+    part: Union[dask.dataframe.DataFrame, pd.DataFrame],
     bins: Union[
         int,
         dict,
-        tuple,
-        List[int],
-        List[np.ndarray],
-        List[tuple],
+        Sequence[int],
+        Sequence[np.ndarray],
+        Sequence[tuple],
     ] = 100,
-    axes: Union[str, Sequence[str]] = None,
+    axes: Sequence[str] = None,
     ranges: Sequence[Tuple[float, float]] = None,
     hist_mode: str = "numba",
     jitter: Union[list, dict] = None,
@@ -44,24 +42,35 @@ def bin_partition(
     """Compute the n-dimensional histogram of a single dataframe partition.
 
     Args:
-        part (Union[dask.dataframe.core.DataFrame, pd.DataFrame]): dataframe on which
+        part (Union[dask.dataframe.DataFrame, pd.DataFrame]): dataframe on which
             to perform the histogram. Usually a partition of a dask DataFrame.
-        bins (int, dict, tuple, List[int], List[np.ndarray], List[tuple], optional):
+            bins (int, dict, Sequence[int], Sequence[np.ndarray], Sequence[tuple], optional):
             Definition of the bins. Can  be any of the following cases:
 
-                - an integer describing the number of bins in on all dimensions
-                - a tuple of 3 numbers describing start, end and step of the binning
-                  range
-                - a np.arrays defining the binning edges
-                - a list (NOT a tuple) of any of the above (int, tuple or np.ndarray)
-                - a dictionary made of the axes as keys and any of the above as values.
+                - an integer describing the number of bins for all dimensions. This
+                  requires "ranges" to be defined as well.
+                - A sequence containing one entry of the following types for each
+                  dimenstion:
 
-            This takes priority over the axes and range arguments. Defaults to 100.
-        axes (Union[str, Sequence[str]], optional): The names of the axes (columns) on
-            which to calculate the histogram. The order will be the order of the
-            dimensions in the resulting array. Defaults to None.
-        ranges (Sequence[Tuple[float, float]], optional): list of tuples containing the
-            start and end point of the binning range. Defaults to None.
+                    - an inteter describing the number of bins. This requires "ranges"
+                      to be defined as well.
+                    - a np.arrays defining the bin centers
+                    - a tuple of 3 numbers describing start, end and step of the binning
+                      range.
+
+                - a dictionary made of the axes as keys and any of the above as
+                  values.
+
+            The last option takes priority over the axes and range arguments.
+            Defaults to 100.
+        axes (Sequence[str], optional): Sequence containing the names of
+            the axes (columns) on which to calculate the histogram. The order will be
+            the order of the dimensions in the resulting array. Only not required if
+            bins are provided as dictionary containing the axis names.
+            Defaults to None.
+        ranges (Sequence[Tuple[float, float]], optional): Sequence of tuples containing
+            the start and end point of the binning range. Required if bins given as
+            int or Sequence[int]. Defaults to None.
         hist_mode (str, optional): Histogram calculation method.
 
                 - "numpy": use ``numpy.histogramdd``,
@@ -98,11 +107,26 @@ def bin_partition(
         - **edges**: A list of D arrays describing the bin edges for each dimension.
     """
     if not skip_test:
-        bins, axes, ranges = _simplify_binning_arguments(bins, axes, ranges)
+        bins, axes = _simplify_binning_arguments(bins, axes, ranges)
     else:
-        bins = cast(Union[List[int], List[np.ndarray]], bins)
-        axes = cast(Sequence[str], axes)
-        ranges = cast(Sequence[Tuple[float, float]], ranges)
+        if not isinstance(bins, list) or not all(
+            isinstance(x, np.ndarray) for x in bins
+        ):
+            raise TypeError(
+                "bins needs to be of type 'List[np.ndarray]' if tests are skipped!",
+            )
+        if not (isinstance(axes, list)) or not all(
+            isinstance(axis, str) for axis in axes
+        ):
+            raise TypeError(
+                "axes needs to be of type 'List[str]' if tests are skipped!",
+            )
+        # bins = cast(List[np.ndarray], bins)
+        # axes = cast(Sequence[str], axes)
+
+    # convert bin centers to bin edges:
+    for i, bin_centers in enumerate(bins):
+        bins[i] = bin_centers_to_bin_edges(bin_centers)
 
     # Locate columns for binning operation
     col_id = [part.columns.get_loc(axis) for axis in axes]
@@ -137,13 +161,13 @@ def bin_partition(
         hist_partition, edges = numba_histogramdd(
             vals,
             bins=bins,
-            ranges=ranges,
+            #            ranges=ranges,
         )
     elif hist_mode == "numpy":
         hist_partition, edges = np.histogramdd(
             vals,
             bins=bins,
-            range=ranges,
+            #            range=ranges,
         )
     else:
         raise ValueError(
@@ -162,12 +186,11 @@ def bin_dataframe(
     bins: Union[
         int,
         dict,
-        tuple,
-        List[int],
-        List[np.ndarray],
-        List[tuple],
+        Sequence[int],
+        Sequence[np.ndarray],
+        Sequence[tuple],
     ] = 100,
-    axes: Union[str, Sequence[str]] = None,
+    axes: Sequence[str] = None,
     ranges: Sequence[Tuple[float, float]] = None,
     hist_mode: str = "numba",
     mode: str = "fast",
@@ -185,22 +208,33 @@ def bin_dataframe(
     Args:
         df (dask.dataframe.DataFrame): a dask.DataFrame on which to perform the
             histogram.
-        bins (int, dict, tuple, List[int], List[np.ndarray], List[tuple], optional):
+            bins (int, dict, Sequence[int], Sequence[np.ndarray], Sequence[tuple], optional):
             Definition of the bins. Can  be any of the following cases:
 
-                - an integer describing the number of bins in on all dimensions
-                - a tuple of 3 numbers describing start, end and step of the binning
-                  range
-                - a np.arrays defining the binning edges
-                - a list (NOT a tuple) of any of the above (int, tuple or np.ndarray)
-                - a dictionary made of the axes as keys and any of the above as values.
+                - an integer describing the number of bins for all dimensions. This
+                  requires "ranges" to be defined as well.
+                - A sequence containing one entry of the following types for each
+                  dimenstion:
 
-            This takes priority over the axes and range arguments. Defaults to 100.
-        axes (Union[str, Sequence[str]], optional): The names of the axes (columns) on
-            which to calculate the histogram. The order will be the order of the
-            dimensions in the resulting array. Defaults to None.
-        ranges (Sequence[Tuple[float, float]], optional): list of tuples containing the
-            start and end point of the binning range. Defaults to None.
+                    - an inteter describing the number of bins. This requires "ranges"
+                      to be defined as well.
+                    - a np.arrays defining the bin centers
+                    - a tuple of 3 numbers describing start, end and step of the binning
+                      range.
+
+                - a dictionary made of the axes as keys and any of the above as
+                  values.
+
+            The last option takes priority over the axes and range arguments.
+            Defaults to 100.
+        axes (Sequence[str], optional): Sequence containing the names of
+            the axes (columns) on which to calculate the histogram. The order will be
+            the order of the dimensions in the resulting array. Only not required if
+            bins are provided as dictionary containing the axis names.
+            Defaults to None.
+        ranges (Sequence[Tuple[float, float]], optional): Sequence of tuples containing
+            the start and end point of the binning range. Required if bins given as
+            int or Sequence[int]. Defaults to None.
         hist_mode (str, optional): Histogram calculation method.
 
                 - "numpy": use ``numpy.histogramdd``,
@@ -243,30 +277,14 @@ def bin_dataframe(
 
     Returns:
         xr.DataArray: The result of the n-dimensional binning represented in an
-        xarray object, combining the data with the axes.
+        xarray object, combining the data with the axes (bin centers).
     """
-    bins, axes, ranges = _simplify_binning_arguments(bins, axes, ranges)
+    bins, axes = _simplify_binning_arguments(bins, axes, ranges)
 
     # create the coordinate axes for the xarray output
-    if isinstance(bins[0], np.ndarray):
-        coords = dict(zip(axes, bins))
-    elif ranges is None:
-        raise ValueError(
-            "bins is not an array and range is none.. this shouldn't happen.",
-        )
-    else:
-        bins = cast(List[int], bins)
-        coords = {
-            ax: np.linspace(r[0], r[1], n)
-            for ax, r, n in zip(axes, ranges, bins)
-        }
+    coords = dict(zip(axes, bins))
 
-    if isinstance(bins[0], np.ndarray):
-        bins = cast(List[np.ndarray], bins)
-        full_shape = tuple(x.size for x in bins)
-    else:
-        bins = cast(List[int], bins)
-        full_shape = tuple(bins)
+    full_shape = tuple(x.size for x in bins)
 
     full_result = np.zeros(full_shape)
     partition_results = []  # Partition-level results
