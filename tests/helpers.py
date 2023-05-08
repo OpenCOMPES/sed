@@ -38,21 +38,19 @@ def simulate_binned_data(shape: tuple, dims: list) -> xr.DataArray:
     )
 
 
-def get_linear_bin_edges(array: np.ndarray) -> np.ndarray:
-    """Returns the bin edges of the given array.
+def get_linear_bin_edges(bins: int, ranges: tuple) -> np.ndarray:
+    """Returns the bin edges for the given bins and ranges
 
     Args:
-        array (np.ndarray): The array of N center values from which to evaluate the
-            bin range. Must be linear.
+        bins (int): Number of bins, N.
+        ranges (Tuple[float, float]): start, end points of binning edges.
 
     Returns:
         np.ndarray: array of edges, with shape N+1
     """
-    step = array[1] - array[0]
-    last_step = array[-2] - array[-3]
-    assert np.allclose(last_step, step), "not a linear array"
     return np.linspace(
-        array[0],
-        array[-1],
-        array.size + 1,
+        ranges[0],
+        ranges[1],
+        bins + 1,
+        endpoint=True,
     )
