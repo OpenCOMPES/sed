@@ -15,7 +15,7 @@ def _arraysum(array_a, array_b):
     return array_a + array_b
 
 
-def _simplify_binning_arguments(
+def simplify_binning_arguments(
     bins: Union[
         int,
         dict,
@@ -25,9 +25,16 @@ def _simplify_binning_arguments(
     ],
     axes: Sequence[str] = None,
     ranges: Sequence[Tuple[float, float]] = None,
-) -> Tuple[List[np.ndarray], List[str]]:
+) -> Tuple[
+    Union[List[int], List[np.ndarray]],
+    List[str],
+    List[Tuple[float, float]],
+]:
     """Convert the flexible input for defining bins into a
-    simple "axes", "bins" tuple, and expresses the bins as bin centers.
+    simple "axes" "bins" "ranges" tuple.
+
+    This allows to mimic the input used in numpy.histogramdd flexibility into the
+    binning functions defined here.
 
     Args:
         bins (int, dict, Sequence[int], Sequence[np.ndarray], Sequence[tuple]):
@@ -38,7 +45,7 @@ def _simplify_binning_arguments(
                 - A sequence containing one entry of the following types for each
                   dimenstion:
 
-                    - an inteter describing the number of bins. This requires "ranges"
+                    - an integer describing the number of bins. This requires "ranges"
                       to be defined as well.
                     - a np.arrays defining the bin centers
                     - a tuple of 3 numbers describing start, end and step of the binning
@@ -64,12 +71,9 @@ def _simplify_binning_arguments(
         AttributeError: Shape mismatch
 
     Returns:
-        Tuple[List[np.ndarray], List[str]]: Tuple containing lists of bin centers and
-        axes.
+        Tuple[Union[List[int], List[np.ndarray]], List[Tuple[float, float]]]: Tuple
+        containing lists of bin centers, axes, and ranges.
     """
-    if isinstance(axes, str):
-        axes = [axes]
-
     # if bins is a dictionary: unravel to axes and bins
     if isinstance(bins, dict):
         axes = []
@@ -79,7 +83,7 @@ def _simplify_binning_arguments(
             bins_.append(v)
         bins = bins_
 
-    # i bins provided as single int, apply to all dimensions
+    # if bins provided as single int, apply to all dimensions
     if isinstance(bins, int):
         bins = [bins] * len(axes)
 
@@ -91,7 +95,7 @@ def _simplify_binning_arguments(
     if axes is None:
         raise AttributeError("Must define on which axes to bin")
 
-    # check that we have a sequence of axes strings
+    # check that axes is a sequence
     if not isinstance(axes, Sequence):
         raise TypeError(f"Cannot interpret axes of type {type(axes)}")
 
@@ -113,29 +117,23 @@ def _simplify_binning_arguments(
             bins_.append(tpl[2])
         bins = bins_
 
-    # explode bins given as int to np.ndarrays of bin centers.
+    # if bins are provided as int, check that ranges are present
     if all(isinstance(x, int) for x in bins):
-        bins = cast(Sequence[int], bins)
+        bins = cast(List[int], list(bins))
         if ranges is None:
             raise AttributeError(
                 "Must provide a range if bins is an integer or list of integers",
             )
-        bins_ = []
-        for i, x in enumerate(bins):
-            bins_.append(
-                np.linspace(
-                    ranges[i][0],
-                    ranges[i][1],
-                    x + 1,
-                    endpoint=True,
-                ),
+        if not isinstance(ranges, Sequence):
+            raise AttributeError(
+                f"Ranges must be a sequence, not {type(ranges)}.",
             )
-        bins = bins_
 
-    # check that we now have a sequence of np.ndarray as bins
-    if not all(isinstance(x, np.ndarray) for x in bins):
+    # otherwise, all bins should by np.ndarrays here
+    elif all(isinstance(x, np.ndarray) for x in bins):
+        bins = cast(List[np.ndarray], list(bins))
+    else:
         raise TypeError(f"Could not interpret bins of type {type(bins)}")
-    bins = cast(Sequence[np.ndarray], bins)
 
     # check that number of bins and number of axes is the same.
     if len(axes) != len(bins):
@@ -143,7 +141,7 @@ def _simplify_binning_arguments(
             "axes and bins must have the same number of elements",
         )
 
-    return list(bins), list(axes)
+    return bins, list(axes), list(ranges) if ranges else None
 
 
 def bin_edges_to_bin_centers(bin_edges: np.ndarray) -> np.ndarray:
@@ -155,7 +153,6 @@ def bin_edges_to_bin_centers(bin_edges: np.ndarray) -> np.ndarray:
     Returns:
         bin_centers: 1d array of bin centers
     """
-
     bin_centers = (bin_edges[1:] + bin_edges[:-1]) / 2
 
     return bin_centers
