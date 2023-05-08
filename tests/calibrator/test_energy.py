@@ -43,7 +43,7 @@ def test_bin_data_and_read_biases_from_files():
     )
     ec.bin_data(data_files=files)
     assert ec.traces.ndim == 2
-    assert ec.traces.shape == (2, 1001)
+    assert ec.traces.shape == (2, 1000)
     assert ec.tof.ndim == 1
     assert ec.biases.ndim == 1
     assert len(ec.biases) == 2
