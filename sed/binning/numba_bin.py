@@ -81,6 +81,8 @@ def binsearch(bins: np.ndarray, val: float) -> int:
     Returns:
         int: index of the bin array, returns -1 when value is outside the bins range
     """
+    if np.isnan(val):
+        return -1
     low, high = 0, len(bins) - 1
     mid = high // 2
     if val == bins[high]:
