@@ -7,7 +7,7 @@ from typing import Sequence
 from typing import Union
 
 import xarray as xr
-from nexusutils.dataconverter.convert import convert
+from pynxtools.dataconverter.convert import convert
 
 
 def to_nexus(

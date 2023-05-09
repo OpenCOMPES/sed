@@ -48,6 +48,9 @@ class SedProcessor:
             the config. Defaults to None.
         folder (str, optional): Folder containing files to pass to the loader
             defined in the config. Defaults to None.
+        collect_metadata (bool): Option to collect metadata from files.
+            Defaults to False.
+        **kwds: Keyword arguments passed to the reader.
     """
 
     def __init__(
@@ -57,6 +60,7 @@ class SedProcessor:
         dataframe: Union[pd.DataFrame, ddf.DataFrame] = None,
         files: List[str] = None,
         folder: str = None,
+        collect_metadata: bool = False,
         **kwds,
     ):
         """Processor class of sed. Contains wrapper functions defining a work flow
@@ -72,6 +76,9 @@ class SedProcessor:
                 the config. Defaults to None.
             folder (str, optional): Folder containing files to pass to the loader
                 defined in the config. Defaults to None.
+            collect_metadata (bool): Option to collect metadata from files.
+                Defaults to False.
+            **kwds: Keyword arguments passed to the reader.
         """
         self._config = parse_config(config)
         num_cores = self._config.get("binning", {}).get("num_cores", N_CPU - 1)
@@ -130,6 +137,7 @@ class SedProcessor:
                 metadata=metadata,
                 files=files,
                 folder=folder,
+                collect_metadata=collect_metadata,
                 **kwds,
             )
 
@@ -249,6 +257,7 @@ class SedProcessor:
         metadata: dict = None,
         files: List[str] = None,
         folder: str = None,
+        collect_metadata: bool = False,
         **kwds,
     ):
         """Load tabular data of single events into the dataframe object in the class.
@@ -262,6 +271,8 @@ class SedProcessor:
                 Defaults to None.
             folder (str, optional): Folder path to pass to the loader.
                 Defaults to None.
+            collect_metadata (bool): Option to collect metadata from files.
+                Defaults to False.
 
         Raises:
             ValueError: Raised if no valid input is provided.
@@ -274,6 +285,7 @@ class SedProcessor:
             dataframe, metadata = self.loader.read_dataframe(
                 folder=cast(str, self.cpy(folder)),
                 metadata=metadata,
+                collect_metadata=collect_metadata,
                 **kwds,
             )
             self._dataframe = dataframe
@@ -282,6 +294,7 @@ class SedProcessor:
             dataframe, metadata = self.loader.read_dataframe(
                 files=cast(List[str], self.cpy(files)),
                 metadata=metadata,
+                collect_metadata=collect_metadata,
                 **kwds,
             )
             self._dataframe = dataframe
@@ -424,6 +437,7 @@ class SedProcessor:
         ytrans: float = 0,
         angle: float = 0,
         apply: bool = False,
+        use_correction: bool = True,
     ):
         """3. step of the distortion correction workflow: Generate an interactive panel
         to adjust affine transformations that are applied to the image. Applies first
@@ -441,6 +455,8 @@ class SedProcessor:
                 Defaults to 0.
             apply (bool, optional): Option to directly apply the provided
                 transformations. Defaults to False.
+            use_correction (bool, option): Whether to use the spline warp correction
+                or not. Defaults to True.
         """
         # Generate homomorphy as default if no distortion correction has been applied
         if self.mc.slice_corrected is None:
@@ -451,6 +467,11 @@ class SedProcessor:
             self.mc.slice_corrected = self.mc.slice
 
         if self.mc.cdeform_field is None or self.mc.rdeform_field is None:
+            # Generate default distortion correction
+            self.mc.add_features()
+            self.mc.spline_warp_estimate()
+
+        if not use_correction:
             self.mc.reset_deformation()
 
         self.mc.pose_adjustment(

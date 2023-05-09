@@ -320,7 +320,7 @@ class MpesLoader(BaseLoader):
         folder: str = None,
         ftype: str = "h5",
         metadata: dict = None,
-        collect_metadata: bool = True,
+        collect_metadata: bool = False,
         time_stamps: bool = False,
         **kwds,
     ) -> Tuple[ddf.DataFrame, dict]:
