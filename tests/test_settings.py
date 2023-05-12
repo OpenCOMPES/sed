@@ -65,7 +65,7 @@ def test_load_config():
 def test_load_config_raise():
     """Test if the config loader raises an error for a wrong file type."""
     with pytest.raises(TypeError):
-        load_config(f"{package_dir}/../requirements.txt")
+        load_config(f"{package_dir}/../README.md")
 
 
 def test_insert_default_config():

@@ -1,6 +1,10 @@
 """The abstract class off of which to implement loaders."""
+import os
 from abc import ABC
 from abc import abstractmethod
+from copy import deepcopy
+from typing import Any
+from typing import Dict
 from typing import List
 from typing import Sequence
 from typing import Tuple
@@ -8,7 +12,7 @@ from typing import Tuple
 import dask.dataframe as ddf
 import numpy as np
 
-from sed.core.metadata import MetaHandler
+from sed.loader.utils import gather_files
 
 
 class BaseLoader(ABC):
@@ -32,15 +36,11 @@ class BaseLoader(ABC):
     def __init__(
         self,
         config: dict = None,
-        meta_handler: MetaHandler = None,
     ):
         self._config = config if config is not None else {}
 
-        self._meta_handler = (
-            meta_handler if meta_handler is not None else MetaHandler()
-        )
-
         self.files: List[str] = []
+        self.metadata: Dict[Any, Any] = {}
 
     @abstractmethod
     def read_dataframe(
@@ -48,10 +48,12 @@ class BaseLoader(ABC):
         files: Sequence[str] = None,
         folder: str = None,
         ftype: str = None,
+        metadata: dict = None,
+        collect_metadata: bool = False,
         **kwds,
     ) -> Tuple[ddf.DataFrame, dict]:
-        """Reads data from given files or folder and returns a dask dataframe,
-        and a dictionary with metadata
+        """Reads data from given files or folder and returns a dask dataframe
+        and corresponding metadata.
 
         Args:
             files (Sequence[str], optional): List of file paths. Defaults to None.
@@ -61,13 +63,42 @@ class BaseLoader(ABC):
             ftype (str, optional): File type to read ('parquet', 'json', 'csv', etc).
                 If a folder path is given, all files with the specified extension are
                 read into the dataframe in the reading order. Defaults to None.
-            **kwds: keyword arguments. See the keyword arguments for the specific file
-                parser in``dask.dataframe`` module.
+            metadata (dict, optional): Manual meta data dictionary. Auto-generated
+                meta data are added to it. Defaults to None.
+            collect_metadata (bool): Option to collect metadata from files. Requires
+                a valid config dict. Defaults to False.
+            **kwds: keyword arguments. Se describtion in respective loader.
 
         Returns:
-            Tuple[ddf.DataFrame, dict]: Dask dataframe and metadata read from specified
-            files.
+            Tuple[ddf.DataFrame, dict]: Dask dataframe and metadata read from
+            specified files.
         """
+
+        if metadata is None:
+            metadata = {}
+
+        if folder is not None:
+            folder = os.path.realpath(folder)
+            files = gather_files(
+                folder=folder,
+                extension=ftype,
+                file_sorting=True,
+                **kwds,
+            )
+
+        elif files is None:
+            raise ValueError(
+                "Either the folder or file path should be provided!",
+            )
+        else:
+            files = [os.path.realpath(file) for file in files]
+
+        self.files = files
+
+        self.metadata = deepcopy(metadata)
+
+        if not files:
+            raise FileNotFoundError("No valid files found!")
 
         return None, None
 

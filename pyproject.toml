@@ -6,24 +6,34 @@ authors = ["Muhammad Zain Sohail <zainsohail04@gmail.com>"]
 
 [tool.poetry.dependencies]
 python = ">=3.8,<3.11"
+bokeh = "^2.4.2"
+dask = ">=2021.12.0, <2023.0.0"
+fastdtw = "^0.3.4"
+fastparquet = "^0.8.0"
+h5py = "^3.6.0"
+ipympl = "^0.9.1"
+ipywidgets = "^7.7.1"
+lmfit = "^1.0.3"
+matplotlib = "^3.5.1"
+natsort = "^8.1.0"
+numba = "^0.55.1"
 numpy = ">=1.18,<1.22"
 pandas = "^1.4.1"
-h5py = "^3.6.0"
-dask = "^2021.12.0"
-fastparquet = "^0.8.0"
-pyarrow = "^7.0.0"
 psutil = "^5.9.0"
-xarray = "^0.20.1"
-numba = "^0.55.1"
+pynxtools = "^0.0.2"
+pyyaml = "^6.0.0"
+scipy = "^1.8.0"
+symmetrize = "^0.5.5"
 threadpoolctl = "^3.1.0"
+tifffile = ">=2022.2.9, <2023.0.0"
 tqdm = "^4.62.3"
-matplotlib = "^3.5.1"
+xarray = "^0.20.2"
 jupyter = {version = "^1.0.0", extras = ["notebook"], optional = true}
 ipykernel = {version = "^6.9.1", extras = ["notebook"], optional = true}
-Sphinx = {version = "^4.4.0", extras = ["docs"], optional = true}
-sphinx-rtd-theme = {version = "^1.0.0", extras = ["docs"], optional = true}
-tomlkit = {version = "^0.10.0", extras = ["docs"], optional = true}
-sphinx-autodoc-typehints = {version = "^1.17.0", extras = ["docs"], optional = true}
+sphinx = {version = ">4.4.0", extras = ["docs"], optional = true}
+sphinx-rtd-theme = {version = ">1.0.0", extras = ["docs"], optional = true}
+tomlkit = {version = ">0.10.0", extras = ["docs"], optional = true}
+sphinx-autodoc-typehints = {version = ">1.17.0", extras = ["docs"], optional = true}
 
 [tool.poetry.extras]
 notebook = ["jupyter", "ipykernel"]

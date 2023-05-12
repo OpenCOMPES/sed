@@ -73,11 +73,13 @@ def test_has_correct_read_dataframe_func(loader):
                     loaded_dataframe, loaded_metadata = loader.read_dataframe(
                         folder=input_folder,
                         ftype=supported_file_type,
+                        collect_metadata=False,
                     )
                 else:
                     loaded_dataframe, loaded_metadata = loader.read_dataframe(
                         files=list(input_files),
                         ftype=supported_file_type,
+                        collect_metadata=False,
                     )
 
                 assert isinstance(loaded_dataframe, ddf.DataFrame)
@@ -90,5 +92,9 @@ def test_mpes_timestamps():
     loader_name = "mpes"
     loader = get_loader(loader_name)
     input_folder = os.path.join(test_data_dir, "loader", loader_name)
-    df, _ = loader.read_dataframe(folder=input_folder, time_stamps=True)
+    df, _ = loader.read_dataframe(
+        folder=input_folder,
+        collect_metadata=False,
+        time_stamps=True,
+    )
     assert "timeStamps" in df.columns

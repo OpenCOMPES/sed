@@ -2,6 +2,7 @@
 correction. Mostly ported from https://github.com/mpes-kit/mpes.
 """
 import itertools as it
+from copy import deepcopy
 from typing import Any
 from typing import Dict
 from typing import List
@@ -61,6 +62,11 @@ class MomentumCorrector:
             rotsym (int, optional): Rotational symmetry of the data. Defaults to 6.
             config (dict, optional): Config dictionary. Defaults to None.
         """
+        if config is None:
+            config = {}
+
+        self._config = config
+
         self.image: np.ndarray = None
         self.img_ndim: int = None
         self.slice: np.ndarray = None
@@ -69,12 +75,7 @@ class MomentumCorrector:
         self.bin_ranges: List[Tuple] = []
 
         if data is not None:
-            self.load_data(data=data, bin_ranges=bin_ranges, rotsym=rotsym)
-
-        if config is None:
-            config = {}
-
-        self._config = config
+            self.load_data(data=data, bin_ranges=bin_ranges)
 
         self.detector_ranges = self._config.get("momentum", {}).get(
             "detector_ranges",
@@ -85,7 +86,6 @@ class MomentumCorrector:
         self.rotsym_angle = int(360 / self.rotsym)
         self.arot = np.array([0] + [self.rotsym_angle] * (self.rotsym - 1))
         self.ascale = np.array([1.0] * self.rotsym)
-        self.adjust_params: Dict[Any, Any] = {}
         self.peaks: np.ndarray = None
         self.pouter: np.ndarray = None
         self.pcent: Tuple[float, ...] = None
@@ -103,15 +103,9 @@ class MomentumCorrector:
         self.inverse_dfield: np.ndarray = None
         self.dfield_updated: bool = False
         self.transformations: Dict[Any, Any] = {}
+        self.correction: Dict[Any, Any] = {"applied": False}
+        self.adjust_params: Dict[Any, Any] = {"applied": False}
         self.calibration: Dict[Any, Any] = {}
-        if "dfield_file" in self._config.get("momentum", {}):
-            (self.rdeform_field, self.cdeform_field) = load_dfield(
-                self._config["momentum"]["dfield_file"],
-            )
-            self.bin_ranges = self._config.get("momentum", {}).get(
-                "ranges",
-                [],
-            )
 
         self.x_column = self._config.get("dataframe", {}).get(
             "x_column",
@@ -175,7 +169,6 @@ class MomentumCorrector:
         self,
         data: Union[xr.DataArray, np.ndarray],
         bin_ranges: List[Tuple] = None,
-        rotsym: int = 6,
     ):
         """Load binned data into the momentum calibrator class
 
@@ -186,7 +179,6 @@ class MomentumCorrector:
                 Binning ranges. Needs to be provided in case the data are given
                 as np.ndarray. Otherwise, they are determined from the coords of
                 the xr.DataArray. Defaults to None.
-            rotsym (int, optional): Rotational symmetry of the data. Defaults to 6.
 
         Raises:
             ValueError: Raised if the dimensions of the input data do not fit.
@@ -214,11 +206,6 @@ class MomentumCorrector:
 
         if self.slice is not None:
             self.slice_corrected = self.slice_transformed = self.slice
-
-        self.rotsym = int(rotsym)
-        self.rotsym_angle = int(360 / self.rotsym)
-        self.arot = np.array([0] + [self.rotsym_angle] * (self.rotsym - 1))
-        self.ascale = np.array([1.0] * self.rotsym)
 
     def select_slicer(
         self,
@@ -345,8 +332,9 @@ class MomentumCorrector:
 
     def add_features(
         self,
-        peaks: np.ndarray,
+        peaks: np.ndarray = None,
         direction: str = "ccw",
+        rotsym: int = 6,
         symscores: bool = True,
         **kwds,
     ):
@@ -354,17 +342,16 @@ class MomentumCorrector:
         detects the center of the points and orders the points.
 
         Args:
-            peaks (np.ndarray):
+            peaks (np.ndarray, optional):
                 Array of peaks, possibly including a center peak. Its shape should be
                 (nx2), where n is equal to the rotation symmetry, or the rotation
-                symmetry+1, if the center is included
-            center_det (str, optional):
-                Method to use for detecting the center. Defaults to "centroidnn".
-                If no center is included, set center_det to None.
+                symmetry+1, if the center is included.
+                Defaults to config["momentum"]["correction"]["feature_points"].
             direction (str, optional):
                 Direction for ordering the points. Defaults to "ccw".
             symscores (bool, optional):
                 Option to calculate symmetry scores. Defaults to False.
+            rotsym (int, optional): Rotational symmetry of the data. Defaults to 6.
             **kwds: Keyword arguments.
 
                 - **symtype** (str): Type of symmetry scores to calculte
@@ -373,6 +360,16 @@ class MomentumCorrector:
         Raises:
             ValueError: Raised if the number of points does not match the rotsym.
         """
+        self.rotsym = int(rotsym)
+        self.rotsym_angle = int(360 / self.rotsym)
+        self.arot = np.array([0] + [self.rotsym_angle] * (self.rotsym - 1))
+        self.ascale = np.array([1.0] * self.rotsym)
+
+        if peaks is None:
+            peaks = np.asarray(
+                self._config["momentum"]["correction"]["feature_points"],
+            )
+
         if peaks.shape[0] == self.rotsym:  # assume no center present
             self.pcent, self.pouter = po.pointset_center(
                 peaks,
@@ -414,6 +411,7 @@ class MomentumCorrector:
         image: np.ndarray = None,
         direction: str = "ccw",
         feature_type: str = "points",
+        rotsym: int = 6,
         symscores: bool = True,
         **kwds,
     ):
@@ -429,6 +427,7 @@ class MomentumCorrector:
                 Defaults to "ccw".
             feature_type (str, optional):
                 The type of features to extract. Defaults to "points".
+            rotsym (int, optional): Rotational symmetry of the data. Defaults to 6.
             symscores (bool, optional):
                 Option for calculating symmetry scores. Defaults to True.
             **kwds:
@@ -439,7 +438,10 @@ class MomentumCorrector:
                 Raised for undefined feature_types.
         """
         if image is None:
-            image = self.slice
+            if self.slice is not None:
+                image = self.slice
+            else:
+                raise ValueError("No image loaded for feature extraction!")
 
         if feature_type == "points":
 
@@ -449,6 +451,7 @@ class MomentumCorrector:
             self.add_features(
                 peaks=self.peaks,
                 direction=direction,
+                rotsym=rotsym,
                 symscores=symscores,
                 **kwds,
             )
@@ -520,7 +523,11 @@ class MomentumCorrector:
             np.ndarray: The corrected image.
         """
         if image is None:
-            image = self.slice
+            if self.slice is not None:
+                image = self.slice
+            else:
+                image = np.zeros(self._config["momentum"]["bins"][0:2])
+                self.bin_ranges = self._config["momentum"]["ranges"]
 
         if self.pouter_ord is None:
             assert self.pouter is not None, "No landmarks defined!"
@@ -558,7 +565,7 @@ class MomentumCorrector:
                 ).T
 
         # Non-iterative estimation of deformation field
-        self.slice_corrected, splinewarp = tps.tpsWarping(
+        corrected_image, splinewarp = tps.tpsWarping(
             self.prefs,
             self.ptargs,
             image,
@@ -575,7 +582,17 @@ class MomentumCorrector:
             splinewarp[1],
         )
 
-        return self.slice_corrected
+        self.correction["applied"] = True
+        self.correction["pouter"] = self.pouter_ord
+        self.correction["pcent"] = np.asarray(self.pcent)
+        self.correction["prefs"] = self.prefs
+        self.correction["ptargs"] = self.ptargs
+        self.correction["rotsym"] = self.rotsym
+
+        if self.slice is not None:
+            self.slice_corrected = corrected_image
+
+        return corrected_image
 
     def apply_correction(
         self,
@@ -761,7 +778,6 @@ class MomentumCorrector:
                 ret="displacement",
                 **kwds,
             )
-        self.adjust_params = dictmerge(self.adjust_params, kwds)
 
         # Compute deformation field
         if stackax == 0:
@@ -811,6 +827,8 @@ class MomentumCorrector:
                 rdeform,
                 cdeform,
             )
+            self.adjust_params["applied"] = True
+            self.adjust_params = dictmerge(self.adjust_params, kwds)
 
         return slice_transformed
 
@@ -1389,10 +1407,12 @@ class MomentumCorrector:
 
         # Assemble into return dictionary
         self.calibration = {}
-        self.calibration["axes"] = (k_row, k_col)
-        self.calibration["extent"] = (k_row[0], k_row[-1], k_col[0], k_col[-1])
-        self.calibration["coeffs"] = (xratio, yratio)
+        self.calibration["kx_axis"] = k_row
+        self.calibration["ky_axis"] = k_col
         self.calibration["grid"] = (k_rowgrid, k_colgrid)
+        self.calibration["extent"] = (k_row[0], k_row[-1], k_col[0], k_col[-1])
+        self.calibration["kx_scale"] = xratio
+        self.calibration["ky_scale"] = yratio
         self.calibration["x_center"] = point_b[0] - k_coord_b[0] / xratio
         self.calibration["y_center"] = point_b[1] - k_coord_b[1] / yratio
         # copy parameters for applying calibration
@@ -1410,7 +1430,7 @@ class MomentumCorrector:
 
         return self.calibration
 
-    def apply_distortion_correction(
+    def apply_corrections(
         self,
         df: Union[pd.DataFrame, dask.dataframe.DataFrame],
         x_column: str = None,
@@ -1418,7 +1438,7 @@ class MomentumCorrector:
         new_x_column: str = None,
         new_y_column: str = None,
         **kwds,
-    ) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
+    ) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
         """Calculate and replace the X and Y values with their distortion-corrected
         version.
 
@@ -1444,8 +1464,8 @@ class MomentumCorrector:
                 Additional keyword arguments are passed to ``apply_dfield``.
 
         Returns:
-            Union[pd.DataFrame, dask.dataframe.DataFrame]: Dataframe with added
-            columns.
+            Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]: Dataframe with
+            added columns and momentum correction metadata dictionary.
         """
         if x_column is None:
             x_column = self.x_column
@@ -1457,33 +1477,23 @@ class MomentumCorrector:
         if new_y_column is None:
             new_y_column = self.corrected_y_column
 
-        if "dfield" in kwds:
-            dfield = np.asarray(kwds.pop("dfield"))
-        elif "rdeform_field" in kwds and "cdeform_field" in kwds:
-            rdeform_field = np.asarray(kwds.pop("rdeform_field"))
-            cdeform_field = np.asarray(kwds.pop("cdeform_field"))
-            dfield = generate_inverse_dfield(
-                rdeform_field,
-                cdeform_field,
+        if self.inverse_dfield is None or self.dfield_updated:
+            if self.rdeform_field is None and self.cdeform_field is None:
+                # Apply defaults
+                self.add_features()
+                self.spline_warp_estimate()
+
+            self.inverse_dfield = generate_inverse_dfield(
+                self.rdeform_field,
+                self.cdeform_field,
                 self.bin_ranges,
                 self.detector_ranges,
             )
-        else:
-            if self.inverse_dfield is not None and not self.dfield_updated:
-                dfield = self.inverse_dfield
-            else:
-                self.inverse_dfield = generate_inverse_dfield(
-                    self.rdeform_field,
-                    self.cdeform_field,
-                    self.bin_ranges,
-                    self.detector_ranges,
-                )
-                self.dfield_updated = False
-                dfield = self.inverse_dfield
+            self.dfield_updated = False
 
         out_df = df.map_partitions(
             apply_dfield,
-            dfield,
+            dfield=self.inverse_dfield,
             x_column=x_column,
             y_column=y_column,
             new_x_column=new_x_column,
@@ -1491,7 +1501,96 @@ class MomentumCorrector:
             detector_ranges=self.detector_ranges,
             **kwds,
         )
-        return out_df
+
+        metadata = self.gather_correction_metadata()
+
+        return out_df, metadata
+
+    def gather_correction_metadata(self) -> dict:
+        """Collect meta data for momentum correction.
+
+        Returns:
+            dict: generated correction metadata dictionary.
+        """
+        metadata: Dict[Any, Any] = {}
+        if self.correction["applied"]:
+            metadata["correction"] = self.correction
+            metadata["correction"]["cdeform_field"] = self.cdeform_field
+            metadata["correction"]["rdeform_field"] = self.rdeform_field
+        if self.adjust_params["applied"]:
+            metadata["registration"] = self.adjust_params
+            metadata["registration"]["depends_on"] = (
+                "/entry/process/registration/tranformations/rot_z"
+                if "angle" in metadata["registration"]
+                and metadata["registration"]["angle"]
+                else "/entry/process/registration/tranformations/trans_y"
+                if "xtrans" in metadata["registration"]
+                and metadata["registration"]["xtrans"]
+                else "/entry/process/registration/tranformations/trans_x"
+                if "ytrans" in metadata["registration"]
+                and metadata["registration"]["ytrans"]
+                else "."
+            )
+            if (
+                "ytrans" in metadata["registration"]
+                and metadata["registration"]["ytrans"]
+            ):  # swapped definitions
+                metadata["registration"]["trans_x"] = {}
+                metadata["registration"]["trans_x"]["value"] = metadata[
+                    "registration"
+                ]["ytrans"]
+                metadata["registration"]["trans_x"]["type"] = "translation"
+                metadata["registration"]["trans_x"]["units"] = "pixel"
+                metadata["registration"]["trans_x"]["vector"] = np.asarray(
+                    [1.0, 0.0, 0.0],
+                )
+                metadata["registration"]["trans_x"]["depends_on"] = "."
+            if (
+                "xtrans" in metadata["registration"]
+                and metadata["registration"]["xtrans"]
+            ):
+                metadata["registration"]["trans_y"] = {}
+                metadata["registration"]["trans_y"]["value"] = metadata[
+                    "registration"
+                ]["xtrans"]
+                metadata["registration"]["trans_y"]["type"] = "translation"
+                metadata["registration"]["trans_y"]["units"] = "pixel"
+                metadata["registration"]["trans_y"]["vector"] = np.asarray(
+                    [0.0, 1.0, 0.0],
+                )
+                metadata["registration"]["trans_y"]["depends_on"] = (
+                    "/entry/process/registration/tranformations/trans_x"
+                    if "ytrans" in metadata["registration"]
+                    and metadata["registration"]["ytrans"]
+                    else "."
+                )
+            if (
+                "angle" in metadata["registration"]
+                and metadata["registration"]["angle"]
+            ):
+                metadata["registration"]["rot_z"] = {}
+                metadata["registration"]["rot_z"]["value"] = metadata[
+                    "registration"
+                ]["angle"]
+                metadata["registration"]["rot_z"]["type"] = "rotation"
+                metadata["registration"]["rot_z"]["units"] = "degrees"
+                metadata["registration"]["rot_z"]["vector"] = np.asarray(
+                    [0.0, 0.0, 1.0],
+                )
+                metadata["registration"]["rot_z"]["offset"] = np.concatenate(
+                    (metadata["registration"]["center"], [0.0]),
+                )
+                metadata["registration"]["rot_z"]["depends_on"] = (
+                    "/entry/process/registration/tranformations/trans_y"
+                    if "xtrans" in metadata["registration"]
+                    and metadata["registration"]["xtrans"]
+                    else "/entry/process/registration/tranformations/trans_x"
+                    if "ytrans" in metadata["registration"]
+                    and metadata["registration"]["ytrans"]
+                    else "."
+                )
+
+        return metadata
 
     def append_k_axis(
         self,
@@ -1502,7 +1601,7 @@ class MomentumCorrector:
         new_y_column: str = None,
         calibration: dict = None,
         **kwds,
-    ) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
+    ) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
         """Calculate and append the k axis coordinates (kx, ky) to the events dataframe.
 
         Args:
@@ -1520,9 +1619,12 @@ class MomentumCorrector:
                 momentum calibration. Defaults to config["momentum"]["ky_column"].
             calibration (dict, optional): Dictionary containing calibration parameters.
                 Defaults to 'self.calibration' or config["momentum"]["calibration"].
+            **kwds: Keyword parameters for momentum calibration. Parameters are added
+                to the calibration dictionary.
 
         Returns:
-            Union[pd.DataFrame, dask.dataframe.DataFrame]: Dataframe with added columns.
+            Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]: Dataframe with
+            added columns and momentum calibration metadata dictionary.
         """
         if x_column is None:
             if self.corrected_x_column in df.columns:
@@ -1541,14 +1643,20 @@ class MomentumCorrector:
         if new_y_column is None:
             new_y_column = self.ky_column
 
+        # pylint: disable=duplicate-code
         if calibration is None:
             if self.calibration:
-                calibration = self.calibration
+                calibration = deepcopy(self.calibration)
             else:
-                calibration = self._config.get("momentum", {}).get(
-                    "calibration",
-                    {},
+                calibration = deepcopy(
+                    self._config.get("momentum", {}).get(
+                        "calibration",
+                        {},
+                    ),
                 )
+
+        for key, value in kwds.items():
+            calibration[key] = value
 
         try:
             (
@@ -1561,22 +1669,42 @@ class MomentumCorrector:
                 c_start=calibration["cstart"],
                 r_center=calibration["x_center"],
                 c_center=calibration["y_center"],
-                r_conversion=calibration["coeffs"][0],
-                c_conversion=calibration["coeffs"][1],
+                r_conversion=calibration["kx_scale"],
+                c_conversion=calibration["ky_scale"],
                 r_step=calibration["rstep"],
                 c_step=calibration["cstep"],
             )
-        except KeyError:
-            (
-                df[new_x_column],
-                df[new_y_column],
-            ) = detector_coordiantes_2_k_koordinates(
-                r_det=df[x_column],
-                c_det=df[y_column],
-                **kwds,
-            )
+        except KeyError as exc:
+            raise ValueError(
+                "Required calibration parameters missing!",
+            ) from exc
 
-        return df
+        metadata = self.gather_calibration_metadata(calibration=calibration)
+
+        return df, metadata
+
+    def gather_calibration_metadata(self, calibration: dict = None) -> dict:
+        """Collect meta data for momentum calibration
+
+        Args:
+            calibration (dict, optional): Dictionary with momentum calibration
+                parameters. If omitted will be taken from the class.
+
+        Returns:
+            dict: Generated metadata dictionary.
+        """
+        if calibration is None:
+            calibration = self.calibration
+        metadata: Dict[Any, Any] = {}
+        metadata["applied"] = True
+        metadata["calibration"] = calibration
+        # create empty calibrated axis entries, if they are not present.
+        if "kx_axis" not in metadata["calibration"]:
+            metadata["calibration"]["kx_axis"] = 0
+        if "ky_axis" not in metadata["calibration"]:
+            metadata["calibration"]["ky_axis"] = 0
+
+        return metadata
 
 
 def cm2palette(cmap_name: str) -> list:

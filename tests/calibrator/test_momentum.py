@@ -4,6 +4,8 @@ import csv
 import glob
 import os
 from importlib.util import find_spec
+from typing import Any
+from typing import Dict
 
 import numpy as np
 import pytest
@@ -50,9 +52,8 @@ def test_feature_extract():
     mc.load_data(
         data=momentum_map,
         bin_ranges=[(-256, 1792), (-256, 1792)],
-        rotsym=6,
     )
-    mc.feature_extract(fwhm=10, sigma=12, sigma_radius=4)
+    mc.feature_extract(fwhm=10, sigma=12, sigma_radius=4, rotsym=6)
     assert len(mc.pcent) == 2
     assert len(mc.pouter_ord) == 6
 
@@ -71,7 +72,6 @@ def test_splinewarp(include_center: bool):
     mc.load_data(
         data=momentum_map,
         bin_ranges=[(-256, 1792), (-256, 1792)],
-        rotsym=6,
     )
     features = np.array(
         [
@@ -86,7 +86,7 @@ def test_splinewarp(include_center: bool):
     )
     if not include_center:
         features = features[0:-1]
-    mc.add_features(peaks=features)
+    mc.add_features(peaks=features, rotsym=6)
     mc.spline_warp_estimate(include_center=include_center)
     assert mc.cdeform_field.shape == mc.rdeform_field.shape == mc.image.shape
     assert len(mc.ptargs) == len(mc.prefs)
@@ -98,7 +98,6 @@ def test_pose_correction():
     mc.load_data(
         data=momentum_map,
         bin_ranges=[(-256, 1792), (-256, 1792)],
-        rotsym=6,
     )
     mc.reset_deformation()
     dfield = np.array([mc.cdeform_field, mc.rdeform_field])
@@ -110,12 +109,12 @@ def test_apply_correction():
     """Test the application of the distortion correction to the dataframe."""
     df, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
         folder=df_folder,
+        collect_metadata=False,
     )
     mc = MomentumCorrector(config=config)
     mc.load_data(
         data=momentum_map,
         bin_ranges=[(-256, 1792), (-256, 1792)],
-        rotsym=6,
     )
     features = np.array(
         [
@@ -128,11 +127,136 @@ def test_apply_correction():
             [248.29, 248.62],
         ],
     )
-    mc.add_features(peaks=features)
+    mc.add_features(peaks=features, rotsym=6)
     mc.spline_warp_estimate()
-    df = mc.apply_distortion_correction(df=df)
+    df, metadata = mc.apply_corrections(df=df)
     assert "Xm" in df.columns
     assert "Ym" in df.columns
+    assert metadata["correction"]["applied"] is True
+    np.testing.assert_equal(metadata["correction"]["prefs"], features)
+    assert metadata["correction"]["cdeform_field"].shape == momentum_map.shape
+    assert metadata["correction"]["rdeform_field"].shape == momentum_map.shape
+
+
+transformations_list = [
+    {"xtrans": np.random.randint(1, 50)},
+    {"ytrans": np.random.randint(1, 50)},
+    {"angle": np.random.randint(1, 50)},
+    {
+        "xtrans": np.random.randint(1, 50),
+        "ytrans": np.random.randint(1, 50),
+    },
+    {
+        "xtrans": np.random.randint(1, 50),
+        "angle": np.random.randint(1, 50),
+    },
+    {
+        "ytrans": np.random.randint(0, 50),
+        "angle": np.random.randint(0, 50),
+    },
+    {
+        "xtrans": np.random.randint(1, 50),
+        "ytrans": np.random.randint(1, 50),
+        "angle": np.random.randint(1, 50),
+    },
+]
+depends_on_list = [
+    {
+        "root": "/entry/process/registration/tranformations/trans_x",
+        "axes": {"trans_x": "."},
+    },
+    {
+        "root": "/entry/process/registration/tranformations/trans_y",
+        "axes": {"trans_y": "."},
+    },
+    {
+        "root": "/entry/process/registration/tranformations/rot_z",
+        "axes": {"rot_z": "."},
+    },
+    {
+        "root": "/entry/process/registration/tranformations/trans_y",
+        "axes": {
+            "trans_x": ".",
+            "trans_y": "/entry/process/registration/tranformations/trans_x",
+        },
+    },
+    {
+        "root": "/entry/process/registration/tranformations/rot_z",
+        "axes": {
+            "trans_x": ".",
+            "rot_z": "/entry/process/registration/tranformations/trans_x",
+        },
+    },
+    {
+        "root": "/entry/process/registration/tranformations/rot_z",
+        "axes": {
+            "trans_y": ".",
+            "rot_z": "/entry/process/registration/tranformations/trans_y",
+        },
+    },
+    {
+        "root": "/entry/process/registration/tranformations/rot_z",
+        "axes": {
+            "trans_x": ".",
+            "trans_y": "/entry/process/registration/tranformations/trans_x",
+            "rot_z": "/entry/process/registration/tranformations/trans_y",
+        },
+    },
+]
+
+
+@pytest.mark.parametrize(
+    "transformations, depends_on",
+    zip(transformations_list, depends_on_list),
+)
+def test_apply_registration(
+    transformations: Dict[Any, Any],
+    depends_on: Dict[Any, Any],
+):
+    """Test the application of the distortion correction to the dataframe."""
+    df, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
+        folder=df_folder,
+        collect_metadata=False,
+    )
+    mc = MomentumCorrector(config=config)
+    mc.load_data(
+        data=momentum_map,
+        bin_ranges=[(-256, 1792), (-256, 1792)],
+    )
+    mc.add_features()
+    mc.spline_warp_estimate()  # use spline warp with default parameters
+    mc.pose_adjustment(**transformations, apply=True)
+    df, metadata = mc.apply_corrections(df=df)
+    assert "Xm" in df.columns
+    assert "Ym" in df.columns
+    assert metadata["registration"]["applied"] is True
+    assert metadata["registration"]["depends_on"] == depends_on["root"]
+    for key, value in transformations.items():
+        if key == "xtrans":
+            assert metadata["registration"]["trans_x"]["value"] == value
+            assert (
+                metadata["registration"]["trans_x"]["depends_on"]
+                == depends_on["axes"]["trans_x"]
+            )
+            assert metadata["registration"]["trans_x"]["type"] == "translation"
+        if key == "ytrans":
+            assert metadata["registration"]["trans_y"]["value"] == value
+            assert (
+                metadata["registration"]["trans_y"]["depends_on"]
+                == depends_on["axes"]["trans_y"]
+            )
+            assert metadata["registration"]["trans_y"]["type"] == "translation"
+        if key == "angle":
+            assert metadata["registration"]["rot_z"]["value"] == value
+            assert (
+                metadata["registration"]["rot_z"]["depends_on"]
+                == depends_on["axes"]["rot_z"]
+            )
+            assert metadata["registration"]["rot_z"]["type"] == "rotation"
+            np.testing.assert_equal(
+                metadata["registration"]["rot_z"]["offset"][0:2],
+                metadata["registration"]["center"],
+            )
 
 
 def test_momentum_calibration_equiscale():
@@ -141,6 +265,7 @@ def test_momentum_calibration_equiscale():
     """
     df, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
         folder=df_folder,
+        collect_metadata=False,
     )
     mc = MomentumCorrector(config=config)
     mc.load_data(data=momentum_map, bin_ranges=[(-256, 1792), (-256, 1792)])
@@ -154,15 +279,18 @@ def test_momentum_calibration_equiscale():
         k_distance=k_distance,
         equiscale=True,
     )
-    mc.append_k_axis(df, x_column="X", y_column="Y")
+    df, metadata = mc.append_k_axis(df, x_column="X", y_column="Y")
     assert "kx" in df.columns
     assert "ky" in df.columns
+    for key, value in mc.calibration.items():
+        np.testing.assert_equal(metadata["calibration"][key], value)
 
 
 def test_momentum_calibration_two_points():
     """Test the calibration using two k-points, and application to the dataframe."""
     df, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
         folder=df_folder,
+        collect_metadata=False,
     )
     mc = MomentumCorrector(config=config)
     mc.load_data(data=momentum_map, bin_ranges=[(-256, 1792), (-256, 1792)])
@@ -178,6 +306,11 @@ def test_momentum_calibration_two_points():
         k_coord_b=k_coord_b,
         equiscale=False,
     )
-    mc.append_k_axis(df, x_column="X", y_column="Y")
+    df, metadata = mc.append_k_axis(df, x_column="X", y_column="Y")
     assert "kx" in df.columns
     assert "ky" in df.columns
+    for key, value in mc.calibration.items():
+        np.testing.assert_equal(
+            metadata["calibration"][key],
+            value,
+        )

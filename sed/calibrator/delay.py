@@ -1,5 +1,8 @@
 """sed.calibrator.delay module. Code for delay calibration.
 """
+from copy import deepcopy
+from typing import Any
+from typing import Dict
 from typing import List
 from typing import Tuple
 from typing import Union
@@ -41,12 +44,14 @@ class DelayCalibrator:
             "delay_column",
             "delay",
         )
+        self.calibration: Dict[Any, Any] = {}
 
     def append_delay_axis(
         self,
         df: Union[pd.DataFrame, dask.dataframe.DataFrame],
         adc_column: str = None,
         delay_column: str = None,
+        calibration: dict = None,
         adc_range: Union[Tuple, List, np.ndarray] = None,
         delay_range: Union[Tuple, List, np.ndarray] = None,
         time0: float = None,
@@ -55,7 +60,7 @@ class DelayCalibrator:
         p1_key: str = None,
         p2_key: str = None,
         t0_key: str = None,
-    ) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
+    ) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
         """Calculate and append the delay axis to the events dataframe, by converting
         values from an analog-digital-converter (ADC).
 
@@ -66,6 +71,8 @@ class DelayCalibrator:
                 Defaults to config["dataframe"]["adc_column"].
             delay_column (str, optional): Destination column for delay calibration.
                 Defaults to config["dataframe"]["delay_column"].
+            calibration (dict, optional): Calibration dictionary with parameters for
+                delay calibration.
             adc_range (Union[Tuple, List, np.ndarray], optional): The range of used
                 ADC values. Defaults to config["delay"]["adc_range"].
             delay_range (Union[Tuple, List, np.ndarray], optional): Range of scanned
@@ -89,22 +96,34 @@ class DelayCalibrator:
             NotImplementedError: Raised if no sufficient information passed.
 
         Returns:
-            Union[pd.DataFrame, dask.dataframe.DataFrame]: dataframe with added column.
+            Union[pd.DataFrame, dask.dataframe.DataFrame]: dataframe with added column
+            and delay calibration metdata dictionary.
         """
-        if adc_range is None:
-            adc_range = np.asarray(
-                self._config.get("delay", {}).get(
-                    "adc_range",
-                    [2600, 27600],
-                ),
-            ) / 2 ** self._config.get("delay", {}).get("adc_binning", 2)
+        # pylint: disable=duplicate-code
+        if calibration is None:
+            if self.calibration:
+                calibration = deepcopy(self.calibration)
+            else:
+                calibration = deepcopy(
+                    self._config.get("delay", {}).get(
+                        "calibration",
+                        {},
+                    ),
+                )
+
+        if adc_range is not None:
+            calibration["adc_range"] = adc_range
+        if delay_range is not None:
+            calibration["delay_range"] = delay_range
+        if time0 is not None:
+            calibration["time0"] = time0
+        if delay_range_mm is not None:
+            calibration["delay_range_mm"] = delay_range_mm
 
         if adc_column is None:
             adc_column = self.adc_column
-
         if delay_column is None:
             delay_column = self.delay_column
-
         if p1_key is None:
             p1_key = self._config.get("delay", {}).get("p1_key", "")
         if p2_key is None:
@@ -112,8 +131,19 @@ class DelayCalibrator:
         if t0_key is None:
             t0_key = self._config.get("delay", {}).get("t0_key", "")
 
-        if delay_range is None:
-            if delay_range_mm is None or time0 is None:
+        if "adc_range" not in calibration.keys():
+            calibration["adc_range"] = np.asarray(
+                self._config.get("delay", {}).get(
+                    "adc_range",
+                    [2600, 27600],
+                ),
+            ) / 2 ** self._config.get("delay", {}).get("adc_binning", 2)
+
+        if "delay_range" not in calibration.keys():
+            if (
+                "delay_range_mm" not in calibration.keys()
+                or "time0" not in calibration.keys()
+            ):
                 if datafile is not None:
                     try:
                         ret = extract_delay_stage_parameters(
@@ -126,27 +156,37 @@ class DelayCalibrator:
                         raise ValueError(
                             "Delay stage values not found in file",
                         ) from exc
-                    delay_range_mm = (ret[0], ret[1])
-                    time0 = ret[2]
+                    calibration["datafile"] = datafile
+                    calibration["delay_range_mm"] = (ret[0], ret[1])
+                    calibration["time0"] = ret[2]
                     print(f"Extract delay range from file '{datafile}'.")
                 else:
-                    raise NotImplementedError
+                    raise NotImplementedError(
+                        "Not enough parameters for delay calibration.",
+                    )
 
-            delay_range = np.asarray(
-                mm_to_ps(np.asarray(delay_range_mm), time0),
+            calibration["delay_range"] = np.asarray(
+                mm_to_ps(
+                    np.asarray(calibration["delay_range_mm"]),
+                    calibration["time0"],
+                ),
             )
-            print(f"delay_range (ps) = {delay_range}")
+            print(f"delay_range (ps) = {calibration['delay_range']}")
 
-        if delay_range is not None:
-            df[delay_column] = delay_range[0] + (
-                df[adc_column] - adc_range[0]
-            ) * (delay_range[1] - delay_range[0]) / (
-                adc_range[1] - adc_range[0]
+        if "delay_range" in calibration.keys():
+            df[delay_column] = calibration["delay_range"][0] + (
+                df[adc_column] - calibration["adc_range"][0]
+            ) * (
+                calibration["delay_range"][1] - calibration["delay_range"][0]
+            ) / (
+                calibration["adc_range"][1] - calibration["adc_range"][0]
             )
         else:
             raise NotImplementedError
 
-        return df
+        metadata = {"calibration": calibration}
+
+        return df, metadata
 
 
 def extract_delay_stage_parameters(

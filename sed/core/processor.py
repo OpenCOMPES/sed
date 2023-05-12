@@ -1,6 +1,7 @@
 """This module contains the core class for the sed package
 
 """
+import pathlib
 from typing import Any
 from typing import cast
 from typing import Dict
@@ -24,6 +25,9 @@ from sed.config import parse_config
 from sed.core.dfops import apply_jitter
 from sed.core.metadata import MetaHandler
 from sed.diagnostics import grid_histogram
+from sed.io import to_h5
+from sed.io import to_nexus
+from sed.io import to_tiff
 from sed.loader import CopyTool
 from sed.loader import get_loader
 
@@ -44,6 +48,9 @@ class SedProcessor:
             the config. Defaults to None.
         folder (str, optional): Folder containing files to pass to the loader
             defined in the config. Defaults to None.
+        collect_metadata (bool): Option to collect metadata from files.
+            Defaults to False.
+        **kwds: Keyword arguments passed to the reader.
     """
 
     def __init__(
@@ -53,6 +60,7 @@ class SedProcessor:
         dataframe: Union[pd.DataFrame, ddf.DataFrame] = None,
         files: List[str] = None,
         folder: str = None,
+        collect_metadata: bool = False,
         **kwds,
     ):
         """Processor class of sed. Contains wrapper functions defining a work flow
@@ -68,6 +76,9 @@ class SedProcessor:
                 the config. Defaults to None.
             folder (str, optional): Folder containing files to pass to the loader
                 defined in the config. Defaults to None.
+            collect_metadata (bool): Option to collect metadata from files.
+                Defaults to False.
+            **kwds: Keyword arguments passed to the reader.
         """
         self._config = parse_config(config)
         num_cores = self._config.get("binning", {}).get("num_cores", N_CPU - 1)
@@ -121,7 +132,14 @@ class SedProcessor:
 
         # Load data if provided:
         if dataframe is not None or files is not None or folder is not None:
-            self.load(dataframe=dataframe, files=files, folder=folder, **kwds)
+            self.load(
+                dataframe=dataframe,
+                metadata=metadata,
+                files=files,
+                folder=folder,
+                collect_metadata=collect_metadata,
+                **kwds,
+            )
 
     def __repr__(self):
         if self._dataframe is None:
@@ -236,8 +254,10 @@ class SedProcessor:
     def load(
         self,
         dataframe: Union[pd.DataFrame, ddf.DataFrame] = None,
+        metadata: dict = None,
         files: List[str] = None,
         folder: str = None,
+        collect_metadata: bool = False,
         **kwds,
     ):
         """Load tabular data of single events into the dataframe object in the class.
@@ -246,39 +266,49 @@ class SedProcessor:
             dataframe (Union[pd.DataFrame, ddf.DataFrame], optional): data in tabular
                 format. Accepts anything which can be interpreted by pd.DataFrame as
                 an input. Defaults to None.
+            metadata (dict, optional): Dict of external Metadata. Defaults to None.
             files (List[str], optional): List of file paths to pass to the loader.
                 Defaults to None.
             folder (str, optional): Folder path to pass to the loader.
                 Defaults to None.
+            collect_metadata (bool): Option to collect metadata from files.
+                Defaults to False.
 
         Raises:
             ValueError: Raised if no valid input is provided.
         """
+        if metadata is None:
+            metadata = {}
         if dataframe is not None:
             self._dataframe = dataframe
         elif folder is not None:
-            # pylint: disable=unused-variable
             dataframe, metadata = self.loader.read_dataframe(
                 folder=cast(str, self.cpy(folder)),
+                metadata=metadata,
+                collect_metadata=collect_metadata,
                 **kwds,
             )
             self._dataframe = dataframe
-            # TODO: Implement metadata treatment
-            # self._attributes.add(metadata)
             self._files = self.loader.files
         elif files is not None:
-            # pylint: disable=unused-variable
             dataframe, metadata = self.loader.read_dataframe(
                 files=cast(List[str], self.cpy(files)),
+                metadata=metadata,
+                collect_metadata=collect_metadata,
                 **kwds,
             )
             self._dataframe = dataframe
-            # TODO: Implement metadata treatment
-            # self._attributes.add(metadata)
             self._files = self.loader.files
         else:
             raise ValueError(
                 "Either 'dataframe', 'files' or 'folder' needs to be privided!",
+            )
+
+        for key in metadata:
+            self._attributes.add(
+                entry=metadata[key],
+                name=key,
+                duplicate_policy="merge",
             )
 
     # Momentum calibration workflow
@@ -286,7 +316,6 @@ class SedProcessor:
     def bin_and_load_momentum_calibration(
         self,
         df_partitions: int = 100,
-        rotation_symmetry: int = 6,
         axes: List[str] = None,
         bins: List[int] = None,
         ranges: Sequence[Tuple[float, float]] = None,
@@ -302,8 +331,6 @@ class SedProcessor:
         Args:
             df_partitions (int, optional): Number of dataframe partitions to use for
                 the initial binning. Defaults to 100.
-            rotation_symmetry (int, optional): Number of rotational symmetry axes.
-                Defaults to 6.
             axes (List[str], optional): Axes to bin.
                 Defaults to config["momentum"]["axes"].
             bins (List[int], optional): Bin numbers to use for binning.
@@ -324,7 +351,7 @@ class SedProcessor:
             **kwds,
         )
 
-        self.mc.load_data(data=self._pre_binned, rotsym=rotation_symmetry)
+        self.mc.load_data(data=self._pre_binned)
         self.mc.select_slicer(plane=plane, width=width, apply=apply)
 
     # 2. Generate the spline warp correction from momentum features.
@@ -332,6 +359,7 @@ class SedProcessor:
     def generate_splinewarp(
         self,
         features: np.ndarray = None,
+        rotation_symmetry: int = 6,
         auto_detect: bool = False,
         include_center: bool = True,
         **kwds,
@@ -343,16 +371,13 @@ class SedProcessor:
 
         Args:
             features (np.ndarray, optional): np.ndarray of features. Defaults to None.
+            rotation_symmetry (int, optional): Number of rotational symmetry axes.
+                Defaults to 6.
             auto_detect (bool, optional): Whether to auto-detect the features.
                 Defaults to False.
             include_center (bool, optional): Option to fix the position of the center
                 point for the correction. Defaults to True.
         """
-        if self.mc.slice is None:
-            raise ValueError(
-                "No slice for corrections and transformations loaded!",
-            )
-
         if auto_detect:  # automatic feature selection
             sigma = kwds.pop(
                 "sigma",
@@ -370,33 +395,38 @@ class SedProcessor:
                 sigma=sigma,
                 fwhm=fwhm,
                 sigma_radius=sigma_radius,
+                rotsym=rotation_symmetry,
                 **kwds,
             )
         else:  # Manual feature selection
-            assert features is not None
-            self.mc.add_features(features, **kwds)
-
-        print("Original slice with reference features")
-        self.mc.view(annotated=True, backend="bokeh", crosshair=True)
+            self.mc.add_features(
+                features=features,
+                rotsym=rotation_symmetry,
+                **kwds,
+            )
 
         self.mc.spline_warp_estimate(include_center=include_center, **kwds)
 
-        print("Corrected slice with target features")
-        self.mc.view(
-            image=self.mc.slice_corrected,
-            annotated=True,
-            points={"feats": self.mc.ptargs},
-            backend="bokeh",
-            crosshair=True,
-        )
+        if self.mc.slice is not None:
+            print("Original slice with reference features")
+            self.mc.view(annotated=True, backend="bokeh", crosshair=True)
 
-        print("Original slice with target features")
-        self.mc.view(
-            image=self.mc.slice,
-            points={"feats": self.mc.ptargs},
-            annotated=True,
-            backend="bokeh",
-        )
+            print("Corrected slice with target features")
+            self.mc.view(
+                image=self.mc.slice_corrected,
+                annotated=True,
+                points={"feats": self.mc.ptargs},
+                backend="bokeh",
+                crosshair=True,
+            )
+
+            print("Original slice with target features")
+            self.mc.view(
+                image=self.mc.slice,
+                points={"feats": self.mc.ptargs},
+                annotated=True,
+                backend="bokeh",
+            )
 
     # 3. Pose corrections. Provide interactive interface for correcting
     # scaling, shift and rotation
@@ -407,6 +437,7 @@ class SedProcessor:
         ytrans: float = 0,
         angle: float = 0,
         apply: bool = False,
+        use_correction: bool = True,
     ):
         """3. step of the distortion correction workflow: Generate an interactive panel
         to adjust affine transformations that are applied to the image. Applies first
@@ -424,6 +455,8 @@ class SedProcessor:
                 Defaults to 0.
             apply (bool, optional): Option to directly apply the provided
                 transformations. Defaults to False.
+            use_correction (bool, option): Whether to use the spline warp correction
+                or not. Defaults to True.
         """
         # Generate homomorphy as default if no distortion correction has been applied
         if self.mc.slice_corrected is None:
@@ -434,6 +467,11 @@ class SedProcessor:
             self.mc.slice_corrected = self.mc.slice
 
         if self.mc.cdeform_field is None or self.mc.rdeform_field is None:
+            # Generate default distortion correction
+            self.mc.add_features()
+            self.mc.spline_warp_estimate()
+
+        if not use_correction:
             self.mc.reset_deformation()
 
         self.mc.pose_adjustment(
@@ -443,6 +481,38 @@ class SedProcessor:
             angle=angle,
             apply=apply,
         )
+
+    def apply_momentum_correction(
+        self,
+        preview: bool = False,
+    ):
+        """Applies the distortion correction and pose adjustment (optional)
+        to the dataframe.
+
+        Args:
+            rdeform_field (np.ndarray, optional): Row deformation field.
+                Defaults to None.
+            cdeform_field (np.ndarray, optional): Column deformation field.
+                Defaults to None.
+            inv_dfield (np.ndarray, optional): Inverse deformation field.
+                Defaults to None.
+            preview (bool): Option to preview the first elements of the data frame.
+        """
+        if self._dataframe is not None:
+            print("Adding corrected X/Y columns to dataframe:")
+            self._dataframe, metadata = self.mc.apply_corrections(
+                df=self._dataframe,
+            )
+            # Add Metadata
+            self._attributes.add(
+                metadata,
+                "momentum_correction",
+                duplicate_policy="merge",
+            )
+            if preview:
+                print(self._dataframe.head(10))
+            else:
+                print(self._dataframe)
 
     # 4. Calculate momentum calibration and apply correction and calibration
     # to the dataframe
@@ -504,6 +574,7 @@ class SedProcessor:
     def apply_momentum_calibration(
         self,
         calibration: dict = None,
+        preview: bool = False,
     ):
         """5. step of the momentum calibration/distortion correction work flow: Apply
         any distortion correction and/or pose adjustment stored in the MomentumCorrector
@@ -512,33 +583,28 @@ class SedProcessor:
         Args:
             calibration (dict, optional): Optional dictionary with calibration data to
                 use. Defaults to None.
+            preview (bool): Option to preview the first elements of the data frame.
         """
         if self._dataframe is not None:
-            if (
-                self.mc.cdeform_field is not None
-                and self.mc.rdeform_field is not None
-            ) or (self.mc.inverse_dfield is not None):
-                print("Adding corrected X/Y columns to dataframe:")
-                self._dataframe = self.mc.apply_distortion_correction(
-                    self._dataframe,
-                )
-                print("Adding kx/ky columns to dataframe:")
-                self._dataframe = self.mc.append_k_axis(
-                    df=self._dataframe,
-                    x_column="Xm",
-                    y_column="Ym",
-                    calibration=calibration,
-                )
+
+            print("Adding kx/ky columns to dataframe:")
+            self._dataframe, metadata = self.mc.append_k_axis(
+                df=self._dataframe,
+                x_column="X",
+                y_column="Y",
+                calibration=calibration,
+            )
+
+            # Add Metadata
+            self._attributes.add(
+                metadata,
+                "momentum_calibration",
+                duplicate_policy="merge",
+            )
+            if preview:
                 print(self._dataframe.head(10))
             else:
-                print("Adding kx/ky columns to dataframe:")
-                self._dataframe = self.mc.append_k_axis(
-                    df=self._dataframe,
-                    x_column="X",
-                    y_column="Y",
-                    calibration=calibration,
-                )
-                print(self._dataframe.head(10))
+                print(self._dataframe)
 
     # Energy correction workflow
     # 1. Adjust the energy correction parameters
@@ -587,22 +653,42 @@ class SedProcessor:
         )
 
     # 2. Apply energy correction to dataframe
-    def apply_energy_correction(self, correction: dict = None, **kwds):
+    def apply_energy_correction(
+        self,
+        correction: dict = None,
+        preview: bool = False,
+        **kwds,
+    ):
         """2. step of the energy correction workflow: Apply the enery correction
         parameters stored in the class to the dataframe.
 
         Args:
             correction (dict, optional): Dictionary containing the correction
-                parameters. Defaults to config["energy"]["calibration"]
+                parameters. Defaults to config["energy"]["calibration"].
+            preview (bool): Option to preview the first elements of the data frame.
+            **kwds:
+                Keyword args passed to ``EnergyCalibrator.apply_energy_correction``.
+            preview (bool): Option to preview the first elements of the data frame.
+            **kwds:
+                Keyword args passed to ``EnergyCalibrator.apply_energy_correction``.
         """
         if self._dataframe is not None:
             print("Applying energy correction to dataframe...")
-            self._dataframe = self.ec.apply_energy_correction(
+            self._dataframe, metadata = self.ec.apply_energy_correction(
                 df=self._dataframe,
                 correction=correction,
                 **kwds,
             )
-            print(self._dataframe.head(10))
+
+            # Add Metadata
+            self._attributes.add(
+                metadata,
+                "energy_correction",
+            )
+            if preview:
+                print(self._dataframe.head(10))
+            else:
+                print(self._dataframe)
 
     # Energy calibrator workflow
     # 1. Load and normalize data
@@ -822,6 +908,7 @@ class SedProcessor:
     def append_energy_axis(
         self,
         calibration: dict = None,
+        preview: bool = False,
         **kwds,
     ):
         """4. step of the energy calibration workflow: Apply the calibration function
@@ -833,21 +920,35 @@ class SedProcessor:
             calibration (dict, optional): Calibration dict containing calibration
                 parameters. Overrides calibration from class or config.
                 Defaults to None.
+            preview (bool): Option to preview the first elements of the data frame.
+            **kwds:
+                Keyword args passed to ``EnergyCalibrator.append_energy_axis``.
         """
         if self._dataframe is not None:
             print("Adding energy column to dataframe:")
-            self._dataframe = self.ec.append_energy_axis(
+            self._dataframe, metadata = self.ec.append_energy_axis(
                 df=self._dataframe,
                 calibration=calibration,
                 **kwds,
             )
-            print(self._dataframe.head(10))
+
+            # Add Metadata
+            self._attributes.add(
+                metadata,
+                "energy_calibration",
+                duplicate_policy="merge",
+            )
+            if preview:
+                print(self._dataframe.head(10))
+            else:
+                print(self._dataframe)
 
     # Delay calibration function
     def calibrate_delay_axis(
         self,
         delay_range: Tuple[float, float] = None,
         datafile: str = None,
+        preview: bool = False,
         **kwds,
     ):
         """Append delay column to dataframe. Either provide delay ranges, or read
@@ -858,13 +959,14 @@ class SedProcessor:
                 picoseconds. Defaults to None.
             datafile (str, optional): The file from which to read the delay ranges.
                 Defaults to None.
+            preview (bool): Option to preview the first elements of the data frame.
             **kwds: Keyword args passed to ``DelayCalibrator.append_delay_axis``.
         """
         if self._dataframe is not None:
             print("Adding delay column to dataframe:")
 
             if delay_range is not None:
-                self._dataframe = self.dc.append_delay_axis(
+                self._dataframe, metadata = self.dc.append_delay_axis(
                     self._dataframe,
                     delay_range=delay_range,
                     **kwds,
@@ -880,13 +982,22 @@ class SedProcessor:
                         )
                         raise
 
-                self._dataframe = self.dc.append_delay_axis(
+                self._dataframe, metadata = self.dc.append_delay_axis(
                     self._dataframe,
                     datafile=datafile,
                     **kwds,
                 )
 
-            print(self._dataframe.head(10))
+            # Add Metadata
+            self._attributes.add(
+                metadata,
+                "delay_calibration",
+                duplicate_policy="merge",
+            )
+            if preview:
+                print(self._dataframe.head(10))
+            else:
+                print(self._dataframe)
 
     def add_jitter(self, cols: Sequence[str] = None):
         """Add jitter to the selected dataframe columns.
@@ -906,6 +1017,10 @@ class SedProcessor:
             cols=cols,
             cols_jittered=cols,
         )
+        metadata = []
+        for col in cols:
+            metadata.append(col)
+        self._attributes.add(metadata, "jittering", duplicate_policy="append")
 
     def pre_binning(
         self,
@@ -926,7 +1041,7 @@ class SedProcessor:
                 Defaults to config["momentum"]["bins"].
             ranges (List[Tuple], optional): Ranges to use for binning.
                 Defaults to config["momentum"]["ranges"].
-            **kwds: Keyword argument passed to the compute function.
+            **kwds: Keyword argument passed to ``compute``.
 
         Returns:
             xr.DataArray: pre-binned data-array.
@@ -984,14 +1099,12 @@ class SedProcessor:
             bins (int, dict, tuple, List[int], List[np.ndarray], List[tuple], optional):
                 Definition of the bins. Can be any of the following cases:
 
-                    - an integer describing the number of bins in on all dimensions
-                    - a tuple of 3 numbers describing start, end and step of the
-                      binning range
-                    - a np.arrays defining the binning edges
-                    - a list (NOT a tuple) of any of the above
-                      (int, tuple or np.ndarray)
-                    - a dictionary made of the axes as keys and any of the above as
-                      values.
+                - an integer describing the number of bins in on all dimensions
+                - a tuple of 3 numbers describing start, end and step of the binning
+                  range
+                - a np.arrays defining the binning edges
+                - a list (NOT a tuple) of any of the above (int, tuple or np.ndarray)
+                - a dictionary made of the axes as keys and any of the above as values.
 
                 This takes priority over the axes and range arguments. Defaults to 100.
             axes (Union[str, Sequence[str]], optional): The names of the axes (columns)
@@ -999,6 +1112,28 @@ class SedProcessor:
                 dimensions in the resulting array. Defaults to None.
             ranges (Sequence[Tuple[float, float]], optional): list of tuples containing
                 the start and end point of the binning range. Defaults to None.
+            **kwds: Keyword arguments:
+
+                - **hist_mode**: Histogram calculation method. "numpy" or "numba". See
+                  ``bin_dataframe`` for details. Defaults to
+                  config["binning"]["hist_mode"].
+                - **mode**: Defines how the results from each partition are combined.
+                  "fast", "lean" or "legacy". See ``bin_dataframe`` for details.
+                  Defaults to config["binning"]["mode"].
+                - **pbar**: Option to show the tqdm progress bar. Defaults to
+                  config["binning"]["pbar"].
+                - **n_cores**: Number of CPU cores to use for parallelization.
+                  Defaults to config["binning"]["num_cores"] or N_CPU-1.
+                - **threads_per_worker**: Limit the number of threads that
+                  multiprocessing can spawn per binning thread. Defaults to
+                  config["binning"]["threads_per_worker"].
+                - **threadpool_api**: The API to use for multiprocessing. "blas",
+                  "openmp" or None. See ``threadpool_limit`` for details. Defaults to
+                  config["binning"]["threadpool_API"].
+                - **df_partitions**: A list of dataframe partitions. Defaults to all
+                  partitions.
+
+                Additional kwds are passed to ``bin_dataframe``.
 
         Raises:
             AssertError: Rises when no dataframe has been loaded.
@@ -1044,6 +1179,19 @@ class SedProcessor:
             threadpool_api=threadpool_api,
             **kwds,
         )
+
+        for dim in self._binned.dims:
+            try:
+                self._binned[dim].attrs["unit"] = self._config["dataframe"][
+                    "units"
+                ][dim]
+            except KeyError:
+                pass
+
+        self._binned.attrs["units"] = "counts"
+        self._binned.attrs["long_name"] = "photoelectron counts"
+        self._binned.attrs["metadata"] = self._attributes.metadata
+
         return self._binned
 
     def view_event_histogram(
@@ -1057,7 +1205,7 @@ class SedProcessor:
         legend: bool = True,
         histkwds: dict = None,
         legkwds: dict = None,
-        **kwds: Any,
+        **kwds,
     ):
         """Plot individual histograms of specified dimensions (axes) from a substituent
         dataframe partition.
@@ -1123,6 +1271,84 @@ class SedProcessor:
             legkwds=legkwds,
             **kwds,
         )
+
+    def save(
+        self,
+        faddr: str,
+        **kwds,
+    ):
+        """Saves the binned data to the provided path and filename.
+
+        Args:
+            faddr (str): Path and name of the file to write. Its extension determines
+                the file type to write. Valid file types are:
+
+                - "*.tiff", "*.tif": Saves a TIFF stack.
+                - "*.h5", "*.hdf5": Saves an HDF5 file.
+                - "*.nxs", "*.nexus": Saves a NeXus file.
+
+            **kwds: Keyword argumens, which are passed to the writer functions:
+                For TIFF writing:
+
+                - **alias_dict**: Dictionary of dimension aliases to use.
+
+                For HDF5 writing:
+
+                - **mode**: hdf5 read/write mode. Defaults to "w".
+
+                For NeXus:
+
+                - **reader**: Name of the nexustools reader to use.
+                  Defaults to config["nexus"]["reader"]
+                - **definiton**: NeXus application definition to use for saving.
+                  Must be supported by the used ``reader``. Defaults to
+                  config["nexus"]["definition"]
+                - **input_files**: A list of input files to pass to the reader.
+                  Defaults to config["nexus"]["input_files"]
+        """
+        if self._binned is None:
+            raise NameError("Need to bin data first!")
+
+        extension = pathlib.Path(faddr).suffix
+
+        if extension in (".tif", ".tiff"):
+            to_tiff(
+                data=self._binned,
+                faddr=faddr,
+                **kwds,
+            )
+        elif extension in (".h5", ".hdf5"):
+            to_h5(
+                data=self._binned,
+                faddr=faddr,
+                **kwds,
+            )
+        elif extension in (".nxs", ".nexus"):
+            reader = kwds.pop("reader", self._config["nexus"]["reader"])
+            definition = kwds.pop(
+                "definition",
+                self._config["nexus"]["definition"],
+            )
+            input_files = kwds.pop(
+                "input_files",
+                self._config["nexus"]["input_files"],
+            )
+            if isinstance(input_files, str):
+                input_files = [input_files]
+
+            to_nexus(
+                data=self._binned,
+                faddr=faddr,
+                reader=reader,
+                definition=definition,
+                input_files=input_files,
+                **kwds,
+            )
+
+        else:
+            raise NotImplementedError(
+                f"Unrecognized file format: {extension}.",
+            )
 
     def add_dimension(self, name: str, axis_range: Tuple):
         """Add a dimension axis.

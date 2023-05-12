@@ -9,7 +9,7 @@ from natsort import natsorted
 
 def gather_files(
     folder: str,
-    extension: str = "h5",
+    extension: str,
     f_start: int = None,
     f_end: int = None,
     f_step: int = 1,
@@ -19,8 +19,7 @@ def gather_files(
 
     Args:
         folder (str): The folder to search
-        extension (str, optional):  File extension used for glob.glob().
-            Defaults to "h5".
+        extension (str):  File extension used for glob.glob().
         f_start (int, optional): Start file id used to construct a file selector.
             Defaults to None.
         f_end (int, optional): End file id used to construct a file selector.

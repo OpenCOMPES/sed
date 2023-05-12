@@ -1,15 +1,18 @@
 """This is a metadata handler class from the sed package
 
 """
+from copy import deepcopy
 from typing import Any
 from typing import Dict
+
+from sed.config.settings import insert_default_config
 
 
 class MetaHandler:
     """[summary]"""
 
     def __init__(self, meta: Dict = None) -> None:
-        self._m = meta if meta is not None else {}
+        self._m = deepcopy(meta) if meta is not None else {}
 
     def __getitem__(self, val: Any) -> None:
         return self._m[val]
@@ -18,40 +21,67 @@ class MetaHandler:
         # TODO: #35 add pretty print, possibly to HTML
         return str(self._m)
 
-    def add(self, v: Dict, duplicate: str = "raise") -> None:
+    @property
+    def metadata(self) -> dict:
+        """Property returning the metadata dict.
+
+        Returns:
+            dict: Dictionary of metadata.
+        """
+        return self._m
+
+    def add(
+        self,
+        entry: Any,
+        name: str,
+        duplicate_policy: str = "raise",
+    ) -> None:
         """Add an entry to the metadata container
 
         Args:
-            v: dictionary containing the metadata to add.
-                Must contain a 'name' key.
-            overwrite: Control behaviour in case the 'name' key
-                is already present in the metadata dictionary. If raise, raises
-                a DuplicateEntryError.
-                If 'overwrite' it overwrites the previous data with the new
-                one.
-                If 'append' it adds a trailing number, keeping both entries.
+            entry: dictionary containing the metadata to add.
+            name: name of the dictionary key under which to add entry.
+            duplicate_policy: Control behaviour in case the 'name' key
+                is already present in the metadata dictionary. Can be any of:
+
+                    - "raise": raises a DuplicateEntryError.
+                    - "overwrite": overwrites the previous data with the new one.
+                    - "merge": If ``entry`` is a dictionary, recursively merges it
+                      into the existing one, overwriting existing entries. Otherwise
+                      the same as "overwrite".
+                    - "append": adds a trailing number, keeping both entries.
 
         Raises:
-            DuplicateEntryError: [description]
+            DuplicateEntryError: Raised if an entry already exists.
         """
-        if v["name"] not in self._m.keys() or duplicate == "overwrite":
-            self._m[v["name"]] = v
-        elif duplicate == "raise":
+        if name not in self._m.keys() or duplicate_policy == "overwrite":
+            self._m[name] = deepcopy(entry)
+        elif duplicate_policy == "raise":
             raise DuplicateEntryError(
-                f"an entry {v['name']} already exists in metadata",
+                f"an entry {name} already exists in metadata",
             )
-        elif duplicate == "append":
+        elif duplicate_policy == "append":
             i = 0
             while True:
                 i += 1
-                newname = f"name_{i}"
+                newname = f"{name}_{i}"
                 if newname not in self._m.keys():
                     break
-            self._m[newname] = v
+            self._m[newname] = deepcopy(entry)
+
+        elif duplicate_policy == "merge":
+            if isinstance(self._m[name], dict):
+                if not isinstance(entry, dict):
+                    raise ValueError(
+                        "Cannot merge dictionary with non-dictionary entry!",
+                    )
+                insert_default_config(self._m[name], deepcopy(entry))
+            else:
+                self._m[name] = deepcopy(entry)
 
         else:
             raise ValueError(
-                f"could not interpret duplication handling method {duplicate}"
+                f"could not interpret duplication handling method {duplicate_policy}"
                 f"Please choose between overwrite,append or raise.",
             )
 
@@ -133,5 +163,5 @@ class DuplicateEntryError(Exception):
 
 if __name__ == "__main__":
     m = MetaHandler()
-    m.add({"name": "test", "start": 0, "stop": 1})
+    m.add({"start": 0, "stop": 1}, name="test")
     print(m)
