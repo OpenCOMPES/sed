@@ -30,10 +30,10 @@ tqdm = "^4.62.3"
 xarray = "^0.20.2"
 jupyter = {version = "^1.0.0", extras = ["notebook"], optional = true}
 ipykernel = {version = "^6.9.1", extras = ["notebook"], optional = true}
-Sphinx = {version = "^4.4.0", extras = ["docs"], optional = true}
-sphinx-rtd-theme = {version = "^1.0.0", extras = ["docs"], optional = true}
-tomlkit = {version = "^0.10.0", extras = ["docs"], optional = true}
-sphinx-autodoc-typehints = {version = "^1.17.0", extras = ["docs"], optional = true}
+sphinx = {version = ">4.4.0", extras = ["docs"], optional = true}
+sphinx-rtd-theme = {version = ">1.0.0", extras = ["docs"], optional = true}
+tomlkit = {version = ">0.10.0", extras = ["docs"], optional = true}
+sphinx-autodoc-typehints = {version = ">1.17.0", extras = ["docs"], optional = true}
 
 [tool.poetry.extras]
 notebook = ["jupyter", "ipykernel"]
