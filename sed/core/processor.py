@@ -590,8 +590,6 @@ class SedProcessor:
             print("Adding kx/ky columns to dataframe:")
             self._dataframe, metadata = self.mc.append_k_axis(
                 df=self._dataframe,
-                x_column="X",
-                y_column="Y",
                 calibration=calibration,
             )
 
