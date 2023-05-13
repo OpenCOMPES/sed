@@ -213,12 +213,12 @@ def hdf5_to_array(
             #     ms_marker[n + 1] - ms_marker[n],
             # )
             time_stamp_data[ms_marker[i] : ms_marker[i + 1]] = (
-                start_time + i / 1000
+                start_time + (i + 1) / 1000
             )
         # fill any remaining points
         time_stamp_data[
             ms_marker[len(ms_marker) - 1] : len(time_stamp_data)
-        ] = start_time + len(ms_marker)
+        ] = start_time + len(ms_marker) / 1000
 
         data_list.append(time_stamp_data)
 
