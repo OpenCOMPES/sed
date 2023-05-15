@@ -55,7 +55,8 @@ def _hist_from_bin_range(
         is_inside = True
         flatidx = 0
         for i in range(ndims):
-            j = (sample[t, i] - ranges[i, 0]) * delta[i]
+            # strip off numerical rounding errors
+            j = round((sample[t, i] - ranges[i, 0]) * delta[i], 11)
             # add counts on last edge
             if j == bins[i]:
                 j = bins[i] - 1
