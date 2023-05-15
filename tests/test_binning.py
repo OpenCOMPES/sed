@@ -1,15 +1,17 @@
 """This file contains code that performs several tests for the sed.binning module
 """
+from typing import Any
 from typing import List
 from typing import Sequence
 from typing import Tuple
+from typing import Union
 
 import numpy as np
 import pandas as pd
 import pytest
 
-from sed.binning.binning import _simplify_binning_arguments
 from sed.binning.binning import numba_histogramdd
+from sed.binning.binning import simplify_binning_arguments
 from sed.binning.numba_bin import _hist_from_bin_range
 from sed.binning.utils import bin_centers_to_bin_edges
 from sed.binning.utils import bin_edges_to_bin_centers
@@ -199,44 +201,106 @@ axes = ["a", "b", "c"]
 ranges = [(-1, 1), (-2, 2), (-3, 3)]
 
 
-def test_simplify_binning_arguments_direct():
+@pytest.mark.parametrize(
+    "args",
+    [
+        (bins[:1], axes[:1], ranges[:1], 1),
+        (bins[:2], axes[:2], ranges[:2], 2),
+        (bins[:3], axes[:3], ranges[:3], 3),
+    ],
+    ids=lambda x: f"ndim: {x[3]}",
+)
+@pytest.mark.parametrize(
+    "arg_type",
+    [
+        "int",
+        "list_int",
+        "array",
+        "tuple",
+        "dict_int",
+        "dict_tuple",
+        "dict_array",
+    ],
+)
+def test_simplify_binning_arguments(
+    args: Tuple[List[int], List[str], List[Tuple[float, float]]],
+    arg_type: str,
+):
     """Test the result of the _simplify_binning_arguments functions for number of
     bins and ranges
     """
-    bins_, axes_, ranges_ = _simplify_binning_arguments(bins, axes, ranges)
-    assert bins_ == bins
-    assert axes_ == axes
-    assert ranges_ == ranges
+    bins_: Union[int, list, dict] = None
+    axes_: List[str] = None
+    ranges_: List[Tuple[float, float]] = None
+    bins_expected: List[Any] = None
+    axes_expected: List[Any] = None
+    ranges_expected: List[Any] = None
 
+    bin_centers = []
+    for i in range(len(args[1])):
+        bin_centers.append(
+            np.linspace(args[2][i][0], args[2][i][1], args[0][i] + 1),
+        )
 
-def test_simplify_binning_arguments_1d():
-    """Test the result of the _simplify_binning_arguments functions for number of
-    bins and ranges, 1D case
-    """
-    bins_, axes_, ranges_ = _simplify_binning_arguments(
-        bins[0],
-        axes[0],
-        ranges[0],
+    if arg_type == "int":
+        bins_ = args[0][0]
+        axes_ = args[1]
+        ranges_ = args[2]
+        bins_expected = [bins_] * len(args[0])
+        axes_expected = axes_
+        ranges_expected = ranges_
+    elif arg_type == "list_int":
+        bins_ = args[0]
+        axes_ = args[1]
+        ranges_ = args[2]
+        bins_expected = bins_
+        axes_expected = axes_
+        ranges_expected = ranges_
+    elif arg_type == "array":
+        bins_ = []
+        for i in range(len(args[0])):
+            bins_.append(bin_centers[i])
+        axes_ = args[1]
+        bins_expected = bins_
+        axes_expected = axes_
+    elif arg_type == "tuple":
+        bins_ = []
+        for i in range(len(args[0])):
+            bins_.append((args[2][i][0], args[2][i][1], args[0][i]))
+        axes_ = args[1]
+        bins_expected = args[0]
+        axes_expected = axes_
+        ranges_expected = args[2]
+    elif arg_type == "dict_int":
+        bins_ = {}
+        for i, axis in enumerate(args[1]):
+            bins_[axis] = args[0][i]
+        ranges_ = args[2]
+        bins_expected = args[0]
+        axes_expected = args[1]
+        ranges_expected = args[2]
+    elif arg_type == "dict_array":
+        bins_ = {}
+        for i, axis in enumerate(args[1]):
+            bins_[axis] = bin_centers[i]
+        bins_expected = bin_centers
+        axes_expected = args[1]
+    elif arg_type == "dict_tuple":
+        bins_ = {}
+        for i, axis in enumerate(args[1]):
+            bins_[axis] = (args[2][i][0], args[2][i][1], args[0][i])
+        bins_expected = args[0]
+        axes_expected = args[1]
+        ranges_expected = args[2]
+
+    bins__, axes__, ranges__ = simplify_binning_arguments(
+        bins_,
+        axes_,
+        ranges_,
     )
-    assert bins_ == [bins[0]]
-    assert axes_ == [axes[0]]
-    assert ranges_ == (ranges[0],)
 
-
-def test_simplify_binning_arguments_edges():
-    """Test the result of the _simplify_binning_arguments functions for bin edges"""
-    bin_edges = [np.linspace(r[0], r[1], b) for r, b in zip(ranges, bins)]
-    bin_edges_, axes_, ranges_ = _simplify_binning_arguments(bin_edges, axes)
-    for bin_, bin_edges_ in zip(bin_edges_, bin_edges):
-        np.testing.assert_allclose(bin_, bin_edges_)
-    assert axes_ == axes
-    assert ranges_ is None
-
-
-def test_simplify_binning_arguments_tuple():
-    """Test the result of the _simplify_binning_arguments functions for bin tuples"""
-    bin_tuple = [tuple((r[0], r[1], b)) for r, b in zip(ranges, bins)]
-    bins_, axes_, ranges_ = _simplify_binning_arguments(bin_tuple, axes)
-    assert bins_ == bins
-    assert axes_ == axes
-    assert ranges_ == ranges
+    for i, bin_ in enumerate(bins__):
+        np.testing.assert_array_equal(bin_, bins_expected[i])
+        np.testing.assert_array_equal(axes__[i], axes_expected[i])
+        if ranges__ is not None:
+            np.testing.assert_array_equal(ranges__[i], ranges_expected[i])
