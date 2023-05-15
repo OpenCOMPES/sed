@@ -56,6 +56,9 @@ def _hist_from_bin_range(
         flatidx = 0
         for i in range(ndims):
             j = (sample[t, i] - ranges[i, 0]) * delta[i]
+            # add counts on last edge
+            if j == bins[i]:
+                j = bins[i] - 1
             is_inside = is_inside and (0 <= j < bins[i])
             flatidx += int(j) * strides[i]
             # don't check all axes if you already know you're out of the range
