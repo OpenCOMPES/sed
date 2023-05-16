@@ -433,6 +433,65 @@ def bin_dataframe(
     return data_array
 
 
+def normalization_histogram_from_timestamps(
+    df: dask.dataframe.DataFrame,
+    axis: str,
+    bin_centers: np.ndarray,
+    time_stamp_column: str,
+) -> np.ndarray:
+    """Get a normalization histogram from the time stamps column in the dataframe.
+
+    Args:
+        df (dask.dataframe.DataFrame): a dask.DataFrame on which to perform the
+            histogram.
+        axis (str): The axis (dataframe column) on which to calculate the normalization
+            histogram.
+        bin_centers (np.ndarray): Bin centers used for binning of the axis.
+        time_stamp_column (str): Dataframe column containing the time stamps.
+
+    Returns:
+        np.ndarray: Calculated normalization histogram.
+    """
+    time_per_electron = df[time_stamp_column].diff()
+
+    bins = df[axis].map_partitions(
+        pd.cut,
+        bins=bin_centers_to_bin_edges(bin_centers),
+    )
+
+    histogram = time_per_electron.groupby([bins]).sum().compute().values
+
+    return histogram
+
+
+def normalization_histogram_from_timed_dataframe(
+    df: dask.dataframe.DataFrame,
+    axis: str,
+    bin_centers: np.ndarray,
+) -> np.ndarray:
+    """Get a normalization histogram from a timed datafram.
+
+    Args:
+        df (dask.dataframe.DataFrame): a dask.DataFrame on which to perform the
+            histogram. Entries should be based on an equal time unit.
+        axis (str): The axis (dataframe column) on which to calculate the normalization
+            histogram.
+        bin_centers (np.ndarray): Bin centers used for binning of the axis.
+
+    Returns:
+        np.ndarray: Calculated normalization histogram.
+    """
+    bins = df[axis].map_partitions(
+        pd.cut,
+        bins=bin_centers_to_bin_edges(bin_centers),
+    )
+
+    histogram = df[axis].groupby([bins]).count().compute().values
+    #histogram = bin_dataframe(df, axes=[axis], bins=[bin_centers])
+
+    return histogram
+
+
 def apply_jitter_on_column(
     df: Union[dask.dataframe.core.DataFrame, pd.DataFrame],
     amp: float,

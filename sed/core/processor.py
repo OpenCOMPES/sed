@@ -18,7 +18,8 @@ import psutil
 import xarray as xr
 
 from sed.binning import bin_dataframe
-from sed.binning.utils import bin_centers_to_bin_edges
+from sed.binning.binning import normalization_histogram_from_timed_dataframe
+from sed.binning.binning import normalization_histogram_from_timestamps
 from sed.calibrator import DelayCalibrator
 from sed.calibrator import EnergyCalibrator
 from sed.calibrator import MomentumCorrector
@@ -1453,14 +1454,17 @@ class SedProcessor:
     def get_normalization_histogram(
         self,
         axis: str = "delay",
+        use_time_stamps: bool = False,
         **kwds,
     ) -> np.ndarray:
-        """Generates a normalization histogram from the TimeStamps column of the
-        dataframe.
+        """Generates a normalization histogram from the timed dataframe. Optionally,
+        use the TimeStamps column instead.
 
         Args:
             axis (str, optional): The axis for which to compute histogram.
                 Defaults to "delay".
+            use_time_stamps (bool, optional): Use the TimeStamps column of the
+                dataframe, rather than the timed dataframe. Defaults to False.
             **kwds: Keyword arguments:
 
                 -df_partitions (int, optional): Number of dataframe partitions to use.
@@ -1482,22 +1486,41 @@ class SedProcessor:
         if axis not in self._binned.coords:
             raise ValueError(f"Axis '{axis}' not found in binned data!")
 
-        df_partitions = kwds.pop("df_partitions", None)
-        if df_partitions is not None:
-            timed_dataframe = self._timed_dataframe.partitions[
-                0 : min(df_partitions, self._timed_dataframe.npartitions)
-            ]
+        df_partitions: Union[int, slice] = kwds.pop("df_partitions", None)
+        if isinstance(df_partitions, int):
+            df_partitions = slice(
+                0,
+                min(df_partitions, self._dataframe.npartitions),
+            )
+
+        if use_time_stamps or self._timed_dataframe is None:
+            if df_partitions is not None:
+                histogram = normalization_histogram_from_timestamps(
+                    self._dataframe.partitions[df_partitions],
+                    axis,
+                    self._binned.coords[axis].values,
+                    self._config["dataframe"]["time_stamp_alias"],
+                )
+            else:
+                histogram = normalization_histogram_from_timestamps(
+                    self._dataframe,
+                    axis,
+                    self._binned.coords[axis].values,
+                    self._config["dataframe"]["time_stamp_alias"],
+                )
         else:
-            timed_dataframe = self._timed_dataframe
-
-        bins = timed_dataframe[axis].map_partitions(
-            pd.cut,
-            bins=bin_centers_to_bin_edges(self._binned.coords[axis].values),
-        )
-
-        histogram = (
-            timed_dataframe[axis].groupby([bins]).count().compute().values
-        ) / 1000
+            if df_partitions is not None:
+                histogram = normalization_histogram_from_timed_dataframe(
+                    self._timed_dataframe.partitions[df_partitions],
+                    axis,
+                    self._binned.coords[axis].values,
+                )
+            else:
+                histogram = normalization_histogram_from_timed_dataframe(
+                    self._timed_dataframe,
+                    axis,
+                    self._binned.coords[axis].values,
+                )
 
         return histogram
 
