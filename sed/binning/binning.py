@@ -468,6 +468,7 @@ def normalization_histogram_from_timed_dataframe(
     df: dask.dataframe.DataFrame,
     axis: str,
     bin_centers: np.ndarray,
+    time_unit: float,
 ) -> np.ndarray:
     """Get a normalization histogram from a timed datafram.
 
@@ -477,6 +478,7 @@ def normalization_histogram_from_timed_dataframe(
         axis (str): The axis (dataframe column) on which to calculate the normalization
             histogram.
         bin_centers (np.ndarray): Bin centers used for binning of the axis.
+        time_unit (float): Time unit the data frame entries are based on.
 
     Returns:
         np.ndarray: Calculated normalization histogram.
@@ -487,9 +489,9 @@ def normalization_histogram_from_timed_dataframe(
     )
 
     histogram = df[axis].groupby([bins]).count().compute().values
-    #histogram = bin_dataframe(df, axes=[axis], bins=[bin_centers])
+    # histogram = bin_dataframe(df, axes=[axis], bins=[bin_centers])
 
-    return histogram
+    return histogram * time_unit
 
 
 def apply_jitter_on_column(

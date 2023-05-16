@@ -1514,12 +1514,14 @@ class SedProcessor:
                     self._timed_dataframe.partitions[df_partitions],
                     axis,
                     self._binned.coords[axis].values,
+                    self._config["dataframe"]["timed_dataframe_unit_time"],
                 )
             else:
                 histogram = normalization_histogram_from_timed_dataframe(
                     self._timed_dataframe,
                     axis,
                     self._binned.coords[axis].values,
+                    self._config["dataframe"]["timed_dataframe_unit_time"],
                 )
 
         return histogram
