@@ -35,9 +35,8 @@ sample_int = np.random.randint(
 )
 bins_int = tuple(np.random.randint(10, 300, size=3, dtype=int))
 ranges_int = [
-    tuple(np.sort(np.random.randint(60000, 70000, size=2, dtype=int))),
-    tuple(np.sort(np.random.randint(60000, 70000, size=2, dtype=int))),
-    tuple(np.sort(np.random.randint(60000, 70000, size=2, dtype=int))),
+    tuple(np.sort(np.random.randint(60000, 70000, size=2, dtype=int)))
+    for _ in range(3)
 ]
 arrays_int = [get_linear_bin_edges(b, r) for r, b in zip(ranges_int, bins_int)]
 
