@@ -348,11 +348,7 @@ def hdf5_to_timed_array(
 
         timed_dataset = np.zeros_like(ms_marker)
         for i, point in enumerate(ms_marker):
-            timed_dataset[i] = (
-                g_dataset[point]
-                if point < len(g_dataset)
-                else g_dataset[len(g_dataset) - 1]
-            )
+            timed_dataset[i] = g_dataset[int(point) - 1]
 
         data_list.append(timed_dataset)
 

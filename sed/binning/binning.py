@@ -438,7 +438,7 @@ def normalization_histogram_from_timestamps(
     axis: str,
     bin_centers: np.ndarray,
     time_stamp_column: str,
-) -> np.ndarray:
+) -> xr.DataArray:
     """Get a normalization histogram from the time stamps column in the dataframe.
 
     Args:
@@ -450,7 +450,7 @@ def normalization_histogram_from_timestamps(
         time_stamp_column (str): Dataframe column containing the time stamps.
 
     Returns:
-        np.ndarray: Calculated normalization histogram.
+        xr.DataArray: Calculated normalization histogram.
     """
     time_per_electron = df[time_stamp_column].diff()
 
@@ -461,7 +461,12 @@ def normalization_histogram_from_timestamps(
 
     histogram = time_per_electron.groupby([bins]).sum().compute().values
 
-    return histogram
+    data_array = xr.DataArray(
+        data=histogram,
+        coords={axis: bin_centers},
+    )
+
+    return data_array
 
 
 def normalization_histogram_from_timed_dataframe(
@@ -469,7 +474,7 @@ def normalization_histogram_from_timed_dataframe(
     axis: str,
     bin_centers: np.ndarray,
     time_unit: float,
-) -> np.ndarray:
+) -> xr.DataArray:
     """Get a normalization histogram from a timed datafram.
 
     Args:
@@ -481,17 +486,22 @@ def normalization_histogram_from_timed_dataframe(
         time_unit (float): Time unit the data frame entries are based on.
 
     Returns:
-        np.ndarray: Calculated normalization histogram.
+        xr.DataArray: Calculated normalization histogram.
     """
     bins = df[axis].map_partitions(
         pd.cut,
         bins=bin_centers_to_bin_edges(bin_centers),
     )
 
-    histogram = df[axis].groupby([bins]).count().compute().values
-    # histogram = bin_dataframe(df, axes=[axis], bins=[bin_centers])
+    histogram = df[axis].groupby([bins]).count().compute().values * time_unit
+    # histogram = bin_dataframe(df, axes=[axis], bins=[bin_centers]) * time_unit
 
-    return histogram * time_unit
+    data_array = xr.DataArray(
+        data=histogram,
+        coords={axis: bin_centers},
+    )
+
+    return data_array
 
 
 def apply_jitter_on_column(

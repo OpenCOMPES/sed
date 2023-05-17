@@ -103,6 +103,8 @@ class SedProcessor:
 
         self._binned: xr.DataArray = None
         self._pre_binned: xr.DataArray = None
+        self._normalization_histogram: xr.DataArray = None
+        self._normalized: xr.DataArray = None
 
         self._attributes = MetaHandler(meta=metadata)
 
@@ -1352,6 +1354,7 @@ class SedProcessor:
         ] = 100,
         axes: Union[str, Sequence[str]] = None,
         ranges: Sequence[Tuple[float, float]] = None,
+        normalize_to_acquisition_time: Union[bool, str] = False,
         **kwds,
     ) -> xr.DataArray:
         """Compute the histogram along the given dimensions.
@@ -1373,6 +1376,10 @@ class SedProcessor:
                 dimensions in the resulting array. Defaults to None.
             ranges (Sequence[Tuple[float, float]], optional): list of tuples containing
                 the start and end point of the binning range. Defaults to None.
+            normalize_to_acquisition_time (Union[bool, str]): Option to normalize the
+                result to the acquistion time. If a "slow" axis was scanned, providing
+                the name of the scanned axis will compute and apply the corresponding
+                normalization histogram. Defaults to False.
             **kwds: Keyword arguments:
 
                 - **hist_mode**: Histogram calculation method. "numpy" or "numba". See
@@ -1391,8 +1398,8 @@ class SedProcessor:
                 - **threadpool_api**: The API to use for multiprocessing. "blas",
                   "openmp" or None. See ``threadpool_limit`` for details. Defaults to
                   config["binning"]["threadpool_API"].
-                - **df_partitions**: A list of dataframe partitions. Defaults to all
-                  partitions.
+                - **df_partitions**: A range or list of dataframe partitions, or the
+                  number of the dataframe partitions to use. Defaults to all partitions.
 
                 Additional kwds are passed to ``bin_dataframe``.
 
@@ -1418,10 +1425,13 @@ class SedProcessor:
             self._config["binning"]["threadpool_API"],
         )
         df_partitions = kwds.pop("df_partitions", None)
+        if isinstance(df_partitions, int):
+            df_partitions = slice(
+                0,
+                min(df_partitions, self._dataframe.npartitions),
+            )
         if df_partitions is not None:
-            dataframe = self._dataframe.partitions[
-                0 : min(df_partitions, self._dataframe.npartitions)
-            ]
+            dataframe = self._dataframe.partitions[df_partitions]
         else:
             dataframe = self._dataframe
 
@@ -1449,6 +1459,45 @@ class SedProcessor:
         self._binned.attrs["long_name"] = "photoelectron counts"
         self._binned.attrs["metadata"] = self._attributes.metadata
 
+        if normalize_to_acquisition_time:
+            if isinstance(normalize_to_acquisition_time, str):
+                axis = normalize_to_acquisition_time
+                print(
+                    f"Calculate normalization histogram for axis '{axis}'...",
+                )
+                self._normalization_histogram = (
+                    self.get_normalization_histogram(
+                        axis=axis,
+                        df_partitions=df_partitions,
+                    )
+                )
+                # if the axes are named correctly, xarray figures out the normalization correctly
+                self._normalized = self._binned / self._normalization_histogram
+                self._attributes.add(
+                    self._normalization_histogram.values,
+                    name="normalization_histogram",
+                    duplicate_policy="overwrite",
+                )
+            else:
+                acquisition_time = self.loader.get_elapsed_time(
+                    fids=df_partitions,
+                )
+                if acquisition_time > 0:
+                    self._normalized = self._binned / acquisition_time
+                self._attributes.add(
+                    acquisition_time,
+                    name="normalization_histogram",
+                    duplicate_policy="overwrite",
+                )
+
+            self._normalized.attrs["units"] = "counts/second"
+            self._normalized.attrs[
+                "long_name"
+            ] = "photoelectron counts per second"
+            self._normalized.attrs["metadata"] = self._attributes.metadata
+
+            return self._normalized
+
         return self._binned
 
     def get_normalization_histogram(
@@ -1456,7 +1505,7 @@ class SedProcessor:
         axis: str = "delay",
         use_time_stamps: bool = False,
         **kwds,
-    ) -> np.ndarray:
+    ) -> xr.DataArray:
         """Generates a normalization histogram from the timed dataframe. Optionally,
         use the TimeStamps column instead.
 
@@ -1477,7 +1526,7 @@ class SedProcessor:
                 in Dataframe.
 
         Returns:
-            np.ndarray: The computed normalization histogram (in TimeStamp units
+            xr.DataArray: The computed normalization histogram (in TimeStamp units
             per bin).
         """
 
@@ -1495,36 +1544,44 @@ class SedProcessor:
 
         if use_time_stamps or self._timed_dataframe is None:
             if df_partitions is not None:
-                histogram = normalization_histogram_from_timestamps(
-                    self._dataframe.partitions[df_partitions],
-                    axis,
-                    self._binned.coords[axis].values,
-                    self._config["dataframe"]["time_stamp_alias"],
+                self._normalization_histogram = (
+                    normalization_histogram_from_timestamps(
+                        self._dataframe.partitions[df_partitions],
+                        axis,
+                        self._binned.coords[axis].values,
+                        self._config["dataframe"]["time_stamp_alias"],
+                    )
                 )
             else:
-                histogram = normalization_histogram_from_timestamps(
-                    self._dataframe,
-                    axis,
-                    self._binned.coords[axis].values,
-                    self._config["dataframe"]["time_stamp_alias"],
+                self._normalization_histogram = (
+                    normalization_histogram_from_timestamps(
+                        self._dataframe,
+                        axis,
+                        self._binned.coords[axis].values,
+                        self._config["dataframe"]["time_stamp_alias"],
+                    )
                 )
         else:
             if df_partitions is not None:
-                histogram = normalization_histogram_from_timed_dataframe(
-                    self._timed_dataframe.partitions[df_partitions],
-                    axis,
-                    self._binned.coords[axis].values,
-                    self._config["dataframe"]["timed_dataframe_unit_time"],
+                self._normalization_histogram = (
+                    normalization_histogram_from_timed_dataframe(
+                        self._timed_dataframe.partitions[df_partitions],
+                        axis,
+                        self._binned.coords[axis].values,
+                        self._config["dataframe"]["timed_dataframe_unit_time"],
+                    )
                 )
             else:
-                histogram = normalization_histogram_from_timed_dataframe(
-                    self._timed_dataframe,
-                    axis,
-                    self._binned.coords[axis].values,
-                    self._config["dataframe"]["timed_dataframe_unit_time"],
+                self._normalization_histogram = (
+                    normalization_histogram_from_timed_dataframe(
+                        self._timed_dataframe,
+                        axis,
+                        self._binned.coords[axis].values,
+                        self._config["dataframe"]["timed_dataframe_unit_time"],
+                    )
                 )
 
-        return histogram
+        return self._normalization_histogram
 
     def view_event_histogram(
         self,
@@ -1656,17 +1713,22 @@ class SedProcessor:
         if self._binned is None:
             raise NameError("Need to bin data first!")
 
+        if self._normalized is not None:
+            data = self._normalized
+        else:
+            data = self._binned
+
         extension = pathlib.Path(faddr).suffix
 
         if extension in (".tif", ".tiff"):
             to_tiff(
-                data=self._binned,
+                data=data,
                 faddr=faddr,
                 **kwds,
             )
         elif extension in (".h5", ".hdf5"):
             to_h5(
-                data=self._binned,
+                data=data,
                 faddr=faddr,
                 **kwds,
             )
@@ -1693,7 +1755,7 @@ class SedProcessor:
                 input_files.append(kwds.pop("eln_data"))
 
             to_nexus(
-                data=self._binned,
+                data=data,
                 faddr=faddr,
                 reader=reader,
                 definition=definition,
