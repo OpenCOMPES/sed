@@ -2,9 +2,9 @@
 [![Documentation Status](https://readthedocs.org/projects/sed/badge/?version=latest)](https://sed.readthedocs.io/en/latest/?badge=latest)
 ![](https://github.com/OpenCOMPES/sed/actions/workflows/pylint.yml/badge.svg)
 ![](https://github.com/OpenCOMPES/sed/actions/workflows/pytest.yml/badge.svg)
-![](https://img.shields.io/pypi/pyversions/sed)
-![](https://img.shields.io/pypi/l/sed)
-![](https://img.shields.io/pypi/v/sed)
+![](https://img.shields.io/pypi/pyversions/sedprocessor)
+![](https://img.shields.io/pypi/l/sedprocessor)
+![](https://img.shields.io/pypi/v/sedprocessor)
 [![Coverage Status](https://coveralls.io/repos/github/OpenCOMPES/sed/badge.svg?branch=github-tokens-and-coverage)](https://coveralls.io/github/OpenCOMPES/sed?branch=github-tokens-and-coverage)
 
 
