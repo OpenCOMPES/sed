@@ -13,6 +13,8 @@ import pytest
 from sed.binning.binning import numba_histogramdd
 from sed.binning.binning import simplify_binning_arguments
 from sed.binning.numba_bin import _hist_from_bin_range
+from sed.binning.numba_bin import _hist_from_bins
+from sed.binning.numba_bin import binsearch
 from sed.binning.utils import bin_centers_to_bin_edges
 from sed.binning.utils import bin_edges_to_bin_centers
 from .helpers import get_linear_bin_edges
@@ -70,7 +72,7 @@ def test_histdd_error_is_raised(_samples: np.ndarray, _bins: List[int]):
         if _samples.shape[1] == len(_bins):
             pytest.skip("Not of interest")
 
-        _hist_from_bin_range(_samples, _bins, np.array([ranges[0]]))
+        _hist_from_bin_range.py_func(_samples, _bins, np.array([ranges[0]]))
 
 
 @pytest.mark.parametrize(
@@ -205,6 +207,62 @@ def test_from_bins_equals_from_bin_range(
     np.testing.assert_allclose(hist1, hist2, verbose=True)
     for (edges1_, edges2_) in zip(edges1, edges2):
         np.testing.assert_allclose(edges1_, edges2_)
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        (sample[:, :1], arrays[:1], 1),
+    ],
+    ids=lambda x: f"ndim: {x[2]}",
+)
+def test_numba_hist_from_bins(
+    args: Tuple[np.ndarray, np.ndarray, int],
+):
+    """Run tests using the _hist_from_bins function without numba jit.
+
+    Args:
+        args (Tuple[np.ndarray, np.ndarray, int]): Tuple of
+            (samples, bin_edges, dimension)
+    """
+    sample_, arrays_, _ = args
+    with pytest.raises(ValueError):
+        _hist_from_bins.py_func(
+            sample_,
+            arrays_[0],
+            tuple(b.size - 1 for b in arrays_),
+        )
+    _, edges = numba_histogramdd(sample_, arrays_)
+    _hist_from_bins.py_func(
+        sample_,
+        arrays_,
+        tuple(b.size - 1 for b in arrays_),
+    )
+    assert binsearch.py_func(edges[0], 0) > -1
+    assert binsearch.py_func(edges[0], -100) == -1
+    assert binsearch.py_func(edges[0], np.nan) == -1
+    assert binsearch.py_func(edges[0], 100) == -1
+    assert binsearch.py_func(edges[0], edges[0][-1]) == len(edges[0]) - 2
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        (sample[:, :1], bins[:1], ranges[:1], 1),
+    ],
+    ids=lambda x: f"ndim: {x[3]}",
+)
+def test_numba_hist_from_bins_ranges(
+    args: Tuple[np.ndarray, int, tuple, int],
+):
+    """Run tests using the _hist_from_bins_ranges function without numba jit.
+
+    Args:
+        args (Tuple[np.ndarray, int, tuple, int]): Tuple of
+            (samples, bins, ranges, dimension)
+    """
+    sample_, bins_, ranges_, _ = args
+    _hist_from_bin_range.py_func(sample_, bins_, np.asarray(ranges_))
 
 
 def test_bin_centers_to_bin_edges():
