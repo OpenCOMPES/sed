@@ -1,5 +1,11 @@
 # sed
 [![Documentation Status](https://readthedocs.org/projects/sed/badge/?version=latest)](https://sed.readthedocs.io/en/latest/?badge=latest)
+![](https://github.com/OpenCOMPES/sed/actions/workflows/pylint.yml/badge.svg?branch=github-tokens-and-coverage)
+![](https://github.com/OpenCOMPES/sed/actions/workflows/pytest.yml/badge.svg?branch=github-tokens-and-coverage)
+![](https://img.shields.io/pypi/pyversions/sedprocessor)
+![](https://img.shields.io/pypi/l/sedprocessor)
+![](https://img.shields.io/pypi/v/sedprocessor)
+[![Coverage Status](https://coveralls.io/repos/github/OpenCOMPES/sed/badge.svg?branch=github-tokens-and-coverage)](https://coveralls.io/github/OpenCOMPES/sed?branch=github-tokens-and-coverage)
 
 
 Single Event Data Frame Processor: Backend to handle photoelectron resolved datastreams
@@ -21,7 +27,7 @@ conda activate sed_conda
 If you intend to work with jupyter notebooks, it is helpfull to install a jupyter kernel of your environment. This can be done, once activating your environment, by typing:
 ```
 python -m ipykernel install --user --name=sed_conda
-``` 
+```
 
 
 ## Poetry approach (better, but more complex)
