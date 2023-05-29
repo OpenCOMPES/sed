@@ -1288,6 +1288,12 @@ class SedProcessor:
             amps=amps,
             **kwds,
         )
+        if self._timed_dataframe is not None:
+            self._timed_dataframe = self._timed_dataframe.map_partitions(
+                apply_jitter,
+                cols=cols,
+                cols_jittered=cols,
+            )
         metadata = []
         for col in cols:
             metadata.append(col)
