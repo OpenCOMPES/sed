@@ -304,7 +304,7 @@ class SedProcessor:
                 runs=kwds["runs"],
                 metadata=metadata,
                 collect_metadata=collect_metadata,
-                **kwds,
+                **{k: v for k, v in kwds.items() if k != "runs"},
             )
             self._dataframe = dataframe
             self._files = self.loader.files
