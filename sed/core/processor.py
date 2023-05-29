@@ -299,9 +299,18 @@ class SedProcessor:
             )
             self._dataframe = dataframe
             self._files = self.loader.files
+        elif kwds["runs"] is not None:
+            dataframe, metadata = self.loader.read_dataframe(
+                runs=kwds["runs"],
+                metadata=metadata,
+                collect_metadata=collect_metadata,
+                **kwds,
+            )
+            self._dataframe = dataframe
+            self._files = self.loader.files
         else:
             raise ValueError(
-                "Either 'dataframe', 'files' or 'folder' needs to be privided!",
+                "Either 'dataframe', 'files' or 'folder' needs to be provided!",
             )
 
         for key in metadata:

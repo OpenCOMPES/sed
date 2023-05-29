@@ -23,9 +23,10 @@ from pandas import MultiIndex
 from pandas import Series
 
 from sed.loader.base.loader import BaseLoader
-from sed.loader.exception_handlers import NoFilesFoundError
-from sed.loader.utils import gather_flash_files
-from sed.loader.utils import parse_h5_keys
+from sed.loader.flash.metadata import get_metadata
+from sed.loader.flash.utils import gather_flash_files
+from sed.loader.flash.utils import initialize_paths
+from sed.loader.flash.utils import parse_h5_keys
 
 
 class FlashLoader(BaseLoader):
@@ -39,72 +40,19 @@ class FlashLoader(BaseLoader):
 
     supported_file_types = ["h5", "parquet"]
 
-    def __init__(self, config: dict, meta_handler) -> None:
+    def __init__(self, config: dict) -> None:
 
-        super().__init__(config=config, meta_handler=meta_handler)
-        self._config: dict = config.get("dataframe", {})
-        self.config_parser()
-        # Set all channels, exluding pulseId as default
-        self.all_channels: dict = self._config.get("channels", {})
-        self.index_per_electron: Union[MultiIndex, None] = None
-        self.index_per_pulse: Union[MultiIndex, None] = None
+        super().__init__(config=config)
+        self.index_per_electron: MultiIndex = None
+        self.index_per_pulse: MultiIndex = None
         self.parquet_names: List[Path] = []
         self.failed_files_error: List[str] = []
-
-    def config_parser(self):
-        """
-        Parser for the config.yaml file.
-        """
-        paths = self._config.get("paths")
-
-        # Prases to locate the raw beamtime directory from config file
-        if paths:
-            if "data_raw_dir" in paths:
-                self.data_raw_dir = Path(paths["data_raw_dir"])
-            if "data_parquet_dir" in paths:
-                self.data_parquet_dir = Path(paths["data_parquet_dir"])
-                if not self.data_parquet_dir.exists():
-                    os.mkdir(self.data_parquet_dir)
-
-        if not {"ubid_offset", "daq"}.issubset(self._config.keys()):
-            raise ValueError(
-                "One of the values from ubid_offset or daq is missing. \
-                        These are necessary.",
-            )
-
-        self.ubid_offset = self._config.get("ubid_offset", 0)
-        self.daq = self._config.get("daq", "")
-
-        if not paths:
-            if not {"beamtime_id", "year"}.issubset(self._config.keys()):
-                raise ValueError(
-                    "The beamtime_id and year or data_raw_dir is required.",
-                )
-
-            beamtime_id = self._config.get("beamtime_id")
-            year = self._config.get("year")
-            beamtime_dir = Path(
-                f"/asap3/flash/gpfs/pg2/{year}/data/{beamtime_id}/",
-            )
-
-            # Use os walk to reach the raw data directory
-            # the walk outputs a list of tuples,
-            # the last tuple contains the path to the raw data
-            self.data_raw_dir = list(os.walk(beamtime_dir.joinpath("raw/")))[
-                -1
-            ][0]
-
-            parquet_path = "processed/parquet"
-            self.data_parquet_dir = beamtime_dir.joinpath(parquet_path)
-
-            if not self.data_parquet_dir.exists():
-                os.mkdir(self.data_parquet_dir)
 
     @property
     def available_channels(self) -> List:
         """Returns the channel names that are available for use,
         excluding pulseId, defined by the json file"""
-        available_channels = list(self.all_channels.keys())
+        available_channels = list(self._config["dataframe"]["channels"].keys())
         available_channels.remove("pulseId")
         return available_channels
 
@@ -114,9 +62,12 @@ class FlashLoader(BaseLoader):
         including all auxillary channels"""
         channels_per_pulse = []
         for key in self.available_channels:
-            if self.all_channels[key]["format"] == "per_pulse":
+            if (
+                self._config["dataframe"]["channels"][key]["format"]
+                == "per_pulse"
+            ):
                 if key == "dldAux":
-                    for aux_key in self.all_channels[key][
+                    for aux_key in self._config["dataframe"]["channels"][key][
                         "dldAuxChannels"
                     ].keys():
                         channels_per_pulse.append(aux_key)
@@ -130,7 +81,8 @@ class FlashLoader(BaseLoader):
         return [
             key
             for key in self.available_channels
-            if self.all_channels[key]["format"] == "per_electron"
+            if self._config["dataframe"]["channels"][key]["format"]
+            == "per_electron"
         ]
 
     @property
@@ -139,7 +91,8 @@ class FlashLoader(BaseLoader):
         return [
             key
             for key in self.available_channels
-            if self.all_channels[key]["format"] == "per_train"
+            if self._config["dataframe"]["channels"][key]["format"]
+            == "per_train"
         ]
 
     def reset_multi_index(self) -> None:
@@ -165,7 +118,7 @@ class FlashLoader(BaseLoader):
                 name="pulseId",
                 index=train_id,
             )
-            - self.ubid_offset
+            - self._config["dataframe"]["ubid_offset"]
         )
 
         # Explode dataframe to get all microbunch vales per macrobunch,
@@ -220,9 +173,13 @@ class FlashLoader(BaseLoader):
         # Get the data from the necessary h5 file and channel
         group = cast(
             h5py.Group,
-            h5_file[self.all_channels[channel]["group_name"]],
+            h5_file[
+                self._config["dataframe"]["channels"][channel]["group_name"]
+            ],
         )
-        channel_dict = self.all_channels[channel]  # channel parameters
+        channel_dict = self._config["dataframe"]["channels"][
+            channel
+        ]  # channel parameters
 
         train_id = Series(group["index"], name="trainId")  # macrobunch
         # unpacks the timeStamp or value
@@ -259,7 +216,10 @@ class FlashLoader(BaseLoader):
             .to_frame()
             .set_index(self.index_per_electron)
             .drop(
-                index=cast(List[int], np.arange(-self.ubid_offset, 0)),
+                index=cast(
+                    List[int],
+                    np.arange(-self._config["dataframe"]["ubid_offset"], 0),
+                ),
                 level=1,
                 errors="ignore",
             )
@@ -332,7 +292,9 @@ class FlashLoader(BaseLoader):
             h5_file,
             channel,
         )  # numpy Array created
-        channel_dict = self.all_channels[channel]  # channel parameters
+        channel_dict = self._config["dataframe"]["channels"][
+            channel
+        ]  # channel parameters
 
         # If np_array is size zero, fill with NaNs
         if np_array.size == 0:
@@ -386,11 +348,21 @@ class FlashLoader(BaseLoader):
         all_keys = parse_h5_keys(h5_file)  # Parses all channels present
 
         # Check for if the provided group_name actually exists in the file
-        for channel in self.all_channels:
+        for channel in self._config["dataframe"]["channels"]:
             if channel == "timeStamp":
-                group_name = self.all_channels[channel]["group_name"] + "time"
+                group_name = (
+                    self._config["dataframe"]["channels"][channel][
+                        "group_name"
+                    ]
+                    + "time"
+                )
             else:
-                group_name = self.all_channels[channel]["group_name"] + "value"
+                group_name = (
+                    self._config["dataframe"]["channels"][channel][
+                        "group_name"
+                    ]
+                    + "value"
+                )
 
             if group_name not in all_keys:
                 raise ValueError(
@@ -501,28 +473,76 @@ class FlashLoader(BaseLoader):
 
     def read_dataframe(
         self,
-        files: Sequence[str] = "",
-        folder: str = "",
+        files: Sequence[str] = None,
+        folder: str = None,
         ftype: str = "h5",
+        metadata: dict = None,
+        collect_metadata: bool = False,
+        runs: Sequence[int] = None,
         **kwds,
     ) -> Tuple[dd.DataFrame, dict]:
-        """Read express data from DAQ, generating a parquet in between."""
-        # create a per_file directory
-        temp_parquet_dir = self.data_parquet_dir.joinpath("per_file")
+        """
+        Read express data from the DAQ, generating a parquet in between.
+
+        Args:
+            files (Sequence[str], optional): A list of specific file names to read.
+            Defaults to None.
+            folder (str, optional): The directory where the raw data files are located.
+            Defaults to None.
+            ftype (str, optional): The file extension type. Defaults to "h5".
+            metadata (dict, optional): Additional metadata. Defaults to None.
+            collect_metadata (bool, optional): Whether to collect metadata.
+            Defaults to False.
+            runs (Sequence[int], optional): A list of specific run numbers to read.
+            Defaults to None.
+
+        Returns:
+            Tuple[dd.DataFrame, dict]: A tuple containing the concatenated DataFrame
+            and metadata.
+
+        Raises:
+            ValueError: If neither 'runs' nor 'files'/'folder' is provided.
+            FileNotFoundError: If the conversion fails for some files or no
+            data is available.
+        """
+
+        # Check if a specific folder is provided
+        if folder:
+            parquet_path = "processed/parquet"
+            data_parquet_dir = folder.joinpath(parquet_path)
+            if not data_parquet_dir.exists():
+                os.mkdir(data_parquet_dir)
+
+        # If folder is not provided, initialize paths from the configuration
+        if not folder:
+            data_raw_dir, data_parquet_dir = initialize_paths(
+                self._config["dataframe"],
+            )
+            folder = data_raw_dir
+
+        # Create a per_file directory
+        temp_parquet_dir = data_parquet_dir.joinpath("per_file")
         os.makedirs(temp_parquet_dir, exist_ok=True)
 
-        folder = str(self.data_raw_dir)
-        # Prepare a list of names for the files to read and parquets to write
-        runs = files if isinstance(files, list) else [files]
         all_files = []
-        for run in runs:
-            run_files = gather_flash_files(
-                cast(int, run),
-                self.daq,
-                folder,
-                extension=ftype,
+        if files:
+            all_files = [Path(folder + file) for file in files]
+        elif runs:
+            # Prepare a list of names for the runs to read and parquets to write
+            runs = runs if isinstance(runs, list) else [runs]
+
+            for run in runs:
+                run_files = gather_flash_files(
+                    run,
+                    self._config["dataframe"]["daq"],
+                    folder,
+                    extension=ftype,
+                )
+                all_files.extend(run_files)
+        else:
+            raise ValueError(
+                "At least one of 'runs' or 'files'/'folder' must be provided.",
             )
-            all_files.extend(run_files)
 
         parquet_name = f"{temp_parquet_dir}/"
         self.parquet_names = [
@@ -531,7 +551,7 @@ class FlashLoader(BaseLoader):
         missing_files: List[Path] = []
         missing_parquet_names: List[Path] = []
 
-        # only read and write files which were not read already
+        # Only read and write files which were not read already
         for i, parquet_file in enumerate(self.parquet_names):
             if not parquet_file.exists():
                 missing_files.append(all_files[i])
@@ -541,9 +561,9 @@ class FlashLoader(BaseLoader):
             f"Reading files: {len(missing_files)} new files of {len(all_files)} total.",
         )
 
-        self.reset_multi_index()  # initializes the indices for h5_to_parquet
+        self.reset_multi_index()  # Initializes the indices for h5_to_parquet
 
-        # run self.h5_to_parquet in parallel
+        # Run self.h5_to_parquet in parallel
         if len(missing_files) > 0:
             Parallel(n_jobs=len(missing_files), verbose=10)(
                 delayed(self.h5_to_parquet)(h5_path, parquet_path)
@@ -554,7 +574,7 @@ class FlashLoader(BaseLoader):
             )
 
         if self.failed_files_error:
-            raise NoFilesFoundError(
+            raise FileNotFoundError(
                 "Conversion failed for the following files: \n"
                 + "\n".join(self.failed_files_error),
             )
@@ -580,9 +600,16 @@ class FlashLoader(BaseLoader):
         )
         dataframe = dataframe.dropna(subset=self.channels_per_electron)
 
-        return dataframe, self.parse_metadata(
-            [str(path) for path in all_files],
-        )
+        if collect_metadata:
+            metadata = get_metadata(
+                beamtime_id=self._config["dataframe"]["beamtime_id"],
+                runs=runs,
+                metadata=self.metadata,
+            )
+        else:
+            metadata = self.metadata
+
+        return dataframe, metadata
 
 
 LOADER = FlashLoader
