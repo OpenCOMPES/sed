@@ -23,7 +23,7 @@ from pandas import MultiIndex
 from pandas import Series
 
 from sed.loader.base.loader import BaseLoader
-from sed.loader.flash.metadata import get_metadata
+from sed.loader.flash.metadata import MetadataRetriever
 from sed.loader.flash.utils import gather_flash_files
 from sed.loader.flash.utils import initialize_paths
 from sed.loader.utils import parse_h5_keys
@@ -601,7 +601,8 @@ class FlashLoader(BaseLoader):
         dataframe = dataframe.dropna(subset=self.channels_per_electron)
 
         if collect_metadata:
-            metadata = get_metadata(
+            metadata_retriever = MetadataRetriever(self._config["metadata"])
+            metadata = metadata_retriever.get_metadata(
                 beamtime_id=self._config["dataframe"]["beamtime_id"],
                 runs=runs,
                 metadata=self.metadata,
