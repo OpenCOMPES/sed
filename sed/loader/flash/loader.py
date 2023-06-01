@@ -26,7 +26,7 @@ from sed.loader.base.loader import BaseLoader
 from sed.loader.flash.metadata import get_metadata
 from sed.loader.flash.utils import gather_flash_files
 from sed.loader.flash.utils import initialize_paths
-from sed.loader.flash.utils import parse_h5_keys
+from sed.loader.utils import parse_h5_keys
 
 
 class FlashLoader(BaseLoader):

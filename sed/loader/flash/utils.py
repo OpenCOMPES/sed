@@ -3,8 +3,6 @@ import os
 from pathlib import Path
 from typing import List
 
-from h5py import Group
-
 
 def initialize_paths(df_config):
     """
@@ -129,37 +127,3 @@ def gather_flash_files(
 
     # Return the list of found files
     return files
-
-
-def parse_h5_keys(h5_file, prefix=""):
-    """Helper method which parses the channels present in the h5 file"""
-
-    # Initialize an empty list to store the channels
-    file_channel_list = []
-
-    # Iterate over the keys in the H5 file
-    for key in h5_file.keys():
-        try:
-            # Check if the object corresponding to the key is a group
-            if isinstance(h5_file[key], Group):
-                # If it's a group, recursively call the function on the group object
-                # and append the returned channels to the file_channel_list
-                [
-                    file_channel_list.append(s)
-                    for s in parse_h5_keys(
-                        h5_file[key],
-                        prefix=prefix + "/" + key,
-                    )
-                ]
-            else:
-                # If it's not a group (i.e., it's a dataset), append the key
-                # to the file_channel_list
-                file_channel_list.append(prefix + "/" + key)
-        except Exception as exception:
-            # If an exception occurs, raise a new exception with an error message
-            raise Exception(
-                f"Error parsing key: {prefix}/{key}",
-            ) from exception
-
-    # Return the list of channels
-    return file_channel_list
