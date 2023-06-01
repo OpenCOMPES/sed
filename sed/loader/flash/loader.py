@@ -509,7 +509,7 @@ class FlashLoader(BaseLoader):
         # Check if a specific folder is provided
         if folder:
             parquet_path = "processed/parquet"
-            data_parquet_dir = folder.joinpath(parquet_path)
+            data_parquet_dir = Path(folder).joinpath(parquet_path)
             if not data_parquet_dir.exists():
                 os.mkdir(data_parquet_dir)
 
