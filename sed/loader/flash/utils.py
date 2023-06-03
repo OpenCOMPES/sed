@@ -1,14 +1,29 @@
 """Utilities for flash loader"""
+import json
 import os
 from pathlib import Path
+from typing import Dict
 from typing import List
+from typing import Sequence
+from typing import Tuple
 
 
-def initialize_paths(df_config):
+def initialize_paths(df_config: Dict) -> Tuple[Path, Path]:
     """
-    Initializes the paths
+    Initializes the paths based on the configuration.
+
+    Args:
+        df_config (Dict): A dictionary containing the configuration.
+
+    Returns:
+        Tuple[Path, Path]: A tuple containing the raw data directory path
+        and the parquet data directory path.
+
+    Raises:
+        ValueError: If required values are missing from the configuration.
+        FileNotFoundError: If the raw data directories are not found.
     """
-    # Prases to locate the raw beamtime directory from config file
+    # Parses to locate the raw beamtime directory from config file
     if "paths" in df_config:
         paths = df_config["paths"]
         if "data_raw_dir" in paths:
@@ -18,7 +33,7 @@ def initialize_paths(df_config):
             if not data_parquet_dir.exists():
                 os.mkdir(data_parquet_dir)
 
-    if "paths" not in df_config:
+    else:
         if not {"ubid_offset", "daq"}.issubset(df_config.keys()):
             raise ValueError(
                 "One of the values from ubid_offset or daq is missing. \
@@ -32,18 +47,13 @@ def initialize_paths(df_config):
 
         beamtime_id = df_config["beamtime_id"]
         year = df_config["year"]
-        beamtime_dir = Path(
-            f"/asap3/flash/gpfs/pg2/{year}/data/{beamtime_id}/",
-        )
-
-        if {"instrument"}.issubset(df_config.keys()):
-            instrument = df_config["instrument"]
-            if instrument == "wespe":
-                beamtime_dir = Path(
-                    f"/asap3/fs-flash-o/gpfs/{instrument}/{year}/data/{beamtime_id}/",
-                )
-
         daq = df_config["daq"]
+
+        identifiers = json.load("identifiers.json")
+        beamtime_dir = Path(
+            identifiers["beamtime_dir"][df_config["instrument"]],
+        )
+        beamtime_dir.joinpath(f"{year}/data/{beamtime_id}/")
 
         # Use os walk to reach the raw data directory
         data_raw_dir = []
@@ -71,7 +81,7 @@ def initialize_paths(df_config):
 def gather_flash_files(
     run_number: int,
     daq: str,
-    raw_data_dirs: List[str],
+    raw_data_dirs: Sequence[Path],
     extension: str = "h5",
 ) -> List[Path]:
     """Returns a list of filenames for a given run located in the specified directory
@@ -80,7 +90,7 @@ def gather_flash_files(
     Args:
         run_number (int): The number of the run.
         daq (str): The data acquisition identifier.
-        raw_data_dir (str): The directory where the raw data is located.
+        raw_data_dir (Sequence[Path]): The directory where the raw data is located.
         extension (str, optional): The file extension. Defaults to "h5".
 
     Returns:
@@ -90,15 +100,8 @@ def gather_flash_files(
         FileNotFoundError: If no files are found for the given run in the directory.
     """
     # Define the stream name prefixes based on the data acquisition identifier
-    stream_name_prefixes = {
-        "pbd": "GMD_DATA_gmd_data",
-        "pbd2": "FL2PhotDiag_pbd2_gmd_data",
-        "fl1user1": "FLASH1_USER1_stream_2",
-        "fl1user2": "FLASH1_USER2_stream_2",
-        "fl1user3": "FLASH1_USER3_stream_2",
-        "fl2user1": "FLASH2_USER1_stream_2",
-        "fl2user2": "FLASH2_USER2_stream_2",
-    }
+    identifiers = json.load("identifiers.json")
+    stream_name_prefixes = identifiers["stream_name_prefixes"]
 
     # Generate the file patterns to search for in the directory
     file_pattern = (
@@ -106,15 +109,13 @@ def gather_flash_files(
     )
 
     files = []
-    raw_data_dirs = (
-        raw_data_dirs if isinstance(raw_data_dirs, list) else [raw_data_dirs]
-    )
+    raw_data_dirs = list(raw_data_dirs)
     # search through all directories
     for raw_data_dir in raw_data_dirs:
         # Use pathlib to search for matching files in each directory
         files.extend(
             sorted(
-                Path(raw_data_dir).glob(file_pattern),
+                raw_data_dir.glob(file_pattern),
                 key=lambda filename: str(filename).rsplit("_", maxsplit=1)[-1],
             ),
         )
@@ -122,7 +123,7 @@ def gather_flash_files(
     # Check if any files are found
     if not files:
         raise FileNotFoundError(
-            f"No files found for run {run_number} in directory {raw_data_dir}",
+            f"No files found for run {run_number} in directory {str(raw_data_dirs)}",
         )
 
     # Return the list of found files
