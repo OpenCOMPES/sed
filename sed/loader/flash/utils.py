@@ -1,11 +1,18 @@
 """Utilities for flash loader"""
-import json
 import os
+from importlib.util import find_spec
 from pathlib import Path
 from typing import Dict
 from typing import List
 from typing import Sequence
 from typing import Tuple
+
+from sed.config.settings import load_config
+
+# load identifiers
+package_dir = os.path.dirname(find_spec("sed").origin)
+identifiers_path = f"{package_dir}/loader/flash/identifiers.json"
+identifiers = load_config(identifiers_path)
 
 
 def initialize_paths(df_config: Dict) -> Tuple[Path, Path]:
@@ -49,11 +56,10 @@ def initialize_paths(df_config: Dict) -> Tuple[Path, Path]:
         year = df_config["year"]
         daq = df_config["daq"]
 
-        identifiers = json.load("identifiers.json")
         beamtime_dir = Path(
             identifiers["beamtime_dir"][df_config["instrument"]],
         )
-        beamtime_dir.joinpath(f"{year}/data/{beamtime_id}/")
+        beamtime_dir = beamtime_dir.joinpath(f"{year}/data/{beamtime_id}/")
 
         # Use os walk to reach the raw data directory
         data_raw_dir = []
@@ -100,7 +106,6 @@ def gather_flash_files(
         FileNotFoundError: If no files are found for the given run in the directory.
     """
     # Define the stream name prefixes based on the data acquisition identifier
-    identifiers = json.load("identifiers.json")
     stream_name_prefixes = identifiers["stream_name_prefixes"]
 
     # Generate the file patterns to search for in the directory

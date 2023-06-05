@@ -40,6 +40,7 @@ class BaseLoader(ABC):
         self._config = config if config is not None else {}
 
         self.files: List[str] = []
+        self.runs: List[str] = []
         self.metadata: Dict[Any, Any] = {}
 
     @abstractmethod
@@ -48,11 +49,12 @@ class BaseLoader(ABC):
         files: Sequence[str] = None,
         folder: str = None,
         ftype: str = None,
+        runs: Sequence[str] = None,
         metadata: dict = None,
         collect_metadata: bool = False,
         **kwds,
     ) -> Tuple[ddf.DataFrame, dict]:
-        """Reads data from given files or folder and returns a dask dataframe
+        """Reads data from given files, folder, or runs and returns a dask dataframe
         and corresponding metadata.
 
         Args:
@@ -63,11 +65,12 @@ class BaseLoader(ABC):
             ftype (str, optional): File type to read ('parquet', 'json', 'csv', etc).
                 If a folder path is given, all files with the specified extension are
                 read into the dataframe in the reading order. Defaults to None.
-            metadata (dict, optional): Manual meta data dictionary. Auto-generated
-                meta data are added to it. Defaults to None.
+            runs (Sequence[str], optional): List of run identifiers. Defaults to None.
+            metadata (dict, optional): Manual metadata dictionary. Auto-generated
+                metadata will be added to it. Defaults to None.
             collect_metadata (bool): Option to collect metadata from files. Requires
                 a valid config dict. Defaults to False.
-            **kwds: keyword arguments. Se describtion in respective loader.
+            **kwds: keyword arguments. See description in respective loader.
 
         Returns:
             Tuple[ddf.DataFrame, dict]: Dask dataframe and metadata read from
@@ -86,19 +89,22 @@ class BaseLoader(ABC):
                 **kwds,
             )
 
-        elif files is None:
+        elif files is None and runs is None:
             raise ValueError(
-                "Either the folder or file path should be provided!",
+                "Either the folder, file paths, or runs should be provided!",
             )
-        else:
-            files = [os.path.realpath(file) for file in files]
 
-        self.files = files
+        if runs is not None:
+            self.runs = runs
+
+        if files is not None:
+            files = [os.path.realpath(file) for file in files]
+            self.files = files
 
         self.metadata = deepcopy(metadata)
 
-        if not files:
-            raise FileNotFoundError("No valid files found!")
+        if not files and not runs:
+            raise FileNotFoundError("No valid files or runs found!")
 
         return None, None
 

@@ -473,75 +473,58 @@ class FlashLoader(BaseLoader):
 
     def read_dataframe(
         self,
-        files: Sequence[str] = None,
-        folder: str = None,
+        runs: Sequence[int] = None,
         ftype: str = "h5",
         metadata: dict = None,
         collect_metadata: bool = False,
-        runs: Sequence[int] = None,
         **kwds,
     ) -> Tuple[dd.DataFrame, dict]:
         """
         Read express data from the DAQ, generating a parquet in between.
 
         Args:
-            files (Sequence[str], optional): A list of specific file names to read.
-            Defaults to None.
-            folder (str, optional): The directory where the raw data files are located.
+            runs (Sequence[int], optional): A list of specific run numbers to read.
             Defaults to None.
             ftype (str, optional): The file extension type. Defaults to "h5".
             metadata (dict, optional): Additional metadata. Defaults to None.
             collect_metadata (bool, optional): Whether to collect metadata.
             Defaults to False.
-            runs (Sequence[int], optional): A list of specific run numbers to read.
-            Defaults to None.
+
 
         Returns:
             Tuple[dd.DataFrame, dict]: A tuple containing the concatenated DataFrame
             and metadata.
 
         Raises:
-            ValueError: If neither 'runs' nor 'files'/'folder' is provided.
+            ValueError: If neither 'runs' nor 'files'/'data_raw_dir' is provided.
             FileNotFoundError: If the conversion fails for some files or no
             data is available.
         """
 
-        # Check if a specific folder is provided
-        if folder:
-            parquet_path = "processed/parquet"
-            data_parquet_dir = Path(folder).joinpath(parquet_path)
-            if not data_parquet_dir.exists():
-                os.mkdir(data_parquet_dir)
-
-        # If folder is not provided, initialize paths from the configuration
-        if not folder:
-            data_raw_dir, data_parquet_dir = initialize_paths(
-                self._config["dataframe"],
-            )
-            folder = data_raw_dir
+        data_raw_dir, data_parquet_dir = initialize_paths(
+            self._config["dataframe"],
+        )
 
         # Create a per_file directory
         temp_parquet_dir = data_parquet_dir.joinpath("per_file")
         os.makedirs(temp_parquet_dir, exist_ok=True)
 
         all_files = []
-        if files:
-            all_files = [Path(folder + file) for file in files]
-        elif runs:
-            # Prepare a list of names for the runs to read and parquets to write
-            runs = runs if isinstance(runs, list) else [runs]
+        # Prepare a list of names for the runs to read and parquets to write
+        runs = runs if isinstance(runs, Sequence) else [runs]
 
+        if runs:
             for run in runs:
                 run_files = gather_flash_files(
                     run,
                     self._config["dataframe"]["daq"],
-                    folder,
+                    data_raw_dir,
                     extension=ftype,
                 )
                 all_files.extend(run_files)
         else:
             raise ValueError(
-                "At least one of 'runs' or 'files'/'folder' must be provided.",
+                "run identifiers must be provided.",
             )
 
         parquet_name = f"{temp_parquet_dir}/"

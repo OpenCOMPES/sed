@@ -60,11 +60,12 @@ class SedProcessor:
         dataframe: Union[pd.DataFrame, ddf.DataFrame] = None,
         files: List[str] = None,
         folder: str = None,
+        runs: Sequence[int] = None,
         collect_metadata: bool = False,
         **kwds,
     ):
         """Processor class of sed. Contains wrapper functions defining a work flow
-        for data correction, calibration and binning.
+        for data correction, calibration, and binning.
 
         Args:
             metadata (dict, optional): Dict of external Metadata. Defaults to None.
@@ -76,6 +77,8 @@ class SedProcessor:
                 the config. Defaults to None.
             folder (str, optional): Folder containing files to pass to the loader
                 defined in the config. Defaults to None.
+            runs (Sequence[int], optional): List of runs to pass to the loader defined
+                in the config. Defaults to None.
             collect_metadata (bool): Option to collect metadata from files.
                 Defaults to False.
             **kwds: Keyword arguments passed to the reader.
@@ -131,12 +134,18 @@ class SedProcessor:
                 self.use_copy_tool = False
 
         # Load data if provided:
-        if dataframe is not None or files is not None or folder is not None:
+        if (
+            dataframe is not None
+            or files is not None
+            or folder is not None
+            or runs is not None
+        ):
             self.load(
                 dataframe=dataframe,
                 metadata=metadata,
                 files=files,
                 folder=folder,
+                runs=runs,
                 collect_metadata=collect_metadata,
                 **kwds,
             )
@@ -257,6 +266,7 @@ class SedProcessor:
         metadata: dict = None,
         files: List[str] = None,
         folder: str = None,
+        runs: Sequence[int] = None,
         collect_metadata: bool = False,
         **kwds,
     ):
@@ -269,10 +279,11 @@ class SedProcessor:
             metadata (dict, optional): Dict of external Metadata. Defaults to None.
             files (List[str], optional): List of file paths to pass to the loader.
                 Defaults to None.
+            runs (Sequence[int], optional): List of run identifiers to pass to the
+                loader.
+            Defaults to None.
             folder (str, optional): Folder path to pass to the loader.
                 Defaults to None.
-            collect_metadata (bool): Option to collect metadata from files.
-                Defaults to False.
 
         Raises:
             ValueError: Raised if no valid input is provided.
@@ -299,18 +310,19 @@ class SedProcessor:
             )
             self._dataframe = dataframe
             self._files = self.loader.files
-        elif kwds["runs"] is not None:
+        elif runs is not None:
             dataframe, metadata = self.loader.read_dataframe(
-                runs=kwds["runs"],
+                runs=cast(List[str], self.cpy(runs)),
                 metadata=metadata,
                 collect_metadata=collect_metadata,
-                **{k: v for k, v in kwds.items() if k != "runs"},
+                **kwds,
             )
             self._dataframe = dataframe
-            self._files = self.loader.files
+            self._runs = self.loader.runs
         else:
             raise ValueError(
-                "Either 'dataframe', 'files' or 'folder' needs to be provided!",
+                "Either 'dataframe', 'files', 'folder', or 'runs' needs to be\
+                    provided!",
             )
 
         for key in metadata:
