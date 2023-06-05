@@ -100,8 +100,19 @@ class FlashLoader(BaseLoader):
         self.index_per_pulse = None
 
     def create_multi_index_per_electron(self, h5_file: h5py.File) -> None:
-        """Creates an index per electron using pulseId
-        for usage with the electron resolved pandas dataframe"""
+        """
+        Creates an index per electron using pulseId for usage with the electron
+            resolved pandas DataFrame.
+
+        Args:
+            h5_file (h5py.File): The HDF5 file object.
+
+        Notes:
+            - This method relies on the 'pulseId' channel to determine
+                the macrobunch IDs.
+            - It creates a MultiIndex with trainId, pulseId, and electronId
+                as the index levels.
+        """
 
         # Macrobunch IDs obtained from the pulseId channel
         [train_id, np_array] = self.create_numpy_array_per_channel(
@@ -146,17 +157,31 @@ class FlashLoader(BaseLoader):
             .astype(int)
         )
 
-        # Create a pandas multiindex using the exploded datasets
+        # Create a pandas MultiIndex using the exploded datasets
         self.index_per_electron = MultiIndex.from_arrays(
             (microbunches.index, microbunches.values, electrons),
             names=["trainId", "pulseId", "electronId"],
         )
 
-    def create_multi_index_per_pulse(self, train_id, np_array) -> None:
-        """Creates an index per pulse using a pulse resovled channel's
-        macrobunch ID, for usage with the pulse resolved pandas dataframe"""
+    def create_multi_index_per_pulse(
+        self,
+        train_id: Series,
+        np_array: np.ndarray,
+    ) -> None:
+        """
+        Creates an index per pulse using a pulse resolved channel's macrobunch ID,
+        for usage with the pulse resolved pandas DataFrame.
 
-        # Create a pandas multiindex, useful to compare electron and
+        Args:
+            train_id (Series): The train ID Series.
+            np_array (np.ndarray): The numpy array containing the pulse resolved data.
+
+        Notes:
+            - This method creates a MultiIndex with trainId and pulseId as the
+                index levels.
+        """
+
+        # Create a pandas MultiIndex, useful for comparing electron and
         # pulse resolved dataframes
         self.index_per_pulse = MultiIndex.from_product(
             (train_id, np.arange(0, np_array.shape[1])),
@@ -167,8 +192,19 @@ class FlashLoader(BaseLoader):
         self,
         h5_file: h5py.File,
         channel: str,
-    ) -> Tuple[Series, np.ndarray]:
-        """Returns a numpy Array for a given channel name for a given file"""
+    ) -> Tuple[Series, np.ndarray[float]]:
+        """
+        Returns a numpy array for a given channel name for a given file.
+
+        Args:
+            h5_file (h5py.File): The h5py file object.
+            channel (str): The name of the channel.
+
+        Returns:
+            Tuple[Series, np.ndarray]: A tuple containing the train ID Series
+            and the numpy array for the channel's data.
+
+        """
         # Get the data from the necessary h5 file and channel
         group = h5_file[
             self._config["dataframe"]["channels"][channel]["group_name"]
@@ -179,12 +215,14 @@ class FlashLoader(BaseLoader):
         ]  # channel parameters
 
         train_id = Series(group["index"], name="trainId")  # macrobunch
+
         # unpacks the timeStamp or value
         if channel == "timeStamp":
             np_array = group["time"][()]
         else:
             np_array = group["value"][()]
-        # Uses predefined axis and slice from the json file
+
+        # Use predefined axis and slice from the json file
         # to choose correct dimension for necessary channel
         if "slice" in channel_dict:
             np_array = np.take(
@@ -196,15 +234,27 @@ class FlashLoader(BaseLoader):
 
     def create_dataframe_per_electron(
         self,
-        np_array,
-        train_id,
-        channel,
+        np_array: np.ndarray[float],
+        train_id: Series,
+        channel: str,
     ) -> DataFrame:
-        """Returns a pandas DataFrame for a given channel name of type [per electron]"""
-        # The microbunch resolved data is exploded and
-        # converted to dataframe, afterwhich the MultiIndex is set
-        # The NaN values are dropped, alongside the
-        # pulseId = 0 (meaningless)
+        """
+        Returns a pandas DataFrame for a given channel name of type [per electron].
+
+        Args:
+            np_array (np.ndarray): The numpy array containing the channel data.
+            train_id (Series): The train ID Series.
+            channel (str): The name of the channel.
+
+        Returns:
+            DataFrame: The pandas DataFrame for the channel's data.
+
+        Notes:
+            The microbunch resolved data is exploded and converted to a DataFrame.
+            The MultiIndex is set, and the NaN values are dropped, alongside the
+            pulseId = 0 (meaningless).
+
+        """
         return (
             Series((np_array[i] for i in train_id.index), name=channel)
             .explode()
@@ -220,19 +270,36 @@ class FlashLoader(BaseLoader):
 
     def create_dataframe_per_pulse(
         self,
-        np_array,
-        train_id,
-        channel,
-        channel_dict,
+        np_array: np.ndarray[float],
+        train_id: Series,
+        channel: str,
+        channel_dict: dict,
     ) -> DataFrame:
-        """Returns a pandas DataFrame for a given channel name of type [per pulse]"""
-        # Special case for auxillary channels which checks the channel
-        # dictionary for correct slices and creates a multicolumn
-        # pandas dataframe
+        """
+        Returns a pandas DataFrame for a given channel name of type [per pulse].
+
+        Args:
+            np_array (np.ndarray): The numpy array containing the channel data.
+            train_id (Series): The train ID Series.
+            channel (str): The name of the channel.
+            channel_dict (dict): The dictionary containing channel parameters.
+
+        Returns:
+            DataFrame: The pandas DataFrame for the channel's data.
+
+        Notes:
+            - For auxillary channels, the macrobunch resolved data is repeated 499
+              times to be compared to electron resolved data for each auxillary
+              channel. The data is then converted to a multicolumn DataFrame.
+            - For all other pulse resolved channels, the macrobunch resolved
+              data is exploded to a DataFrame and the MultiIndex is set.
+
+        """
+
+        # Special case for auxillary channels
         if channel == "dldAux":
-            # The macrobunch resolved data is repeated 499 times to be
-            # compared to electron resolved data for each auxillary channel
-            # and converted to a multicolumn dataframe
+            # Checks the channel dictionary for correct slices and creates a
+            # multicolumn DataFrame
             data_frames = (
                 Series(
                     (np_array[i, value] for i in train_id.index),
@@ -245,9 +312,10 @@ class FlashLoader(BaseLoader):
             # Multiindex set and combined dataframe returned
             data = reduce(DataFrame.combine_first, data_frames)
 
+        # For all other pulse resolved channels
         else:
-            # For all other pulse resolved channels, macrobunch resolved
-            # data is exploded to a dataframe and the MultiIndex set
+            # Macrobunch resolved data is exploded to a DataFrame and
+            # the MultiIndex is set
 
             # Creates the index_per_pulse for the given channel
             self.create_multi_index_per_pulse(train_id, np_array)
@@ -262,11 +330,21 @@ class FlashLoader(BaseLoader):
 
     def create_dataframe_per_train(
         self,
-        np_array,
-        train_id,
-        channel,
+        np_array: np.ndarray[float],
+        train_id: Series,
+        channel: str,
     ) -> DataFrame:
-        """Returns a pandas DataFrame for a given channel name of type [per train]"""
+        """
+        Returns a pandas DataFrame for a given channel name of type [per train].
+
+        Args:
+            np_array (np.ndarray): The numpy array containing the channel data.
+            train_id (Series): The train ID Series.
+            channel (str): The name of the channel.
+
+        Returns:
+            DataFrame: The pandas DataFrame for the channel's data.
+        """
         return (
             Series((np_array[i] for i in train_id.index), name=channel)
             .to_frame()
@@ -278,9 +356,26 @@ class FlashLoader(BaseLoader):
         h5_file: h5py.File,
         channel: str,
     ) -> Union[Series, DataFrame]:
-        """Returns a pandas DataFrame for a given channel name for
-        a given file. The Dataframe contains the MultiIndex and returns
-        depending on the channel's format"""
+        """
+        Returns a pandas DataFrame for a given channel name from a given file.
+
+        This method takes an h5py.File object `h5_file` and a channel name `channel`,
+        and returns a pandas DataFrame containing the data for that channel from the
+        file. The format of the DataFrame depends on the channel's format specified
+        in the configuration.
+
+        Args:
+            h5_file (h5py.File): The h5py.File object representing the HDF5 file.
+            channel (str): The name of the channel.
+
+        Returns:
+            Union[Series, DataFrame]: A pandas Series or DataFrame representing the
+            channel's data.
+
+        Raises:
+            ValueError: If the channel has an undefined format.
+
+        """
         [train_id, np_array] = self.create_numpy_array_per_channel(
             h5_file,
             channel,
@@ -291,7 +386,9 @@ class FlashLoader(BaseLoader):
 
         # If np_array is size zero, fill with NaNs
         if np_array.size == 0:
+            # Fill the np_array with NaN values of the same shape as train_id
             np_array = np.full_like(train_id, np.nan, dtype=np.double)
+            # Create a Series using np_array, with train_id as the index
             data = Series(
                 (np_array[i] for i in train_id.index),
                 name=channel,
@@ -300,10 +397,11 @@ class FlashLoader(BaseLoader):
 
         # Electron resolved data is treated here
         if channel_dict["format"] == "per_electron":
-            # Creates the index_per_electron if it does not exist for a given file
+            # If index_per_electron is None, create it for the given file
             if self.index_per_electron is None:
                 self.create_multi_index_per_electron(h5_file)
 
+            # Create a DataFrame for electron-resolved data
             data = self.create_dataframe_per_electron(
                 np_array,
                 train_id,
@@ -312,6 +410,7 @@ class FlashLoader(BaseLoader):
 
         # Pulse resolved data is treated here
         elif channel_dict["format"] == "per_pulse":
+            # Create a DataFrame for pulse-resolved data
             data = self.create_dataframe_per_pulse(
                 np_array,
                 train_id,
@@ -321,6 +420,7 @@ class FlashLoader(BaseLoader):
 
         # Train resolved data is treated here
         elif channel_dict["format"] == "per_train":
+            # Create a DataFrame for train-resolved data
             data = self.create_dataframe_per_train(np_array, train_id, channel)
 
         else:
@@ -335,9 +435,24 @@ class FlashLoader(BaseLoader):
     def concatenate_channels(
         self,
         h5_file: h5py.File,
-    ) -> Union[Series, DataFrame]:
-        """Returns a concatenated pandas DataFrame for either all pulse,
-        train or electron resolved channels."""
+    ) -> DataFrame:
+        """
+        Concatenates the channels from the provided h5py.File into a pandas DataFrame.
+
+        This method takes an h5py.File object `h5_file` and concatenates the channels
+        present in the file into a single pandas DataFrame. The concatenation is
+        performed based on the available channels specified in the configuration.
+
+        Args:
+            h5_file (h5py.File): The h5py.File object representing the HDF5 file.
+
+        Returns:
+            DataFrame: A concatenated pandas DataFrame containing the channels.
+
+        Raises:
+            ValueError: If the group_name for any channel does not exist in the file.
+
+        """
         all_keys = parse_h5_keys(h5_file)  # Parses all channels present
 
         # Check for if the provided group_name actually exists in the file
@@ -362,10 +477,13 @@ class FlashLoader(BaseLoader):
                     f"The group_name for channel {channel} does not exist.",
                 )
 
+        # Create a generator expression to generate data frames for each channel
         data_frames = (
             self.create_dataframe_per_channel(h5_file, each)
             for each in self.available_channels
         )
+
+        # Use the reduce function to join the data frames into a single DataFrame
         return reduce(
             lambda left, right: left.join(right, how="outer"),
             data_frames,
@@ -374,20 +492,42 @@ class FlashLoader(BaseLoader):
     def create_dataframe_per_file(
         self,
         file_path: Path,
-    ) -> Union[Series, DataFrame]:
-        """Returns two pandas DataFrames constructed for the given file.
-        The DataFrames contains the datasets from the iterable in the
-        order opposite to specified by channel names. One DataFrame is
-        pulse resolved and the other electron resolved.
+    ) -> DataFrame:
         """
-        # Loads h5 file and creates two dataframes
+        Create pandas DataFrames for the given file.
+
+        This method loads an HDF5 file specified by `file_path` and constructs a pandas
+        DataFrame from the datasets within the file. The order of datasets in the
+        DataFrames is the opposite of the order specified by channel names.
+
+        Args:
+            file_path (Path): Path to the input HDF5 file.
+
+        Returns:
+            DataFrame: pandas DataFrame
+
+        """
+        # Loads h5 file and creates a dataframe
         with h5py.File(file_path, "r") as h5_file:
             self.reset_multi_index()  # Reset MultiIndexes for next file
             return self.concatenate_channels(h5_file)
 
     def h5_to_parquet(self, h5_path: Path, parquet_path: Path) -> None:
-        """Uses the createDataFramePerFile method and saves
-        the dataframes to a parquet file."""
+        """
+        Convert HDF5 file to Parquet format.
+
+        This method uses the `create_dataframe_per_file` method to create dataframes
+        from individual files within an HDF5 file. The resulting dataframe is then
+        saved to a Parquet file.
+
+        Args:
+            h5_path (Path): Path to the input HDF5 file.
+            parquet_path (Path): Path to the output Parquet file.
+
+        Raises:
+            ValueError: If an error occurs during the conversion process.
+
+        """
         try:
             (
                 self.create_dataframe_per_file(h5_path)
@@ -402,42 +542,61 @@ class FlashLoader(BaseLoader):
 
     def fill_na(
         self,
-        dataframes: List,
+        dataframes: List[dd.DataFrame],
     ) -> dd.DataFrame:
-        """Routine to fill the NaN values with intrafile forward filling."""
+        """
+        Fill NaN values in the given dataframes using intrafile forward filling.
+
+        Args:
+            dataframes (List[dd.DataFrame]): List of dataframes to fill NaN values.
+
+        Returns:
+            dd.DataFrame: Concatenated dataframe with filled NaN values.
+
+        Notes:
+            This method is specific to the flash data structure and is used to fill NaN
+            values in certain channels that only store information at a lower frequency
+            The low frequency channels are exploded to match the dimensions of higher
+            frequency channels, but they may contain NaNs in the other columns.
+            This method fills the NaNs for the specific channels (channels_per_pulse
+            and channels_per_train).
+
+        """
+        # Channels to fill NaN values
         channels: List[str] = self.channels_per_pulse + self.channels_per_train
+
+        # Fill NaN values within each dataframe
         for i, _ in enumerate(dataframes):
             dataframes[i][channels] = dataframes[i][channels].fillna(
                 method="ffill",
             )
 
-        # This loop forward fills between the consective files.
-        # The first run file will have NaNs, unless another run
-        # before it has been defined.
+        # Forward fill between consecutive dataframes
         for i in range(1, len(dataframes)):
-            # Take only pulse channels
+            # Select pulse channels from current dataframe
             subset = dataframes[i][channels]
-            # Find which column(s) contain NaNs.
+            # Find columns with NaN values in the first row
             is_null = subset.loc[0].isnull().values.compute()
-            # Statement executed if there is more than one NaN value in the
-            # first row from all columns
+            # Execute if there are NaN values in the first row
             if is_null.sum() > 0:
                 # Select channel names with only NaNs
                 channels_to_overwrite = list(compress(channels, is_null[0]))
-                # Get the values for those channels from previous file
+                # Get values for those channels from the previous dataframe
                 values = dataframes[i - 1][channels].tail(1).values[0]
-                # Extract channels_to_overwrite from values and create a dictionary
+                # Create a dictionary to fill NaN values
                 fill_dict = dict(zip(channels, values))
                 fill_dict = {
                     k: v
                     for k, v in fill_dict.items()
                     if k in channels_to_overwrite
                 }
-                # Fill all NaNs by those values
+                # Fill NaN values with the corresponding values from the
+                # previous dataframe
                 dataframes[i][channels_to_overwrite] = subset[
                     channels_to_overwrite
                 ].fillna(fill_dict)
 
+        # Concatenate the filled dataframes
         return dd.concat(dataframes)
 
     def parse_metadata(
