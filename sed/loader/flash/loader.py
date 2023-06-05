@@ -7,7 +7,6 @@ import os
 from functools import reduce
 from itertools import compress
 from pathlib import Path
-from typing import cast
 from typing import List
 from typing import Sequence
 from typing import Tuple
@@ -171,12 +170,10 @@ class FlashLoader(BaseLoader):
     ) -> Tuple[Series, np.ndarray]:
         """Returns a numpy Array for a given channel name for a given file"""
         # Get the data from the necessary h5 file and channel
-        group = cast(
-            h5py.Group,
-            h5_file[
-                self._config["dataframe"]["channels"][channel]["group_name"]
-            ],
-        )
+        group = h5_file[
+            self._config["dataframe"]["channels"][channel]["group_name"]
+        ]
+
         channel_dict = self._config["dataframe"]["channels"][
             channel
         ]  # channel parameters
@@ -184,10 +181,9 @@ class FlashLoader(BaseLoader):
         train_id = Series(group["index"], name="trainId")  # macrobunch
         # unpacks the timeStamp or value
         if channel == "timeStamp":
-            np_array = cast(h5py.Dataset, group["time"])[()]
+            np_array = group["time"][()]
         else:
-            np_array = cast(h5py.Dataset, group["value"])[()]
-        np_array = cast(np.ndarray, np_array)
+            np_array = group["value"][()]
         # Uses predefined axis and slice from the json file
         # to choose correct dimension for necessary channel
         if "slice" in channel_dict:
@@ -216,10 +212,7 @@ class FlashLoader(BaseLoader):
             .to_frame()
             .set_index(self.index_per_electron)
             .drop(
-                index=cast(
-                    List[int],
-                    np.arange(-self._config["dataframe"]["ubid_offset"], 0),
-                ),
+                index=np.arange(-self._config["dataframe"]["ubid_offset"], 0),
                 level=1,
                 errors="ignore",
             )
