@@ -114,7 +114,11 @@ def gather_flash_files(
     )
 
     files = []
-    raw_data_dirs = list(raw_data_dirs)
+    raw_data_dirs = (
+        raw_data_dirs
+        if isinstance(raw_data_dirs, Sequence)
+        else [raw_data_dirs]
+    )
     # search through all directories
     for raw_data_dir in raw_data_dirs:
         # Use pathlib to search for matching files in each directory

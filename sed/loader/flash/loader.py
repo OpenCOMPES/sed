@@ -192,7 +192,7 @@ class FlashLoader(BaseLoader):
         self,
         h5_file: h5py.File,
         channel: str,
-    ) -> Tuple[Series, np.ndarray[float]]:
+    ) -> Tuple[Series, np.ndarray]:
         """
         Returns a numpy array for a given channel name for a given file.
 
@@ -234,7 +234,7 @@ class FlashLoader(BaseLoader):
 
     def create_dataframe_per_electron(
         self,
-        np_array: np.ndarray[float],
+        np_array: np.ndarray,
         train_id: Series,
         channel: str,
     ) -> DataFrame:
@@ -270,7 +270,7 @@ class FlashLoader(BaseLoader):
 
     def create_dataframe_per_pulse(
         self,
-        np_array: np.ndarray[float],
+        np_array: np.ndarray,
         train_id: Series,
         channel: str,
         channel_dict: dict,
@@ -330,7 +330,7 @@ class FlashLoader(BaseLoader):
 
     def create_dataframe_per_train(
         self,
-        np_array: np.ndarray[float],
+        np_array: np.ndarray,
         train_id: Series,
         channel: str,
     ) -> DataFrame:
