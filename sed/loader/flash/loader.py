@@ -55,44 +55,32 @@ class FlashLoader(BaseLoader):
         available_channels.remove("pulseId")
         return available_channels
 
-    @property
-    def channels_per_pulse(self) -> List:
-        """Returns a list of channels with per_pulse format,
-        including all auxillary channels"""
-        channels_per_pulse = []
-        for key in self.available_channels:
-            if (
-                self._config["dataframe"]["channels"][key]["format"]
-                == "per_pulse"
-            ):
-                if key == "dldAux":
-                    for aux_key in self._config["dataframe"]["channels"][key][
-                        "dldAuxChannels"
-                    ].keys():
-                        channels_per_pulse.append(aux_key)
-                else:
-                    channels_per_pulse.append(key)
-        return channels_per_pulse
+    def get_channels_by_format(self, formats: List[str]) -> List:
+        """
+        Returns a list of channels with the specified format.
 
-    @property
-    def channels_per_electron(self) -> List:
-        """Returns a list of channels with per_electron format"""
-        return [
-            key
-            for key in self.available_channels
-            if self._config["dataframe"]["channels"][key]["format"]
-            == "per_electron"
-        ]
+        Args:
+            formats (List[str]): The desired formats ('per_pulse', 'per_electron',
+                or 'per_train').
 
-    @property
-    def channels_per_train(self) -> List:
-        """Returns a list of channels with per_train format"""
-        return [
-            key
-            for key in self.available_channels
-            if self._config["dataframe"]["channels"][key]["format"]
-            == "per_train"
-        ]
+        Returns:
+            List: A list of channels with the specified format(s).
+        """
+        channels = []
+        for format_ in formats:
+            for key in self.available_channels:
+                channel_format = self._config["dataframe"]["channels"][key][
+                    "format"
+                ]
+                if channel_format == format_:
+                    if key == "dldAux":
+                        aux_channels = self._config["dataframe"]["channels"][
+                            key
+                        ]["dldAuxChannels"].keys()
+                        channels.extend(aux_channels)
+                    else:
+                        channels.append(key)
+        return channels
 
     def reset_multi_index(self) -> None:
         """Resets the index per pulse and electron"""
@@ -557,13 +545,14 @@ class FlashLoader(BaseLoader):
             This method is specific to the flash data structure and is used to fill NaN
             values in certain channels that only store information at a lower frequency
             The low frequency channels are exploded to match the dimensions of higher
-            frequency channels, but they may contain NaNs in the other columns.
-            This method fills the NaNs for the specific channels (channels_per_pulse
-            and channels_per_train).
+            frequency channels, but they may contain NaNs in the other columns. This
+            method fills the NaNs for the specific channels (per_pulse and per_train).
 
         """
         # Channels to fill NaN values
-        channels: List[str] = self.channels_per_pulse + self.channels_per_train
+        channels: List[str] = self.get_channels_by_format(
+            ["per_pulse", "per_train"],
+        )
 
         # Fill NaN values within each dataframe
         for i, _ in enumerate(dataframes):
@@ -733,7 +722,9 @@ class FlashLoader(BaseLoader):
                 for parquet_file in self.parquet_names
             ],
         )
-        dataframe = dataframe.dropna(subset=self.channels_per_electron)
+        dataframe = dataframe.dropna(
+            subset=self.get_channels_by_format("per_electron"),
+        )
 
         if collect_metadata:
             metadata_retriever = MetadataRetriever(self._config["metadata"])
