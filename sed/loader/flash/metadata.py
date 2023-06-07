@@ -20,11 +20,11 @@ class MetadataRetriever:
 
         Args:
             metadata_config (dict): Takes a dict containing
-            at least scicat_url, username and password
+            at least url, username and password
         """
-        self.scicat_url = metadata_config["scicat_url"]
-        self.username = metadata_config["username"]
-        self.password = metadata_config["password"]
+        self.url = metadata_config["scicat_url"]
+        self.username = metadata_config["scicat_username"]
+        self.password = metadata_config["scicat_password"]
         self.headers = {
             "Content-Type": "application/json",
             "Accept": "application/json",
@@ -107,7 +107,7 @@ class MetadataRetriever:
             "/",
             "%2F",
         )  # Replace slashes in the PID with URL-encoded slashes
-        url = f"{self.scicat_url}/RawDatasets/{npid}?access_token={self._get_token()}"
+        url = f"{self.url}/RawDatasets/{npid}?access_token={self._get_token()}"
         return url
 
     def _get_token(self) -> str:
@@ -120,7 +120,7 @@ class MetadataRetriever:
         Raises:
             Exception: If the token request fails.
         """
-        token_url = f"{self.scicat_url}/Users/login"
+        token_url = f"{self.url}/Users/login"
         # Send a POST request to the token URL with the username and password
         token_response = requests.post(
             token_url,
