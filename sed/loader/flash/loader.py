@@ -667,17 +667,16 @@ class FlashLoader(BaseLoader):
         # Prepare a list of names for the runs to read and parquets to write
 
         if runs is not None:
-            runs = runs if isinstance(runs, Sequence) else [runs]
             files = []
             for run in runs:
                 run_files = self.get_files_from_run_id(
                     run_id=run,
-                    raw_data_dir=data_raw_dir.absolute(),
+                    raw_data_dir=str(data_raw_dir.resolve()),
                     extension=ftype,
                     daq=self._config["dataframe"]["daq"],
                 )
                 files.extend(run_files)
-            self.runs = runs
+            self.runs = list(runs)
 
         # This call takes care of files and folders. As we have converted runs into files already,
         # they are just stored in the class by this call.
@@ -689,14 +688,16 @@ class FlashLoader(BaseLoader):
         )
 
         parquet_name = f"{temp_parquet_dir}/"
-        self.parquet_names = [Path(parquet_name + file.stem) for file in files]
+        self.parquet_names = [
+            Path(parquet_name + Path(file).stem) for file in files
+        ]
         missing_files: List[Path] = []
         missing_parquet_names: List[Path] = []
 
         # Only read and write files which were not read already
         for i, parquet_file in enumerate(self.parquet_names):
             if not parquet_file.exists():
-                missing_files.append(files[i])
+                missing_files.append(Path(files[i]))
                 missing_parquet_names.append(parquet_file)
 
         print(
@@ -741,14 +742,14 @@ class FlashLoader(BaseLoader):
             ],
         )
         dataframe = dataframe.dropna(
-            subset=self.get_channels_by_format("per_electron"),
+            subset=self.get_channels_by_format(["per_electron"]),
         )
 
         if collect_metadata:
             metadata_retriever = MetadataRetriever(self._config["metadata"])
             metadata = metadata_retriever.get_metadata(
                 beamtime_id=self._config["dataframe"]["beamtime_id"],
-                runs=runs,
+                runs=list(runs),
                 metadata=self.metadata,
             )
         else:
@@ -810,7 +811,7 @@ class FlashLoader(BaseLoader):
             )
 
         # Return the list of found files
-        return [file.absolute() for file in files]
+        return [str(file.resolve()) for file in files]
 
 
 LOADER = FlashLoader

@@ -3,8 +3,6 @@ import os
 from importlib.util import find_spec
 from pathlib import Path
 from typing import Dict
-from typing import List
-from typing import Sequence
 from typing import Tuple
 
 from sed.config.settings import load_config
@@ -63,7 +61,7 @@ def initialize_paths(df_config: Dict) -> Tuple[Path, Path]:
 
         # Use os walk to reach the raw data directory
         data_raw_dir = []
-        for root, dirs, files in os.walk(beamtime_dir.joinpath("raw/")):
+        for root, dirs, files in os.walk(beamtime_dir.joinpath("raw/")): # pylint: disable=W0612
             for dir_name in dirs:
                 if dir_name.startswith("express-") or dir_name.startswith(
                     "online-",

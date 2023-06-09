@@ -81,7 +81,7 @@ class BaseLoader(ABC):
             metadata = {}
 
         if runs is not None:
-            self.runs = runs
+            self.runs = list(runs)
             files = []
             for run in runs:
                 files.extend(self.get_files_from_run_id(run, folder, **kwds))
