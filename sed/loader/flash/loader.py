@@ -27,7 +27,6 @@ from sed.config.settings import load_config
 from sed.loader.base.loader import BaseLoader
 from sed.loader.flash.metadata import MetadataRetriever
 from sed.loader.flash.utils import initialize_paths
-from sed.loader.utils import gather_files
 from sed.loader.utils import parse_h5_keys
 
 # TODO move into standard config!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -673,7 +672,7 @@ class FlashLoader(BaseLoader):
             for run in runs:
                 run_files = self.get_files_from_run_id(
                     run_id=run,
-                    data_raw_dir=data_raw_dir,
+                    raw_data_dir=data_raw_dir.absolute(),
                     extension=ftype,
                     daq=self._config["dataframe"]["daq"],
                 )
@@ -757,23 +756,27 @@ class FlashLoader(BaseLoader):
 
         return dataframe, metadata
 
-    def gather_flash_files(
-        run_number: int,
-        daq: str,
-        raw_data_dirs: Sequence[Path],
+    def get_files_from_run_id(
+        self,
+        run_id: str,
+        raw_data_dir: str = None,
         extension: str = "h5",
-    ) -> List[Path]:
+        **kwds,
+    ) -> List[str]:
         """Returns a list of filenames for a given run located in the specified directory
         for the specified data acquisition (daq).
 
         Args:
-            run_number (int): The number of the run.
-            daq (str): The data acquisition identifier.
-            raw_data_dir (Sequence[Path]): The directory where the raw data is located.
+            run_id (str): The run identifier to locate.
+            raw_data_dir (str, optional): The directory where the raw data is located.
+                Defaults to config["loader"]["base_folder"].
             extension (str, optional): The file extension. Defaults to "h5".
+            kwds: Keyword arguments:
+                - daq (str): The data acquisition identifier.
+                  Defaults to config["dataframe"]["daq"].
 
         Returns:
-            List[Path]: A list of Path objects representing the collected file names.
+            List[str]: A list of path strings representing the collected file names.
 
         Raises:
             FileNotFoundError: If no files are found for the given run in the directory.
@@ -781,37 +784,33 @@ class FlashLoader(BaseLoader):
         # Define the stream name prefixes based on the data acquisition identifier
         stream_name_prefixes = identifiers["stream_name_prefixes"]
 
+        if raw_data_dir is None:
+            raw_data_dir = self._config["loader"]["base_folder"]
+
+        daq = kwds.pop("daq", self._config.get("dataframe", {}).get("daq"))
+
         # Generate the file patterns to search for in the directory
         file_pattern = (
-            f"{stream_name_prefixes[daq]}_run{run_number}_*." + extension
+            f"{stream_name_prefixes[daq]}_run{run_id}_*." + extension
         )
 
-        files = []
-        raw_data_dirs = (
-            raw_data_dirs
-            if isinstance(raw_data_dirs, Sequence)
-            else [raw_data_dirs]
+        files: List[Path] = []
+        # Use pathlib to search for matching files in each directory
+        files.extend(
+            natsorted(
+                Path(raw_data_dir).glob(file_pattern),
+                key=lambda filename: str(filename).rsplit("_", maxsplit=1)[-1],
+            ),
         )
-        # search through all directories
-        for raw_data_dir in raw_data_dirs:
-            # Use pathlib to search for matching files in each directory
-            files.extend(
-                sorted(
-                    raw_data_dir.glob(file_pattern),
-                    key=lambda filename: str(filename).rsplit("_", maxsplit=1)[
-                        -1
-                    ],
-                ),
-            )
 
         # Check if any files are found
         if not files:
             raise FileNotFoundError(
-                f"No files found for run {run_number} in directory {str(raw_data_dirs)}",
+                f"No files found for run {run_id} in directory {str(raw_data_dir)}",
             )
 
         # Return the list of found files
-        return files
+        return [file.absolute() for file in files]
 
 
 LOADER = FlashLoader

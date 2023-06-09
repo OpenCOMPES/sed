@@ -115,7 +115,7 @@ class BaseLoader(ABC):
     def get_files_from_run_id(
         self,
         run_id: str,
-        raw_data_dirs: Sequence[str] = None,
+        raw_data_dir: str = None,
         extension: str = None,
         **kwds,
     ) -> List[str]:
@@ -123,7 +123,7 @@ class BaseLoader(ABC):
 
         Args:
             run_id (str): The run identifier to locate.
-            raw_data_dir (str, optinal): The directory where the raw data is located.
+            raw_data_dir (str, optional): The directory where the raw data is located.
                 Defaults to config["loader"]["base_folder"].
             extension (str, optional): The file extension. Defaults to "h5".
             kwds: Keyword arguments
