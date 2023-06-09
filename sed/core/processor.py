@@ -60,7 +60,7 @@ class SedProcessor:
         dataframe: Union[pd.DataFrame, ddf.DataFrame] = None,
         files: List[str] = None,
         folder: str = None,
-        runs: Sequence[int] = None,
+        runs: Sequence[str] = None,
         collect_metadata: bool = False,
         **kwds,
     ):
@@ -77,8 +77,8 @@ class SedProcessor:
                 the config. Defaults to None.
             folder (str, optional): Folder containing files to pass to the loader
                 defined in the config. Defaults to None.
-            runs (Sequence[int], optional): List of runs to pass to the loader defined
-                in the config. Defaults to None.
+            runs (Sequence[str], optional): List of run identifiers to pass to the loader
+                defined in the config. Defaults to None.
             collect_metadata (bool): Option to collect metadata from files.
                 Defaults to False.
             **kwds: Keyword arguments passed to the reader.
@@ -266,7 +266,7 @@ class SedProcessor:
         metadata: dict = None,
         files: List[str] = None,
         folder: str = None,
-        runs: Sequence[int] = None,
+        runs: Sequence[str] = None,
         collect_metadata: bool = False,
         **kwds,
     ):
@@ -279,9 +279,8 @@ class SedProcessor:
             metadata (dict, optional): Dict of external Metadata. Defaults to None.
             files (List[str], optional): List of file paths to pass to the loader.
                 Defaults to None.
-            runs (Sequence[int], optional): List of run identifiers to pass to the
-                loader.
-            Defaults to None.
+            runs (Sequence[str], optional): List of run identifiers to pass to the
+                loader. Defaults to None.
             folder (str, optional): Folder path to pass to the loader.
                 Defaults to None.
 
@@ -292,6 +291,26 @@ class SedProcessor:
             metadata = {}
         if dataframe is not None:
             self._dataframe = dataframe
+        elif runs is not None:
+            # If runs are provided, we only use the copy tool if also folder is provided.
+            # In that case, we copy the whole provided base folder tree, and pass the copied
+            # version to the loader as base folder to look for the runs.
+            if folder is not None:
+                dataframe, metadata = self.loader.read_dataframe(
+                    folder=self.cpy(folder),
+                    runs=runs,
+                    metadata=metadata,
+                    collect_metadata=collect_metadata,
+                    **kwds,
+                )
+            else:
+                dataframe, metadata = self.loader.read_dataframe(
+                    runs=runs,
+                    metadata=metadata,
+                    collect_metadata=collect_metadata,
+                    **kwds,
+                )
+
         elif folder is not None:
             dataframe, metadata = self.loader.read_dataframe(
                 folder=cast(str, self.cpy(folder)),
@@ -299,8 +318,7 @@ class SedProcessor:
                 collect_metadata=collect_metadata,
                 **kwds,
             )
-            self._dataframe = dataframe
-            self._files = self.loader.files
+
         elif files is not None:
             dataframe, metadata = self.loader.read_dataframe(
                 files=cast(List[str], self.cpy(files)),
@@ -308,22 +326,14 @@ class SedProcessor:
                 collect_metadata=collect_metadata,
                 **kwds,
             )
-            self._dataframe = dataframe
-            self._files = self.loader.files
-        elif runs is not None:
-            dataframe, metadata = self.loader.read_dataframe(
-                runs=cast(List[str], self.cpy(runs)),
-                metadata=metadata,
-                collect_metadata=collect_metadata,
-                **kwds,
-            )
-            self._dataframe = dataframe
-            self._runs = self.loader.runs
+
         else:
             raise ValueError(
-                "Either 'dataframe', 'files', 'folder', or 'runs' needs to be\
-                    provided!",
+                "Either 'dataframe', 'files', 'folder', or 'runs' needs to be provided!",
             )
+
+        self._dataframe = dataframe
+        self._files = self.loader.files
 
         for key in metadata:
             self._attributes.add(

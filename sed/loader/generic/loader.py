@@ -30,6 +30,7 @@ class GenericLoader(BaseLoader):
         files: Sequence[str] = None,
         folder: str = None,
         ftype: str = "parquet",
+        runs: Sequence[str] = None,
         metadata: dict = None,
         collect_metadata: bool = False,
         **kwds,
@@ -44,6 +45,7 @@ class GenericLoader(BaseLoader):
             ftype (str, optional): File type to read ('parquet', 'json', 'csv', etc).
                 If a folder path is given, all files with the specified extension are
                 read into the dataframe in the reading order. Defaults to "parquet".
+            runs (Sequence[str], optional): List of run identifiers. Defaults to None.
             metadata (dict, optional): Manual meta data dictionary. Auto-generated
                 meta data are added to it. Defaults to None.
             collect_metadata (bool): Option to collect metadata from files. Requires
@@ -65,6 +67,7 @@ class GenericLoader(BaseLoader):
             files=files,
             folder=folder,
             ftype=ftype,
+            runs=runs,
             metadata=metadata,
         )
 

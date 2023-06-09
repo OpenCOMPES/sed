@@ -5,6 +5,7 @@ If there are multiple files, the NaNs are forward filled.
 """
 import os
 from functools import reduce
+from importlib.util import find_spec
 from itertools import compress
 from pathlib import Path
 from typing import List
@@ -17,15 +18,23 @@ import h5py
 import numpy as np
 from joblib import delayed
 from joblib import Parallel
+from natsort import natsorted
 from pandas import DataFrame
 from pandas import MultiIndex
 from pandas import Series
 
+from sed.config.settings import load_config
 from sed.loader.base.loader import BaseLoader
 from sed.loader.flash.metadata import MetadataRetriever
-from sed.loader.flash.utils import gather_flash_files
 from sed.loader.flash.utils import initialize_paths
+from sed.loader.utils import gather_files
 from sed.loader.utils import parse_h5_keys
+
+# TODO move into standard config!!!!!!!!!!!!!!!!!!!!!!!!!
+# load identifiers
+package_dir = os.path.dirname(find_spec("sed").origin)
+identifiers_path = f"{package_dir}/loader/flash/identifiers.json"
+identifiers = load_config(identifiers_path)
 
 
 class FlashLoader(BaseLoader):
@@ -614,8 +623,10 @@ class FlashLoader(BaseLoader):
 
     def read_dataframe(
         self,
-        runs: Sequence[int] = None,
+        files: Sequence[str] = None,
+        folder: str = None,
         ftype: str = "h5",
+        runs: Sequence[str] = None,
         metadata: dict = None,
         collect_metadata: bool = False,
         **kwds,
@@ -624,12 +635,16 @@ class FlashLoader(BaseLoader):
         Read express data from the DAQ, generating a parquet in between.
 
         Args:
-            runs (Sequence[int], optional): A list of specific run numbers to read.
-            Defaults to None.
+            files (Sequence[str], optional): List of file paths. Defaults to None.
+            folder (str, optional): Path to folder where files are stored. Path has
+                the priority such that if it's specified, the specified files will
+                be ignored. Defaults to None.
+            runs (Sequence[str], optional): A list of specific run numbers to read.
+                Defaults to None.
             ftype (str, optional): The file extension type. Defaults to "h5".
             metadata (dict, optional): Additional metadata. Defaults to None.
             collect_metadata (bool, optional): Whether to collect metadata.
-            Defaults to False.
+                Defaults to False.
 
 
         Returns:
@@ -650,39 +665,43 @@ class FlashLoader(BaseLoader):
         temp_parquet_dir = data_parquet_dir.joinpath("per_file")
         os.makedirs(temp_parquet_dir, exist_ok=True)
 
-        all_files = []
         # Prepare a list of names for the runs to read and parquets to write
-        runs = runs if isinstance(runs, Sequence) else [runs]
 
-        if runs:
+        if runs is not None:
+            runs = runs if isinstance(runs, Sequence) else [runs]
+            files = []
             for run in runs:
-                run_files = gather_flash_files(
-                    run,
-                    self._config["dataframe"]["daq"],
-                    data_raw_dir,
+                run_files = self.get_files_from_run_id(
+                    run_id=run,
+                    data_raw_dir=data_raw_dir,
                     extension=ftype,
+                    daq=self._config["dataframe"]["daq"],
                 )
-                all_files.extend(run_files)
-        else:
-            raise ValueError(
-                "run identifiers must be provided.",
-            )
+                files.extend(run_files)
+            self.runs = runs
+
+        # This call takes care of files and folders. As we have converted runs into files already,
+        # they are just stored in the class by this call.
+        super().read_dataframe(
+            files=files,
+            folder=folder,
+            ftype=ftype,
+            metadata=metadata,
+        )
 
         parquet_name = f"{temp_parquet_dir}/"
-        self.parquet_names = [
-            Path(parquet_name + file.stem) for file in all_files
-        ]
+        self.parquet_names = [Path(parquet_name + file.stem) for file in files]
         missing_files: List[Path] = []
         missing_parquet_names: List[Path] = []
 
         # Only read and write files which were not read already
         for i, parquet_file in enumerate(self.parquet_names):
             if not parquet_file.exists():
-                missing_files.append(all_files[i])
+                missing_files.append(files[i])
                 missing_parquet_names.append(parquet_file)
 
         print(
-            f"Reading files: {len(missing_files)} new files of {len(all_files)} total.",
+            f"Reading files: {len(missing_files)} new files of {len(files)} total.",
         )
 
         self.reset_multi_index()  # Initializes the indices for h5_to_parquet
@@ -712,7 +731,7 @@ class FlashLoader(BaseLoader):
 
         print(
             f"Loading {len(self.parquet_names)} dataframes. Failed reading "
-            f"{len(all_files)-len(self.parquet_names)} files.",
+            f"{len(files)-len(self.parquet_names)} files.",
         )
         # Read all parquet files using dask and concatenate into one dataframe
         # after filling
@@ -737,6 +756,62 @@ class FlashLoader(BaseLoader):
             metadata = self.metadata
 
         return dataframe, metadata
+
+    def gather_flash_files(
+        run_number: int,
+        daq: str,
+        raw_data_dirs: Sequence[Path],
+        extension: str = "h5",
+    ) -> List[Path]:
+        """Returns a list of filenames for a given run located in the specified directory
+        for the specified data acquisition (daq).
+
+        Args:
+            run_number (int): The number of the run.
+            daq (str): The data acquisition identifier.
+            raw_data_dir (Sequence[Path]): The directory where the raw data is located.
+            extension (str, optional): The file extension. Defaults to "h5".
+
+        Returns:
+            List[Path]: A list of Path objects representing the collected file names.
+
+        Raises:
+            FileNotFoundError: If no files are found for the given run in the directory.
+        """
+        # Define the stream name prefixes based on the data acquisition identifier
+        stream_name_prefixes = identifiers["stream_name_prefixes"]
+
+        # Generate the file patterns to search for in the directory
+        file_pattern = (
+            f"{stream_name_prefixes[daq]}_run{run_number}_*." + extension
+        )
+
+        files = []
+        raw_data_dirs = (
+            raw_data_dirs
+            if isinstance(raw_data_dirs, Sequence)
+            else [raw_data_dirs]
+        )
+        # search through all directories
+        for raw_data_dir in raw_data_dirs:
+            # Use pathlib to search for matching files in each directory
+            files.extend(
+                sorted(
+                    raw_data_dir.glob(file_pattern),
+                    key=lambda filename: str(filename).rsplit("_", maxsplit=1)[
+                        -1
+                    ],
+                ),
+            )
+
+        # Check if any files are found
+        if not files:
+            raise FileNotFoundError(
+                f"No files found for run {run_number} in directory {str(raw_data_dirs)}",
+            )
+
+        # Return the list of found files
+        return files
 
 
 LOADER = FlashLoader

@@ -319,6 +319,7 @@ class MpesLoader(BaseLoader):
         files: Sequence[str] = None,
         folder: str = None,
         ftype: str = "h5",
+        runs: Sequence[str] = None,
         metadata: dict = None,
         collect_metadata: bool = False,
         time_stamps: bool = False,
@@ -335,6 +336,7 @@ class MpesLoader(BaseLoader):
             ftype (str, optional): File extension to use. If a folder path is given,
                 all files with the specified extension are read into the dataframe
                 in the reading order. Defaults to "h5".
+            runs (Sequence[str], optional): List of run identifiers. Defaults to None.
             metadata (dict, optional): Manual meta data dictionary. Auto-generated
                 meta data are added to it. Defaults to None.
             collect_metadata (bool): Option to collect metadata from files. Requires
@@ -365,6 +367,7 @@ class MpesLoader(BaseLoader):
             files=files,
             folder=folder,
             ftype=ftype,
+            runs=runs,
             metadata=metadata,
         )
 

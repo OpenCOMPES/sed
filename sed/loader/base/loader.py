@@ -80,7 +80,13 @@ class BaseLoader(ABC):
         if metadata is None:
             metadata = {}
 
-        if folder is not None:
+        if runs is not None:
+            self.runs = runs
+            files = []
+            for run in runs:
+                files.extend(self.get_files_from_run_id(run, folder, **kwds))
+
+        elif folder is not None:
             folder = os.path.realpath(folder)
             files = gather_files(
                 folder=folder,
@@ -89,13 +95,10 @@ class BaseLoader(ABC):
                 **kwds,
             )
 
-        elif files is None and runs is None:
+        elif files is None:
             raise ValueError(
-                "Either the folder, file paths, or runs should be provided!",
+                "Either folder, file paths, or runs should be provided!",
             )
-
-        if runs is not None:
-            self.runs = runs
 
         if files is not None:
             files = [os.path.realpath(file) for file in files]
@@ -103,10 +106,32 @@ class BaseLoader(ABC):
 
         self.metadata = deepcopy(metadata)
 
-        if not files and not runs:
+        if not files:
             raise FileNotFoundError("No valid files or runs found!")
 
         return None, None
+
+    @abstractmethod
+    def get_files_from_run_id(
+        self,
+        run_id: str,
+        raw_data_dirs: Sequence[str] = None,
+        extension: str = None,
+        **kwds,
+    ) -> List[str]:
+        """Locate the files for a given run identifier.
+
+        Args:
+            run_id (str): The run identifier to locate.
+            raw_data_dir (str, optinal): The directory where the raw data is located.
+                Defaults to config["loader"]["base_folder"].
+            extension (str, optional): The file extension. Defaults to "h5".
+            kwds: Keyword arguments
+
+        Return:
+            str: Path to the location of run data.
+        """
+        raise NotImplementedError
 
     @abstractmethod
     def get_count_rate(
