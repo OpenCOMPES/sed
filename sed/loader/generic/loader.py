@@ -3,6 +3,7 @@ module sed.loader.mpes, code for loading hdf5 files delayed into a dask datafram
 Mostly ported from https://github.com/mpes-kit/mpes.
 @author: L. Rettig
 """
+from typing import List
 from typing import Sequence
 from typing import Tuple
 
@@ -93,6 +94,27 @@ class GenericLoader(BaseLoader):
             raise ValueError(
                 "The file format cannot be understood!",
             ) from exc
+
+    def get_files_from_run_id(
+        self,
+        run_id: str,
+        raw_data_dir: str = None,
+        extension: str = None,
+        **kwds,
+    ) -> List[str]:
+        """Locate the files for a given run identifier.
+
+        Args:
+            run_id (str): The run identifier to locate.
+            raw_data_dir (str, optional): The directory where the raw data is located.
+                Defaults to config["loader"]["base_folder"].
+            extension (str, optional): The file extension. Defaults to "h5".
+            kwds: Keyword arguments
+
+        Return:
+            str: Path to the location of run data.
+        """
+        raise NotImplementedError
 
     def get_count_rate(  # Pylint: disable=unused_parameter
         self,

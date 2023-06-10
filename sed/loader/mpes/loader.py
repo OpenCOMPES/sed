@@ -421,6 +421,27 @@ class MpesLoader(BaseLoader):
 
         return df, metadata
 
+    def get_files_from_run_id(
+        self,
+        run_id: str,
+        raw_data_dir: str = None,
+        extension: str = None,
+        **kwds,
+    ) -> List[str]:
+        """Locate the files for a given run identifier.
+
+        Args:
+            run_id (str): The run identifier to locate.
+            raw_data_dir (str, optional): The directory where the raw data is located.
+                Defaults to config["loader"]["base_folder"].
+            extension (str, optional): The file extension. Defaults to "h5".
+            kwds: Keyword arguments
+
+        Return:
+            str: Path to the location of run data.
+        """
+        raise NotImplementedError
+
     def gather_metadata(
         self,
         files: Sequence[str],
