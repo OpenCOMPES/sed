@@ -80,17 +80,17 @@ class MetadataRetriever:
             Exception: If the request to retrieve metadata fails.
         """
         # Create the dataset URL using the PID
-        dataset_response = requests.get(self._create_dataset_url_by_PID(pid))
+        dataset_response = requests.get(self._create_dataset_url_by_PID(pid), timeout=10)
 
         # If the dataset request is successful, return the retrieved metadata
         # as a JSON object
         if dataset_response.ok:
             return dataset_response.json()
-        else:
-            # If the request fails, raise an exception with the error message
-            raise Exception(f"{dataset_response.text}")
 
-    def _create_dataset_url_by_PID(self, pid: str) -> str:
+        # If the request fails, raise an exception with the error message
+        raise ConnectionError(f"{dataset_response.text}")
+
+    def _create_dataset_url_by_PID(self, pid: str) -> str:  # pylint: disable=invalid-name
         """
         Creates the dataset URL based on the PID.
 
@@ -126,11 +126,12 @@ class MetadataRetriever:
             token_url,
             headers=self.headers,
             json={"username": self.username, "password": self.password},
+            timeout=10,
         )
 
         # If the token request is successful, return the access token from the response
         if token_response.ok:
             return token_response.json()["id"]
-        else:
-            # If the request fails, raise an exception with the error message
-            raise Exception(f"{token_response.text}")
+
+        # If the request fails, raise an exception with the error message
+        raise ConnectionError(f"{token_response.text}")

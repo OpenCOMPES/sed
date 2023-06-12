@@ -5,7 +5,6 @@ If there are multiple files, the NaNs are forward filled.
 """
 import os
 from functools import reduce
-from importlib.util import find_spec
 from itertools import compress
 from pathlib import Path
 from typing import List
@@ -23,17 +22,9 @@ from pandas import DataFrame
 from pandas import MultiIndex
 from pandas import Series
 
-from sed.config.settings import load_config
 from sed.loader.base.loader import BaseLoader
 from sed.loader.flash.metadata import MetadataRetriever
-from sed.loader.flash.utils import initialize_paths
 from sed.loader.utils import parse_h5_keys
-
-# TODO move into standard config!!!!!!!!!!!!!!!!!!!!!!!!!
-# load identifiers
-package_dir = os.path.dirname(find_spec("sed").origin)
-identifiers_path = f"{package_dir}/loader/flash/identifiers.json"
-identifiers = load_config(identifiers_path)
 
 
 class FlashLoader(BaseLoader):
@@ -45,7 +36,7 @@ class FlashLoader(BaseLoader):
 
     __name__ = "flash"
 
-    supported_file_types = ["h5", "parquet"]
+    supported_file_types = ["h5"]
 
     def __init__(self, config: dict) -> None:
 
@@ -622,10 +613,10 @@ class FlashLoader(BaseLoader):
 
     def read_dataframe(
         self,
-        files: Sequence[str] = None,
-        folder: str = None,
+        files: Union[str, Sequence[str]] = None,
+        folders: Union[str, Sequence[str]] = None,
+        runs: Union[str, Sequence[str]] = None,
         ftype: str = "h5",
-        runs: Sequence[str] = None,
         metadata: dict = None,
         collect_metadata: bool = False,
         **kwds,
@@ -634,12 +625,14 @@ class FlashLoader(BaseLoader):
         Read express data from the DAQ, generating a parquet in between.
 
         Args:
-            files (Sequence[str], optional): List of file paths. Defaults to None.
-            folder (str, optional): Path to folder where files are stored. Path has
-                the priority such that if it's specified, the specified files will
-                be ignored. Defaults to None.
-            runs (Sequence[str], optional): A list of specific run numbers to read.
+            files (Union[str, Sequence[str]], optional): File path(s) to process.
                 Defaults to None.
+            folders (Union[str, Sequence[str]], optional): Path to folder(s) where files
+                are stored. Path has priority such that if it's specified, the specified
+                files will be ignored. Defaults to None.
+            runs (Union[str, Sequence[str]], optional): Run identifier(s). Corresponding
+                files will be located in the location provided by ``folders``. Takes
+                precendence over ``files`` and ``folders``. Defaults to None.
             ftype (str, optional): The file extension type. Defaults to "h5".
             metadata (dict, optional): Additional metadata. Defaults to None.
             collect_metadata (bool, optional): Whether to collect metadata.
@@ -656,9 +649,7 @@ class FlashLoader(BaseLoader):
             data is available.
         """
 
-        data_raw_dir, data_parquet_dir = initialize_paths(
-            self._config["dataframe"],
-        )
+        data_raw_dir, data_parquet_dir = self.initialize_paths()
 
         # Create a per_file directory
         temp_parquet_dir = data_parquet_dir.joinpath("per_file")
@@ -671,7 +662,9 @@ class FlashLoader(BaseLoader):
             for run in runs:
                 run_files = self.get_files_from_run_id(
                     run_id=run,
-                    raw_data_dir=str(data_raw_dir.resolve()),
+                    raw_data_dir=[
+                        str(folder.resolve()) for folder in data_raw_dir
+                    ],
                     extension=ftype,
                     daq=self._config["dataframe"]["daq"],
                 )
@@ -682,14 +675,14 @@ class FlashLoader(BaseLoader):
         # they are just stored in the class by this call.
         super().read_dataframe(
             files=files,
-            folder=folder,
+            folders=folders,
             ftype=ftype,
             metadata=metadata,
         )
 
         parquet_name = f"{temp_parquet_dir}/"
         self.parquet_names = [
-            Path(parquet_name + Path(file).stem) for file in files
+            Path(parquet_name + Path(file).stem) for file in self.files
         ]
         missing_files: List[Path] = []
         missing_parquet_names: List[Path] = []
@@ -701,7 +694,7 @@ class FlashLoader(BaseLoader):
                 missing_parquet_names.append(parquet_file)
 
         print(
-            f"Reading files: {len(missing_files)} new files of {len(files)} total.",
+            f"Reading files: {len(missing_files)} new files of {len(self.files)} total.",
         )
 
         self.reset_multi_index()  # Initializes the indices for h5_to_parquet
@@ -731,7 +724,7 @@ class FlashLoader(BaseLoader):
 
         print(
             f"Loading {len(self.parquet_names)} dataframes. Failed reading "
-            f"{len(files)-len(self.parquet_names)} files.",
+            f"{len(self.files)-len(self.parquet_names)} files.",
         )
         # Read all parquet files using dask and concatenate into one dataframe
         # after filling
@@ -760,7 +753,7 @@ class FlashLoader(BaseLoader):
     def get_files_from_run_id(
         self,
         run_id: str,
-        raw_data_dir: str = None,
+        folders: Union[str, Sequence[str]] = None,
         extension: str = "h5",
         **kwds,
     ) -> List[str]:
@@ -769,8 +762,8 @@ class FlashLoader(BaseLoader):
 
         Args:
             run_id (str): The run identifier to locate.
-            raw_data_dir (str, optional): The directory where the raw data is located.
-                Defaults to config["loader"]["base_folder"].
+            folders (Union[str, Sequence[str]], optional): The directory(ies) where the raw
+                data is located. Defaults to config["core"]["base_folder"].
             extension (str, optional): The file extension. Defaults to "h5".
             kwds: Keyword arguments:
                 - daq (str): The data acquisition identifier.
@@ -783,10 +776,15 @@ class FlashLoader(BaseLoader):
             FileNotFoundError: If no files are found for the given run in the directory.
         """
         # Define the stream name prefixes based on the data acquisition identifier
-        stream_name_prefixes = identifiers["stream_name_prefixes"]
+        stream_name_prefixes = self._config["dataframe"][
+            "stream_name_prefixes"
+        ]
 
-        if raw_data_dir is None:
-            raw_data_dir = self._config["loader"]["base_folder"]
+        if folders is None:
+            folders = self._config["core"]["base_folder"]
+
+        if isinstance(folders, str):
+            folders = [folders]
 
         daq = kwds.pop("daq", self._config.get("dataframe", {}).get("daq"))
 
@@ -797,21 +795,83 @@ class FlashLoader(BaseLoader):
 
         files: List[Path] = []
         # Use pathlib to search for matching files in each directory
-        files.extend(
-            natsorted(
-                Path(raw_data_dir).glob(file_pattern),
-                key=lambda filename: str(filename).rsplit("_", maxsplit=1)[-1],
-            ),
-        )
+        for folder in folders:
+            files.extend(
+                natsorted(
+                    Path(folder).glob(file_pattern),
+                    key=lambda filename: str(filename).rsplit("_", maxsplit=1)[-1],
+                ),
+            )
 
         # Check if any files are found
         if not files:
             raise FileNotFoundError(
-                f"No files found for run {run_id} in directory {str(raw_data_dir)}",
+                f"No files found for run {run_id} in directory {str(folders)}",
             )
 
         # Return the list of found files
         return [str(file.resolve()) for file in files]
+
+    def initialize_paths(self) -> Tuple[List[Path], Path]:
+        """
+        Initializes the paths based on the configuration.
+
+        Returns:
+            Tuple[List[Path], Path]: A tuple containing a list of raw data directories
+            paths and the parquet data directory path.
+
+        Raises:
+            ValueError: If required values are missing from the configuration.
+            FileNotFoundError: If the raw data directories are not found.
+        """
+        # Parses to locate the raw beamtime directory from config file
+        if "paths" in self._config["core"]:
+            data_raw_dir = [
+                Path(self._config["core"]["paths"].get("data_raw_dir", "")),
+            ]
+            data_parquet_dir = Path(
+                self._config["core"]["paths"].get("data_parquet_dir", ""),
+            )
+
+        else:
+            try:
+                beamtime_id = self._config["core"]["beamtime_id"]
+                year = self._config["core"]["year"]
+                daq = self._config["dataframe"]["daq"]
+            except KeyError as exc:
+                raise ValueError(
+                    "The beamtime_id, year and daq are required.",
+                ) from exc
+
+            beamtime_dir = Path(
+                self._config["dataframe"]["beamtime_dir"][
+                    self._config["loader"]["instrument"]
+                ],
+            )
+            beamtime_dir = beamtime_dir.joinpath(f"{year}/data/{beamtime_id}/")
+
+            # Use os walk to reach the raw data directory
+            data_raw_dir = []
+            for root, dirs, files in os.walk(beamtime_dir.joinpath("raw/")):  # pylint: disable=W0612
+                for dir_name in dirs:
+                    if dir_name.startswith("express-") or dir_name.startswith(
+                        "online-",
+                    ):
+                        data_raw_dir.append(Path(root, dir_name, daq))
+                    elif dir_name == daq.upper():
+                        data_raw_dir.append(Path(root, dir_name))
+
+            if not data_raw_dir:
+                raise FileNotFoundError("Raw data directories not found.")
+
+            parquet_path = "processed/parquet"
+            data_parquet_dir = beamtime_dir.joinpath(parquet_path)
+
+        # TODO: This will fail of more than one level of directories needs to be created...
+        if not data_parquet_dir.exists():
+            os.mkdir(data_parquet_dir)
+
+        return data_raw_dir, data_parquet_dir
 
 
 LOADER = FlashLoader

@@ -8,6 +8,7 @@ from typing import Dict
 from typing import List
 from typing import Sequence
 from typing import Tuple
+from typing import Union
 
 import dask.dataframe as ddf
 import numpy as np
@@ -46,10 +47,10 @@ class BaseLoader(ABC):
     @abstractmethod
     def read_dataframe(
         self,
-        files: Sequence[str] = None,
-        folder: str = None,
+        files: Union[str, Sequence[str]] = None,
+        folders: Union[str, Sequence[str]] = None,
+        runs: Union[str, Sequence[str]] = None,
         ftype: str = None,
-        runs: Sequence[str] = None,
         metadata: dict = None,
         collect_metadata: bool = False,
         **kwds,
@@ -58,14 +59,17 @@ class BaseLoader(ABC):
         and corresponding metadata.
 
         Args:
-            files (Sequence[str], optional): List of file paths. Defaults to None.
-            folder (str, optional): Path to folder where files are stored. Path has
-                the priority such that if it's specified, the specified files will
-                be ignored. Defaults to None.
+            files (Union[str, Sequence[str]], optional): File path(s) to process.
+                Defaults to None.
+            folders (Union[str, Sequence[str]], optional): Path to folder(s) where files
+                are stored. Path has priority such that if it's specified, the specified
+                files will be ignored. Defaults to None.
+            runs (Union[str, Sequence[str]], optional): Run identifier(s). Corresponding
+                files will be located in the location provided by ``folders``. Takes
+                precendence over ``files`` and ``folders``. Defaults to None.
             ftype (str, optional): File type to read ('parquet', 'json', 'csv', etc).
                 If a folder path is given, all files with the specified extension are
                 read into the dataframe in the reading order. Defaults to None.
-            runs (Sequence[str], optional): List of run identifiers. Defaults to None.
             metadata (dict, optional): Manual metadata dictionary. Auto-generated
                 metadata will be added to it. Defaults to None.
             collect_metadata (bool): Option to collect metadata from files. Requires
@@ -81,19 +85,27 @@ class BaseLoader(ABC):
             metadata = {}
 
         if runs is not None:
+            if isinstance(runs, str):
+                runs = [runs]
             self.runs = list(runs)
             files = []
             for run in runs:
-                files.extend(self.get_files_from_run_id(run, folder, **kwds))
+                files.extend(self.get_files_from_run_id(run, folders, **kwds))
 
-        elif folder is not None:
-            folder = os.path.realpath(folder)
-            files = gather_files(
-                folder=folder,
-                extension=ftype,
-                file_sorting=True,
-                **kwds,
-            )
+        elif folders is not None:
+            if isinstance(folders, str):
+                folders = [folders]
+            files = []
+            for folder in folders:
+                folder = os.path.realpath(folder)
+                files.extend(
+                    gather_files(
+                        folder=folder,
+                        extension=ftype,
+                        file_sorting=True,
+                        **kwds,
+                    ),
+                )
 
         elif files is None:
             raise ValueError(
@@ -101,6 +113,8 @@ class BaseLoader(ABC):
             )
 
         if files is not None:
+            if isinstance(files, str):
+                files = [files]
             files = [os.path.realpath(file) for file in files]
             self.files = files
 
@@ -115,7 +129,7 @@ class BaseLoader(ABC):
     def get_files_from_run_id(
         self,
         run_id: str,
-        raw_data_dir: str = None,
+        folders: Union[str, Sequence[str]] = None,
         extension: str = None,
         **kwds,
     ) -> List[str]:
@@ -123,13 +137,13 @@ class BaseLoader(ABC):
 
         Args:
             run_id (str): The run identifier to locate.
-            raw_data_dir (str, optional): The directory where the raw data is located.
-                Defaults to config["loader"]["base_folder"].
-            extension (str, optional): The file extension. Defaults to "h5".
+            folders (Union[str, Sequence[str]], optional): The directory(ies) where the raw
+                data is located. Defaults to None.
+            extension (str, optional): The file extension. Defaults to None.
             kwds: Keyword arguments
 
         Return:
-            str: Path to the location of run data.
+            List[str]: List of files for the given run.
         """
         raise NotImplementedError
 

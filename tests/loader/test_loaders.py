@@ -95,7 +95,7 @@ def test_has_correct_read_dataframe_func(loader):
                 )
                 if read_type == "folder":
                     loaded_dataframe, loaded_metadata = loader.read_dataframe(
-                        folder=input_folder,
+                        folders=input_folder,
                         ftype=supported_file_type,
                         collect_metadata=False,
                     )
@@ -117,7 +117,7 @@ def test_mpes_timestamps():
     loader = get_loader(loader_name)
     input_folder = os.path.join(test_data_dir, "loader", loader_name)
     df, _ = loader.read_dataframe(
-        folder=input_folder,
+        folders=input_folder,
         collect_metadata=False,
         time_stamps=True,
     )

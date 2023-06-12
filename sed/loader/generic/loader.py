@@ -6,6 +6,7 @@ Mostly ported from https://github.com/mpes-kit/mpes.
 from typing import List
 from typing import Sequence
 from typing import Tuple
+from typing import Union
 
 import dask.dataframe as ddf
 import numpy as np
@@ -28,10 +29,10 @@ class GenericLoader(BaseLoader):
 
     def read_dataframe(
         self,
-        files: Sequence[str] = None,
-        folder: str = None,
+        files: Union[str, Sequence[str]] = None,
+        folders: Union[str, Sequence[str]] = None,
+        runs: Union[str, Sequence[str]] = None,
         ftype: str = "parquet",
-        runs: Sequence[str] = None,
         metadata: dict = None,
         collect_metadata: bool = False,
         **kwds,
@@ -39,14 +40,17 @@ class GenericLoader(BaseLoader):
         """Read stored files from a folder into a dataframe.
 
         Args:
-            files (Sequence[str], optional): List of file paths. Defaults to None.
-            folder (str, optional): Path to folder where files are stored. Path has
-                the priority such that if it's specified, the specified files will
-                be ignored. Defaults to None.
+            files (Union[str, Sequence[str]], optional): File path(s) to process.
+                Defaults to None.
+            folders (Union[str, Sequence[str]], optional): Path to folder(s) where files
+                are stored. Path has priority such that if it's specified, the specified
+                files will be ignored. Defaults to None.
+            runs (Union[str, Sequence[str]], optional): Run identifier(s). Corresponding
+                files will be located in the location provided by ``folders``. Takes
+                precendence over ``files`` and ``folders``. Defaults to None.
             ftype (str, optional): File type to read ('parquet', 'json', 'csv', etc).
                 If a folder path is given, all files with the specified extension are
                 read into the dataframe in the reading order. Defaults to "parquet".
-            runs (Sequence[str], optional): List of run identifiers. Defaults to None.
             metadata (dict, optional): Manual meta data dictionary. Auto-generated
                 meta data are added to it. Defaults to None.
             collect_metadata (bool): Option to collect metadata from files. Requires
@@ -66,9 +70,9 @@ class GenericLoader(BaseLoader):
         # pylint: disable=duplicate-code
         super().read_dataframe(
             files=files,
-            folder=folder,
-            ftype=ftype,
+            folders=folders,
             runs=runs,
+            ftype=ftype,
             metadata=metadata,
         )
 
@@ -98,7 +102,7 @@ class GenericLoader(BaseLoader):
     def get_files_from_run_id(
         self,
         run_id: str,
-        raw_data_dir: str = None,
+        folders: Union[str, Sequence[str]] = None,
         extension: str = None,
         **kwds,
     ) -> List[str]:
@@ -106,8 +110,8 @@ class GenericLoader(BaseLoader):
 
         Args:
             run_id (str): The run identifier to locate.
-            raw_data_dir (str, optional): The directory where the raw data is located.
-                Defaults to config["loader"]["base_folder"].
+            folders (Union[str, Sequence[str]], optional): The directory(ies) where the raw
+                data is located. Defaults to None.
             extension (str, optional): The file extension. Defaults to "h5".
             kwds: Keyword arguments
 

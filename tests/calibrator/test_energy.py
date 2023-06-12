@@ -109,7 +109,7 @@ def test_calibrate_append(energy_scale: str, calibration_method: str):
         calibration_method (str): method used for ralibration
     """
     loader = get_loader(loader_name="mpes", config=config)
-    df, _ = loader.read_dataframe(folder=df_folder, collect_metadata=False)
+    df, _ = loader.read_dataframe(folders=df_folder, collect_metadata=False)
     ec = EnergyCalibrator(config=config, loader=loader)
     ec.load_data(biases=biases, traces=traces, tof=tof)
     ec.normalize()
@@ -159,7 +159,7 @@ def test_apply_correction_from_dict_kwds(calib_type: str, calib_dict: dict):
     """
     loader = get_loader(loader_name="mpes", config=config)
     # from dict
-    df, _ = loader.read_dataframe(folder=df_folder, collect_metadata=False)
+    df, _ = loader.read_dataframe(folders=df_folder, collect_metadata=False)
     ec = EnergyCalibrator(config=config, loader=loader)
     df, metadata = ec.append_energy_axis(df, calibration=calib_dict)
     assert config["dataframe"]["energy_column"] in df.columns
@@ -169,7 +169,7 @@ def test_apply_correction_from_dict_kwds(calib_type: str, calib_dict: dict):
     assert metadata["calibration"]["calib_type"] == calib_type
 
     # from kwds
-    df, _ = loader.read_dataframe(folder=df_folder, collect_metadata=False)
+    df, _ = loader.read_dataframe(folders=df_folder, collect_metadata=False)
     ec = EnergyCalibrator(config=config, loader=loader)
     df, metadata = ec.append_energy_axis(df, **calib_dict)
     assert config["dataframe"]["energy_column"] in df.columns

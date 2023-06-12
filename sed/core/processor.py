@@ -297,7 +297,7 @@ class SedProcessor:
             # version to the loader as base folder to look for the runs.
             if folder is not None:
                 dataframe, metadata = self.loader.read_dataframe(
-                    folder=cast(str, self.cpy(folder)),
+                    folders=cast(str, self.cpy(folder)),
                     runs=runs,
                     metadata=metadata,
                     collect_metadata=collect_metadata,
@@ -313,7 +313,7 @@ class SedProcessor:
 
         elif folder is not None:
             dataframe, metadata = self.loader.read_dataframe(
-                folder=cast(str, self.cpy(folder)),
+                folders=cast(str, self.cpy(folder)),
                 metadata=metadata,
                 collect_metadata=collect_metadata,
                 **kwds,

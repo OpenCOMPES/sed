@@ -108,7 +108,7 @@ def test_pose_correction():
 def test_apply_correction():
     """Test the application of the distortion correction to the dataframe."""
     df, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
-        folder=df_folder,
+        folders=df_folder,
         collect_metadata=False,
     )
     mc = MomentumCorrector(config=config)
@@ -215,7 +215,7 @@ def test_apply_registration(
 ):
     """Test the application of the distortion correction to the dataframe."""
     df, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
-        folder=df_folder,
+        folders=df_folder,
         collect_metadata=False,
     )
     mc = MomentumCorrector(config=config)
@@ -264,7 +264,7 @@ def test_momentum_calibration_equiscale():
     and application to the dataframe.
     """
     df, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
-        folder=df_folder,
+        folders=df_folder,
         collect_metadata=False,
     )
     mc = MomentumCorrector(config=config)
@@ -289,7 +289,7 @@ def test_momentum_calibration_equiscale():
 def test_momentum_calibration_two_points():
     """Test the calibration using two k-points, and application to the dataframe."""
     df, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
-        folder=df_folder,
+        folders=df_folder,
         collect_metadata=False,
     )
     mc = MomentumCorrector(config=config)
