@@ -17,7 +17,8 @@ package_dir = os.path.dirname(find_spec("sed").origin)
 
 test_data_dir = os.path.join(package_dir, "..", "tests", "data")
 
-read_types = ["folder", "files"]
+read_types = ["one_file", "files", "one_folder", "folders", "one_run", "runs"]
+runs = {"generic": None, "mpes": None, "flash": ["43878", "43878"]}
 
 
 def get_loader_name_from_loader_object(loader: BaseLoader) -> str:
@@ -77,7 +78,8 @@ def test_if_loaders_are_children_of_base_loader(loader):
 
 
 @pytest.mark.parametrize("loader", get_all_loaders())
-def test_has_correct_read_dataframe_func(loader):
+@pytest.mark.parametrize("read_type", read_types)
+def test_has_correct_read_dataframe_func(loader, read_type):
     """Test if all loaders have a valid read function implemented"""
     assert callable(loader.read_dataframe)
     if loader.__name__ != "BaseLoader":
@@ -86,29 +88,64 @@ def test_has_correct_read_dataframe_func(loader):
 
         loader_name = get_loader_name_from_loader_object(loader)
 
-        for read_type in read_types:
-            input_folder = os.path.join(test_data_dir, "loader", loader_name)
-            for supported_file_type in loader.supported_file_types:
-                input_files = gather_files(
-                    folder=input_folder,
-                    extension=supported_file_type,
+        input_folder = os.path.join(test_data_dir, "loader", loader_name)
+        for supported_file_type in loader.supported_file_types:
+            input_files = gather_files(
+                folder=input_folder,
+                extension=supported_file_type,
+            )
+            if read_type == "one_file":
+                loaded_dataframe, loaded_metadata = loader.read_dataframe(
+                    files=input_files[0],
+                    ftype=supported_file_type,
+                    collect_metadata=False,
                 )
-                if read_type == "folder":
-                    loaded_dataframe, loaded_metadata = loader.read_dataframe(
-                        folders=input_folder,
-                        ftype=supported_file_type,
-                        collect_metadata=False,
-                    )
-                else:
-                    loaded_dataframe, loaded_metadata = loader.read_dataframe(
-                        files=list(input_files),
-                        ftype=supported_file_type,
-                        collect_metadata=False,
-                    )
+                expected_size = 1
+            elif read_type == "files":
+                loaded_dataframe, loaded_metadata = loader.read_dataframe(
+                    files=list(input_files),
+                    ftype=supported_file_type,
+                    collect_metadata=False,
+                )
+                expected_size = len(input_files)
+            elif read_type == "one_folder":
+                loaded_dataframe, loaded_metadata = loader.read_dataframe(
+                    folders=input_folder,
+                    ftype=supported_file_type,
+                    collect_metadata=False,
+                )
+                expected_size = len(input_files)
+            elif read_type == "folders":
+                loaded_dataframe, loaded_metadata = loader.read_dataframe(
+                    folders=[input_folder],
+                    ftype=supported_file_type,
+                    collect_metadata=False,
+                )
+                expected_size = len(input_files)
+            elif read_type == "one_run":
+                if runs[get_loader_name_from_loader_object(loader)] is None:
+                    pytest.skip("Not implemented")
+                loaded_dataframe, loaded_metadata = loader.read_dataframe(
+                    runs=runs[get_loader_name_from_loader_object(loader)][0],
+                    ftype=supported_file_type,
+                    collect_metadata=False,
+                )
+                expected_size = 1
+            elif read_type == "runs":
+                if runs[get_loader_name_from_loader_object(loader)] is None:
+                    pytest.skip("Not implemented")
+                loaded_dataframe, loaded_metadata = loader.read_dataframe(
+                    runs=runs[get_loader_name_from_loader_object(loader)],
+                    ftype=supported_file_type,
+                    collect_metadata=False,
+                )
+                expected_size = len(
+                    runs[get_loader_name_from_loader_object(loader)],
+                )
 
-                assert isinstance(loaded_dataframe, ddf.DataFrame)
-                assert loaded_dataframe.npartitions == len(input_files)
-                assert isinstance(loaded_metadata, dict)
+            assert isinstance(loaded_dataframe, ddf.DataFrame)
+            assert loaded_dataframe.npartitions == expected_size
+            assert isinstance(loaded_metadata, dict)
 
 
 def test_mpes_timestamps():
