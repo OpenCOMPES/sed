@@ -659,26 +659,28 @@ class FlashLoader(BaseLoader):
 
         if runs is not None:
             files = []
+            if isinstance(runs, str):
+                runs = [runs]
             for run in runs:
                 run_files = self.get_files_from_run_id(
                     run_id=run,
-                    raw_data_dir=[
-                        str(folder.resolve()) for folder in data_raw_dir
-                    ],
+                    folders=[str(folder.resolve()) for folder in data_raw_dir],
                     extension=ftype,
                     daq=self._config["dataframe"]["daq"],
                 )
                 files.extend(run_files)
             self.runs = list(runs)
+            super().read_dataframe(files=files, ftype=ftype)
 
-        # This call takes care of files and folders. As we have converted runs into files already,
-        # they are just stored in the class by this call.
-        super().read_dataframe(
-            files=files,
-            folders=folders,
-            ftype=ftype,
-            metadata=metadata,
-        )
+        else:
+            # This call takes care of files and folders. As we have converted runs
+            # into files already, they are just stored in the class by this call.
+            super().read_dataframe(
+                files=files,
+                folders=folders,
+                ftype=ftype,
+                metadata=metadata,
+            )
 
         parquet_name = f"{temp_parquet_dir}/"
         self.parquet_names = [
