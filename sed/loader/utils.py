@@ -74,20 +74,16 @@ def parse_h5_keys(h5_file: File, prefix: str = "") -> List[str]:
             if isinstance(h5_file[key], Group):
                 # If it's a group, recursively call the function on the group object
                 # and append the returned channels to the file_channel_list
-                [
-                    file_channel_list.append(s)
-                    for s in parse_h5_keys(
-                        h5_file[key],
-                        prefix=prefix + "/" + key,
-                    )
-                ]
+                file_channel_list.extend(
+                    parse_h5_keys(h5_file[key], prefix=prefix + "/" + key),
+                )
             else:
                 # If it's not a group (i.e., it's a dataset), append the key
                 # to the file_channel_list
                 file_channel_list.append(prefix + "/" + key)
-        except Exception as exception:
+        except KeyError as exception:
             # If an exception occurs, raise a new exception with an error message
-            raise Exception(
+            raise KeyError(
                 f"Error parsing key: {prefix}/{key}",
             ) from exception
 
