@@ -85,7 +85,7 @@ class BaseLoader(ABC):
             metadata = {}
 
         if runs is not None:
-            if isinstance(runs, str):
+            if isinstance(runs, (str, int)):
                 runs = [runs]
             self.runs = list(runs)
             files = []

@@ -659,7 +659,7 @@ class FlashLoader(BaseLoader):
 
         if runs is not None:
             files = []
-            if isinstance(runs, str):
+            if isinstance(runs, (str, int)):
                 runs = [runs]
             for run in runs:
                 run_files = self.get_files_from_run_id(
@@ -703,6 +703,8 @@ class FlashLoader(BaseLoader):
 
         # Run self.h5_to_parquet in parallel
         if len(missing_files) > 0:
+            for file in missing_files:
+                print(file)
             Parallel(n_jobs=len(missing_files), verbose=10)(
                 delayed(self.h5_to_parquet)(h5_path, parquet_path)
                 for h5_path, parquet_path in zip(
