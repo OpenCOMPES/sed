@@ -675,14 +675,12 @@ class FlashLoader(BaseLoader):
         else:
             # This call takes care of files and folders. As we have converted runs
             # into files already, they are just stored in the class by this call.
-            print(files)
             super().read_dataframe(
                 files=files,
                 folders=folders,
                 ftype=ftype,
                 metadata=metadata,
             )
-            print(self.files)
 
         parquet_name = f"{temp_parquet_dir}/"
         self.parquet_names = [
@@ -694,7 +692,7 @@ class FlashLoader(BaseLoader):
         # Only read and write files which were not read already
         for i, parquet_file in enumerate(self.parquet_names):
             if not parquet_file.exists():
-                missing_files.append(Path(files[i]))
+                missing_files.append(Path(self.files[i]))
                 missing_parquet_names.append(parquet_file)
 
         print(
@@ -705,8 +703,6 @@ class FlashLoader(BaseLoader):
 
         # Run self.h5_to_parquet in parallel
         if len(missing_files) > 0:
-            for file in missing_files:
-                print(file)
             Parallel(n_jobs=len(missing_files), verbose=10)(
                 delayed(self.h5_to_parquet)(h5_path, parquet_path)
                 for h5_path, parquet_path in zip(
