@@ -675,12 +675,14 @@ class FlashLoader(BaseLoader):
         else:
             # This call takes care of files and folders. As we have converted runs
             # into files already, they are just stored in the class by this call.
+            print(files)
             super().read_dataframe(
                 files=files,
                 folders=folders,
                 ftype=ftype,
                 metadata=metadata,
             )
+            print(self.files)
 
         parquet_name = f"{temp_parquet_dir}/"
         self.parquet_names = [
