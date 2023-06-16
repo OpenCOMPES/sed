@@ -4,6 +4,8 @@ from glob import glob
 from typing import cast
 from typing import List
 
+from h5py import File
+from h5py import Group
 from natsort import natsorted
 
 
@@ -46,3 +48,44 @@ def gather_files(
         raise
 
     return files
+
+
+def parse_h5_keys(h5_file: File, prefix: str = "") -> List[str]:
+    """Helper method which parses the channels present in the h5 file
+    Args:
+        h5_file (h5py.File): The H5 file object.
+        prefix (str, optional): The prefix for the channel names.
+        Defaults to an empty string.
+
+    Returns:
+        List[str]: A list of channel names in the H5 file.
+
+    Raises:
+        Exception: If an error occurs while parsing the keys.
+    """
+
+    # Initialize an empty list to store the channels
+    file_channel_list = []
+
+    # Iterate over the keys in the H5 file
+    for key in h5_file.keys():
+        try:
+            # Check if the object corresponding to the key is a group
+            if isinstance(h5_file[key], Group):
+                # If it's a group, recursively call the function on the group object
+                # and append the returned channels to the file_channel_list
+                file_channel_list.extend(
+                    parse_h5_keys(h5_file[key], prefix=prefix + "/" + key),
+                )
+            else:
+                # If it's not a group (i.e., it's a dataset), append the key
+                # to the file_channel_list
+                file_channel_list.append(prefix + "/" + key)
+        except KeyError as exception:
+            # If an exception occurs, raise a new exception with an error message
+            raise KeyError(
+                f"Error parsing key: {prefix}/{key}",
+            ) from exception
+
+    # Return the list of channels
+    return file_channel_list

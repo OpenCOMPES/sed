@@ -1,0 +1,55 @@
+core:
+  loader: flash
+  paths:
+    data_raw_dir: "tests/data/loader/flash/"
+    data_parquet_dir: "tests/data/loader/flash/parquet"
+
+dataframe:
+  ubid_offset: 5
+  daq: fl1user3
+  channels:
+    pulseId:
+      axis: 1
+      format: per_electron
+      group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
+      slice: 2
+    dldPosX:
+      axis: 1
+      format: per_electron
+      group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
+      slice: 1
+    dldPosY:
+      axis: 1
+      format: per_electron
+      group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
+      slice: 0
+    dldTime:
+      axis: 1
+      format: per_electron
+      group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
+      slice: 3
+    dldAux:
+      axis: 1
+      format: per_pulse
+      group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
+      slice: 4
+      dldAuxChannels:
+        sampleBias: 0
+        tofVoltage: 1
+        extractorVoltage: 2
+        extractorCurrent: 3
+        cryoTemperature: 4
+        sampleTemperature: 5
+        dldTimeBinSize: 15
+  stream_name_prefixes:
+    pbd: "GMD_DATA_gmd_data"
+    pbd2: "FL2PhotDiag_pbd2_gmd_data"
+    fl1user1: "FLASH1_USER1_stream_2"
+    fl1user2: "FLASH1_USER2_stream_2"
+    fl1user3: "FLASH1_USER3_stream_2"
+    fl2user1: "FLASH2_USER1_stream_2"
+    fl2user2: "FLASH2_USER2_stream_2"
+  beamtime_dir:
+    pg2: "/asap3/flash/gpfs/pg2/"
+    hextof: "/asap3/flash/gpfs/pg2/"
+    wespe: "/asap3/fs-flash-o/gpfs/wespe/"

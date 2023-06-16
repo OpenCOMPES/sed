@@ -11,6 +11,7 @@ from typing import Dict
 from typing import List
 from typing import Sequence
 from typing import Tuple
+from typing import Union
 
 import dask
 import dask.array as da
@@ -316,8 +317,9 @@ class MpesLoader(BaseLoader):
 
     def read_dataframe(
         self,
-        files: Sequence[str] = None,
-        folder: str = None,
+        files: Union[str, Sequence[str]] = None,
+        folders: Union[str, Sequence[str]] = None,
+        runs: Union[str, Sequence[str]] = None,
         ftype: str = "h5",
         metadata: dict = None,
         collect_metadata: bool = False,
@@ -328,10 +330,14 @@ class MpesLoader(BaseLoader):
         dataframe and corresponding metadata.
 
         Args:
-            files (Sequence[str], optional): List of file paths. Defaults to None.
-            folder (str, optional): Path to folder where files are stored. Path has
-                the priority such that if it's specified, the specified files will
-                be ignored. Defaults to None.
+            files (Union[str, Sequence[str]], optional): File path(s) to process.
+                Defaults to None.
+            folders (Union[str, Sequence[str]], optional): Path to folder(s) where files
+                are stored. Path has priority such that if it's specified, the specified
+                files will be ignored. Defaults to None.
+            runs (Union[str, Sequence[str]], optional): Run identifier(s). Corresponding
+                files will be located in the location provided by ``folders``. Takes
+                precendence over ``files`` and ``folders``. Defaults to None.
             ftype (str, optional): File extension to use. If a folder path is given,
                 all files with the specified extension are read into the dataframe
                 in the reading order. Defaults to "h5".
@@ -363,7 +369,8 @@ class MpesLoader(BaseLoader):
         # pylint: disable=duplicate-code
         super().read_dataframe(
             files=files,
-            folder=folder,
+            folders=folders,
+            runs=runs,
             ftype=ftype,
             metadata=metadata,
         )
@@ -417,6 +424,27 @@ class MpesLoader(BaseLoader):
             metadata = self.metadata
 
         return df, metadata
+
+    def get_files_from_run_id(
+        self,
+        run_id: str,
+        folders: Union[str, Sequence[str]] = None,
+        extension: str = None,
+        **kwds,
+    ) -> List[str]:
+        """Locate the files for a given run identifier.
+
+        Args:
+            run_id (str): The run identifier to locate.
+            folders (Union[str, Sequence[str]], optional): The directory(ies) where the raw
+                data is located. Defaults to None.
+            extension (str, optional): The file extension. Defaults to "h5".
+            kwds: Keyword arguments
+
+        Return:
+            str: Path to the location of run data.
+        """
+        raise NotImplementedError
 
     def gather_metadata(
         self,
