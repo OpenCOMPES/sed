@@ -13,21 +13,40 @@ import pytest
 from sed.binning.binning import numba_histogramdd
 from sed.binning.binning import simplify_binning_arguments
 from sed.binning.numba_bin import _hist_from_bin_range
+from sed.binning.numba_bin import _hist_from_bins
+from sed.binning.numba_bin import binsearch
 from sed.binning.utils import bin_centers_to_bin_edges
 from sed.binning.utils import bin_edges_to_bin_centers
 from .helpers import get_linear_bin_edges
 
-sample = np.random.randn(int(1e2), 3)
+sample = np.random.randn(int(1e5), 3)
 columns = ["x", "y", "z"]
 sample_df = pd.DataFrame(sample, columns=columns)
-bins: Sequence[int] = tuple(np.random.randint(5, 50, size=3))
+bins: Sequence[int] = tuple(np.random.randint(5, 50, size=3, dtype=int))
 ranges_array = 0.5 + np.random.rand(6).reshape(3, 2)
 ranges_array[:, 0] = -ranges_array[:, 0]
 ranges: Sequence[tuple] = tuple(tuple(r) for r in ranges_array)
 
-arrays = [
-    get_linear_bin_edges(np.linspace(r[0], r[1], b))
-    for r, b in zip(ranges, bins)
+arrays = [get_linear_bin_edges(b, r) for r, b in zip(ranges, bins)]
+
+sample_int = np.random.randint(
+    low=60000,
+    high=70001,
+    size=(int(1e5), 3),
+    dtype=int,
+)
+bins_int = tuple(np.random.randint(10, 300, size=3, dtype=int))
+ranges_int = [
+    tuple(np.sort(np.random.randint(60000, 70000, size=2, dtype=int)))
+    for _ in range(3)
+]
+arrays_int = [get_linear_bin_edges(b, r) for r, b in zip(ranges_int, bins_int)]
+
+bins_round = [300]
+HALFBINSIZE = (65000.0 - 66600.0) / 300 / 2
+ranges_round = [(65000.0 - HALFBINSIZE, 66600.0 - HALFBINSIZE)]
+arrays_round = [
+    get_linear_bin_edges(b, r) for r, b in zip(ranges_round, bins_round)
 ]
 
 
@@ -53,7 +72,7 @@ def test_histdd_error_is_raised(_samples: np.ndarray, _bins: List[int]):
         if _samples.shape[1] == len(_bins):
             pytest.skip("Not of interest")
 
-        _hist_from_bin_range(_samples, _bins, np.array([ranges[0]]))
+        _hist_from_bin_range.py_func(_samples, _bins, np.array([ranges[0]]))
 
 
 @pytest.mark.parametrize(
@@ -62,8 +81,16 @@ def test_histdd_error_is_raised(_samples: np.ndarray, _bins: List[int]):
         (sample[:, :1], arrays[:1], 1),
         (sample[:, :2], arrays[:2], 2),
         (sample[:, :3], arrays[:3], 3),
+        (sample_int[:, :1], arrays_int[:1], 4),
+        (sample_int[:, :2], arrays_int[:2], 5),
+        (sample_int[:, :3], arrays_int[:3], 6),
+        (sample_int[:, :1], arrays_round[:1], 7),
     ],
-    ids=lambda x: f"ndim: {x[2]}",
+    ids=lambda x: f"ndim: {x[2]}"
+    if x[2] < 4
+    else f"ndim: {x[2]-3}-int"
+    if x[2] < 7
+    else f"ndim: {x[2]-6}-round",
 )
 def test_histdd_bins_as_numpy(args: Tuple[np.ndarray, np.ndarray, int]):
     """Test whether the numba_histogramdd functions produces the same result
@@ -87,8 +114,16 @@ def test_histdd_bins_as_numpy(args: Tuple[np.ndarray, np.ndarray, int]):
         (sample[:, :1], bins[:1], ranges[:1], 1),
         (sample[:, :2], bins[:2], ranges[:2], 2),
         (sample[:, :3], bins[:3], ranges[:3], 3),
+        (sample_int[:, :1], bins_int[:1], ranges_int[:1], 4),
+        (sample_int[:, :2], bins_int[:2], ranges_int[:2], 5),
+        (sample_int[:, :3], bins_int[:3], ranges_int[:3], 6),
+        (sample_int[:, :1], bins_round[:1], ranges_round[:1], 7),
     ],
-    ids=lambda x: f"ndim: {x[3]}",
+    ids=lambda x: f"ndim: {x[3]}"
+    if x[3] < 4
+    else f"ndim: {x[3]-3}-int"
+    if x[3] < 7
+    else f"ndim: {x[3]-6}-round",
 )
 def test_histdd_ranges_as_numpy(args: Tuple[np.ndarray, tuple, tuple, int]):
     """Test whether the numba_histogramdd functions produces the same result
@@ -112,8 +147,16 @@ def test_histdd_ranges_as_numpy(args: Tuple[np.ndarray, tuple, tuple, int]):
         (sample[:, :1], bins[0], ranges[:1], 1),
         (sample[:, :2], bins[0], ranges[:2], 2),
         (sample[:, :3], bins[0], ranges[:3], 3),
+        (sample_int[:, :1], bins_int[0], ranges_int[:1], 4),
+        (sample_int[:, :2], bins_int[0], ranges_int[:2], 5),
+        (sample_int[:, :3], bins_int[0], ranges_int[:3], 6),
+        (sample_int[:, :1], bins_round[0], ranges_round[:1], 7),
     ],
-    ids=lambda x: f"ndim: {x[3]}",
+    ids=lambda x: f"ndim: {x[3]}"
+    if x[3] < 4
+    else f"ndim: {x[3]-3}-int"
+    if x[3] < 7
+    else f"ndim: {x[3]-6}-round",
 )
 def test_histdd_one_bins_as_numpy(args: Tuple[np.ndarray, int, tuple, int]):
     """Test whether the numba_histogramdd functions produces the same result
@@ -137,8 +180,16 @@ def test_histdd_one_bins_as_numpy(args: Tuple[np.ndarray, int, tuple, int]):
         (sample[:, :1], bins[:1], ranges[:1], arrays[:1], 1),
         (sample[:, :2], bins[:2], ranges[:2], arrays[:2], 2),
         (sample[:, :3], bins[:3], ranges[:3], arrays[:3], 3),
+        (sample_int[:, :1], bins_int[:1], ranges_int[:1], arrays_int[:1], 4),
+        (sample_int[:, :2], bins_int[:2], ranges_int[:2], arrays_int[:2], 5),
+        (sample_int[:, :3], bins_int[:3], ranges_int[:3], arrays_int[:3], 6),
+        (sample_int[:, :1], bins_round[:1], ranges_round[:1], arrays_round[:1], 7),
     ],
-    ids=lambda x: f"ndim: {x[4]}",
+    ids=lambda x: f"ndim: {x[4]}"
+    if x[4] < 4
+    else f"ndim: {x[4]-3}-int"
+    if x[4] < 7
+    else f"ndim: {x[4]-6}-round",
 )
 def test_from_bins_equals_from_bin_range(
     args: Tuple[np.ndarray, int, tuple, np.ndarray, int],
@@ -153,9 +204,65 @@ def test_from_bins_equals_from_bin_range(
     sample_, bins_, ranges_, arrays_, _ = args
     hist1, edges1 = numba_histogramdd(sample_, bins_, ranges_)
     hist2, edges2 = numba_histogramdd(sample_, arrays_)
-    np.testing.assert_allclose(hist1, hist2)
+    np.testing.assert_allclose(hist1, hist2, verbose=True)
     for (edges1_, edges2_) in zip(edges1, edges2):
         np.testing.assert_allclose(edges1_, edges2_)
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        (sample[:, :1], arrays[:1], 1),
+    ],
+    ids=lambda x: f"ndim: {x[2]}",
+)
+def test_numba_hist_from_bins(
+    args: Tuple[np.ndarray, np.ndarray, int],
+):
+    """Run tests using the _hist_from_bins function without numba jit.
+
+    Args:
+        args (Tuple[np.ndarray, np.ndarray, int]): Tuple of
+            (samples, bin_edges, dimension)
+    """
+    sample_, arrays_, _ = args
+    with pytest.raises(ValueError):
+        _hist_from_bins.py_func(
+            sample_,
+            arrays_[0],
+            tuple(b.size - 1 for b in arrays_),
+        )
+    _, edges = numba_histogramdd(sample_, arrays_)
+    _hist_from_bins.py_func(
+        sample_,
+        arrays_,
+        tuple(b.size - 1 for b in arrays_),
+    )
+    assert binsearch.py_func(edges[0], 0) > -1
+    assert binsearch.py_func(edges[0], -100) == -1
+    assert binsearch.py_func(edges[0], np.nan) == -1
+    assert binsearch.py_func(edges[0], 100) == -1
+    assert binsearch.py_func(edges[0], edges[0][-1]) == len(edges[0]) - 2
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        (sample[:, :1], bins[:1], ranges[:1], 1),
+    ],
+    ids=lambda x: f"ndim: {x[3]}",
+)
+def test_numba_hist_from_bins_ranges(
+    args: Tuple[np.ndarray, int, tuple, int],
+):
+    """Run tests using the _hist_from_bins_ranges function without numba jit.
+
+    Args:
+        args (Tuple[np.ndarray, int, tuple, int]): Tuple of
+            (samples, bins, ranges, dimension)
+    """
+    sample_, bins_, ranges_, _ = args
+    _hist_from_bin_range.py_func(sample_, bins_, np.asarray(ranges_))
 
 
 def test_bin_centers_to_bin_edges():

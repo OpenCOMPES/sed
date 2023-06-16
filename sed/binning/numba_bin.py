@@ -55,7 +55,11 @@ def _hist_from_bin_range(
         is_inside = True
         flatidx = 0
         for i in range(ndims):
-            j = (sample[t, i] - ranges[i, 0]) * delta[i]
+            # strip off numerical rounding errors
+            j = round((sample[t, i] - ranges[i, 0]) * delta[i], 11)
+            # add counts on last edge
+            if j == bins[i]:
+                j = bins[i] - 1
             is_inside = is_inside and (0 <= j < bins[i])
             flatidx += int(j) * strides[i]
             # don't check all axes if you already know you're out of the range
@@ -81,6 +85,8 @@ def binsearch(bins: np.ndarray, val: float) -> int:
     Returns:
         int: index of the bin array, returns -1 when value is outside the bins range
     """
+    if np.isnan(val):
+        return -1
     low, high = 0, len(bins) - 1
     mid = high // 2
     if val == bins[high]:
