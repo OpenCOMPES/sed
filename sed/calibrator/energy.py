@@ -93,44 +93,26 @@ class EnergyCalibrator:
         self.peaks: np.ndarray = np.asarray([])
         self.calibration: Dict[Any, Any] = {}
 
-        self.tof_column = self._config.get("dataframe", {}).get(
-            "tof_column",
-            "t",
-        )
-        self.corrected_tof_column = self._config.get("dataframe", {}).get(
-            "corrected_tof_column",
-            "t_corrected",
-        )
-        self.energy_column = self._config.get("dataframe", {}).get(
-            "energy_column",
-            "E",
-        )
-        self.x_column = self._config.get("dataframe", {}).get("x_column", "X")
-        self.y_column = self._config.get("dataframe", {}).get("y_column", "Y")
-        self.binwidth: float = self._config.get("dataframe", {}).get(
-            "tof_binwidth",
-            4.125e-12,
-        )
-        self.binning: int = self._config.get("dataframe", {}).get(
-            "tof_binning",
-            1,
-        )
-
-        self.tof_fermi = self._config.get("energy", {}).get(
-            "tof_fermi",
-            132250,
-        ) / 2 ** (self.binning - 1)
-        self.x_width = self._config.get("energy", {}).get("x_width", (-20, 20))
-        self.y_width = self._config.get("energy", {}).get("y_width", (-20, 20))
+        self.tof_column = self._config["dataframe"]["tof_column"]
+        self.corrected_tof_column = self._config["dataframe"][
+            "corrected_tof_column"
+        ]
+        self.energy_column = self._config["dataframe"]["energy_column"]
+        self.x_column = self._config["dataframe"]["x_column"]
+        self.y_column = self._config["dataframe"]["y_column"]
+        self.binwidth: float = self._config["dataframe"]["tof_binwidth"]
+        self.binning: int = self._config["dataframe"]["tof_binning"]
+        self.x_width = self._config["energy"]["x_width"]
+        self.y_width = self._config["energy"]["y_width"]
         self.tof_width = np.asarray(
-            self._config.get("energy", {}).get(
-                "tof_width",
-                (-300, 500),
-            ),
+            self._config["energy"]["tof_width"],
         ) / 2 ** (self.binning - 1)
-        self.color_clip = self._config.get("energy", {}).get("color_clip", 300)
+        self.tof_fermi = self._config["energy"]["tof_fermi"] / 2 ** (
+            self.binning - 1
+        )
+        self.color_clip = self._config["energy"]["color_clip"]
 
-        self.correction = self._config.get("energy", {}).get("correction", {})
+        self.correction = self._config["energy"].get("correction", {})
 
     @property
     def ntraces(self) -> int:
@@ -219,15 +201,10 @@ class EnergyCalibrator:
         if axes is None:
             axes = [self.tof_column]
         if bins is None:
-            bins = [self._config.get("energy", {}).get("bins", 1000)]
+            bins = [self._config["energy"]["bins"]]
         if ranges is None:
             ranges_ = [
-                np.array(
-                    self._config.get("energy", {}).get(
-                        "ranges",
-                        [128000, 138000],
-                    ),
-                )
+                np.array(self._config["energy"]["ranges"])
                 / 2 ** (self.binning - 1),
             ]
             ranges = [cast(Tuple[float, float], tuple(v)) for v in ranges_]
@@ -249,7 +226,7 @@ class EnergyCalibrator:
         if biases is None:
             read_biases = True
             if bias_key is None:
-                bias_key = self._config.get("energy", {}).get("bias_key", "")
+                bias_key = self._config["energy"].get("bias_key", "")
 
         dataframe, _ = self.loader.read_dataframe(
             files=data_files,
@@ -700,7 +677,7 @@ class EnergyCalibrator:
                 calibration = deepcopy(self.calibration)
             else:
                 calibration = deepcopy(
-                    self._config.get("energy", {}).get(
+                    self._config["energy"].get(
                         "calibration",
                         {},
                     ),
@@ -936,19 +913,13 @@ class EnergyCalibrator:
         x_center_slider = ipw.FloatSlider(
             value=x_center,
             min=0,
-            max=self._config.get("momentum", {}).get(
-                "detector_ranges",
-                [[0, 2048], [0, 2048]],
-            )[0][1],
+            max=self._config["momentum"]["detector_ranges"][0][1],
             step=1,
         )
         y_center_slider = ipw.FloatSlider(
             value=x_center,
             min=0,
-            max=self._config.get("momentum", {}).get(
-                "detector_ranges",
-                [[0, 2048], [0, 2048]],
-            )[1][1],
+            max=self._config["momentum"]["detector_ranges"][1][1],
             step=1,
         )
 
@@ -1219,7 +1190,7 @@ class EnergyCalibrator:
                 correction = deepcopy(self.correction)
             else:
                 correction = deepcopy(
-                    self._config.get("energy", {}).get(
+                    self._config["energy"].get(
                         "correction",
                         {},
                     ),

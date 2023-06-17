@@ -1,11 +1,57 @@
 core:
-  loader: dask
+  # The loader to use. The generic loader allows for loading various files types directly using dask.
+  loader: generic
+
+daraframe:
+  # dataframe column contain x coordinates
+  x_xolumn: "X"
+  # dataframe column contain y coordinates
+  y_xolumn: "Y"
+  # dataframe column containing time-of-flight data
+  tof_column: "t"
+  # dataframe column cotaning corrected time-of-flight data
+  corrected_tof_column: "t_corrected"
+  # dataframe column containing energy data
+  energy_column: "E"
+  # time length of a base time-of-flight bin in ns
+  tof_binwidth: 4.125e-12
+  # Binning factor of the tof_column-data compared to tof_binwidth (2^tof_binning)
+  tof_bining: 1
+
+energy:
+  # Number of bins to use for energy calibration traces
+  bins: 1000
+  # Bin ranges to use for energy calibration curves (for tof_binning=0)
+  ranges: [128000, 138000]
+  # hdf5 path to attribute storing bias information for a given file
+  bias_key: "@KTOF:Lens:Sample:V"
+  # Approximate position of the high-energy-cutoff in tof_column bins,
+  # used for displaying a graph to choose the energy correction function parameters.
+  tof_fermi: 132250
+  # TOF range to visualize for the correction tool around tof_fermi
+  tof_width: [-300, 500]
+  # x-intergration range for the correction tool around the center pixel
+  x_width: [-20, 20]
+  # y-intergration range for the correction tool around the center pixel
+  y_width: [-20, 20]
+  # High intensity cutoff for the visulaization tool
+  color_clip: 300
+
+momentum:
+  detector_ranges: [[0, 2048], [0, 2048]]
 
 binning:
+  # Histogram computation mode to use.
   hist_mode: "numba"
+  # Mode for hostogram recombination to use
   mode: fast
+  # Whether to display a progress bar
   pbar: True
+  # Number of parallel binning threads to use
+  num_cores: 20
+  # Number of multithreading threads per worker thread
   threads_per_worker: 4
+  # API for numpy multithreading
   threadpool_API: "blas"
 
 histogram:
