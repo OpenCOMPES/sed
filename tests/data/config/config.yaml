@@ -2,7 +2,7 @@ core:
   loader: mpes
   use_copy_tool: False
   copy_tool_source: "/path/to/data/"
-  copy_tool_dest: "/path/to//localDataStore/"
+  copy_tool_dest: "/path/to/localDataStore/"
   copy_tool_kwds:
     ntasks: 20
     gid: 1001
@@ -86,7 +86,6 @@ momentum:
   sigma: 5
   fwhm: 8
   sigma_radius: 1
-  center_det: "centroidnn"
   calibration:
     kx_scale: 0.012389400615413859
     ky_scale: 0.012389400615413859

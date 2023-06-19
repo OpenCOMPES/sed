@@ -410,17 +410,11 @@ class SedProcessor:
                 point for the correction. Defaults to True.
         """
         if auto_detect:  # automatic feature selection
-            sigma = kwds.pop(
-                "sigma",
-                self._config.get("momentum", {}).get("sigma", 5),
-            )
-            fwhm = kwds.pop(
-                "fwhm",
-                self._config.get("momentum", {}).get("fwhm", 8),
-            )
+            sigma = kwds.pop("sigma", self._config["momentum"]["sigma"])
+            fwhm = kwds.pop("fwhm", self._config["momentum"]["fwhm"])
             sigma_radius = kwds.pop(
                 "sigma_radius",
-                self._config.get("momentum", {}).get("sigma_radius", 1),
+                self._config["momentum"]["sigma_radius"],
             )
             self.mc.feature_extract(
                 sigma=sigma,
@@ -586,10 +580,7 @@ class SedProcessor:
                 in the class. Defaults to False.
         """
         if point_b is None:
-            point_b = self._config.get("momentum", {}).get(
-                "center_pixel",
-                [256, 256],
-            )
+            point_b = self._config["momentum"]["center_pixel"]
 
         self.mc.select_k_range(
             point_a=point_a,
@@ -766,16 +757,12 @@ class SedProcessor:
             bias_key=bias_key,
         )
         if (normalize is not None and normalize is True) or (
-            normalize is None
-            and self._config.get("energy", {}).get("normalize", True)
+            normalize is None and self._config["energy"]["normalize"]
         ):
             if span is None:
-                span = self._config.get("energy", {}).get("normalize_span", 7)
+                span = self._config["energy"]["normalize_span"]
             if order is None:
-                order = self._config.get("energy", {}).get(
-                    "normalize_order",
-                    1,
-                )
+                order = self._config["energy"]["normalize_order"]
             self.ec.normalize(smooth=True, span=span, order=order)
         self.ec.view(
             traces=self.ec.traces_normed,
@@ -816,7 +803,7 @@ class SedProcessor:
                 around a peak. Defaults to config["energy"]["peak_window"].
         """
         if radius is None:
-            radius = self._config.get("energy", {}).get("fastdtw_radius", 2)
+            radius = self._config["energy"]["fastdtw_radius"]
         self.ec.add_features(
             ranges=ranges,
             ref_id=ref_id,
@@ -832,7 +819,7 @@ class SedProcessor:
         )
         print(self.ec.featranges)
         if peak_window is None:
-            peak_window = self._config.get("energy", {}).get("peak_window", 7)
+            peak_window = self._config["energy"]["peak_window"]
         try:
             self.ec.feature_extract(peak_window=peak_window)
             self.ec.view(
@@ -877,16 +864,10 @@ class SedProcessor:
                 Defaults to config["energy"]["energy_scale"]
         """
         if method is None:
-            method = self._config.get("energy", {}).get(
-                "calibration_method",
-                "lmfit",
-            )
+            method = self._config["energy"]["calibration_method"]
 
         if energy_scale is None:
-            energy_scale = self._config.get("energy", {}).get(
-                "energy_scale",
-                "kinetic",
-            )
+            energy_scale = self._config["energy"]["energy_scale"]
 
         self.ec.calibrate(
             ref_id=ref_id,
@@ -1036,7 +1017,7 @@ class SedProcessor:
                 Defaults to config["dataframe"]["jitter_cols"].
         """
         if cols is None:
-            cols = self._config.get("dataframe", {}).get(
+            cols = self._config["dataframe"].get(
                 "jitter_cols",
                 self._dataframe.columns,
             )  # jitter all columns
@@ -1076,24 +1057,15 @@ class SedProcessor:
             xr.DataArray: pre-binned data-array.
         """
         if axes is None:
-            axes = self._config.get("momentum", {}).get(
-                "axes",
-                ["@x_column, @y_column, @tof_column"],
-            )
+            axes = self._config["momentum"]["axes"]
         for loc, axis in enumerate(axes):
             if axis.startswith("@"):
-                axes[loc] = self._config.get("dataframe").get(axis.strip("@"))
+                axes[loc] = self._config["dataframe"].get(axis.strip("@"))
 
         if bins is None:
-            bins = self._config.get("momentum", {}).get(
-                "bins",
-                [512, 512, 300],
-            )
+            bins = self._config["momentum"]["bins"]
         if ranges is None:
-            ranges_ = self._config.get("momentum", {}).get(
-                "ranges",
-                [[-256, 1792], [-256, 1792], [128000, 138000]],
-            )
+            ranges_ = self._config["momentum"]["ranges"]
             ranges = [cast(Tuple[float, float], tuple(v)) for v in ranges_]
 
         assert (

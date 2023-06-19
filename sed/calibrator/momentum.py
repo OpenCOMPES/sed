@@ -77,10 +77,7 @@ class MomentumCorrector:
         if data is not None:
             self.load_data(data=data, bin_ranges=bin_ranges)
 
-        self.detector_ranges = self._config.get("momentum", {}).get(
-            "detector_ranges",
-            [[0, 2048], [0, 2048]],
-        )
+        self.detector_ranges = self._config["momentum"]["detector_ranges"]
 
         self.rotsym = int(rotsym)
         self.rotsym_angle = int(360 / self.rotsym)
@@ -107,30 +104,16 @@ class MomentumCorrector:
         self.adjust_params: Dict[Any, Any] = {"applied": False}
         self.calibration: Dict[Any, Any] = {}
 
-        self.x_column = self._config.get("dataframe", {}).get(
-            "x_column",
-            "X",
-        )
-        self.y_column = self._config.get("dataframe", {}).get(
-            "y_column",
-            "Y",
-        )
-        self.corrected_x_column = self._config.get("dataframe", {}).get(
-            "corrected_x_column",
-            "Xm",
-        )
-        self.corrected_y_column = self._config.get("dataframe", {}).get(
-            "corrected_y_column",
-            "Ym",
-        )
-        self.kx_column = self._config.get("dataframe", {}).get(
-            "kx_column",
-            "kx",
-        )
-        self.ky_column = self._config.get("dataframe", {}).get(
-            "ky_column",
-            "ky",
-        )
+        self.x_column = self._config["dataframe"]["x_column"]
+        self.y_column = self._config["dataframe"]["y_column"]
+        self.corrected_x_column = self._config["dataframe"][
+            "corrected_x_column"
+        ]
+        self.corrected_y_column = self._config["dataframe"][
+            "corrected_y_column"
+        ]
+        self.kx_column = self._config["dataframe"]["kx_column"]
+        self.ky_column = self._config["dataframe"]["ky_column"]
 
         self._state: int = 0
 
@@ -864,10 +847,7 @@ class MomentumCorrector:
 
         fig, ax = plt.subplots(1, 1)
         img = ax.imshow(transformed_image.T, origin="lower", cmap="terrain_r")
-        center = self._config.get("momentum", {}).get(
-            "center_pixel",
-            [256, 256],
-        )
+        center = self._config["momentum"]["center_pixel"]
         ax.axvline(x=center[0])
         ax.axhline(y=center[1])
 
@@ -1065,10 +1045,7 @@ class MomentumCorrector:
             ax.imshow(image.T, origin=origin, cmap=cmap, **imkwds)
 
             if cross:
-                center = self._config.get("momentum", {}).get(
-                    "center_pixel",
-                    [256, 256],
-                )
+                center = self._config["momentum"]["center_pixel"]
                 ax.axvline(x=center[0])
                 ax.axhline(y=center[1])
 
@@ -1216,10 +1193,7 @@ class MomentumCorrector:
             raise ValueError("No valid image loaded!")
 
         if point_b is None:
-            point_b = self._config.get("momentum", {}).get(
-                "center_pixel",
-                [256, 256],
-            )
+            point_b = self._config["momentum"]["center_pixel"]
 
         if point_a is None:
             point_a = [0, 0]
@@ -1649,7 +1623,7 @@ class MomentumCorrector:
                 calibration = deepcopy(self.calibration)
             else:
                 calibration = deepcopy(
-                    self._config.get("momentum", {}).get(
+                    self._config["momentum"].get(
                         "calibration",
                         {},
                     ),
