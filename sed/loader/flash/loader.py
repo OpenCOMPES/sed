@@ -587,19 +587,20 @@ class FlashLoader(BaseLoader):
         # Concatenate the filled dataframes
         return dd.concat(dataframes)
 
-    def parse_metadata(
-        self,
-        files: Sequence[str],  # pylint: disable=unused-argument
-    ) -> dict:
-        """Dummy
-
-        Args:
-            files (Sequence[str]): _description_
+    def parse_metadata(self) -> dict:
+        """Uses the MetadataRetriever class to fetch metadata from scicat for each run.
 
         Returns:
-            dict: _description_
+            dict: Metadata dictionary
         """
-        return {}
+        metadata_retriever = MetadataRetriever(self._config["metadata"])
+        metadata = metadata_retriever.get_metadata(
+            beamtime_id=self._config["core"]["beamtime_id"],
+            runs=self.runs,
+            metadata=self.metadata,
+        )
+
+        return metadata
 
     def get_count_rate(
         self,
@@ -740,15 +741,7 @@ class FlashLoader(BaseLoader):
             subset=self.get_channels_by_format(["per_electron"]),
         )
 
-        if collect_metadata:
-            metadata_retriever = MetadataRetriever(self._config["metadata"])
-            metadata = metadata_retriever.get_metadata(
-                beamtime_id=self._config["core"]["beamtime_id"],
-                runs=list(runs),
-                metadata=self.metadata,
-            )
-        else:
-            metadata = self.metadata
+        metadata = self.parse_metadata() if collect_metadata else {}
 
         return dataframe, metadata
 
