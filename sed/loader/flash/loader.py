@@ -849,9 +849,9 @@ class FlashLoader(BaseLoader):
 
             # Use os walk to reach the raw data directory
             data_raw_dir = []
-            for root, dirs, files in os.walk(
+            for root, dirs, files in os.walk(  # pylint: disable=W0612
                 beamtime_dir.joinpath("raw/"),
-            ):  # pylint: disable=W0612
+            ):
                 for dir_name in dirs:
                     if dir_name.startswith("express-") or dir_name.startswith(
                         "online-",
