@@ -4,9 +4,9 @@ core:
 
 dataframe:
   # dataframe column containing x coordinates
-  x_xolumn: "X"
+  x_column: "X"
   # dataframe column containing y coordinates
-  y_xolumn: "Y"
+  y_column: "Y"
   # dataframe column containing time-of-flight data
   tof_column: "t"
   # dataframe column containing analog-to-digital data
@@ -28,7 +28,7 @@ dataframe:
   # time length of a base time-of-flight bin in ns
   tof_binwidth: 4.125e-12
   # Binning factor of the tof_column-data compared to tof_binwidth (2^tof_binning)
-  tof_bining: 1
+  tof_binning: 1
 
 energy:
   # Number of bins to use for energy calibration traces
@@ -81,6 +81,13 @@ momentum:
   fwhm: 8
   # Sigma_radius parameter for feature selection (variation of radius size)
   sigma_radius: 1
+
+delay:
+  # value ranges of the analog-to-digital converter axes used for encoding the delay stage position
+  # (in unbinned coordinates)
+  adc_range: [1900, 25600]
+  # binning factor (power of 2) used for the adc coordinate
+  adc_binning: 2
 
 binning:
   # Histogram computation mode to use.
