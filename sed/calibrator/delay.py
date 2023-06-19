@@ -128,7 +128,7 @@ class DelayCalibrator:
         if "adc_range" not in calibration.keys():
             calibration["adc_range"] = np.asarray(
                 self._config["delay"]["adc_range"],
-            ) / 2 ** self._config["delay"]["adc_binning"]
+            ) / 2 ** (self._config["dataframe"]["adc_binning"] - 1)
 
         if "delay_range" not in calibration.keys():
             if (

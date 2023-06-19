@@ -1,6 +1,7 @@
 """This module contains the core class for the sed package
 
 """
+import copy
 import pathlib
 from typing import Any
 from typing import cast
@@ -1065,7 +1066,10 @@ class SedProcessor:
         if bins is None:
             bins = self._config["momentum"]["bins"]
         if ranges is None:
-            ranges_ = self._config["momentum"]["ranges"]
+            ranges_ = copy.copy(self._config["momentum"]["ranges"])
+            ranges_[2] = np.asarray(ranges_[2]) / 2 ** (
+                self._config["dataframe"]["tof_binning"] - 1
+            )
             ranges = [cast(Tuple[float, float], tuple(v)) for v in ranges_]
 
         assert (
@@ -1238,8 +1242,17 @@ class SedProcessor:
             bins = self._config["histogram"]["bins"]
         if axes is None:
             axes = self._config["histogram"]["axes"]
+        for loc, axis in enumerate(axes):
+            if axis.startswith("@"):
+                axes[loc] = self._config["dataframe"].get(axis.strip("@"))
         if ranges is None:
-            ranges = self._config["histogram"]["ranges"]
+            ranges = copy.copy(self._config["histogram"]["ranges"])
+            ranges[2] = np.asarray(ranges[2]) / 2 ** (
+                self._config["dataframe"]["tof_binning"] - 1
+            )
+            ranges[3] = np.asarray(ranges[3]) / 2 ** (
+                self._config["dataframe"]["adc_binning"] - 1
+            )
 
         input_types = map(type, [axes, bins, ranges])
         allowed_types = [list, tuple]

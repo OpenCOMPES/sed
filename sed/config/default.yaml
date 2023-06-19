@@ -22,19 +22,21 @@ dataframe:
   # dataframe column containing ky coordinates
   ky_column: "ky"
   # dataframe column containing energy data
-  energy_column: "E"
+  energy_column: "energy"
   # dataframe column containing delay data
   delay_column: "delay"
   # time length of a base time-of-flight bin in ns
   tof_binwidth: 4.125e-12
   # Binning factor of the tof_column-data compared to tof_binwidth (2^tof_binning)
   tof_binning: 1
+  # binning factor (power of 2) used for the adc coordinate
+  adc_binning: 2
 
 energy:
   # Number of bins to use for energy calibration traces
   bins: 1000
   # Bin ranges to use for energy calibration curves (for tof_binning=0)
-  ranges: [128000, 138000]
+  ranges: [128000, 150000]
   # hdf5 path to attribute storing bias information for a given file
   bias_key: "@KTOF:Lens:Sample:V"
   # Option to normalize energy calibration traces
@@ -55,13 +57,22 @@ energy:
   # used for displaying a graph to choose the energy correction function parameters.
   tof_fermi: 132250
   # TOF range to visualize for the correction tool around tof_fermi
-  tof_width: [-300, 500]
+  tof_width: [-600, 1000]
   # x-intergration range for the correction tool around the center pixel
   x_width: [-20, 20]
   # y-intergration range for the correction tool around the center pixel
   y_width: [-20, 20]
   # High intensity cutoff for the visulaization tool
   color_clip: 300
+  correction:
+    # Default correction type
+    correction_type: "Lorentzian"
+    # Default correction amplitude
+    amplitude: 2.5
+    # center coordinates for the correction (in detector coordinates)
+    center: [730.0, 730.0]
+    # gamma value for the Lorentzian correction (same for x and y)
+    gamma: 900.0
 
 momentum:
   # binning axes to use for momentum correction/calibration.
@@ -69,7 +80,7 @@ momentum:
   axes: ["@x_column", "@y_column", "@tof_column"]
   # Bin numbers used for the respective axes
   bins: [512, 512, 300]
-  # bin ranges to use
+  # bin ranges to use (in unbinned detector coordinates)
   ranges: [[-256, 1792], [-256, 1792], [128000, 138000]]
   # The x/y pixel ranges of the detector
   detector_ranges: [[0, 2048], [0, 2048]]
@@ -86,8 +97,6 @@ delay:
   # value ranges of the analog-to-digital converter axes used for encoding the delay stage position
   # (in unbinned coordinates)
   adc_range: [1900, 25600]
-  # binning factor (power of 2) used for the adc coordinate
-  adc_binning: 2
 
 binning:
   # Histogram computation mode to use.
@@ -109,8 +118,8 @@ histogram:
   # default axes to use for histgram visualization.
   # Axes names starting with "@" refer to keys in the "dataframe" section
   axes: ["@x_column", "@y_column", "@tof_column", "@adc_column"]
-  # default ranges to use for histogram visualization
-  ranges: [[0, 1800], [0, 1800], [65000, 69000], [0, 500] ]
+  # default ranges to use for histogram visualization (in unbinned detector coordinates)
+  ranges: [[0, 1800], [0, 1800], [128000, 138000], [0, 32000]]
 
 nexus:
   # pynxtools reader to use for saving NXmpes files
