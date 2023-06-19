@@ -34,22 +34,23 @@
     "x_column": "X",
     "y_column": "Y",
     "tof_column": "t",
-    "corrected_tof_column": "tm",
     "adc_column": "ADC",
-    "energy_column": "energy",
     "corrected_x_column": "Xm",
     "corrected_y_column": "Ym",
+    "corrected_tof_column": "tm",
     "kx_column": "kx",
     "ky_column": "ky",
+    "energy_column": "energy",
     "delay_column": "delay",
     "tof_binwidth": 4.125e-12,
     "tof_binning": 2,
+    "adc_binning": 2,
     "units": {
       "X": "step",
       "Y": "step",
       "t": "step",
       "tof_voltage": "V",
-      "extractor_oltage": "V",
+      "extractor_voltage": "V",
       "extractor_current": "A",
       "cryo_temperature": "K",
       "sample_temperature": "K",
@@ -77,6 +78,10 @@
     "calibration_method": "lmfit",
     "energy_scale": "kinetic",
     "tof_fermi": 132250,
+    "tof_width": [
+      -600,
+      1000
+    ],
     "x_width": [
       -20,
       20
@@ -84,10 +89,6 @@
     "y_width": [
       -20,
       20
-    ],
-    "tof_width": [
-      -300,
-      500
     ],
     "color_clip": 300,
     "correction": {
@@ -129,8 +130,8 @@
         1792
       ],
       [
-        66000,
-        68000
+        132000,
+        136000
       ]
     ],
     "detector_ranges": [
@@ -198,7 +199,6 @@
       1900,
       25600
     ],
-    "adc_binning": 2,
     "p1_key": "@trARPES:DelayStage:p1",
     "p2_key": "@trARPES:DelayStage:p2",
     "t0_key": "@trARPES:DelayStage:t0"
@@ -219,10 +219,10 @@
       80
     ],
     "axes": [
-      "X",
-      "Y",
-      "t",
-      "ADC"
+      "@x_column",
+      "@y_column",
+      "@tof_column",
+      "@adc_column"
     ],
     "ranges": [
       [
@@ -234,12 +234,12 @@
         1800
       ],
       [
-        65000,
-        69000
+        128000,
+        138000
       ],
       [
         0,
-        9000
+        32000
       ]
     ]
   },

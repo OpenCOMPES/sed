@@ -16,7 +16,7 @@ dataframe:
   # dataframe column containing corrected y coordinates
   corrected_y_column: "Ym"
   # dataframe column containing corrected time-of-flight data
-  corrected_tof_column: "t_corrected"
+  corrected_tof_column: "tm"
   # dataframe column containing kx coordinates
   kx_column: "kx"
   # dataframe column containing ky coordinates
@@ -27,9 +27,9 @@ dataframe:
   delay_column: "delay"
   # time length of a base time-of-flight bin in ns
   tof_binwidth: 4.125e-12
-  # Binning factor of the tof_column-data compared to tof_binwidth (2^tof_binning)
+  # Binning factor of the tof_column-data compared to tof_binwidth (2^(tof_binning-1))
   tof_binning: 1
-  # binning factor (power of 2) used for the adc coordinate
+  # binning factor used for the adc coordinate (2^(adc_binning-1))
   adc_binning: 2
 
 energy:
@@ -81,7 +81,7 @@ momentum:
   # Bin numbers used for the respective axes
   bins: [512, 512, 300]
   # bin ranges to use (in unbinned detector coordinates)
-  ranges: [[-256, 1792], [-256, 1792], [128000, 138000]]
+  ranges: [[-256, 1792], [-256, 1792], [132000, 138000]]
   # The x/y pixel ranges of the detector
   detector_ranges: [[0, 2048], [0, 2048]]
   # The center pixel of the detector in the binned x/y coordinates
@@ -105,8 +105,6 @@ binning:
   mode: fast
   # Whether to display a progress bar
   pbar: True
-  # Number of parallel binning threads to use
-  num_cores: 20
   # Number of multithreading threads per worker thread
   threads_per_worker: 4
   # API for numpy multithreading
