@@ -743,7 +743,7 @@ class FlashLoader(BaseLoader):
         if collect_metadata:
             metadata_retriever = MetadataRetriever(self._config["metadata"])
             metadata = metadata_retriever.get_metadata(
-                beamtime_id=self._config["dataframe"]["beamtime_id"],
+                beamtime_id=self._config["core"]["beamtime_id"],
                 runs=list(runs),
                 metadata=self.metadata,
             )
@@ -801,7 +801,9 @@ class FlashLoader(BaseLoader):
             files.extend(
                 natsorted(
                     Path(folder).glob(file_pattern),
-                    key=lambda filename: str(filename).rsplit("_", maxsplit=1)[-1],
+                    key=lambda filename: str(filename).rsplit("_", maxsplit=1)[
+                        -1
+                    ],
                 ),
             )
 
@@ -847,14 +849,16 @@ class FlashLoader(BaseLoader):
 
             beamtime_dir = Path(
                 self._config["dataframe"]["beamtime_dir"][
-                    self._config["loader"]["instrument"]
+                    self._config["core"]["beamline"]
                 ],
             )
             beamtime_dir = beamtime_dir.joinpath(f"{year}/data/{beamtime_id}/")
 
             # Use os walk to reach the raw data directory
             data_raw_dir = []
-            for root, dirs, files in os.walk(beamtime_dir.joinpath("raw/")):  # pylint: disable=W0612
+            for root, dirs, files in os.walk(
+                beamtime_dir.joinpath("raw/"),
+            ):  # pylint: disable=W0612
                 for dir_name in dirs:
                     if dir_name.startswith("express-") or dir_name.startswith(
                         "online-",
