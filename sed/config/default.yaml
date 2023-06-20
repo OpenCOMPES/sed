@@ -2,6 +2,14 @@ core:
   # The loader to use. The generic loader allows for loading various files types directly using dask.
   loader: generic
 
+  # If loader is set to flash, the following parameters are necessary
+  # Needs to be user defined
+  beamtime_id: None
+  year: None
+  # Default beamline is pg2 and instrument is hextof
+  beamline: pg2
+  instrument: hextof
+
 dataframe:
   # dataframe column containing x coordinates
   x_column: "X"
@@ -31,6 +39,18 @@ dataframe:
   tof_binning: 1
   # binning factor used for the adc coordinate (2^(adc_binning-1))
   adc_binning: 2
+
+  # Flash loader requires the daq parameter and offset
+  daq: fl1user3
+  ubid_offset: 5
+  # The h5 file paths and aliases are defined under channels
+  # PulseId channel(s) are necessary
+  channels:
+      pulseId:
+      axis: 1
+      format: per_electron
+      group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
+      slice: 2
 
 energy:
   # Number of bins to use for energy calibration traces
