@@ -294,7 +294,7 @@ class EnergyCalibrator:
             order=order,
         )
 
-    def add_features(
+    def add_ranges(
         self,
         ranges: Union[List[Tuple], Tuple],
         ref_id: int = 0,
@@ -303,7 +303,7 @@ class EnergyCalibrator:
         mode: str = "replace",
         **kwds,
     ):
-        """Select or extract the equivalent landmarks (e.g. peaks) among all traces.
+        """Select or extract the equivalent feature ranges (containing the peaks) among all traces.
 
         Args:
             ranges (Union[List[Tuple], Tuple]):

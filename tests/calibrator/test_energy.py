@@ -81,7 +81,7 @@ def test_feature_extract():
         loader=get_loader("mpes", config=config),
     )
     ec.load_data(biases=biases, traces=traces_rand, tof=tof)
-    ec.add_features(ranges=rng, ref_id=ref_id)
+    ec.add_ranges(ranges=rng, ref_id=ref_id)
     for pos, feat_rng in zip(rand, ec.featranges):
         assert feat_rng[0] < (tof[1] - tof[0]) * pos + 65000 < feat_rng[1]
     ec.feature_extract()
@@ -115,7 +115,7 @@ def test_calibrate_append(energy_scale: str, calibration_method: str):
     ec.normalize()
     rng = (66100, 67000)
     ref_id = 5
-    ec.add_features(ranges=rng, ref_id=ref_id)
+    ec.add_ranges(ranges=rng, ref_id=ref_id)
     ec.feature_extract()
     refid = 4
     e_ref = -0.5

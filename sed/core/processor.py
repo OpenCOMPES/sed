@@ -817,7 +817,7 @@ class SedProcessor:
         """
         if radius is None:
             radius = self._config.get("energy", {}).get("fastdtw_radius", 2)
-        self.ec.add_features(
+        self.ec.add_ranges(
             ranges=ranges,
             ref_id=ref_id,
             infer_others=infer_others,
