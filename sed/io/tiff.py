@@ -145,9 +145,7 @@ def _fill_missing_dims(dims: Sequence, alias_dict: dict = None) -> list:
         alias_dict = {}
     else:
         for k, v in alias_dict.items():
-            assert k in _IMAGEJ_DIMS_ORDER, (
-                "keys must all be one of " f"{_IMAGEJ_DIMS_ALIAS}"
-            )
+            assert k in _IMAGEJ_DIMS_ORDER, f"keys must all be one of {_IMAGEJ_DIMS_ALIAS}"
             if not isinstance(v, (list, tuple)):
                 alias_dict[k] = [v]
 

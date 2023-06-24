@@ -129,9 +129,7 @@ def get_groups_and_aliases(
     if seach_pattern is None:
         filtered_group_names = group_names
     else:
-        filtered_group_names = [
-            name for name in group_names if seach_pattern in name
-        ]
+        filtered_group_names = [name for name in group_names if seach_pattern in name]
 
     alias_dict = {}
     for name in filtered_group_names:
@@ -213,13 +211,11 @@ def hdf5_to_array(
             #     start_time + n + 1,
             #     ms_marker[n + 1] - ms_marker[n],
             # )
-            time_stamp_data[ms_marker[i] : ms_marker[i + 1]] = (
-                start_time + (i + 1) / 1000
-            )
+            time_stamp_data[ms_marker[i] : ms_marker[i + 1]] = start_time + (i + 1) / 1000
         # fill any remaining points
-        time_stamp_data[
-            ms_marker[len(ms_marker) - 1] : len(time_stamp_data)
-        ] = start_time + len(ms_marker) / 1000
+        time_stamp_data[ms_marker[len(ms_marker) - 1] : len(time_stamp_data)] = (
+            start_time + len(ms_marker) / 1000
+        )
 
         data_list.append(time_stamp_data)
 
@@ -495,9 +491,7 @@ class MpesLoader(BaseLoader):
         }
 
         # import meta data from data file
-        if (
-            "file" not in metadata
-        ):  # If already present, the value is assumed to be a dictionary
+        if "file" not in metadata:  # If already present, the value is assumed to be a dictionary
             metadata["file"] = {}
 
         print("Collecting file metadata...")
@@ -561,9 +555,7 @@ class MpesLoader(BaseLoader):
             list(self._config["metadata"]["aperture_config"]) + [start],
         )
         current_index = stamps.index(start)
-        timestamp = stamps[
-            current_index - 1
-        ]  # pick last configuration before file date
+        timestamp = stamps[current_index - 1]  # pick last configuration before file date
 
         # Aperture metadata
         if "instrument" not in metadata.keys():
@@ -578,16 +570,11 @@ class MpesLoader(BaseLoader):
             self._config["metadata"]["fa_hor_channel"],
         }.issubset(set(metadata["file"].keys())):
             fa_in = metadata["file"][self._config["metadata"]["fa_in_channel"]]
-            fa_hor = metadata["file"][
-                self._config["metadata"]["fa_hor_channel"]
-            ]
-            for key, value in self._config["metadata"]["aperture_config"][
-                timestamp
-            ]["fa_size"].items():
-                if (
-                    value[0][0] < fa_in < value[0][1]
-                    and value[1][0] < fa_hor < value[1][1]
-                ):
+            fa_hor = metadata["file"][self._config["metadata"]["fa_hor_channel"]]
+            for key, value in self._config["metadata"]["aperture_config"][timestamp][
+                "fa_size"
+            ].items():
+                if value[0][0] < fa_in < value[0][1] and value[1][0] < fa_hor < value[1][1]:
                     try:
                         k_float = float(key)
                         metadata["instrument"]["analyzer"]["fa_size"] = k_float
@@ -600,9 +587,9 @@ class MpesLoader(BaseLoader):
         # get contrast aperture shape and size
         if self._config["metadata"]["ca_in_channel"] in metadata["file"]:
             ca_in = metadata["file"][self._config["metadata"]["ca_in_channel"]]
-            for key, value in self._config["metadata"]["aperture_config"][
-                timestamp
-            ]["ca_size"].items():
+            for key, value in self._config["metadata"]["aperture_config"][timestamp][
+                "ca_size"
+            ].items():
                 if value[0] < ca_in < value[1]:
                     try:
                         k_float = float(key)
@@ -622,9 +609,7 @@ class MpesLoader(BaseLoader):
         lens_volts = np.array(
             [metadata["file"][f"KTOF:Lens:{lens}:V"] for lens in lens_list],
         )
-        for mode, value in self._config["metadata"][
-            "lens_mode_config"
-        ].items():
+        for mode, value in self._config["metadata"]["lens_mode_config"].items():
             lens_volts_config = np.array([value[k] for k in lens_list])
             if np.allclose(
                 lens_volts,

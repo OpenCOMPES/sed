@@ -150,8 +150,7 @@ def load_h5(faddr: str, mode: str = "r") -> xr.DataArray:
             data = np.asarray(h5_file["binned"]["BinnedData"])
         except KeyError as exc:
             raise ValueError(
-                "Wrong Data Format, the BinnedData were not found. "
-                f"The error was{exc}.",
+                f"Wrong Data Format, the BinnedData were not found. The error was{exc}.",
             ) from exc
 
         # Reading the axes
@@ -180,15 +179,9 @@ def load_h5(faddr: str, mode: str = "r") -> xr.DataArray:
 
         try:
             for axis in range(len(bin_axes)):
-                xarray[bin_names[axis]].attrs["unit"] = h5_file["axes"][
-                    f"ax{axis}"
-                ].attrs["unit"]
-            xarray.attrs["units"] = h5_file["binned"]["BinnedData"].attrs[
-                "units"
-            ]
-            xarray.attrs["long_name"] = h5_file["binned"]["BinnedData"].attrs[
-                "long_name"
-            ]
+                xarray[bin_names[axis]].attrs["unit"] = h5_file["axes"][f"ax{axis}"].attrs["unit"]
+            xarray.attrs["units"] = h5_file["binned"]["BinnedData"].attrs["units"]
+            xarray.attrs["long_name"] = h5_file["binned"]["BinnedData"].attrs["long_name"]
         except (KeyError, TypeError):
             pass
 

@@ -235,23 +235,18 @@ def test_apply_registration(
         if key == "xtrans":
             assert metadata["registration"]["trans_x"]["value"] == value
             assert (
-                metadata["registration"]["trans_x"]["depends_on"]
-                == depends_on["axes"]["trans_x"]
+                metadata["registration"]["trans_x"]["depends_on"] == depends_on["axes"]["trans_x"]
             )
             assert metadata["registration"]["trans_x"]["type"] == "translation"
         if key == "ytrans":
             assert metadata["registration"]["trans_y"]["value"] == value
             assert (
-                metadata["registration"]["trans_y"]["depends_on"]
-                == depends_on["axes"]["trans_y"]
+                metadata["registration"]["trans_y"]["depends_on"] == depends_on["axes"]["trans_y"]
             )
             assert metadata["registration"]["trans_y"]["type"] == "translation"
         if key == "angle":
             assert metadata["registration"]["rot_z"]["value"] == value
-            assert (
-                metadata["registration"]["rot_z"]["depends_on"]
-                == depends_on["axes"]["rot_z"]
-            )
+            assert metadata["registration"]["rot_z"]["depends_on"] == depends_on["axes"]["rot_z"]
             assert metadata["registration"]["rot_z"]["type"] == "rotation"
             np.testing.assert_equal(
                 metadata["registration"]["rot_z"]["offset"][0:2],
