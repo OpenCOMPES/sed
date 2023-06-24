@@ -92,6 +92,32 @@ def test_feature_extract():
     )
 
 
+def test_adjust_ranges():
+    """Test the interactive function for adjusting the feature ranges"""
+    rand = [int((i + 1) * (20 + np.random.random() * 10)) for i in range(11)]
+    traces_rand = np.zeros((len(rand), traces.shape[1]))
+    for i, rnd in enumerate(rand):
+        traces_rand[i, rnd:] = traces[0, 0:-rnd]
+    ref_id = np.random.randint(0, 10)
+    rng = (
+        64500 + (tof[1] - tof[0]) * rand[ref_id],
+        65300 + (tof[1] - tof[0]) * rand[ref_id],
+    )
+    ec = EnergyCalibrator(
+        config=config,
+        loader=get_loader("mpes", config=config),
+    )
+    ec.load_data(biases=biases, traces=traces_rand, tof=tof)
+    ec.adjust_ranges(ranges=rng, ref_id=ref_id, apply=True)
+    for pos, feat_rng in zip(rand, ec.featranges):
+        assert feat_rng[0] < (tof[1] - tof[0]) * pos + 65000 < feat_rng[1]
+    diff = ec.peaks[0, 0] - ((tof[1] - tof[0]) * rand[0] + 65000)
+    np.testing.assert_allclose(
+        ec.peaks[:, 0],
+        ((tof[1] - tof[0]) * np.asarray(rand) + 65000) + diff,
+    )
+
+
 energy_scales = ["kinetic", "binding"]
 calibration_methods = ["lmfit", "lstsq", "lsqr"]
 
