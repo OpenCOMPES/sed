@@ -36,11 +36,12 @@ class FlashLoader(BaseLoader):
 
     __name__ = "flash"
 
-    supported_file_types = ["h5"]
+    supported_file_types = ["h5", "parquet"]
 
     def __init__(self, config: dict) -> None:
 
         super().__init__(config=config)
+        self.multi_index = ["trainId", "pulseId", "electronId"]
         self.index_per_electron: MultiIndex = None
         self.index_per_pulse: MultiIndex = None
         self.parquet_names: List[Path] = []
@@ -142,7 +143,7 @@ class FlashLoader(BaseLoader):
         # Create a pandas MultiIndex using the exploded datasets
         self.index_per_electron = MultiIndex.from_arrays(
             (microbunches.index, microbunches.values, electrons),
-            names=["trainId", "pulseId", "electronId"],
+            names=self.multi_index,
         )
 
     def create_multi_index_per_pulse(
@@ -496,7 +497,7 @@ class FlashLoader(BaseLoader):
         try:
             (
                 self.create_dataframe_per_file(h5_path)
-                .reset_index(level=["trainId", "pulseId", "electronId"])
+                .reset_index(level=self.multi_index)
                 .to_parquet(parquet_path, index=False)
             )
         except ValueError as failed_string_error:
@@ -586,6 +587,12 @@ class FlashLoader(BaseLoader):
     def get_elapsed_time(self, fids=None, **kwds):
         return None
 
+    def save_parquet(self):
+        pass
+
+    def load_parquet(self):
+        pass
+
     def read_dataframe(
         self,
         files: Union[str, Sequence[str]] = None,
@@ -612,7 +619,13 @@ class FlashLoader(BaseLoader):
             metadata (dict, optional): Additional metadata. Defaults to None.
             collect_metadata (bool, optional): Whether to collect metadata.
                 Defaults to False.
-
+            detector (str, optional): Adds a identifier for parquets to distinguish
+                multidetector systems.
+            save_parquet (bool, optional): Saves the entire dataframe into a parquet.
+            load_parquet (bool, optional): Loads the entire parquet into the
+                dd dataframe.
+            final_parquet_path (str, optional): Path to the combined parquet file.
+                Requires load_parquet to be True.
 
         Returns:
             Tuple[dd.DataFrame, dict]: A tuple containing the concatenated DataFrame
@@ -630,8 +643,12 @@ class FlashLoader(BaseLoader):
         temp_parquet_dir = data_parquet_dir.joinpath("per_file")
         os.makedirs(temp_parquet_dir, exist_ok=True)
 
-        # Prepare a list of names for the runs to read and parquets to write
+        extension = ""
+        if "detector" in kwds:
+            detector_val = kwds["detector"]
+            extension = f"_{detector_val}"
 
+        # Prepare a list of names for the runs to read and parquets to write
         if runs is not None:
             files = []
             if isinstance(runs, (str, int)):
@@ -657,58 +674,98 @@ class FlashLoader(BaseLoader):
                 metadata=metadata,
             )
 
-        parquet_name = f"{temp_parquet_dir}/"
-        self.parquet_names = [Path(parquet_name + Path(file).stem) for file in self.files]
-        missing_files: List[Path] = []
-        missing_parquet_names: List[Path] = []
+        # Create the path and filename for the combined dataframe parquet so it can
+        # be saved or loaded
+        if "final_parquet_path" in kwds:
+            final_parquet_path = kwds["final_parquet_path"]
+        else:
+            final_parquet_name = "run"
+            for run in self.runs:
+                final_parquet_name = final_parquet_name + "_" + str(run)
+            final_parquet_path = data_parquet_dir.joinpath(
+                final_parquet_name + extension + ".parquet",
+            )
 
-        # Only read and write files which were not read already
-        for i, parquet_file in enumerate(self.parquet_names):
-            if not parquet_file.exists():
-                missing_files.append(Path(self.files[i]))
-                missing_parquet_names.append(parquet_file)
+        # Check if load_parquet is flagged and then load if it exists
+        if "load_parquet" in kwds and kwds["load_parquet"] is True:
+            try:
+                dataframe = dd.read_parquet(final_parquet_path)
+            except Exception as exc:
+                raise FileNotFoundError(
+                    "The final parquet for this run(s) does not exist yet.\
+                        If it is in another location, please provide the path\
+                            as final_parquet_path.",
+                ) from exc
+        # Otherwise read from each file. If runs were never read, it creates
+        # an intermediate parquet file for each h5 file for faster loading
+        # next time around. If runs were read, it uses the already saved runs to
+        # load the data faster.
+        else:
+            parquet_name = f"{temp_parquet_dir}/"
 
-        print(
-            f"Reading files: {len(missing_files)} new files of {len(self.files)} total.",
-        )
+            self.parquet_names = [
+                Path(parquet_name + Path(file).stem + extension)
+                for file in self.files
+            ]
+            missing_files: List[Path] = []
+            missing_parquet_names: List[Path] = []
 
-        self.reset_multi_index()  # Initializes the indices for h5_to_parquet
+            # Only read and write files which were not read already
+            for i, parquet_file in enumerate(self.parquet_names):
+                if not parquet_file.exists():
+                    missing_files.append(Path(self.files[i]))
+                    missing_parquet_names.append(parquet_file)
 
-        # Run self.h5_to_parquet in parallel
-        if len(missing_files) > 0:
-            Parallel(n_jobs=len(missing_files), verbose=10)(
-                delayed(self.h5_to_parquet)(h5_path, parquet_path)
-                for h5_path, parquet_path in zip(
-                    missing_files,
-                    missing_parquet_names,
+            print(
+                f"Reading files: {len(missing_files)} new files of {len(self.files)} total.",
+            )
+
+            self.reset_multi_index()  # Initializes the indices for h5_to_parquet
+
+            # Run self.h5_to_parquet in parallel
+            if len(missing_files) > 0:
+                Parallel(n_jobs=len(missing_files), verbose=10)(
+                    delayed(self.h5_to_parquet)(h5_path, parquet_path)
+                    for h5_path, parquet_path in zip(
+                        missing_files,
+                        missing_parquet_names,
+                    )
                 )
+
+            if self.failed_files_error:
+                raise FileNotFoundError(
+                    "Conversion failed for the following files: \n"
+                    + "\n".join(self.failed_files_error),
+                )
+
+            print("All files converted successfully!")
+
+            if len(self.parquet_names) == 0:
+                raise ValueError(
+                    "No data available. Probably failed reading all h5 files",
+                )
+
+            print(
+                f"Loading {len(self.parquet_names)} dataframes. Failed reading "
+                f"{len(self.files)-len(self.parquet_names)} files.",
+            )
+            # Read all parquet files using dask and concatenate into one dataframe
+            # after filling
+            dataframe = self.fill_na(
+                [
+                    dd.read_parquet(parquet_file)
+                    for parquet_file in self.parquet_names
+                ],
+            )
+            dataframe = dataframe.dropna(
+                subset=self.get_channels_by_format(["per_electron"]),
             )
 
-        if self.failed_files_error:
-            raise FileNotFoundError(
-                "Conversion failed for the following files: \n"
-                + "\n".join(self.failed_files_error),
-            )
-
-        print("All files converted successfully!")
-
-        if len(self.parquet_names) == 0:
-            raise ValueError(
-                "No data available. Probably failed reading all h5 files",
-            )
-
-        print(
-            f"Loading {len(self.parquet_names)} dataframes. Failed reading "
-            f"{len(self.files)-len(self.parquet_names)} files.",
-        )
-        # Read all parquet files using dask and concatenate into one dataframe
-        # after filling
-        dataframe = self.fill_na(
-            [dd.read_parquet(parquet_file) for parquet_file in self.parquet_names],
-        )
-        dataframe = dataframe.dropna(
-            subset=self.get_channels_by_format(["per_electron"]),
-        )
+            if "save_parquet" in kwds and kwds["save_parquet"] is True:
+                dataframe.compute().reset_index(drop=True).to_parquet(
+                    final_parquet_path,
+                )
+                print("Combined parquet file saved.")
 
         metadata = self.parse_metadata() if collect_metadata else {}
 
