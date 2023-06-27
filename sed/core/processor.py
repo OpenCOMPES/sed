@@ -845,6 +845,7 @@ class SedProcessor:
                 raise
         else:
             # New adjustment tool
+            assert isinstance(ranges, tuple)
             self.ec.adjust_ranges(
                 ranges=ranges,
                 ref_id=ref_id,
