@@ -6,7 +6,7 @@ from importlib.util import find_spec
 
 import pytest
 
-from sed.core.config import insert_default_config
+from sed.core.config import complete_dictionary
 from sed.core.config import load_config
 from sed.core.config import parse_config
 
@@ -68,11 +68,11 @@ def test_load_config_raise():
         load_config(f"{package_dir}/../README.md")
 
 
-def test_insert_default_config():
+def test_complete_dictionary():
     """Test the merging of a config and a default config dict"""
     dict1 = {"key1": 1, "key2": 2, "nesteddict": {"key4": 4}}
     dict2 = {"key1": 2, "key3": 3, "nesteddict": {"key5": 5}}
-    dict3 = insert_default_config(config=dict1, default_config=dict2)
+    dict3 = complete_dictionary(dictionary=dict1, base_dictionary=dict2)
     assert isinstance(dict3, dict)
     for key in ["key1", "key2", "key3", "nesteddict"]:
         assert key in dict3

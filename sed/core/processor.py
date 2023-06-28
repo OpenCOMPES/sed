@@ -83,7 +83,7 @@ class SedProcessor:
                 Defaults to False.
             **kwds: Keyword arguments passed to the reader.
         """
-        self._config = parse_config(config)
+        self._config = parse_config(config, **kwds)
         num_cores = self._config.get("binning", {}).get("num_cores", N_CPU - 1)
         if num_cores >= N_CPU:
             num_cores = N_CPU - 1

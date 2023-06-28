@@ -13,6 +13,8 @@ package_dir = os.path.dirname(find_spec("sed").origin)
 
 def parse_config(
     config: Union[dict, str] = None,
+    folder_config: Union[dict, str] = None,
+    user_config: Union[dict, str] = None,
     default_config: Union[
         dict,
         str,
@@ -23,6 +25,14 @@ def parse_config(
     Args:
         config (Union[dict, str], optional): config dictionary or file path.
                 Files can be *json* or *yaml*. Defaults to None.
+        folder_config (Union[ dict, str, ], optional): folder-based config dictionary
+            or file path. The loaded dictionary is completed with the folder-based values,
+            taking preference over user- and default values. Defaults to the file
+            "sed_config.yaml" in the current working directory.
+        user_config (Union[ dict, str, ], optional): user-based config dictionary
+            or file path. The loaded dictionary is completed with the user-based values,
+            taking preference over default values. Defaults to the file ".sed/config.yaml"
+            in the current user's home directory.
         default_config (Union[ dict, str, ], optional): default config dictionary
             or file path. The loaded dictionary is completed with the default values.
             Defaults to *package_dir*/config/default.yaml".
@@ -41,12 +51,45 @@ def parse_config(
     else:
         config_dict = load_config(config)
 
+    folder_dict: dict = None
+    if isinstance(folder_config, dict):
+        folder_dict = folder_config
+    else:
+        if folder_config is None:
+            folder_config = "./sed_config.yaml"
+        if Path(folder_config).exists():
+            folder_dict = load_config(folder_config)
+
+    user_dict: dict = None
+    if isinstance(user_config, dict):
+        user_dict = user_config
+    else:
+        if user_config is None:
+            user_config = str(
+                Path.home().joinpath(".sed").joinpath("config.yaml"),
+            )
+        if Path(user_config).exists():
+            user_dict = load_config(user_config)
+
     if isinstance(default_config, dict):
         default_dict = default_config
     else:
         default_dict = load_config(default_config)
 
-    insert_default_config(config_dict, default_dict)
+    if folder_dict is not None:
+        config_dict = complete_dictionary(
+            dictionary=config_dict,
+            base_dictionary=folder_dict,
+        )
+    if user_dict is not None:
+        config_dict = complete_dictionary(
+            dictionary=config_dict,
+            base_dictionary=user_dict,
+        )
+    config_dict = complete_dictionary(
+        dictionary=config_dict,
+        base_dictionary=default_dict,
+    )
 
     return config_dict
 
@@ -82,24 +125,29 @@ def load_config(config_path: str) -> dict:
     return config_dict
 
 
-def insert_default_config(config: dict, default_config: dict) -> dict:
-    """Inserts missing config parameters from a default config file.
+def complete_dictionary(dictionary: dict, base_dictionary: dict) -> dict:
+    """Iteratively completes a dictionary from a base dictionary, by adding keys that are missing
+    in the dictionary, and are present in the base dictionary.
 
     Args:
-        config (dict): the config dictionary
-        default_config (dict): the default config dictionary.
+        dictionary (dict): the dictionary to be completed.
+        base_dictionary (dict): the base dictionary.
 
     Returns:
-        dict: merged dictionary
+        dict: the completed (merged) dictionary
     """
-    for k, v in default_config.items():
+    for k, v in base_dictionary.items():
         if isinstance(v, dict):
-            if k not in config.keys():
-                config[k] = v
+            if k not in dictionary.keys():
+                dictionary[k] = v
             else:
-                config[k] = insert_default_config(config[k], v)
+                if not isinstance(dictionary[k], dict):
+                    raise ValueError(
+                        f"Cannot merge dictionaries. Mismatch on Key {k}: {dictionary[k]}, {v}.",
+                    )
+                dictionary[k] = complete_dictionary(dictionary[k], v)
         else:
-            if k not in config.keys():
-                config[k] = v
+            if k not in dictionary.keys():
+                dictionary[k] = v
 
-    return config
+    return dictionary
