@@ -6,12 +6,11 @@ from importlib.util import find_spec
 
 import pytest
 
+from sed.core.config import insert_default_config
 from sed.core.config import load_config
 from sed.core.config import parse_config
 
 package_dir = os.path.dirname(find_spec("sed").origin)
-DEFAULT_CONFIG_PATH = f"{package_dir}/core/default.yaml"
-
 default_config_keys = [
     "binning",
     "histogram",
@@ -71,16 +70,12 @@ def test_load_config_raise():
 
 def test_insert_default_config():
     """Test the merging of a config and a default config dict"""
-    default_config = load_config(DEFAULT_CONFIG_PATH)
-    user_config = {
-        "core": {"loader": "mpes"},
-        "dataframe": None,
-        "histogram": {"bins": 100},
-    }
-    updated_user_config = parse_config(config=user_config)
-    assert isinstance(updated_user_config, dict)
-    for key in ["core", "dataframe", "histogram"]:
-        assert key in updated_user_config
-    for key in default_config.keys():
-        assert key in updated_user_config
-    assert updated_user_config["core"] == {"loader": "mpes"}
+    dict1 = {"key1": 1, "key2": 2, "nesteddict": {"key4": 4}}
+    dict2 = {"key1": 2, "key3": 3, "nesteddict": {"key5": 5}}
+    dict3 = insert_default_config(config=dict1, default_config=dict2)
+    assert isinstance(dict3, dict)
+    for key in ["key1", "key2", "key3", "nesteddict"]:
+        assert key in dict3
+    for key in ["key4", "key5"]:
+        assert key in dict3["nesteddict"]
+    assert dict3["key1"] == 1

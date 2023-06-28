@@ -1,39 +1,57 @@
 """This module contains a config library for loading yaml/json files into dicts
 """
 import json
+import os
+from importlib.util import find_spec
 from pathlib import Path
 from typing import Union
 
 import yaml
 
-DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent / "default.yaml"
+package_dir = os.path.dirname(find_spec("sed").origin)
 
 
-def parse_config(config: Union[dict, str] = None) -> dict:
-    """Load the default config dictionary, and update it if a user file or dict
-    is provided.
+def parse_config(
+    config: Union[dict, str] = None,
+    default_config: Union[
+        dict,
+        str,
+    ] = f"{package_dir}/config/default.yaml",
+) -> dict:
+    """Load the config dictionary from a file, or pass the provided config dictionary.
 
     Args:
         config (Union[dict, str], optional): config dictionary or file path.
                 Files can be *json* or *yaml*. Defaults to None.
+        default_config (Union[ dict, str, ], optional): default config dictionary
+            or file path. The loaded dictionary is completed with the default values.
+            Defaults to *package_dir*/config/default.yaml".
+    Raises:
+        TypeError: Raised if the provided file is neither *json* nor *yaml*.
+        FileNotFoundError: Raised if the provided file is not found.
 
     Returns:
         dict: Loaded and possibly completed config dictionary.
     """
-    default_config = load_config(DEFAULT_CONFIG_PATH)
+    if config is None:
+        config = {}
 
-    if config is not None:
-        user_config = (
-            load_config(Path(config)) if isinstance(config, str) else config
-        )
-        insert_default_config(user_config, default_config)
+    if isinstance(config, dict):
+        config_dict = config
     else:
-        user_config = default_config
+        config_dict = load_config(config)
 
-    return user_config
+    if isinstance(default_config, dict):
+        default_dict = default_config
+    else:
+        default_dict = load_config(default_config)
+
+    insert_default_config(config_dict, default_dict)
+
+    return config_dict
 
 
-def load_config(config_path: Path) -> dict:
+def load_config(config_path: str) -> dict:
     """Loads config parameter files.
 
     Args:
