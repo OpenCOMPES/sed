@@ -758,9 +758,7 @@ class MomentumCorrector:
                 ret="displacement",
                 **kwds,
             )
-        elif (
-            transform_type == "scaling_auto"
-        ):  # Compare scaling to a reference image
+        elif transform_type == "scaling_auto":  # Compare scaling to a reference image
             pass
         elif transform_type == "shearing":
             rdisp, cdisp = sym.shearingDF(
@@ -792,9 +790,7 @@ class MomentumCorrector:
             )
 
         # Resample image in the deformation field
-        if (
-            image is self.slice
-        ):  # resample using all previous displacement fields
+        if image is self.slice:  # resample using all previous displacement fields
             total_rdeform = ndi.map_coordinates(
                 self.rdeform_field,
                 [rdeform, cdeform],
@@ -1419,12 +1415,8 @@ class MomentumCorrector:
         try:
             self.calibration["rstart"] = self.bin_ranges[0][0]
             self.calibration["cstart"] = self.bin_ranges[1][0]
-            self.calibration["rstep"] = (
-                self.bin_ranges[0][1] - self.bin_ranges[0][0]
-            ) / nrows
-            self.calibration["cstep"] = (
-                self.bin_ranges[1][1] - self.bin_ranges[1][0]
-            ) / ncols
+            self.calibration["rstep"] = (self.bin_ranges[0][1] - self.bin_ranges[0][0]) / nrows
+            self.calibration["cstep"] = (self.bin_ranges[1][1] - self.bin_ranges[1][0]) / ncols
         except (AttributeError, IndexError):
             pass
 
@@ -1521,38 +1513,27 @@ class MomentumCorrector:
             metadata["registration"] = self.adjust_params
             metadata["registration"]["depends_on"] = (
                 "/entry/process/registration/tranformations/rot_z"
-                if "angle" in metadata["registration"]
-                and metadata["registration"]["angle"]
+                if "angle" in metadata["registration"] and metadata["registration"]["angle"]
                 else "/entry/process/registration/tranformations/trans_y"
-                if "xtrans" in metadata["registration"]
-                and metadata["registration"]["xtrans"]
+                if "xtrans" in metadata["registration"] and metadata["registration"]["xtrans"]
                 else "/entry/process/registration/tranformations/trans_x"
-                if "ytrans" in metadata["registration"]
-                and metadata["registration"]["ytrans"]
+                if "ytrans" in metadata["registration"] and metadata["registration"]["ytrans"]
                 else "."
             )
             if (
-                "ytrans" in metadata["registration"]
-                and metadata["registration"]["ytrans"]
+                "ytrans" in metadata["registration"] and metadata["registration"]["ytrans"]
             ):  # swapped definitions
                 metadata["registration"]["trans_x"] = {}
-                metadata["registration"]["trans_x"]["value"] = metadata[
-                    "registration"
-                ]["ytrans"]
+                metadata["registration"]["trans_x"]["value"] = metadata["registration"]["ytrans"]
                 metadata["registration"]["trans_x"]["type"] = "translation"
                 metadata["registration"]["trans_x"]["units"] = "pixel"
                 metadata["registration"]["trans_x"]["vector"] = np.asarray(
                     [1.0, 0.0, 0.0],
                 )
                 metadata["registration"]["trans_x"]["depends_on"] = "."
-            if (
-                "xtrans" in metadata["registration"]
-                and metadata["registration"]["xtrans"]
-            ):
+            if "xtrans" in metadata["registration"] and metadata["registration"]["xtrans"]:
                 metadata["registration"]["trans_y"] = {}
-                metadata["registration"]["trans_y"]["value"] = metadata[
-                    "registration"
-                ]["xtrans"]
+                metadata["registration"]["trans_y"]["value"] = metadata["registration"]["xtrans"]
                 metadata["registration"]["trans_y"]["type"] = "translation"
                 metadata["registration"]["trans_y"]["units"] = "pixel"
                 metadata["registration"]["trans_y"]["vector"] = np.asarray(
@@ -1560,18 +1541,12 @@ class MomentumCorrector:
                 )
                 metadata["registration"]["trans_y"]["depends_on"] = (
                     "/entry/process/registration/tranformations/trans_x"
-                    if "ytrans" in metadata["registration"]
-                    and metadata["registration"]["ytrans"]
+                    if "ytrans" in metadata["registration"] and metadata["registration"]["ytrans"]
                     else "."
                 )
-            if (
-                "angle" in metadata["registration"]
-                and metadata["registration"]["angle"]
-            ):
+            if "angle" in metadata["registration"] and metadata["registration"]["angle"]:
                 metadata["registration"]["rot_z"] = {}
-                metadata["registration"]["rot_z"]["value"] = metadata[
-                    "registration"
-                ]["angle"]
+                metadata["registration"]["rot_z"]["value"] = metadata["registration"]["angle"]
                 metadata["registration"]["rot_z"]["type"] = "rotation"
                 metadata["registration"]["rot_z"]["units"] = "degrees"
                 metadata["registration"]["rot_z"]["vector"] = np.asarray(
@@ -1582,11 +1557,9 @@ class MomentumCorrector:
                 )
                 metadata["registration"]["rot_z"]["depends_on"] = (
                     "/entry/process/registration/tranformations/trans_y"
-                    if "xtrans" in metadata["registration"]
-                    and metadata["registration"]["xtrans"]
+                    if "xtrans" in metadata["registration"] and metadata["registration"]["xtrans"]
                     else "/entry/process/registration/tranformations/trans_x"
-                    if "ytrans" in metadata["registration"]
-                    and metadata["registration"]["ytrans"]
+                    if "ytrans" in metadata["registration"] and metadata["registration"]["ytrans"]
                     else "."
                 )
 
@@ -1659,10 +1632,7 @@ class MomentumCorrector:
             calibration[key] = value
 
         try:
-            (
-                df[new_x_column],
-                df[new_y_column],
-            ) = detector_coordiantes_2_k_koordinates(
+            (df[new_x_column], df[new_y_column]) = detector_coordiantes_2_k_koordinates(
                 r_det=df[x_column],
                 c_det=df[y_column],
                 r_start=calibration["rstart"],

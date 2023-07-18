@@ -134,12 +134,7 @@ class SedProcessor:
                 self.use_copy_tool = False
 
         # Load data if provided:
-        if (
-            dataframe is not None
-            or files is not None
-            or folder is not None
-            or runs is not None
-        ):
+        if dataframe is not None or files is not None or folder is not None or runs is not None:
             self.load(
                 dataframe=dataframe,
                 metadata=metadata,
@@ -766,8 +761,7 @@ class SedProcessor:
             bias_key=bias_key,
         )
         if (normalize is not None and normalize is True) or (
-            normalize is None
-            and self._config.get("energy", {}).get("normalize", True)
+            normalize is None and self._config.get("energy", {}).get("normalize", True)
         ):
             if span is None:
                 span = self._config.get("energy", {}).get("normalize_span", 7)
@@ -1096,9 +1090,7 @@ class SedProcessor:
             )
             ranges = [cast(Tuple[float, float], tuple(v)) for v in ranges_]
 
-        assert (
-            self._dataframe is not None
-        ), "dataframe needs to be loaded first!"
+        assert self._dataframe is not None, "dataframe needs to be loaded first!"
 
         return self.compute(
             bins=bins,
@@ -1171,9 +1163,7 @@ class SedProcessor:
             xr.DataArray: The result of the n-dimensional binning represented in an
             xarray object, combining the data with the axes.
         """
-        assert (
-            self._dataframe is not None
-        ), "dataframe needs to be loaded first!"
+        assert self._dataframe is not None, "dataframe needs to be loaded first!"
 
         hist_mode = kwds.pop("hist_mode", self._config["binning"]["hist_mode"])
         mode = kwds.pop("mode", self._config["binning"]["mode"])
@@ -1211,9 +1201,7 @@ class SedProcessor:
 
         for dim in self._binned.dims:
             try:
-                self._binned[dim].attrs["unit"] = self._config["dataframe"][
-                    "units"
-                ][dim]
+                self._binned[dim].attrs["unit"] = self._config["dataframe"]["units"][dim]
             except KeyError:
                 pass
 

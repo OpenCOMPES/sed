@@ -132,11 +132,7 @@ class CopyTool:
                 size_dst = os.path.getsize(dest_file)
             else:
                 size_dst = 0
-            if (
-                not os.path.exists(dest_file)
-                or size_dst != size_src
-                or force_copy
-            ):
+            if not os.path.exists(dest_file) or size_dst != size_src or force_copy:
                 if os.path.exists(dest_file):
                     # delete existing file, to fix permission issue
                     copy_tasks.append(

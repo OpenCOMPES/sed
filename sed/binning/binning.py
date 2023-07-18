@@ -112,15 +112,12 @@ def bin_partition(
         bins, axes, ranges = simplify_binning_arguments(bins, axes, ranges)
     else:
         if not isinstance(bins, list) or not (
-            all(isinstance(x, int) for x in bins)
-            or all(isinstance(x, np.ndarray) for x in bins)
+            all(isinstance(x, int) for x in bins) or all(isinstance(x, np.ndarray) for x in bins)
         ):
             raise TypeError(
                 "bins needs to be of type 'List[int] or List[np.ndarray]' if tests are skipped!",
             )
-        if not (isinstance(axes, list)) or not all(
-            isinstance(axis, str) for axis in axes
-        ):
+        if not (isinstance(axes, list)) or not all(isinstance(axis, str) for axis in axes):
             raise TypeError(
                 "axes needs to be of type 'List[str]' if tests are skipped!",
             )
@@ -187,8 +184,7 @@ def bin_partition(
         )
     else:
         raise ValueError(
-            f"No binning method {hist_mode} available. Please choose between "
-            f"numba and numpy.",
+            f"No binning method {hist_mode} available. Please choose between " f"numba and numpy.",
         )
 
     if return_edges:
@@ -309,8 +305,7 @@ def bin_dataframe(
     else:
         bins = cast(List[int], bins)
         coords = {
-            ax: np.linspace(r[0], r[1], n, endpoint=False)
-            for ax, r, n in zip(axes, ranges, bins)
+            ax: np.linspace(r[0], r[1], n, endpoint=False) for ax, r, n in zip(axes, ranges, bins)
         }
 
     full_shape = tuple(axis.size for axis in coords.values())

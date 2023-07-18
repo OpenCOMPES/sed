@@ -17,7 +17,7 @@ from sed.binning.numba_bin import _hist_from_bins
 from sed.binning.numba_bin import binsearch
 from sed.binning.utils import bin_centers_to_bin_edges
 from sed.binning.utils import bin_edges_to_bin_centers
-from .helpers import get_linear_bin_edges
+from .helpers import get_linear_bin_edges  # noreorder
 
 sample = np.random.randn(int(1e5), 3)
 columns = ["x", "y", "z"]
@@ -36,18 +36,13 @@ sample_int = np.random.randint(
     dtype=int,
 )
 bins_int = tuple(np.random.randint(10, 300, size=3, dtype=int))
-ranges_int = [
-    tuple(np.sort(np.random.randint(60000, 70000, size=2, dtype=int)))
-    for _ in range(3)
-]
+ranges_int = [tuple(np.sort(np.random.randint(60000, 70000, size=2, dtype=int))) for _ in range(3)]
 arrays_int = [get_linear_bin_edges(b, r) for r, b in zip(ranges_int, bins_int)]
 
 bins_round = [300]
 HALFBINSIZE = (65000.0 - 66600.0) / 300 / 2
 ranges_round = [(65000.0 - HALFBINSIZE, 66600.0 - HALFBINSIZE)]
-arrays_round = [
-    get_linear_bin_edges(b, r) for r, b in zip(ranges_round, bins_round)
-]
+arrays_round = [get_linear_bin_edges(b, r) for r, b in zip(ranges_round, bins_round)]
 
 
 @pytest.mark.parametrize(
@@ -271,11 +266,7 @@ def test_bin_centers_to_bin_edges():
         [
             arrays[0],
             arrays[1][1:] + arrays[0][-1] - arrays[1][0],
-            arrays[2][1:]
-            + arrays[0][-1]
-            + arrays[1][-1]
-            - arrays[2][0]
-            - arrays[1][0],
+            arrays[2][1:] + arrays[0][-1] + arrays[1][-1] - arrays[2][0] - arrays[1][0],
         ],
     )
     bin_edges = bin_centers_to_bin_edges(stepped_array)
@@ -290,11 +281,7 @@ def test_bin_edges_to_bin_centers():
         [
             arrays[0],
             arrays[1][1:] + arrays[0][-1] - arrays[1][0],
-            arrays[2][1:]
-            + arrays[0][-1]
-            + arrays[1][-1]
-            - arrays[2][0]
-            - arrays[1][0],
+            arrays[2][1:] + arrays[0][-1] + arrays[1][-1] - arrays[2][0] - arrays[1][0],
         ],
     )
     bin_centers = bin_edges_to_bin_centers(stepped_array)

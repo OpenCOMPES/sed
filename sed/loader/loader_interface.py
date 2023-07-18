@@ -28,11 +28,7 @@ def get_loader(
     if config is None:
         config = {}
 
-    path_prefix = (
-        f"{os.path.dirname(__file__)}{os.sep}"
-        if os.path.dirname(__file__)
-        else ""
-    )
+    path_prefix = f"{os.path.dirname(__file__)}{os.sep}" if os.path.dirname(__file__) else ""
     path = os.path.join(path_prefix, loader_name, "loader.py")
     if not os.path.exists(path):
         error_str = f"Invalid loader {loader_name}. Available loaders are: ["
@@ -53,11 +49,7 @@ def get_names_of_all_loaders() -> List[str]:
     Returns:
         List[str]: List of all detected loader names.
     """
-    path_prefix = (
-        f"{os.path.dirname(__file__)}{os.sep}"
-        if os.path.dirname(__file__)
-        else ""
-    )
+    path_prefix = f"{os.path.dirname(__file__)}{os.sep}" if os.path.dirname(__file__) else ""
     files = glob.glob(os.path.join(path_prefix, "*", "loader.py"))
     all_loaders = []
     for file in files:

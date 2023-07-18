@@ -25,11 +25,7 @@ def simplify_binning_arguments(
     ],
     axes: Sequence[str] = None,
     ranges: Sequence[Tuple[float, float]] = None,
-) -> Tuple[
-    Union[List[int], List[np.ndarray]],
-    List[str],
-    List[Tuple[float, float]],
-]:
+) -> Tuple[Union[List[int], List[np.ndarray]], List[str], List[Tuple[float, float]]]:
     """Convert the flexible input for defining bins into a
     simple "axes" "bins" "ranges" tuple.
 
@@ -106,9 +102,7 @@ def simplify_binning_arguments(
     # we got tuples as bins, expand to bins and ranges
     if all(isinstance(x, tuple) for x in bins):
         bins = cast(Sequence[tuple], bins)
-        assert (
-            len(bins[0]) == 3
-        ), "Tuples as bins need to have format (start, end, num_bins)."
+        assert len(bins[0]) == 3, "Tuples as bins need to have format (start, end, num_bins)."
         ranges = []
         bins_ = []
         for tpl in bins:
@@ -177,11 +171,7 @@ def bin_centers_to_bin_edges(bin_centers: np.ndarray) -> np.ndarray:
     bin_edges = np.append(
         bin_edges,
         bin_centers[len(bin_centers) - 1]
-        + (
-            bin_centers[len(bin_centers) - 1]
-            - bin_centers[len(bin_centers) - 2]
-        )
-        / 2,
+        + (bin_centers[len(bin_centers) - 1] - bin_centers[len(bin_centers) - 2]) / 2,
     )
 
     return bin_edges
