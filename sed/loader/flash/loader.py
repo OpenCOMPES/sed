@@ -77,9 +77,7 @@ class FlashLoader(BaseLoader):
                 ) from exc
 
             beamtime_dir = Path(
-                self._config["dataframe"]["beamtime_dir"][
-                    self._config["core"]["beamline"]
-                ],
+                self._config["dataframe"]["beamtime_dir"][self._config["core"]["beamline"]],
             )
             beamtime_dir = beamtime_dir.joinpath(f"{year}/data/{beamtime_id}/")
 
@@ -133,9 +131,7 @@ class FlashLoader(BaseLoader):
             FileNotFoundError: If no files are found for the given run in the directory.
         """
         # Define the stream name prefixes based on the data acquisition identifier
-        stream_name_prefixes = self._config["dataframe"][
-            "stream_name_prefixes"
-        ]
+        stream_name_prefixes = self._config["dataframe"]["stream_name_prefixes"]
 
         if folders is None:
             folders = self._config["core"]["base_folder"]
@@ -146,9 +142,7 @@ class FlashLoader(BaseLoader):
         daq = kwds.pop("daq", self._config.get("dataframe", {}).get("daq"))
 
         # Generate the file patterns to search for in the directory
-        file_pattern = (
-            f"{stream_name_prefixes[daq]}_run{run_id}_*." + extension
-        )
+        file_pattern = f"{stream_name_prefixes[daq]}_run{run_id}_*." + extension
 
         files: List[Path] = []
         # Use pathlib to search for matching files in each directory
@@ -156,9 +150,7 @@ class FlashLoader(BaseLoader):
             files.extend(
                 natsorted(
                     Path(folder).glob(file_pattern),
-                    key=lambda filename: str(filename).rsplit("_", maxsplit=1)[
-                        -1
-                    ],
+                    key=lambda filename: str(filename).rsplit("_", maxsplit=1)[-1],
                 ),
             )
 
@@ -193,14 +185,12 @@ class FlashLoader(BaseLoader):
         channels = []
         for format_ in formats:
             for key in self.available_channels:
-                channel_format = self._config["dataframe"]["channels"][key][
-                    "format"
-                ]
+                channel_format = self._config["dataframe"]["channels"][key]["format"]
                 if channel_format == format_:
                     if key == "dldAux":
-                        aux_channels = self._config["dataframe"]["channels"][
-                            key
-                        ]["dldAuxChannels"].keys()
+                        aux_channels = self._config["dataframe"]["channels"][key][
+                            "dldAuxChannels"
+                        ].keys()
                         channels.extend(aux_channels)
                     else:
                         channels.append(key)
@@ -260,10 +250,7 @@ class FlashLoader(BaseLoader):
         # Series object for indexing with electrons
         electrons = (
             Series(
-                [
-                    np.arange(electron_counts[i])
-                    for i in range(electron_counts.size)
-                ],
+                [np.arange(electron_counts[i]) for i in range(electron_counts.size)],
             )
             .explode()
             .astype(int)
@@ -318,13 +305,9 @@ class FlashLoader(BaseLoader):
 
         """
         # Get the data from the necessary h5 file and channel
-        group = h5_file[
-            self._config["dataframe"]["channels"][channel]["group_name"]
-        ]
+        group = h5_file[self._config["dataframe"]["channels"][channel]["group_name"]]
 
-        channel_dict = self._config["dataframe"]["channels"][
-            channel
-        ]  # channel parameters
+        channel_dict = self._config["dataframe"]["channels"][channel]  # channel parameters
 
         train_id = Series(group["index"], name="trainId")  # macrobunch
 
@@ -492,9 +475,7 @@ class FlashLoader(BaseLoader):
             h5_file,
             channel,
         )  # numpy Array created
-        channel_dict = self._config["dataframe"]["channels"][
-            channel
-        ]  # channel parameters
+        channel_dict = self._config["dataframe"]["channels"][channel]  # channel parameters
 
         # If np_array is size zero, fill with NaNs
         if np_array.size == 0:
@@ -570,19 +551,9 @@ class FlashLoader(BaseLoader):
         # Check for if the provided group_name actually exists in the file
         for channel in self._config["dataframe"]["channels"]:
             if channel == "timeStamp":
-                group_name = (
-                    self._config["dataframe"]["channels"][channel][
-                        "group_name"
-                    ]
-                    + "time"
-                )
+                group_name = self._config["dataframe"]["channels"][channel]["group_name"] + "time"
             else:
-                group_name = (
-                    self._config["dataframe"]["channels"][channel][
-                        "group_name"
-                    ]
-                    + "value"
-                )
+                group_name = self._config["dataframe"]["channels"][channel]["group_name"] + "value"
 
             if group_name not in all_keys:
                 raise ValueError(
@@ -591,8 +562,7 @@ class FlashLoader(BaseLoader):
 
         # Create a generator expression to generate data frames for each channel
         data_frames = (
-            self.create_dataframe_per_channel(h5_file, each)
-            for each in self.available_channels
+            self.create_dataframe_per_channel(h5_file, each) for each in self.available_channels
         )
 
         # Use the reduce function to join the data frames into a single DataFrame
@@ -686,11 +656,7 @@ class FlashLoader(BaseLoader):
             )
 
         # Choose files to read
-        files_to_read = {
-            h_5: parquet
-            for h_5, parquet in filenames.items()
-            if not parquet.exists()
-        }
+        files_to_read = {h_5: parquet for h_5, parquet in filenames.items() if not parquet.exists()}
 
         print(
             f"Reading files: {len(files_to_read)} new files of {len(filenames)} total.",
@@ -739,9 +705,7 @@ class FlashLoader(BaseLoader):
 
         """
         # Channels to fill NaN values
-        channels: List[str] = self.get_channels_by_format(
-            ["per_pulse", "per_train"],
-        )
+        channels: List[str] = self.get_channels_by_format(["per_pulse", "per_train"])
 
         # Fill NaN values within each dataframe
         for i, _ in enumerate(dataframes):
@@ -763,16 +727,12 @@ class FlashLoader(BaseLoader):
                 values = dataframes[i - 1][channels].tail(1).values[0]
                 # Create a dictionary to fill NaN values
                 fill_dict = dict(zip(channels, values))
-                fill_dict = {
-                    k: v
-                    for k, v in fill_dict.items()
-                    if k in channels_to_overwrite
-                }
+                fill_dict = {k: v for k, v in fill_dict.items() if k in channels_to_overwrite}
                 # Fill NaN values with the corresponding values from the
                 # previous dataframe
-                dataframes[i][channels_to_overwrite] = subset[
-                    channels_to_overwrite
-                ].fillna(fill_dict)
+                dataframes[i][channels_to_overwrite] = subset[channels_to_overwrite].fillna(
+                    fill_dict,
+                )
 
         # Concatenate the filled dataframes
         return dd.concat(dataframes)
