@@ -22,6 +22,7 @@ from sed.calibrator import DelayCalibrator
 from sed.calibrator import EnergyCalibrator
 from sed.calibrator import MomentumCorrector
 from sed.core.config import parse_config
+from sed.core.config import save_config
 from sed.core.dfops import apply_jitter
 from sed.core.metadata import MetaHandler
 from sed.diagnostics import grid_histogram
@@ -475,6 +476,39 @@ class SedProcessor:
                 backend="bokeh",
             )
 
+    # 3a. Save spline-warp parameters to config file.
+    def save_splinewarp(
+        self,
+        filename: str = None,
+        overwrite: bool = False,
+    ):
+        """Save the generated spline-warp parameters to the folder config file.
+
+        Args:
+            filename (str, optional): Filename of the config dictionary to save to.
+                Defaults to "sed_config.yaml" in the current folder.
+            overwrite (bool, optional): Option to overwrite the present dictionary.
+                Defaults to False.
+        """
+        if filename is None:
+            filename = "sed_config.yaml"
+        points = []
+        try:
+            for point in self.mc.pouter_ord:
+                points.append([float(i) for i in point])
+            if self.mc.pcent:
+                points.append([float(i) for i in self.mc.pcent])
+        except AttributeError as exc:
+            raise AttributeError(
+                "Momentum correction parameters not found, need to generate parameters first!",
+            ) from exc
+        config = {
+            "momentum": {
+                "correction": {"rotation_symmetry": self.mc.rotsym, "feature_points": points},
+            },
+        }
+        save_config(config, filename, overwrite)
+
     # 4. Pose corrections. Provide interactive interface for correcting
     # scaling, shift and rotation
     def pose_adjustment(
@@ -618,6 +652,43 @@ class SedProcessor:
             apply=apply,
         )
 
+    # 1a. Save momentum calibration parameters to config file.
+    def save_momentum_calibration(
+        self,
+        filename: str = None,
+        overwrite: bool = False,
+    ):
+        """Save the generated momentum calibration parameters to the folder config file.
+
+        Args:
+            filename (str, optional): Filename of the config dictionary to save to.
+                Defaults to "sed_config.yaml" in the current folder.
+            overwrite (bool, optional): Option to overwrite the present dictionary.
+                Defaults to False.
+        """
+        if filename is None:
+            filename = "sed_config.yaml"
+        calibration = {}
+        try:
+            for key in [
+                "kx_scale",
+                "ky_scale",
+                "x_center",
+                "y_center",
+                "rstart",
+                "cstart",
+                "rstep",
+                "cstep",
+            ]:
+                calibration[key] = float(self.mc.calibration[key])
+        except KeyError as exc:
+            raise KeyError(
+                "Momentum calibration parameters not found, need to generate parameters first!",
+            ) from exc
+
+        config = {"momentum": {"calibration": calibration}}
+        save_config(config, filename, overwrite)
+
     # 2. Apply correction and calibration to the dataframe
     def apply_momentum_calibration(
         self,
@@ -697,6 +768,39 @@ class SedProcessor:
             apply=apply,
             **kwds,
         )
+
+    # 1a. Save energy correction parameters to config file.
+    def save_energy_correction(
+        self,
+        filename: str = None,
+        overwrite: bool = False,
+    ):
+        """Save the generated energy correction parameters to the folder config file.
+
+        Args:
+            filename (str, optional): Filename of the config dictionary to save to.
+                Defaults to "sed_config.yaml" in the current folder.
+            overwrite (bool, optional): Option to overwrite the present dictionary.
+                Defaults to False.
+        """
+        if filename is None:
+            filename = "sed_config.yaml"
+        correction = {}
+        try:
+            for key in self.ec.correction.keys():
+                if key == "correction_type":
+                    correction[key] = self.ec.correction[key]
+                elif key == "center":
+                    correction[key] = [float(i) for i in self.ec.correction[key]]
+                else:
+                    correction[key] = float(self.ec.correction[key])
+        except AttributeError as exc:
+            raise AttributeError(
+                "Energy correction parameters not found, need to generate parameters first!",
+            ) from exc
+
+        config = {"energy": {"correction": correction}}
+        save_config(config, filename, overwrite)
 
     # 2. Apply energy correction to dataframe
     def apply_energy_correction(
@@ -948,6 +1052,39 @@ class SedProcessor:
         plt.xlabel("Time-of-flight", fontsize=15)
         plt.ylabel("Energy (eV)", fontsize=15)
         plt.show()
+
+    # 3a. Save energy calibration parameters to config file.
+    def save_energy_calibration(
+        self,
+        filename: str = None,
+        overwrite: bool = False,
+    ):
+        """Save the generated energy calibration parameters to the folder config file.
+
+        Args:
+            filename (str, optional): Filename of the config dictionary to save to.
+                Defaults to "sed_config.yaml" in the current folder.
+            overwrite (bool, optional): Option to overwrite the present dictionary.
+                Defaults to False.
+        """
+        if filename is None:
+            filename = "sed_config.yaml"
+        calibration = {}
+        try:
+            for (key, value) in self.ec.calibration.items():
+                if key in ["axis", "refid"]:
+                    continue
+                if key == "energy_scale":
+                    calibration[key] = value
+                else:
+                    calibration[key] = float(value)
+        except AttributeError as exc:
+            raise AttributeError(
+                "Energy calibration parameters not found, need to generate parameters first!",
+            ) from exc
+
+        config = {"energy": {"calibration": calibration}}
+        save_config(config, filename, overwrite)
 
     # 4. Apply energy calibration to the dataframe
     def append_energy_axis(
