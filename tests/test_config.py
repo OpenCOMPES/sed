@@ -2,13 +2,16 @@
 
 """
 import os
+import tempfile
 from importlib.util import find_spec
+from pathlib import Path
 
 import pytest
 
 from sed.core.config import complete_dictionary
 from sed.core.config import load_config
 from sed.core.config import parse_config
+from sed.core.config import save_config
 
 package_dir = os.path.dirname(find_spec("sed").origin)
 default_config_keys = [
@@ -79,3 +82,23 @@ def test_complete_dictionary():
     for key in ["key4", "key5"]:
         assert key in dict3["nesteddict"]
     assert dict3["key1"] == 1
+
+
+def test_save_dict():
+    """Test the config saver for a dict."""
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        for ext in ["yaml", "json"]:
+            filename = tmpdirname + "/.sed_config." + ext
+            config_dict = {"test_entry": True}
+            save_config(config_dict, filename)
+            assert Path(filename).exists()
+            config = load_config(filename)
+            assert config == config_dict
+            config_dict = {"test_entry2": False}
+            save_config(config_dict, filename)
+            config = load_config(filename)
+            assert {"test_entry", "test_entry2"}.issubset(config.keys())
+            config_dict = {"test_entry2": False}
+            save_config(config_dict, filename, overwrite=True)
+            config = load_config(filename)
+            assert "test_entry" not in config.keys()

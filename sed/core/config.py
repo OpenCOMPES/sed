@@ -138,6 +138,36 @@ def load_config(config_path: str) -> dict:
     return config_dict
 
 
+def save_config(config_dict: dict, config_path: str, overwrite: bool = False):
+    """Function to save a given config dictionary to a json or yaml file. Normally, it loads any
+    existing file of the given name, and keeps any existing dictionary keys not present in the
+    provided dictionary. The overwrite option creates a fully empty dictionry first.
+
+    Args:
+        config_dict (dict): The dictionry to save.
+        config_path (str): A string containing the path to the file where to save the dictionary
+            to.
+        overwrite (bool, optional): Option to overwrite an existing file with the given dictionary.
+            Defaults to False.
+    """
+    config_file = Path(config_path)
+    if config_file.is_file() and not overwrite:
+        existing_config = load_config(config_path=config_path)
+    else:
+        existing_config = {}
+
+    new_config = complete_dictionary(config_dict, existing_config)
+
+    if config_file.suffix == ".json":
+        with open(config_file, mode="w", encoding="utf-8") as stream:
+            json.dump(new_config, stream, indent=2)
+    elif config_file.suffix == ".yaml":
+        with open(config_file, mode="w", encoding="utf-8") as stream:
+            config_dict = yaml.dump(new_config, stream)
+    else:
+        raise TypeError("config file must be of type json or yaml!")
+
+
 def complete_dictionary(dictionary: dict, base_dictionary: dict) -> dict:
     """Iteratively completes a dictionary from a base dictionary, by adding keys that are missing
     in the dictionary, and are present in the base dictionary.
