@@ -5,7 +5,7 @@ from copy import deepcopy
 from typing import Any
 from typing import Dict
 
-from sed.config.settings import insert_default_config
+from sed.core.config import complete_dictionary
 
 
 class MetaHandler:
@@ -75,7 +75,7 @@ class MetaHandler:
                     raise ValueError(
                         "Cannot merge dictionary with non-dictionary entry!",
                     )
-                insert_default_config(self._m[name], deepcopy(entry))
+                complete_dictionary(self._m[name], deepcopy(entry))
             else:
                 self._m[name] = deepcopy(entry)
 
