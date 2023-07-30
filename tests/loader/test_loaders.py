@@ -22,7 +22,7 @@ package_dir = os.path.dirname(find_spec("sed").origin)
 test_data_dir = os.path.join(package_dir, "..", "tests", "data")
 
 read_types = ["one_file", "files", "one_folder", "folders", "one_run", "runs"]
-runs = {"generic": None, "mpes": None, "flash": ["43878", "43878"]}
+runs = {"generic": None, "mpes": ["30", "50"], "flash": ["43878", "43878"]}
 
 
 def get_loader_name_from_loader_object(loader: BaseLoader) -> str:
