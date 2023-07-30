@@ -99,6 +99,8 @@ class MomentumCorrector:
         self.vvdist: float = np.nan
         self.rdeform_field: np.ndarray = None
         self.cdeform_field: np.ndarray = None
+        self.rdeform_field_bkp: np.ndarray = None
+        self.cdeform_field_bkp: np.ndarray = None
         self.inverse_dfield: np.ndarray = None
         self.dfield_updated: bool = False
         self.transformations: Dict[Any, Any] = {}
@@ -613,6 +615,7 @@ class MomentumCorrector:
         use_center: bool = None,
         fixed_center: bool = True,
         interp_order: int = 1,
+        verbose: bool = True,
         **kwds,
     ) -> np.ndarray:
         """Estimate the spline deformation field using thin plate spline registration.
@@ -629,6 +632,8 @@ class MomentumCorrector:
             interp_order (int, optional):
                 Order of interpolation (see ``scipy.ndimage.map_coordinates()``).
                 Defaults to 1.
+            verbose (bool, optional): Option to report the used landmarks for correction.
+                Defaults to True.
             **kwds: keyword arguments:
 
                 - **landmarks**: (list/array): Landmark positions (row, column) used
@@ -712,6 +717,10 @@ class MomentumCorrector:
             splinewarp[1],
         )
 
+        # save backup copies to reset transformations
+        self.rdeform_field_bkp = self.rdeform_field
+        self.cdeform_field_bkp = self.cdeform_field
+
         self.correction["applied"] = True
         self.correction["pouter"] = self.pouter_ord
         self.correction["pcent"] = np.asarray(self.pcent)
@@ -722,6 +731,12 @@ class MomentumCorrector:
 
         if self.slice is not None:
             self.slice_corrected = corrected_image
+
+        if verbose:
+            print("Calulated thin spline correction based on the following landmarks:")
+            print(f"pouter: {self.pouter}")
+            if include_center:
+                print(f"pcent: {self.pcent}")
 
         return corrected_image
 
@@ -966,6 +981,8 @@ class MomentumCorrector:
         ytrans: float = 0,
         angle: float = 0,
         apply: bool = False,
+        reset: bool = True,
+        verbose: bool = True,
     ):
         """Interactive panel to adjust transformations that are applied to the image.
         Applies first a scaling, next a x/y translation, and last a rotation around
@@ -983,11 +1000,22 @@ class MomentumCorrector:
             apply (bool, optional):
                 Option to directly apply the provided transformations.
                 Defaults to False.
+            reset (bool, optional):
+                Option to reset the correction before transformation. Defaults to True.
+            verbose (bool, optional):
+                Option to report the performed transformations. Defaults to True.
         """
         matplotlib.use("module://ipympl.backend_nbagg")
         source_image = self.slice_corrected
 
         transformed_image = source_image
+
+        if reset:
+            if self.rdeform_field_bkp is not None and self.cdeform_field_bkp is not None:
+                self.rdeform_field = self.rdeform_field_bkp
+                self.cdeform_field = self.cdeform_field_bkp
+            else:
+                self.reset_deformation()
 
         fig, ax = plt.subplots(1, 1)
         img = ax.imshow(transformed_image.T, origin="lower", cmap="terrain_r")
@@ -1066,6 +1094,8 @@ class MomentumCorrector:
                     yscale=self.transformations["scale"],
                     keep=True,
                 )
+                if verbose:
+                    print(f"Applied scaling with scale={self.transformations['scale']}.")
             if (
                 self.transformations.get("xtrans", 0) != 0
                 or self.transformations.get("ytrans", 0) != 0
@@ -1076,6 +1106,11 @@ class MomentumCorrector:
                     ytrans=self.transformations["ytrans"],
                     keep=True,
                 )
+                if verbose:
+                    print(
+                        f"Applied translation with (xtrans={self.transformations['xtrans']},",
+                        f"ytrans={self.transformations['ytrans']}).",
+                    )
             if self.transformations.get("angle", 0) != 0:
                 self.coordinate_transform(
                     transform_type="rotation",
@@ -1083,6 +1118,8 @@ class MomentumCorrector:
                     center=center,
                     keep=True,
                 )
+                if verbose:
+                    print(f"Applied rotation with angle={self.transformations['angle']}.")
 
             img.set_data(self.slice_transformed.T)
             axmin = np.min(self.slice_transformed, axis=(0, 1))
