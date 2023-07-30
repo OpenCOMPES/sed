@@ -2,6 +2,7 @@
 """
 import json
 import os
+import platform
 from importlib.util import find_spec
 from pathlib import Path
 from typing import Union
@@ -15,6 +16,7 @@ def parse_config(
     config: Union[dict, str] = None,
     folder_config: Union[dict, str] = None,
     user_config: Union[dict, str] = None,
+    system_config: Union[dict, str] = None,
     default_config: Union[
         dict,
         str,
@@ -28,12 +30,16 @@ def parse_config(
                 Files can be *json* or *yaml*. Defaults to None.
         folder_config (Union[ dict, str, ], optional): folder-based config dictionary
             or file path. The loaded dictionary is completed with the folder-based values,
-            taking preference over user- and default values. Defaults to the file
+            taking preference over user, system and default values. Defaults to the file
             "sed_config.yaml" in the current working directory.
         user_config (Union[ dict, str, ], optional): user-based config dictionary
             or file path. The loaded dictionary is completed with the user-based values,
-            taking preference over default values. Defaults to the file ".sed/config.yaml"
-            in the current user's home directory.
+            taking preference over system and default values.
+            Defaults to the file ".sed/config.yaml" in the current user's home directory.
+        system_config (Union[ dict, str, ], optional): system-wide config dictionary
+            or file path. The loaded dictionary is completed with the system-wide values,
+            taking preference over default values. Defaults to the file "/etc/sed/config.yaml"
+            on linux, and "%ALLUSERPROFILE%/sed/config.yaml" on windows.
         default_config (Union[ dict, str, ], optional): default config dictionary
             or file path. The loaded dictionary is completed with the default values.
             Defaults to *package_dir*/config/default.yaml".
@@ -45,8 +51,6 @@ def parse_config(
     Returns:
         dict: Loaded and possibly completed config dictionary.
     """
-    used_config_files = []
-
     if config is None:
         config = {}
 
@@ -54,7 +58,8 @@ def parse_config(
         config_dict = config
     else:
         config_dict = load_config(config)
-        used_config_files.append(str(Path(config).resolve()))
+        if verbose:
+            print(f"Configuration loaded from: [{str(Path(config).resolve())}]")
 
     folder_dict: dict = None
     if isinstance(folder_config, dict):
@@ -64,7 +69,8 @@ def parse_config(
             folder_config = "./sed_config.yaml"
         if Path(folder_config).exists():
             folder_dict = load_config(folder_config)
-            used_config_files.append(str(Path(folder_config).resolve()))
+            if verbose:
+                print(f"Folder config loaded from: [{str(Path(folder_config).resolve())}]")
 
     user_dict: dict = None
     if isinstance(user_config, dict):
@@ -76,13 +82,33 @@ def parse_config(
             )
         if Path(user_config).exists():
             user_dict = load_config(user_config)
-            used_config_files.append(str(Path(user_config).resolve()))
+            if verbose:
+                print(f"User config loaded from: [{str(Path(user_config).resolve())}]")
+
+    system_dict: dict = None
+    if isinstance(system_config, dict):
+        system_dict = system_config
+    else:
+        if system_config is None:
+            if platform.system() in ["Linux", "Darwin"]:
+                system_config = str(
+                    Path("/etc/").joinpath("sed").joinpath("config.yaml"),
+                )
+            elif platform.system() == "Windows":
+                system_config = str(
+                    Path(os.environ["ALLUSERPROFILE"]).joinpath("sed").joinpath("config.yaml"),
+                )
+        if Path(system_config).exists():
+            system_dict = load_config(system_config)
+            if verbose:
+                print(f"System config loaded from: [{str(Path(system_config).resolve())}]")
 
     if isinstance(default_config, dict):
         default_dict = default_config
     else:
         default_dict = load_config(default_config)
-        used_config_files.append(str(Path(default_config).resolve()))
+        if verbose:
+            print(f"Default config loaded from: [{str(Path(default_config).resolve())}]")
 
     if folder_dict is not None:
         config_dict = complete_dictionary(
@@ -94,15 +120,15 @@ def parse_config(
             dictionary=config_dict,
             base_dictionary=user_dict,
         )
+    if system_dict is not None:
+        config_dict = complete_dictionary(
+            dictionary=config_dict,
+            base_dictionary=system_dict,
+        )
     config_dict = complete_dictionary(
         dictionary=config_dict,
         base_dictionary=default_dict,
     )
-
-    if verbose:
-        print("Configuration loaded from the following configuration files:")
-        for file in used_config_files:
-            print(f"[{file}]")
 
     return config_dict
 
