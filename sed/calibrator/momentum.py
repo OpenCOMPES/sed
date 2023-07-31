@@ -1078,6 +1078,7 @@ class MomentumCorrector:
             step=1,
         )
         angle_slider = ipw.FloatSlider(value=angle, min=-180, max=180, step=1)
+        results_box = ipw.Output()
         ipw.interact(
             update,
             scale=scale_slider,
@@ -1095,7 +1096,8 @@ class MomentumCorrector:
                     keep=True,
                 )
                 if verbose:
-                    print(f"Applied scaling with scale={self.transformations['scale']}.")
+                    with results_box:
+                        print(f"Applied scaling with scale={self.transformations['scale']}.")
             if (
                 self.transformations.get("xtrans", 0) != 0
                 or self.transformations.get("ytrans", 0) != 0
@@ -1107,10 +1109,11 @@ class MomentumCorrector:
                     keep=True,
                 )
                 if verbose:
-                    print(
-                        f"Applied translation with (xtrans={self.transformations['xtrans']},",
-                        f"ytrans={self.transformations['ytrans']}).",
-                    )
+                    with results_box:
+                        print(
+                            f"Applied translation with (xtrans={self.transformations['xtrans']},",
+                            f"ytrans={self.transformations['ytrans']}).",
+                        )
             if self.transformations.get("angle", 0) != 0:
                 self.coordinate_transform(
                     transform_type="rotation",
@@ -1119,7 +1122,10 @@ class MomentumCorrector:
                     keep=True,
                 )
                 if verbose:
-                    print(f"Applied rotation with angle={self.transformations['angle']}.")
+                    with results_box:
+                        print(f"Applied rotation with angle={self.transformations['angle']}.")
+
+                display(results_box)
 
             img.set_data(self.slice_transformed.T)
             axmin = np.min(self.slice_transformed, axis=(0, 1))
