@@ -31,6 +31,7 @@ tqdm = "^4.62.3"
 xarray = "^0.20.2"
 joblib = "^1.2.0"
 jupyter = {version = "^1.0.0", extras = ["notebook"], optional = true}
+jupyterlab = {version = ">=3.2.9, <4.0.0", extras = ["notebook"], optional = true}
 ipykernel = {version = "^6.9.1", extras = ["notebook"], optional = true}
 sphinx = {version = ">4.4.0", extras = ["docs"], optional = true}
 sphinx-rtd-theme = {version = ">1.0.0", extras = ["docs"], optional = true}
@@ -39,7 +40,7 @@ sphinx-autodoc-typehints = {version = ">1.17.0", extras = ["docs"], optional = t
 
 
 [tool.poetry.extras]
-notebook = ["jupyter", "ipykernel"]
+notebook = ["jupyter", "jupyterlab", "ipykernel"]
 docs = ["Sphinx", "sphinx-rtd-theme", "tomlkit", "sphinx-autodoc-typehints"]
 
 [tool.poetry.dev-dependencies]
