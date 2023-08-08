@@ -1487,6 +1487,8 @@ class SedProcessor:
                   config["nexus"]["definition"]
                 - **input_files**: A list of input files to pass to the reader.
                   Defaults to config["nexus"]["input_files"]
+                - **eln_data**: An electronic-lab-notebook file in '.yaml' format
+                  to add to the list of files to pass to the reader.
         """
         if self._binned is None:
             raise NameError("Need to bin data first!")
@@ -1523,6 +1525,9 @@ class SedProcessor:
 
             if isinstance(input_files, str):
                 input_files = [input_files]
+
+            if "eln_data" in kwds:
+                input_files.append(kwds.pop("eln_data"))
 
             to_nexus(
                 data=self._binned,
