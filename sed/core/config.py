@@ -24,11 +24,15 @@ def parse_config(
     verbose: bool = True,
 ) -> dict:
     """Load the config dictionary from a file, or pass the provided config dictionary.
+    The content of the loaded config dictionary is then completed from a set of pre-configured
+    config files in hierarchical order, by adding missing items. These additional config files
+    are searched for in different places on the system as detailed below. Alternatively, they
+    can be also passed as optional arguments (file path strings or dictionaries).
 
     Args:
         config (Union[dict, str], optional): config dictionary or file path.
                 Files can be *json* or *yaml*. Defaults to None.
-        folder_config (Union[ dict, str, ], optional): folder-based config dictionary
+        folder_config (Union[ dict, str, ], optional): working-folder-based config dictionary
             or file path. The loaded dictionary is completed with the folder-based values,
             taking preference over user, system and default values. Defaults to the file
             "sed_config.yaml" in the current working directory.
