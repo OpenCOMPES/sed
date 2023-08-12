@@ -46,7 +46,7 @@ dataframe:
   # The h5 file paths and aliases are defined under channels
   # PulseId channel(s) are necessary
   channels:
-      pulseId:
+    pulseId:
       axis: 1
       format: per_electron
       group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
