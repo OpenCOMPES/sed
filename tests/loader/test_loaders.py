@@ -7,7 +7,7 @@ import dask.dataframe as ddf
 import pytest
 from _pytest.mark.structures import ParameterSet
 
-from sed.config import parse_config
+from sed.core.config import parse_config
 from sed.loader.base.loader import BaseLoader
 from sed.loader.loader_interface import get_loader
 from sed.loader.loader_interface import get_names_of_all_loaders

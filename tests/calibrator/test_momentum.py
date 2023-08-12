@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 
 from sed.calibrator.momentum import MomentumCorrector
-from sed.config.settings import parse_config
+from sed.core.config import parse_config
 from sed.core import SedProcessor
 from sed.loader.loader_interface import get_loader
 
