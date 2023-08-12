@@ -258,7 +258,7 @@ def test_append_energy_axis_raises():
     """Test if apply_correction raises the correct errors"""
     config = parse_config(config={}, folder_config={}, user_config={}, system_config={})
     loader = get_loader(loader_name="mpes", config=config)
-    df, _ = loader.read_dataframe(folders=df_folder, collect_metadata=False)
+    df, _, _ = loader.read_dataframe(folders=df_folder, collect_metadata=False)
     ec = EnergyCalibrator(config=config, loader=loader)
     with pytest.raises(ValueError):
         df, _ = ec.append_energy_axis(df, calibration={"d": 1, "t0": 0})

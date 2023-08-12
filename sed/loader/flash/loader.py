@@ -792,7 +792,7 @@ class FlashLoader(BaseLoader):
         metadata: dict = None,
         collect_metadata: bool = False,
         **kwds,
-    ) -> Tuple[dd.DataFrame, dict]:
+    ) -> Tuple[dd.DataFrame, dd.DataFrame, dict]:
         """
         Read express data from the DAQ, generating a parquet in between.
 
@@ -850,7 +850,7 @@ class FlashLoader(BaseLoader):
         metadata = self.parse_metadata() if collect_metadata else {}
         print(f"loading complete  in {time.time() - t0:.2f} s")
 
-        return dataframe, metadata
+        return dataframe, None, metadata
 
 
 LOADER = FlashLoader

@@ -148,28 +148,6 @@ class BaseLoader(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_files_from_run_id(
-        self,
-        run_id: str,
-        folders: Union[str, Sequence[str]] = None,
-        extension: str = None,
-        **kwds,
-    ) -> List[str]:
-        """Locate the files for a given run identifier.
-
-        Args:
-            run_id (str): The run identifier to locate.
-            folders (Union[str, Sequence[str]], optional): The directory(ies) where the raw
-                data is located. Defaults to None.
-            extension (str, optional): The file extension. Defaults to None.
-            kwds: Keyword arguments
-
-        Return:
-            List[str]: List of files for the given run.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
     def get_count_rate(
         self,
         fids: Sequence[int] = None,

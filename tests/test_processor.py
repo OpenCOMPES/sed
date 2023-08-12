@@ -49,7 +49,7 @@ with open(folder + "biases.csv", newline="", encoding="utf-8") as csvfile:
 def test_processor_from_dataframe():
     """Test generation of the processor from a dataframe object"""
     config = {"core": {"loader": "generic"}}
-    dataframe, _ = loader.read_dataframe(files=files)
+    dataframe, _, _ = loader.read_dataframe(files=files)
     processor = SedProcessor(
         dataframe=dataframe,
         config=config,
@@ -64,7 +64,7 @@ def test_processor_from_dataframe():
 def test_processor_from_files():
     """Test generation of the processor from a list of files"""
     config = {"core": {"loader": "generic"}}
-    dataframe, _ = loader.read_dataframe(files=files)
+    dataframe, _, _ = loader.read_dataframe(files=files)
     processor = SedProcessor(
         files=files,
         config=config,
@@ -79,7 +79,7 @@ def test_processor_from_files():
 def test_processor_from_folders():
     """Test generation of the processor from a folder"""
     config = {"core": {"loader": "generic"}}
-    dataframe, _ = loader.read_dataframe(files=files)
+    dataframe, _, _ = loader.read_dataframe(files=files)
     processor = SedProcessor(
         folder=df_folder,
         config=config,

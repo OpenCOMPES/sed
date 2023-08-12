@@ -285,8 +285,7 @@ class SedProcessor:
         if metadata is None:
             metadata = {}
         if dataframe is not None:
-            self._dataframe = dataframe
-            self._timed_dataframe = None
+            timed_dataframe = kwds.pop("timed_dataframe", None)
         elif runs is not None:
             # If runs are provided, we only use the copy tool if also folder is provided.
             # In that case, we copy the whole provided base folder tree, and pass the copied
@@ -314,7 +313,6 @@ class SedProcessor:
                 collect_metadata=collect_metadata,
                 **kwds,
             )
-
         elif files is not None:
             dataframe, timed_dataframe, metadata = self.loader.read_dataframe(
                 files=cast(List[str], self.cpy(files)),
@@ -322,7 +320,6 @@ class SedProcessor:
                 collect_metadata=collect_metadata,
                 **kwds,
             )
-
         else:
             raise ValueError(
                 "Either 'dataframe', 'files', 'folder', or 'runs' needs to be provided!",
@@ -1471,11 +1468,9 @@ class SedProcessor:
                 print(
                     f"Calculate normalization histogram for axis '{axis}'...",
                 )
-                self._normalization_histogram = (
-                    self.get_normalization_histogram(
-                        axis=axis,
-                        df_partitions=df_partitions,
-                    )
+                self._normalization_histogram = self.get_normalization_histogram(
+                    axis=axis,
+                    df_partitions=df_partitions,
                 )
                 # if the axes are named correctly, xarray figures out the normalization correctly
                 self._normalized = self._binned / self._normalization_histogram
@@ -1497,9 +1492,7 @@ class SedProcessor:
                 )
 
             self._normalized.attrs["units"] = "counts/second"
-            self._normalized.attrs[
-                "long_name"
-            ] = "photoelectron counts per second"
+            self._normalized.attrs["long_name"] = "photoelectron counts per second"
             self._normalized.attrs["metadata"] = self._attributes.metadata
 
             return self._normalized
@@ -1550,41 +1543,33 @@ class SedProcessor:
 
         if use_time_stamps or self._timed_dataframe is None:
             if df_partitions is not None:
-                self._normalization_histogram = (
-                    normalization_histogram_from_timestamps(
-                        self._dataframe.partitions[df_partitions],
-                        axis,
-                        self._binned.coords[axis].values,
-                        self._config["dataframe"]["time_stamp_alias"],
-                    )
+                self._normalization_histogram = normalization_histogram_from_timestamps(
+                    self._dataframe.partitions[df_partitions],
+                    axis,
+                    self._binned.coords[axis].values,
+                    self._config["dataframe"]["time_stamp_alias"],
                 )
             else:
-                self._normalization_histogram = (
-                    normalization_histogram_from_timestamps(
-                        self._dataframe,
-                        axis,
-                        self._binned.coords[axis].values,
-                        self._config["dataframe"]["time_stamp_alias"],
-                    )
+                self._normalization_histogram = normalization_histogram_from_timestamps(
+                    self._dataframe,
+                    axis,
+                    self._binned.coords[axis].values,
+                    self._config["dataframe"]["time_stamp_alias"],
                 )
         else:
             if df_partitions is not None:
-                self._normalization_histogram = (
-                    normalization_histogram_from_timed_dataframe(
-                        self._timed_dataframe.partitions[df_partitions],
-                        axis,
-                        self._binned.coords[axis].values,
-                        self._config["dataframe"]["timed_dataframe_unit_time"],
-                    )
+                self._normalization_histogram = normalization_histogram_from_timed_dataframe(
+                    self._timed_dataframe.partitions[df_partitions],
+                    axis,
+                    self._binned.coords[axis].values,
+                    self._config["dataframe"]["timed_dataframe_unit_time"],
                 )
             else:
-                self._normalization_histogram = (
-                    normalization_histogram_from_timed_dataframe(
-                        self._timed_dataframe,
-                        axis,
-                        self._binned.coords[axis].values,
-                        self._config["dataframe"]["timed_dataframe_unit_time"],
-                    )
+                self._normalization_histogram = normalization_histogram_from_timed_dataframe(
+                    self._timed_dataframe,
+                    axis,
+                    self._binned.coords[axis].values,
+                    self._config["dataframe"]["timed_dataframe_unit_time"],
                 )
 
         return self._normalization_histogram
