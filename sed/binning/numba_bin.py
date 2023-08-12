@@ -226,8 +226,7 @@ def numba_histogramdd(
     # normalize the range argument
     if ranges is None:
         raise ValueError(
-            "must define a value for ranges when bins is"
-            " the number of bins",
+            "must define a value for ranges when bins is the number of bins",
         )
     if num_cols == 1 and isinstance(ranges[0], (int, float)):
         ranges = (ranges,)

@@ -12,7 +12,7 @@ from sed.io.hdf5 import to_h5
 from sed.io.tiff import _sort_dims_for_imagej
 from sed.io.tiff import load_tiff
 from sed.io.tiff import to_tiff
-from tests.helpers import simulate_binned_data
+from .helpers import simulate_binned_data  # noreorder
 
 shapes = []
 for n in range(4):

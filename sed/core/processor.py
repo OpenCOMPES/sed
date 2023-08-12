@@ -21,7 +21,8 @@ from sed.binning import bin_dataframe
 from sed.calibrator import DelayCalibrator
 from sed.calibrator import EnergyCalibrator
 from sed.calibrator import MomentumCorrector
-from sed.config import parse_config
+from sed.core.config import parse_config
+from sed.core.config import save_config
 from sed.core.dfops import apply_jitter
 from sed.core.metadata import MetaHandler
 from sed.diagnostics import grid_histogram
@@ -83,7 +84,7 @@ class SedProcessor:
                 Defaults to False.
             **kwds: Keyword arguments passed to the reader.
         """
-        self._config = parse_config(config)
+        self._config = parse_config(config, **kwds)
         num_cores = self._config.get("binning", {}).get("num_cores", N_CPU - 1)
         if num_cores >= N_CPU:
             num_cores = N_CPU - 1
@@ -134,12 +135,7 @@ class SedProcessor:
                 self.use_copy_tool = False
 
         # Load data if provided:
-        if (
-            dataframe is not None
-            or files is not None
-            or folder is not None
-            or runs is not None
-        ):
+        if dataframe is not None or files is not None or folder is not None or runs is not None:
             self.load(
                 dataframe=dataframe,
                 metadata=metadata,
@@ -387,18 +383,19 @@ class SedProcessor:
 
     # 2. Generate the spline warp correction from momentum features.
     # Either autoselect features, or input features from view above.
-    def generate_splinewarp(
+    def define_features(
         self,
         features: np.ndarray = None,
         rotation_symmetry: int = 6,
         auto_detect: bool = False,
         include_center: bool = True,
+        apply: bool = False,
         **kwds,
     ):
-        """2. Step of the distortion correction workflow: Detect feature points in
-        momentum space, or assign the provided feature points, and generate a
-        correction function restoring the symmetry in the image using a splinewarp
-        algortihm.
+        """2. Step of the distortion correction workflow: Define feature points in
+        momentum space. They can be either manually selected using a GUI tool, be
+        ptovided as list of feature points, or auto-generated using a
+        feature-detection algorithm.
 
         Args:
             features (np.ndarray, optional): np.ndarray of features. Defaults to None.
@@ -406,8 +403,10 @@ class SedProcessor:
                 Defaults to 6.
             auto_detect (bool, optional): Whether to auto-detect the features.
                 Defaults to False.
-            include_center (bool, optional): Option to fix the position of the center
-                point for the correction. Defaults to True.
+            include_center (bool, optional): Option to include a point at the center
+                in the feature list. Defaults to True.
+            ***kwds: Keyword arguments for MomentumCorrector.feature_extract() and
+                MomentumCorrector.feature_select()
         """
         if auto_detect:  # automatic feature selection
             sigma = kwds.pop("sigma", self._config["momentum"]["sigma"])
@@ -423,13 +422,31 @@ class SedProcessor:
                 rotsym=rotation_symmetry,
                 **kwds,
             )
-        else:  # Manual feature selection
-            self.mc.add_features(
-                features=features,
-                rotsym=rotation_symmetry,
-                **kwds,
-            )
+            features = self.mc.peaks
 
+        self.mc.feature_select(
+            rotsym=rotation_symmetry,
+            include_center=include_center,
+            features=features,
+            apply=apply,
+            **kwds,
+        )
+
+    # 3. Generate the spline warp correction from momentum features.
+    # If no features have been selected before, use class defaults.
+    def generate_splinewarp(
+        self,
+        include_center: bool = True,
+        **kwds,
+    ):
+        """3. Step of the distortion correction workflow: Generate the correction
+        function restoring the symmetry in the image using a splinewarp algortihm.
+
+        Args:
+            include_center (bool, optional): Option to include the position of the
+                center point in the correction. Defaults to True.
+            **kwds: Keyword arguments for MomentumCorrector.spline_warp_estimate().
+        """
         self.mc.spline_warp_estimate(include_center=include_center, **kwds)
 
         if self.mc.slice is not None:
@@ -453,7 +470,40 @@ class SedProcessor:
                 backend="bokeh",
             )
 
-    # 3. Pose corrections. Provide interactive interface for correcting
+    # 3a. Save spline-warp parameters to config file.
+    def save_splinewarp(
+        self,
+        filename: str = None,
+        overwrite: bool = False,
+    ):
+        """Save the generated spline-warp parameters to the folder config file.
+
+        Args:
+            filename (str, optional): Filename of the config dictionary to save to.
+                Defaults to "sed_config.yaml" in the current folder.
+            overwrite (bool, optional): Option to overwrite the present dictionary.
+                Defaults to False.
+        """
+        if filename is None:
+            filename = "sed_config.yaml"
+        points = []
+        try:
+            for point in self.mc.pouter_ord:
+                points.append([float(i) for i in point])
+            if self.mc.pcent:
+                points.append([float(i) for i in self.mc.pcent])
+        except AttributeError as exc:
+            raise AttributeError(
+                "Momentum correction parameters not found, need to generate parameters first!",
+            ) from exc
+        config = {
+            "momentum": {
+                "correction": {"rotation_symmetry": self.mc.rotsym, "feature_points": points},
+            },
+        }
+        save_config(config, filename, overwrite)
+
+    # 4. Pose corrections. Provide interactive interface for correcting
     # scaling, shift and rotation
     def pose_adjustment(
         self,
@@ -507,6 +557,7 @@ class SedProcessor:
             apply=apply,
         )
 
+    # 5. Apply the momentum correction to the dataframe
     def apply_momentum_correction(
         self,
         preview: bool = False,
@@ -539,8 +590,8 @@ class SedProcessor:
             else:
                 print(self._dataframe)
 
-    # 4. Calculate momentum calibration and apply correction and calibration
-    # to the dataframe
+    # Momentum calibration work flow
+    # 1. Calculate momentum calibration
     def calibrate_momentum_axes(
         self,
         point_a: Union[np.ndarray, List[int]] = None,
@@ -551,7 +602,7 @@ class SedProcessor:
         equiscale: bool = True,
         apply=False,
     ):
-        """4. step of the momentum correction/calibration workflow. Calibrate momentum
+        """1. step of the momentum calibration workflow. Calibrate momentum
         axes using either provided pixel coordinates of a high-symmetry point and its
         distance to the BZ center, or the k-coordinates of two points in the BZ
         (depending on the equiscale option). Opens an interactive panel for selecting
@@ -592,15 +643,52 @@ class SedProcessor:
             apply=apply,
         )
 
-    # 5. Apply correction and calibration to the dataframe
+    # 1a. Save momentum calibration parameters to config file.
+    def save_momentum_calibration(
+        self,
+        filename: str = None,
+        overwrite: bool = False,
+    ):
+        """Save the generated momentum calibration parameters to the folder config file.
+
+        Args:
+            filename (str, optional): Filename of the config dictionary to save to.
+                Defaults to "sed_config.yaml" in the current folder.
+            overwrite (bool, optional): Option to overwrite the present dictionary.
+                Defaults to False.
+        """
+        if filename is None:
+            filename = "sed_config.yaml"
+        calibration = {}
+        try:
+            for key in [
+                "kx_scale",
+                "ky_scale",
+                "x_center",
+                "y_center",
+                "rstart",
+                "cstart",
+                "rstep",
+                "cstep",
+            ]:
+                calibration[key] = float(self.mc.calibration[key])
+        except KeyError as exc:
+            raise KeyError(
+                "Momentum calibration parameters not found, need to generate parameters first!",
+            ) from exc
+
+        config = {"momentum": {"calibration": calibration}}
+        save_config(config, filename, overwrite)
+
+    # 2. Apply correction and calibration to the dataframe
     def apply_momentum_calibration(
         self,
         calibration: dict = None,
         preview: bool = False,
     ):
-        """5. step of the momentum calibration/distortion correction work flow: Apply
-        any distortion correction and/or pose adjustment stored in the MomentumCorrector
-        class and the momentum calibration to the dataframe.
+        """2. step of the momentum calibration work flow: Apply the momentum
+        calibration stored in the class to the dataframe. If corrected X/Y axis exist,
+        these are used.
 
         Args:
             calibration (dict, optional): Optional dictionary with calibration data to
@@ -671,6 +759,39 @@ class SedProcessor:
             apply=apply,
             **kwds,
         )
+
+    # 1a. Save energy correction parameters to config file.
+    def save_energy_correction(
+        self,
+        filename: str = None,
+        overwrite: bool = False,
+    ):
+        """Save the generated energy correction parameters to the folder config file.
+
+        Args:
+            filename (str, optional): Filename of the config dictionary to save to.
+                Defaults to "sed_config.yaml" in the current folder.
+            overwrite (bool, optional): Option to overwrite the present dictionary.
+                Defaults to False.
+        """
+        if filename is None:
+            filename = "sed_config.yaml"
+        correction = {}
+        try:
+            for key in self.ec.correction.keys():
+                if key == "correction_type":
+                    correction[key] = self.ec.correction[key]
+                elif key == "center":
+                    correction[key] = [float(i) for i in self.ec.correction[key]]
+                else:
+                    correction[key] = float(self.ec.correction[key])
+        except AttributeError as exc:
+            raise AttributeError(
+                "Energy correction parameters not found, need to generate parameters first!",
+            ) from exc
+
+        config = {"energy": {"correction": correction}}
+        save_config(config, filename, overwrite)
 
     # 2. Apply energy correction to dataframe
     def apply_energy_correction(
@@ -914,6 +1035,39 @@ class SedProcessor:
         plt.ylabel("Energy (eV)", fontsize=15)
         plt.show()
 
+    # 3a. Save energy calibration parameters to config file.
+    def save_energy_calibration(
+        self,
+        filename: str = None,
+        overwrite: bool = False,
+    ):
+        """Save the generated energy calibration parameters to the folder config file.
+
+        Args:
+            filename (str, optional): Filename of the config dictionary to save to.
+                Defaults to "sed_config.yaml" in the current folder.
+            overwrite (bool, optional): Option to overwrite the present dictionary.
+                Defaults to False.
+        """
+        if filename is None:
+            filename = "sed_config.yaml"
+        calibration = {}
+        try:
+            for (key, value) in self.ec.calibration.items():
+                if key in ["axis", "refid"]:
+                    continue
+                if key == "energy_scale":
+                    calibration[key] = value
+                else:
+                    calibration[key] = float(value)
+        except AttributeError as exc:
+            raise AttributeError(
+                "Energy calibration parameters not found, need to generate parameters first!",
+            ) from exc
+
+        config = {"energy": {"calibration": calibration}}
+        save_config(config, filename, overwrite)
+
     # 4. Apply energy calibration to the dataframe
     def append_energy_axis(
         self,
@@ -1071,9 +1225,7 @@ class SedProcessor:
             )
             ranges = [cast(Tuple[float, float], tuple(v)) for v in ranges_]
 
-        assert (
-            self._dataframe is not None
-        ), "dataframe needs to be loaded first!"
+        assert self._dataframe is not None, "dataframe needs to be loaded first!"
 
         return self.compute(
             bins=bins,
@@ -1146,9 +1298,7 @@ class SedProcessor:
             xr.DataArray: The result of the n-dimensional binning represented in an
             xarray object, combining the data with the axes.
         """
-        assert (
-            self._dataframe is not None
-        ), "dataframe needs to be loaded first!"
+        assert self._dataframe is not None, "dataframe needs to be loaded first!"
 
         hist_mode = kwds.pop("hist_mode", self._config["binning"]["hist_mode"])
         mode = kwds.pop("mode", self._config["binning"]["mode"])
@@ -1186,9 +1336,7 @@ class SedProcessor:
 
         for dim in self._binned.dims:
             try:
-                self._binned[dim].attrs["unit"] = self._config["dataframe"][
-                    "units"
-                ][dim]
+                self._binned[dim].attrs["unit"] = self._config["dataframe"]["units"][dim]
             except KeyError:
                 pass
 

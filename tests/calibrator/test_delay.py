@@ -6,7 +6,7 @@ from importlib.util import find_spec
 import pytest
 
 from sed.calibrator.delay import DelayCalibrator
-from sed.config.settings import parse_config
+from sed.core.config import parse_config
 from sed.loader.loader_interface import get_loader
 
 package_dir = os.path.dirname(find_spec("sed").origin)

@@ -131,10 +131,7 @@ class DelayCalibrator:
             ) / 2 ** (self._config["dataframe"]["adc_binning"] - 1)
 
         if "delay_range" not in calibration.keys():
-            if (
-                "delay_range_mm" not in calibration.keys()
-                or "time0" not in calibration.keys()
-            ):
+            if "delay_range_mm" not in calibration.keys() or "time0" not in calibration.keys():
                 if datafile is not None:
                     try:
                         ret = extract_delay_stage_parameters(
@@ -167,9 +164,7 @@ class DelayCalibrator:
         if "delay_range" in calibration.keys():
             df[delay_column] = calibration["delay_range"][0] + (
                 df[adc_column] - calibration["adc_range"][0]
-            ) * (
-                calibration["delay_range"][1] - calibration["delay_range"][0]
-            ) / (
+            ) * (calibration["delay_range"][1] - calibration["delay_range"][0]) / (
                 calibration["adc_range"][1] - calibration["adc_range"][0]
             )
         else:

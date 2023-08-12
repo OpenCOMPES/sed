@@ -501,12 +501,7 @@ class EnergyCalibrator:
             for itr, trace in enumerate(traces):
                 if align:
                     ax.plot(
-                        xaxis
-                        + sign
-                        * (
-                            self.biases[itr]
-                            - self.biases[self.calibration["refid"]]
-                        ),
+                        xaxis + sign * (self.biases[itr] - self.biases[self.calibration["refid"]]),
                         trace,
                         ls="--",
                         linewidth=1,
@@ -570,12 +565,7 @@ class EnergyCalibrator:
                 trace = traces[itr, :]
                 if align:
                     fig.line(
-                        xaxis
-                        + sign
-                        * (
-                            self.biases[itr]
-                            - self.biases[self.calibration["refid"]]
-                        ),
+                        xaxis + sign * (self.biases[itr] - self.biases[self.calibration["refid"]]),
                         trace,
                         color=color,
                         line_dash="solid",
@@ -688,11 +678,7 @@ class EnergyCalibrator:
 
         # try to determine calibration type if not provided
         if "calib_type" not in calibration:
-            if (
-                "t0" in calibration
-                and "d" in calibration
-                and "E0" in calibration
-            ):
+            if "t0" in calibration and "d" in calibration and "E0" in calibration:
                 calibration["calib_type"] = "fit"
                 if "energy_scale" not in calibration:
                     calibration["energy_scale"] = "kinetic"
@@ -1301,9 +1287,7 @@ def correction_function(
             (
                 1
                 - np.sqrt(
-                    1
-                    - ((x - center[0]) ** 2 + (y - center[1]) ** 2)
-                    / diameter**2,
+                    1 - ((x - center[0]) ** 2 + (y - center[1]) ** 2) / diameter**2,
                 )
             )
             * 100
@@ -1316,11 +1300,7 @@ def correction_function(
             100000
             * amplitude
             / (gamma * np.pi)
-            * (
-                gamma**2
-                / ((x - center[0]) ** 2 + (y - center[1]) ** 2 + gamma**2)
-                - 1
-            )
+            * (gamma**2 / ((x - center[0]) ** 2 + (y - center[1]) ** 2 + gamma**2) - 1)
         )
 
     elif correction_type == "Gaussian":
@@ -1331,8 +1311,7 @@ def correction_function(
             / np.sqrt(2 * np.pi * sigma**2)
             * (
                 np.exp(
-                    -((x - center[0]) ** 2 + (y - center[1]) ** 2)
-                    / (2 * sigma**2),
+                    -((x - center[0]) ** 2 + (y - center[1]) ** 2) / (2 * sigma**2),
                 )
                 - 1
             )
@@ -1913,9 +1892,7 @@ def tof2ev(
 
     #         m_e/2 [eV]                      bin width [s]
     energy = (
-        2.84281e-12
-        * sign
-        * (tof_distance / (t * binwidth * 2**binning - time_offset)) ** 2
+        2.84281e-12 * sign * (tof_distance / (t * binwidth * 2**binning - time_offset)) ** 2
         + energy_offset
     )
 

@@ -68,14 +68,12 @@ class FlashLoader(BaseLoader):
         channels = []
         for format_ in formats:
             for key in self.available_channels:
-                channel_format = self._config["dataframe"]["channels"][key][
-                    "format"
-                ]
+                channel_format = self._config["dataframe"]["channels"][key]["format"]
                 if channel_format == format_:
                     if key == "dldAux":
-                        aux_channels = self._config["dataframe"]["channels"][
-                            key
-                        ]["dldAuxChannels"].keys()
+                        aux_channels = self._config["dataframe"]["channels"][key][
+                            "dldAuxChannels"
+                        ].keys()
                         channels.extend(aux_channels)
                     else:
                         channels.append(key)
@@ -135,10 +133,7 @@ class FlashLoader(BaseLoader):
         # Series object for indexing with electrons
         electrons = (
             Series(
-                [
-                    np.arange(electron_counts[i])
-                    for i in range(electron_counts.size)
-                ],
+                [np.arange(electron_counts[i]) for i in range(electron_counts.size)],
             )
             .explode()
             .astype(int)
@@ -193,13 +188,9 @@ class FlashLoader(BaseLoader):
 
         """
         # Get the data from the necessary h5 file and channel
-        group = h5_file[
-            self._config["dataframe"]["channels"][channel]["group_name"]
-        ]
+        group = h5_file[self._config["dataframe"]["channels"][channel]["group_name"]]
 
-        channel_dict = self._config["dataframe"]["channels"][
-            channel
-        ]  # channel parameters
+        channel_dict = self._config["dataframe"]["channels"][channel]  # channel parameters
 
         train_id = Series(group["index"], name="trainId")  # macrobunch
 
@@ -367,9 +358,7 @@ class FlashLoader(BaseLoader):
             h5_file,
             channel,
         )  # numpy Array created
-        channel_dict = self._config["dataframe"]["channels"][
-            channel
-        ]  # channel parameters
+        channel_dict = self._config["dataframe"]["channels"][channel]  # channel parameters
 
         # If np_array is size zero, fill with NaNs
         if np_array.size == 0:
@@ -445,19 +434,9 @@ class FlashLoader(BaseLoader):
         # Check for if the provided group_name actually exists in the file
         for channel in self._config["dataframe"]["channels"]:
             if channel == "timeStamp":
-                group_name = (
-                    self._config["dataframe"]["channels"][channel][
-                        "group_name"
-                    ]
-                    + "time"
-                )
+                group_name = self._config["dataframe"]["channels"][channel]["group_name"] + "time"
             else:
-                group_name = (
-                    self._config["dataframe"]["channels"][channel][
-                        "group_name"
-                    ]
-                    + "value"
-                )
+                group_name = self._config["dataframe"]["channels"][channel]["group_name"] + "value"
 
             if group_name not in all_keys:
                 raise ValueError(
@@ -466,8 +445,7 @@ class FlashLoader(BaseLoader):
 
         # Create a generator expression to generate data frames for each channel
         data_frames = (
-            self.create_dataframe_per_channel(h5_file, each)
-            for each in self.available_channels
+            self.create_dataframe_per_channel(h5_file, each) for each in self.available_channels
         )
 
         # Use the reduce function to join the data frames into a single DataFrame
@@ -573,33 +551,30 @@ class FlashLoader(BaseLoader):
                 values = dataframes[i - 1][channels].tail(1).values[0]
                 # Create a dictionary to fill NaN values
                 fill_dict = dict(zip(channels, values))
-                fill_dict = {
-                    k: v
-                    for k, v in fill_dict.items()
-                    if k in channels_to_overwrite
-                }
+                fill_dict = {k: v for k, v in fill_dict.items() if k in channels_to_overwrite}
                 # Fill NaN values with the corresponding values from the
                 # previous dataframe
-                dataframes[i][channels_to_overwrite] = subset[
-                    channels_to_overwrite
-                ].fillna(fill_dict)
+                dataframes[i][channels_to_overwrite] = subset[channels_to_overwrite].fillna(
+                    fill_dict,
+                )
 
         # Concatenate the filled dataframes
         return dd.concat(dataframes)
 
-    def parse_metadata(
-        self,
-        files: Sequence[str],  # pylint: disable=unused-argument
-    ) -> dict:
-        """Dummy
-
-        Args:
-            files (Sequence[str]): _description_
+    def parse_metadata(self) -> dict:
+        """Uses the MetadataRetriever class to fetch metadata from scicat for each run.
 
         Returns:
-            dict: _description_
+            dict: Metadata dictionary
         """
-        return {}
+        metadata_retriever = MetadataRetriever(self._config["metadata"])
+        metadata = metadata_retriever.get_metadata(
+            beamtime_id=self._config["core"]["beamtime_id"],
+            runs=self.runs,
+            metadata=self.metadata,
+        )
+
+        return metadata
 
     def get_count_rate(
         self,
@@ -683,9 +658,7 @@ class FlashLoader(BaseLoader):
             )
 
         parquet_name = f"{temp_parquet_dir}/"
-        self.parquet_names = [
-            Path(parquet_name + Path(file).stem) for file in self.files
-        ]
+        self.parquet_names = [Path(parquet_name + Path(file).stem) for file in self.files]
         missing_files: List[Path] = []
         missing_parquet_names: List[Path] = []
 
@@ -731,24 +704,13 @@ class FlashLoader(BaseLoader):
         # Read all parquet files using dask and concatenate into one dataframe
         # after filling
         dataframe = self.fill_na(
-            [
-                dd.read_parquet(parquet_file)
-                for parquet_file in self.parquet_names
-            ],
+            [dd.read_parquet(parquet_file) for parquet_file in self.parquet_names],
         )
         dataframe = dataframe.dropna(
             subset=self.get_channels_by_format(["per_electron"]),
         )
 
-        if collect_metadata:
-            metadata_retriever = MetadataRetriever(self._config["metadata"])
-            metadata = metadata_retriever.get_metadata(
-                beamtime_id=self._config["dataframe"]["beamtime_id"],
-                runs=list(runs),
-                metadata=self.metadata,
-            )
-        else:
-            metadata = self.metadata
+        metadata = self.parse_metadata() if collect_metadata else {}
 
         return dataframe, metadata
 
@@ -778,9 +740,7 @@ class FlashLoader(BaseLoader):
             FileNotFoundError: If no files are found for the given run in the directory.
         """
         # Define the stream name prefixes based on the data acquisition identifier
-        stream_name_prefixes = self._config["dataframe"][
-            "stream_name_prefixes"
-        ]
+        stream_name_prefixes = self._config["dataframe"]["stream_name_prefixes"]
 
         if folders is None:
             folders = self._config["core"]["base_folder"]
@@ -791,9 +751,7 @@ class FlashLoader(BaseLoader):
         daq = kwds.pop("daq", self._config.get("dataframe", {}).get("daq"))
 
         # Generate the file patterns to search for in the directory
-        file_pattern = (
-            f"{stream_name_prefixes[daq]}_run{run_id}_*." + extension
-        )
+        file_pattern = f"{stream_name_prefixes[daq]}_run{run_id}_*." + extension
 
         files: List[Path] = []
         # Use pathlib to search for matching files in each directory
@@ -846,15 +804,15 @@ class FlashLoader(BaseLoader):
                 ) from exc
 
             beamtime_dir = Path(
-                self._config["dataframe"]["beamtime_dir"][
-                    self._config["loader"]["instrument"]
-                ],
+                self._config["dataframe"]["beamtime_dir"][self._config["core"]["beamline"]],
             )
             beamtime_dir = beamtime_dir.joinpath(f"{year}/data/{beamtime_id}/")
 
             # Use os walk to reach the raw data directory
             data_raw_dir = []
-            for root, dirs, files in os.walk(beamtime_dir.joinpath("raw/")):  # pylint: disable=W0612
+            for root, dirs, files in os.walk(  # pylint: disable=W0612
+                beamtime_dir.joinpath("raw/"),
+            ):
                 for dir_name in dirs:
                     if dir_name.startswith("express-") or dir_name.startswith(
                         "online-",

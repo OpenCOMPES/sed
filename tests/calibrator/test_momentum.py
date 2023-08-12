@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 
 from sed.calibrator.momentum import MomentumCorrector
-from sed.config.settings import parse_config
+from sed.core.config import parse_config
 from sed.core import SedProcessor
 from sed.loader.loader_interface import get_loader
 
@@ -86,7 +86,7 @@ def test_splinewarp(include_center: bool):
     )
     if not include_center:
         features = features[0:-1]
-    mc.add_features(peaks=features, rotsym=6)
+    mc.add_features(features=features, rotsym=6)
     mc.spline_warp_estimate(include_center=include_center)
     assert mc.cdeform_field.shape == mc.rdeform_field.shape == mc.image.shape
     assert len(mc.ptargs) == len(mc.prefs)
@@ -127,7 +127,7 @@ def test_apply_correction():
             [248.29, 248.62],
         ],
     )
-    mc.add_features(peaks=features, rotsym=6)
+    mc.add_features(features=features, rotsym=6)
     mc.spline_warp_estimate()
     df, metadata = mc.apply_corrections(df=df)
     assert "Xm" in df.columns
@@ -235,23 +235,18 @@ def test_apply_registration(
         if key == "xtrans":
             assert metadata["registration"]["trans_x"]["value"] == value
             assert (
-                metadata["registration"]["trans_x"]["depends_on"]
-                == depends_on["axes"]["trans_x"]
+                metadata["registration"]["trans_x"]["depends_on"] == depends_on["axes"]["trans_x"]
             )
             assert metadata["registration"]["trans_x"]["type"] == "translation"
         if key == "ytrans":
             assert metadata["registration"]["trans_y"]["value"] == value
             assert (
-                metadata["registration"]["trans_y"]["depends_on"]
-                == depends_on["axes"]["trans_y"]
+                metadata["registration"]["trans_y"]["depends_on"] == depends_on["axes"]["trans_y"]
             )
             assert metadata["registration"]["trans_y"]["type"] == "translation"
         if key == "angle":
             assert metadata["registration"]["rot_z"]["value"] == value
-            assert (
-                metadata["registration"]["rot_z"]["depends_on"]
-                == depends_on["axes"]["rot_z"]
-            )
+            assert metadata["registration"]["rot_z"]["depends_on"] == depends_on["axes"]["rot_z"]
             assert metadata["registration"]["rot_z"]["type"] == "rotation"
             np.testing.assert_equal(
                 metadata["registration"]["rot_z"]["offset"][0:2],

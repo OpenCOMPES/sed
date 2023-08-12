@@ -315,7 +315,7 @@ class MomentumCorrector:
 
     def add_features(
         self,
-        peaks: np.ndarray = None,
+        features: np.ndarray = None,
         direction: str = "ccw",
         rotsym: int = 6,
         symscores: bool = True,
@@ -325,9 +325,9 @@ class MomentumCorrector:
         detects the center of the points and orders the points.
 
         Args:
-            peaks (np.ndarray, optional):
-                Array of peaks, possibly including a center peak. Its shape should be
-                (nx2), where n is equal to the rotation symmetry, or the rotation
+            features (np.ndarray, optional):
+                Array of landmarks, possibly including a center peak. Its shape should
+                be (n,2), where n is equal to the rotation symmetry, or the rotation
                 symmetry+1, if the center is included.
                 Defaults to config["momentum"]["correction"]["feature_points"].
             direction (str, optional):
@@ -348,24 +348,24 @@ class MomentumCorrector:
         self.arot = np.array([0] + [self.rotsym_angle] * (self.rotsym - 1))
         self.ascale = np.array([1.0] * self.rotsym)
 
-        if peaks is None:
-            peaks = np.asarray(
+        if features is None:
+            features = np.asarray(
                 self._config["momentum"]["correction"]["feature_points"],
             )
 
-        if peaks.shape[0] == self.rotsym:  # assume no center present
+        if features.shape[0] == self.rotsym:  # assume no center present
             self.pcent, self.pouter = po.pointset_center(
-                peaks,
+                features,
                 method="centroid",
             )
-        elif peaks.shape[0] == self.rotsym + 1:  # assume center included
+        elif features.shape[0] == self.rotsym + 1:  # assume center included
             self.pcent, self.pouter = po.pointset_center(
-                peaks,
+                features,
                 method="centroidnn",
             )
         else:
             raise ValueError(
-                f"Found {peaks.shape[0]} points, ",
+                f"Found {features.shape[0]} points, ",
                 f"but {self.rotsym} or {self.rotsym+1} (incl.center) required.",
             )
         if isinstance(self.pcent, np.ndarray):
@@ -432,7 +432,7 @@ class MomentumCorrector:
             self.peaks = po.peakdetect2d(image, **kwds)
 
             self.add_features(
-                peaks=self.peaks,
+                features=self.peaks,
                 direction=direction,
                 rotsym=rotsym,
                 symscores=symscores,
@@ -440,6 +440,131 @@ class MomentumCorrector:
             )
         else:
             raise NotImplementedError
+
+    def feature_select(
+        self,
+        image: np.ndarray = None,
+        features: np.ndarray = None,
+        include_center: bool = True,
+        rotsym: int = 6,
+        apply: bool = False,
+        **kwds,
+    ):
+        """Extract features from the selected 2D slice.
+        Currently only point feature detection is implemented.
+
+        Args:
+            image (np.ndarray, optional):
+                The (2D) image slice to extract features from.
+                Defaults to self.slice
+            include_center (bool, optional):
+                Option to include the image center/centroid in the registration
+                process. Defaults to True.
+            features (np.ndarray, optional):
+                Array of landmarks, possibly including a center peak. Its shape should
+                be (n,2), where n is equal to the rotation symmetry, or the rotation
+                symmetry+1, if the center is included.
+                If omitted, an array filled with zeros is generated.
+            rotsym (int, optional): Rotational symmetry of the data. Defaults to 6.
+            apply (bool, optional): Option to directly store the features in the class.
+                Defaults to False.
+            **kwds:
+                Extra keyword arguments for ``symmetrize.pointops.peakdetect2d()``.
+
+        Raises:
+            ValueError: If no valid image is found from which to ge the coordinates.
+        """
+        matplotlib.use("module://ipympl.backend_nbagg")
+        if image is None:
+            if self.slice is not None:
+                image = self.slice
+            else:
+                raise ValueError("No valid image loaded!")
+
+        fig, ax = plt.subplots(1, 1)
+        ax.imshow(image.T, origin="lower", cmap="terrain_r")
+
+        if features is None:
+            features = np.zeros((rotsym + (include_center), 2))
+
+        markers = []
+        for peak in features:
+            markers.append(ax.plot(peak[0], peak[1], "o")[0])
+
+        def update_point_no(
+            point_no: int,
+        ):
+            fig.canvas.draw_idle()
+
+            point_x = features[point_no][0]
+            point_y = features[point_no][1]
+
+            point_input_x.value = point_x
+            point_input_y.value = point_y
+
+        def update_point_pos(
+            point_x: int,
+            point_y: int,
+        ):
+            fig.canvas.draw_idle()
+            point_no = point_no_input.value
+            features[point_no][0] = point_x
+            features[point_no][1] = point_y
+
+            markers[point_no].set_xdata(point_x)
+            markers[point_no].set_ydata(point_y)
+
+        point_no_input = ipw.Dropdown(
+            options=range(features.shape[0]),
+            description="Point:",
+        )
+
+        point_input_x = ipw.IntText(features[0][0])
+        point_input_y = ipw.IntText(features[0][1])
+        ipw.interact(
+            update_point_no,
+            point_no=point_no_input,
+        )
+        ipw.interact(
+            update_point_pos,
+            point_y=point_input_y,
+            point_x=point_input_x,
+        )
+
+        def onclick(event):
+            point_input_x.value = event.xdata
+            point_input_y.value = event.ydata
+            point_no_input.value = (point_no_input.value + 1) % features.shape[
+                0
+            ]
+
+        cid = fig.canvas.mpl_connect("button_press_event", onclick)
+
+        def apply_func(apply: bool):  # pylint: disable=unused-argument
+
+            fig.canvas.mpl_disconnect(cid)
+
+            point_no_input.close()
+            point_input_x.close()
+            point_input_y.close()
+            apply_button.close()
+
+            fig.canvas.draw_idle()
+
+            self.add_features(
+                features=features,
+                rotsym=rotsym,
+                **kwds,
+            )
+
+        apply_button = ipw.Button(description="apply")
+        display(apply_button)
+        apply_button.on_click(apply_func)
+
+        if apply:
+            apply_func(True)
+
+        plt.show()
 
     def calc_geometric_distances(self):
         """Calculate geometric distances involving the center and the vertices.
@@ -513,8 +638,11 @@ class MomentumCorrector:
                 self.bin_ranges = self._config["momentum"]["ranges"]
 
         if self.pouter_ord is None:
-            assert self.pouter is not None, "No landmarks defined!"
-            self.pouter_ord = po.pointset_order(self.pouter)
+            if self.pouter is not None:
+                self.pouter_ord = po.pointset_order(self.pouter)
+            else:
+                print("No landmarks defined, using config defaults.")
+                self.add_features()
 
         self.prefs = kwds.pop("landmarks", self.pouter_ord)
         self.ptargs = kwds.pop("targets", [])
@@ -741,9 +869,7 @@ class MomentumCorrector:
                 ret="displacement",
                 **kwds,
             )
-        elif (
-            transform_type == "scaling_auto"
-        ):  # Compare scaling to a reference image
+        elif transform_type == "scaling_auto":  # Compare scaling to a reference image
             pass
         elif transform_type == "shearing":
             rdisp, cdisp = sym.shearingDF(
@@ -775,9 +901,7 @@ class MomentumCorrector:
             )
 
         # Resample image in the deformation field
-        if (
-            image is self.slice
-        ):  # resample using all previous displacement fields
+        if image is self.slice:  # resample using all previous displacement fields
             total_rdeform = ndi.map_coordinates(
                 self.rdeform_field,
                 [rdeform, cdeform],
@@ -1393,12 +1517,8 @@ class MomentumCorrector:
         try:
             self.calibration["rstart"] = self.bin_ranges[0][0]
             self.calibration["cstart"] = self.bin_ranges[1][0]
-            self.calibration["rstep"] = (
-                self.bin_ranges[0][1] - self.bin_ranges[0][0]
-            ) / nrows
-            self.calibration["cstep"] = (
-                self.bin_ranges[1][1] - self.bin_ranges[1][0]
-            ) / ncols
+            self.calibration["rstep"] = (self.bin_ranges[0][1] - self.bin_ranges[0][0]) / nrows
+            self.calibration["cstep"] = (self.bin_ranges[1][1] - self.bin_ranges[1][0]) / ncols
         except (AttributeError, IndexError):
             pass
 
@@ -1495,38 +1615,27 @@ class MomentumCorrector:
             metadata["registration"] = self.adjust_params
             metadata["registration"]["depends_on"] = (
                 "/entry/process/registration/tranformations/rot_z"
-                if "angle" in metadata["registration"]
-                and metadata["registration"]["angle"]
+                if "angle" in metadata["registration"] and metadata["registration"]["angle"]
                 else "/entry/process/registration/tranformations/trans_y"
-                if "xtrans" in metadata["registration"]
-                and metadata["registration"]["xtrans"]
+                if "xtrans" in metadata["registration"] and metadata["registration"]["xtrans"]
                 else "/entry/process/registration/tranformations/trans_x"
-                if "ytrans" in metadata["registration"]
-                and metadata["registration"]["ytrans"]
+                if "ytrans" in metadata["registration"] and metadata["registration"]["ytrans"]
                 else "."
             )
             if (
-                "ytrans" in metadata["registration"]
-                and metadata["registration"]["ytrans"]
+                "ytrans" in metadata["registration"] and metadata["registration"]["ytrans"]
             ):  # swapped definitions
                 metadata["registration"]["trans_x"] = {}
-                metadata["registration"]["trans_x"]["value"] = metadata[
-                    "registration"
-                ]["ytrans"]
+                metadata["registration"]["trans_x"]["value"] = metadata["registration"]["ytrans"]
                 metadata["registration"]["trans_x"]["type"] = "translation"
                 metadata["registration"]["trans_x"]["units"] = "pixel"
                 metadata["registration"]["trans_x"]["vector"] = np.asarray(
                     [1.0, 0.0, 0.0],
                 )
                 metadata["registration"]["trans_x"]["depends_on"] = "."
-            if (
-                "xtrans" in metadata["registration"]
-                and metadata["registration"]["xtrans"]
-            ):
+            if "xtrans" in metadata["registration"] and metadata["registration"]["xtrans"]:
                 metadata["registration"]["trans_y"] = {}
-                metadata["registration"]["trans_y"]["value"] = metadata[
-                    "registration"
-                ]["xtrans"]
+                metadata["registration"]["trans_y"]["value"] = metadata["registration"]["xtrans"]
                 metadata["registration"]["trans_y"]["type"] = "translation"
                 metadata["registration"]["trans_y"]["units"] = "pixel"
                 metadata["registration"]["trans_y"]["vector"] = np.asarray(
@@ -1534,18 +1643,12 @@ class MomentumCorrector:
                 )
                 metadata["registration"]["trans_y"]["depends_on"] = (
                     "/entry/process/registration/tranformations/trans_x"
-                    if "ytrans" in metadata["registration"]
-                    and metadata["registration"]["ytrans"]
+                    if "ytrans" in metadata["registration"] and metadata["registration"]["ytrans"]
                     else "."
                 )
-            if (
-                "angle" in metadata["registration"]
-                and metadata["registration"]["angle"]
-            ):
+            if "angle" in metadata["registration"] and metadata["registration"]["angle"]:
                 metadata["registration"]["rot_z"] = {}
-                metadata["registration"]["rot_z"]["value"] = metadata[
-                    "registration"
-                ]["angle"]
+                metadata["registration"]["rot_z"]["value"] = metadata["registration"]["angle"]
                 metadata["registration"]["rot_z"]["type"] = "rotation"
                 metadata["registration"]["rot_z"]["units"] = "degrees"
                 metadata["registration"]["rot_z"]["vector"] = np.asarray(
@@ -1556,11 +1659,9 @@ class MomentumCorrector:
                 )
                 metadata["registration"]["rot_z"]["depends_on"] = (
                     "/entry/process/registration/tranformations/trans_y"
-                    if "xtrans" in metadata["registration"]
-                    and metadata["registration"]["xtrans"]
+                    if "xtrans" in metadata["registration"] and metadata["registration"]["xtrans"]
                     else "/entry/process/registration/tranformations/trans_x"
-                    if "ytrans" in metadata["registration"]
-                    and metadata["registration"]["ytrans"]
+                    if "ytrans" in metadata["registration"] and metadata["registration"]["ytrans"]
                     else "."
                 )
 
@@ -1633,10 +1734,7 @@ class MomentumCorrector:
             calibration[key] = value
 
         try:
-            (
-                df[new_x_column],
-                df[new_y_column],
-            ) = detector_coordiantes_2_k_koordinates(
+            (df[new_x_column], df[new_y_column]) = detector_coordiantes_2_k_koordinates(
                 r_det=df[x_column],
                 c_det=df[y_column],
                 r_start=calibration["rstart"],
