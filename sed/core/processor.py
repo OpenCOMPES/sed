@@ -3,6 +3,7 @@
 """
 import pathlib
 from typing import Any
+from typing import Callable
 from typing import cast
 from typing import Dict
 from typing import List
@@ -25,6 +26,9 @@ from sed.core.config import parse_config
 from sed.core.config import save_config
 from sed.core.dfops import apply_jitter
 from sed.core.metadata import MetaHandler
+from sed.core.preprocessing import PreProcessingPipeline 
+from sed.core.preprocessing import PreProcessingStep
+from sed.core.preprocessing import as_pre_processing
 from sed.diagnostics import grid_histogram
 from sed.io import to_h5
 from sed.io import to_nexus
@@ -63,6 +67,7 @@ class SedProcessor:
         folder: str = None,
         runs: Sequence[str] = None,
         collect_metadata: bool = False,
+        pre_processing: Union[PreProcessingPipeline, Sequence[PreProcessingStep]] = None,
         **kwds,
     ):
         """Processor class of sed. Contains wrapper functions defining a work flow
@@ -92,6 +97,11 @@ class SedProcessor:
 
         self._dataframe: Union[pd.DataFrame, ddf.DataFrame] = None
         self._files: List[str] = []
+
+        self._preprocessing_pipeline: Union[
+            PreProcessingPipeline, 
+            Sequence[PreProcessingStep]
+        ] = pre_processing or []
 
         self._binned: xr.DataArray = None
         self._pre_binned: xr.DataArray = None
@@ -1550,3 +1560,34 @@ class SedProcessor:
 
         # TODO: What shall this function do?
         return np.arange(*axis_range)
+
+    def pre_process(self) -> ddf.DataFrame:
+        """Apply preprocessing pipeline to dataframe"""
+        if len(self._preprocessing_pipeline) == 0:
+            Warning('No preprocessing steps found, returning original dataframe')
+            return self._dataframe
+        
+        for step in self._preprocessing_pipeline:
+            self._dataframe = step.map(self._dataframe, metadata=self._attributes)
+        return self._dataframe
+    
+    def add_pre_processing(self, step: Union[Callable, PreProcessingStep], *args, **kwargs):
+        """Add a preprocessing step to the pipeline
+        
+        Args:
+            step (Union[Callable, PreProcessingStep]): Preprocessing step to add.
+            *args: Positional arguments passed to the preprocessing step.
+            **kwargs: Keyword arguments passed to the preprocessing step.
+            
+        Raises:
+            TypeError: Raised if the step is not a callable or a PreProcessingStep.
+        """
+        if isinstance(step, Callable):
+            step = PreProcessingStep(step, *args, **kwargs)
+        elif not isinstance(step, PreProcessingStep):
+            raise TypeError("Preprocessing step must be a callable or a PreProcessingStep")
+        self._preprocessing_pipeline.append(step)
+
+    def reset_pre_processing(self):
+        """Reset the preprocessing pipeline"""
+        self._preprocessing_pipeline = []
