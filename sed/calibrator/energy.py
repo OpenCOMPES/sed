@@ -94,9 +94,7 @@ class EnergyCalibrator:
         self.calibration: Dict[Any, Any] = {}
 
         self.tof_column = self._config["dataframe"]["tof_column"]
-        self.corrected_tof_column = self._config["dataframe"][
-            "corrected_tof_column"
-        ]
+        self.corrected_tof_column = self._config["dataframe"]["corrected_tof_column"]
         self.energy_column = self._config["dataframe"]["energy_column"]
         self.x_column = self._config["dataframe"]["x_column"]
         self.y_column = self._config["dataframe"]["y_column"]
@@ -107,9 +105,7 @@ class EnergyCalibrator:
         self.tof_width = np.asarray(
             self._config["energy"]["tof_width"],
         ) / 2 ** (self.binning - 1)
-        self.tof_fermi = self._config["energy"]["tof_fermi"] / 2 ** (
-            self.binning - 1
-        )
+        self.tof_fermi = self._config["energy"]["tof_fermi"] / 2 ** (self.binning - 1)
         self.color_clip = self._config["energy"]["color_clip"]
 
         self.correction = self._config["energy"].get("correction", {})
@@ -204,8 +200,7 @@ class EnergyCalibrator:
             bins = [self._config["energy"]["bins"]]
         if ranges is None:
             ranges_ = [
-                np.array(self._config["energy"]["ranges"])
-                / 2 ** (self.binning - 1),
+                np.array(self._config["energy"]["ranges"]) / 2 ** (self.binning - 1),
             ]
             ranges = [cast(Tuple[float, float], tuple(v)) for v in ranges_]
         # pylint: disable=duplicate-code
@@ -226,7 +221,12 @@ class EnergyCalibrator:
         if biases is None:
             read_biases = True
             if bias_key is None:
-                bias_key = self._config["energy"].get("bias_key", "")
+                try:
+                    bias_key = self._config["energy"][bias_key]
+                except KeyError as exc:
+                    raise ValueError(
+                        "Either Bias Values or a valid bias_key has to be present!",
+                    ) from exc
 
         dataframe, _ = self.loader.read_dataframe(
             files=data_files,
@@ -247,7 +247,12 @@ class EnergyCalibrator:
             **kwds,
         )
         if read_biases:
-            biases = extract_bias(data_files, bias_key)
+            try:
+                biases = extract_bias(data_files, bias_key)
+            except KeyError as exc:
+                raise ValueError(
+                    "Either Bias Values or a valid bias_key has to be present!",
+                ) from exc
         tof = traces.coords[(axes[0])]
         self.traces = self.traces_normed = np.asarray(traces.T)
         self.tof = np.asarray(tof)

@@ -1395,12 +1395,8 @@ class SedProcessor:
                 axes[loc] = self._config["dataframe"].get(axis.strip("@"))
         if ranges is None:
             ranges = list(self._config["histogram"]["ranges"])
-            ranges[2] = np.asarray(ranges[2]) / 2 ** (
-                self._config["dataframe"]["tof_binning"] - 1
-            )
-            ranges[3] = np.asarray(ranges[3]) / 2 ** (
-                self._config["dataframe"]["adc_binning"] - 1
-            )
+            ranges[2] = np.asarray(ranges[2]) / 2 ** (self._config["dataframe"]["tof_binning"] - 1)
+            ranges[3] = np.asarray(ranges[3]) / 2 ** (self._config["dataframe"]["adc_binning"] - 1)
 
         input_types = map(type, [axes, bins, ranges])
         allowed_types = [list, tuple]
@@ -1486,15 +1482,21 @@ class SedProcessor:
                 **kwds,
             )
         elif extension in (".nxs", ".nexus"):
-            reader = kwds.pop("reader", self._config["nexus"]["reader"])
-            definition = kwds.pop(
-                "definition",
-                self._config["nexus"]["definition"],
-            )
-            input_files = kwds.pop(
-                "input_files",
-                self._config["nexus"]["input_files"],
-            )
+            try:
+                reader = kwds.pop("reader", self._config["nexus"]["reader"])
+                definition = kwds.pop(
+                    "definition",
+                    self._config["nexus"]["definition"],
+                )
+                input_files = kwds.pop(
+                    "input_files",
+                    self._config["nexus"]["input_files"],
+                )
+            except KeyError as exc:
+                raise ValueError(
+                    "The nexus reader, definition and input files need to be provide!",
+                ) from exc
+
             if isinstance(input_files, str):
                 input_files = [input_files]
 

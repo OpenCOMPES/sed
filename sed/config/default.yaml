@@ -2,14 +2,6 @@ core:
   # The loader to use. The generic loader allows for loading various files types directly using dask.
   loader: generic
 
-  # If loader is set to flash, the following parameters are necessary
-  # Needs to be user defined
-  beamtime_id: None
-  year: None
-  # Default beamline is pg2 and instrument is hextof
-  beamline: pg2
-  instrument: hextof
-
 dataframe:
   # dataframe column containing x coordinates
   x_column: "X"
@@ -38,27 +30,13 @@ dataframe:
   # Binning factor of the tof_column-data compared to tof_binwidth (2^(tof_binning-1))
   tof_binning: 1
   # binning factor used for the adc coordinate (2^(adc_binning-1))
-  adc_binning: 2
-
-  # Flash loader requires the daq parameter and offset
-  daq: fl1user3
-  ubid_offset: 5
-  # The h5 file paths and aliases are defined under channels
-  # PulseId channel(s) are necessary
-  channels:
-    pulseId:
-      axis: 1
-      format: per_electron
-      group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
-      slice: 2
+  adc_binning: 1
 
 energy:
   # Number of bins to use for energy calibration traces
   bins: 1000
   # Bin ranges to use for energy calibration curves (for tof_binning=0)
-  ranges: [128000, 150000]
-  # hdf5 path to attribute storing bias information for a given file
-  bias_key: "@KTOF:Lens:Sample:V"
+  ranges: [100000, 150000]
   # Option to normalize energy calibration traces
   normalize: True
   # Pixel range for smoothing
@@ -132,18 +110,9 @@ binning:
 
 histogram:
   # number of bins used for histogram visualization
-  bins: [80, 80, 80, 80]
+  bins: [80, 80, 80]
   # default axes to use for histgram visualization.
   # Axes names starting with "@" refer to keys in the "dataframe" section
-  axes: ["@x_column", "@y_column", "@tof_column", "@adc_column"]
+  axes: ["@x_column", "@y_column", "@tof_column"]
   # default ranges to use for histogram visualization (in unbinned detector coordinates)
-  ranges: [[0, 1800], [0, 1800], [128000, 138000], [0, 32000]]
-
-nexus:
-  # pynxtools reader to use for saving NXmpes files
-  reader: "mpes"
-  # NeXus application definition to use for saving
-  definition: "NXmpes"
-  # List conatining additional input files to be handed to the pynxtools converter tool,
-  # e.g. containing a configuration file, and additional metadata.
-  input_files: ["../tests/data/config/NXmpes_config.json"]
+  ranges: [[0, 1800], [0, 1800], [0, 150000]]
