@@ -21,7 +21,11 @@ package_dir = os.path.dirname(find_spec("sed").origin)
 df_folder = package_dir + "/../tests/data/loader/mpes/"
 folder = package_dir + "/../tests/data/calibrator/"
 files = glob.glob(df_folder + "*.h5")
-config = parse_config(package_dir + "/config/mpes_example_config.yaml")
+config = parse_config(
+    package_dir + "/config/mpes_example_config.yaml",
+    user_config={},
+    system_config={},
+)
 
 traces_list = []
 with open(folder + "traces.csv", newline="", encoding="utf-8") as csvfile:
@@ -49,6 +53,24 @@ def test_bin_data_and_read_biases_from_files():
     assert ec.tof.ndim == 1
     assert ec.biases.ndim == 1
     assert len(ec.biases) == 2
+    default_config = parse_config(config={}, user_config={}, system_config={})
+    ec = EnergyCalibrator(
+        config=config,
+        loader=get_loader("mpes", config=default_config),
+    )
+    with pytest.raises(ValueError):
+        ec.bin_data(data_files=files)
+    faulty_config = parse_config(
+        config={"energy": {"bias_key": "@KTOF:Lens:Sample"}},
+        user_config={},
+        system_config={},
+    )
+    ec = EnergyCalibrator(
+        config=config,
+        loader=get_loader("mpes", config=faulty_config),
+    )
+    with pytest.raises(ValueError):
+        ec.bin_data(data_files=files)
 
 
 def test_energy_calibrator_from_arrays_norm():

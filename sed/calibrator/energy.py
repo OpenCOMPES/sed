@@ -222,7 +222,7 @@ class EnergyCalibrator:
             read_biases = True
             if bias_key is None:
                 try:
-                    bias_key = self._config["energy"][bias_key]
+                    bias_key = self._config["energy"]["bias_key"]
                 except KeyError as exc:
                     raise ValueError(
                         "Either Bias Values or a valid bias_key has to be present!",
