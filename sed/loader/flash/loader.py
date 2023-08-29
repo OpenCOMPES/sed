@@ -1,7 +1,11 @@
 """
 This module implements the flash data loader.
-The raw hdf5 data is saved into parquet files and loaded as a dask dataframe.
-If there are multiple files, the NaNs are forward filled.
+This loader currently supports hextof, wespe and instruments with similar structure.
+The raw hdf5 data is combined and saved into intermediate files and loaded as a dask dataframe.
+The dataframe is a amalgamation of all h5 files for a combination of runs, where the NaNs are
+automatically forward filled across different files.
+This can then be saved as a parquet for out-of-sed processing and reread back to access other
+sed funtionality.
 """
 from functools import reduce
 from itertools import compress
@@ -28,9 +32,9 @@ from sed.loader.utils import parse_h5_keys
 
 class FlashLoader(BaseLoader):
     """
-    The class generates multiindexed multidimensional pandas dataframes
-    from the new FLASH dataformat resolved by both macro and microbunches
-    alongside electrons.
+    The class generates multiindexed multidimensional pandas dataframes from the new FLASH
+    dataformat resolved by both macro and microbunches alongside electrons.
+    Only the read_dataframe (inherited and implemented) method is accessed by other modules.
     """
 
     __name__ = "flash"
@@ -243,8 +247,7 @@ class FlashLoader(BaseLoader):
             names=["trainId", "pulseId"],
         )
 
-        # Calculate the electron counts per pulseId
-        # unique preserves the order of appearance
+        # Calculate the electron counts per pulseId unique preserves the order of appearance
         electron_counts = index_temp.value_counts()[index_temp.unique()].values
 
         # Series object for indexing with electrons
@@ -268,16 +271,15 @@ class FlashLoader(BaseLoader):
         np_array: np.ndarray,
     ) -> None:
         """
-        Creates an index per pulse using a pulse resolved channel's macrobunch ID,
-        for usage with the pulse resolved pandas DataFrame.
+        Creates an index per pulse using a pulse resolved channel's macrobunch ID, for usage with
+        the pulse resolved pandas DataFrame.
 
         Args:
             train_id (Series): The train ID Series.
             np_array (np.ndarray): The numpy array containing the pulse resolved data.
 
         Notes:
-            - This method creates a MultiIndex with trainId and pulseId as the
-                index levels.
+            - This method creates a MultiIndex with trainId and pulseId as the index levels.
         """
 
         # Create a pandas MultiIndex, useful for comparing electron and
@@ -300,8 +302,8 @@ class FlashLoader(BaseLoader):
             channel (str): The name of the channel.
 
         Returns:
-            Tuple[Series, np.ndarray]: A tuple containing the train ID Series
-            and the numpy array for the channel's data.
+            Tuple[Series, np.ndarray]: A tuple containing the train ID Series and the numpy array
+            for the channel's data.
 
         """
         # Get the data from the necessary h5 file and channel
@@ -345,9 +347,8 @@ class FlashLoader(BaseLoader):
             DataFrame: The pandas DataFrame for the channel's data.
 
         Notes:
-            The microbunch resolved data is exploded and converted to a DataFrame.
-            The MultiIndex is set, and the NaN values are dropped, alongside the
-            pulseId = 0 (meaningless).
+            The microbunch resolved data is exploded and converted to a DataFrame. The MultiIndex
+            is set, and the NaN values are dropped, alongside the pulseId = 0 (meaningless).
 
         """
         return (
@@ -383,18 +384,17 @@ class FlashLoader(BaseLoader):
             DataFrame: The pandas DataFrame for the channel's data.
 
         Notes:
-            - For auxillary channels, the macrobunch resolved data is repeated 499
-              times to be compared to electron resolved data for each auxillary
-              channel. The data is then converted to a multicolumn DataFrame.
-            - For all other pulse resolved channels, the macrobunch resolved
-              data is exploded to a DataFrame and the MultiIndex is set.
+            - For auxillary channels, the macrobunch resolved data is repeated 499 times to be
+              compared to electron resolved data for each auxillary channel. The data is then
+              converted to a multicolumn DataFrame.
+            - For all other pulse resolved channels, the macrobunch resolved data is exploded
+              to a DataFrame and the MultiIndex is set.
 
         """
 
         # Special case for auxillary channels
         if channel == "dldAux":
-            # Checks the channel dictionary for correct slices and creates a
-            # multicolumn DataFrame
+            # Checks the channel dictionary for correct slices and creates a multicolumn DataFrame
             data_frames = (
                 Series(
                     (np_array[i, value] for i in train_id.index),
@@ -409,8 +409,7 @@ class FlashLoader(BaseLoader):
 
         # For all other pulse resolved channels
         else:
-            # Macrobunch resolved data is exploded to a DataFrame and
-            # the MultiIndex is set
+            # Macrobunch resolved data is exploded to a DataFrame and the MultiIndex is set
 
             # Creates the index_per_pulse for the given channel
             self.create_multi_index_per_pulse(train_id, np_array)
@@ -454,18 +453,16 @@ class FlashLoader(BaseLoader):
         """
         Returns a pandas DataFrame for a given channel name from a given file.
 
-        This method takes an h5py.File object `h5_file` and a channel name `channel`,
-        and returns a pandas DataFrame containing the data for that channel from the
-        file. The format of the DataFrame depends on the channel's format specified
-        in the configuration.
+        This method takes an h5py.File object `h5_file` and a channel name `channel`, and returns
+        a pandas DataFrame containing the data for that channel from the file. The format of the
+        DataFrame depends on the channel's format specified in the configuration.
 
         Args:
             h5_file (h5py.File): The h5py.File object representing the HDF5 file.
             channel (str): The name of the channel.
 
         Returns:
-            Union[Series, DataFrame]: A pandas Series or DataFrame representing the
-            channel's data.
+            Union[Series, DataFrame]: A pandas Series or DataFrame representing the channel's data.
 
         Raises:
             ValueError: If the channel has an undefined format.
@@ -532,9 +529,9 @@ class FlashLoader(BaseLoader):
         """
         Concatenates the channels from the provided h5py.File into a pandas DataFrame.
 
-        This method takes an h5py.File object `h5_file` and concatenates the channels
-        present in the file into a single pandas DataFrame. The concatenation is
-        performed based on the available channels specified in the configuration.
+        This method takes an h5py.File object `h5_file` and concatenates the channels present in
+        the file into a single pandas DataFrame. The concatenation is performed based on the
+        available channels specified in the configuration.
 
         Args:
             h5_file (h5py.File): The h5py.File object representing the HDF5 file.
@@ -578,9 +575,9 @@ class FlashLoader(BaseLoader):
         """
         Create pandas DataFrames for the given file.
 
-        This method loads an HDF5 file specified by `file_path` and constructs a pandas
-        DataFrame from the datasets within the file. The order of datasets in the
-        DataFrames is the opposite of the order specified by channel names.
+        This method loads an HDF5 file specified by `file_path` and constructs a pandas DataFrame
+        from the datasets within the file. The order of datasets in the DataFrames is the opposite
+        of the order specified by channel names.
 
         Args:
             file_path (Path): Path to the input HDF5 file.
@@ -598,9 +595,8 @@ class FlashLoader(BaseLoader):
         """
         Convert HDF5 file to Parquet format.
 
-        This method uses the `create_dataframe_per_file` method to create dataframes
-        from individual files within an HDF5 file. The resulting dataframe is then
-        saved to a Parquet file.
+        This method uses `create_dataframe_per_file` method to create dataframes from individual
+        files within an HDF5 file. The resulting dataframe is then saved to a Parquet file.
 
         Args:
             h5_path (Path): Path to the input HDF5 file.
@@ -697,11 +693,11 @@ class FlashLoader(BaseLoader):
             dd.DataFrame: Concatenated dataframe with filled NaN values.
 
         Notes:
-            This method is specific to the flash data structure and is used to fill NaN
-            values in certain channels that only store information at a lower frequency
-            The low frequency channels are exploded to match the dimensions of higher
-            frequency channels, but they may contain NaNs in the other columns. This
-            method fills the NaNs for the specific channels (per_pulse and per_train).
+            This method is specific to the flash data structure and is used to fill NaN values in
+            certain channels that only store information at a lower frequency. The low frequency
+            channels are exploded to match the dimensions of higher frequency channels, but they
+            may contain NaNs in the other columns. This method fills the NaNs for the specific
+            channels (per_pulse and per_train).
 
         """
         # Channels to fill NaN values
@@ -743,8 +739,8 @@ class FlashLoader(BaseLoader):
 
         Args:
             data_parquet_dir (str or Path): Directory where the parquet files are located.
-            detector (str, optional): Adds a identifier for parquets to distinguish
-                multidetector systems.
+            detector (str, optional): Adds a identifier for parquets to distinguish multidetector
+                systems.
             parquet_path (str, optional): Path to the combined parquet file.
             load_parquet (bool, optional): Loads the entire parquet into the dd dataframe.
             save_parquet (bool, optional): Saves the entire dataframe into a parquet.
@@ -785,8 +781,7 @@ class FlashLoader(BaseLoader):
                 ) from exc
 
         else:
-            # Obtain the filenames from the intermediate file handler
-            # that also handles intermediate file creation and reading
+            # Obtain the filenames from the method which handles intermediate file creation/reading
             filenames = self.intermediate_file_handler(
                 data_parquet_dir,
                 detector,
@@ -847,27 +842,23 @@ class FlashLoader(BaseLoader):
         Read express data from the DAQ, generating a parquet in between.
 
         Args:
-            files (Union[str, Sequence[str]], optional): File path(s) to process.
+            files (Union[str, Sequence[str]], optional): File path(s) to process. Defaults to None.
+            folders (Union[str, Sequence[str]], optional): Path to folder(s) where files are stored
+                Path has priority such that if it's specified, the specified files will be ignored.
                 Defaults to None.
-            folders (Union[str, Sequence[str]], optional): Path to folder(s) where files
-                are stored. Path has priority such that if it's specified, the specified
-                files will be ignored. Defaults to None.
-            runs (Union[str, Sequence[str]], optional): Run identifier(s). Corresponding
-                files will be located in the location provided by ``folders``. Takes
-                precendence over ``files`` and ``folders``. Defaults to None.
+            runs (Union[str, Sequence[str]], optional): Run identifier(s). Corresponding files will
+                be located in the location provided by ``folders``. Takes precendence over
+                ``files`` and ``folders``. Defaults to None.
             ftype (str, optional): The file extension type. Defaults to "h5".
             metadata (dict, optional): Additional metadata. Defaults to None.
-            collect_metadata (bool, optional): Whether to collect metadata.
-                Defaults to False.
+            collect_metadata (bool, optional): Whether to collect metadata. Defaults to False.
 
         Returns:
-            Tuple[dd.DataFrame, dict]: A tuple containing the concatenated DataFrame
-            and metadata.
+            Tuple[dd.DataFrame, dict]: A tuple containing the concatenated DataFrame and metadata.
 
         Raises:
             ValueError: If neither 'runs' nor 'files'/'data_raw_dir' is provided.
-            FileNotFoundError: If the conversion fails for some files or no
-            data is available.
+            FileNotFoundError: If the conversion fails for some files or no data is available.
         """
 
         data_raw_dir, data_parquet_dir = self.initialize_paths()
@@ -889,8 +880,8 @@ class FlashLoader(BaseLoader):
             super().read_dataframe(files=files, ftype=ftype)
 
         else:
-            # This call takes care of files and folders. As we have converted runs
-            # into files already, they are just stored in the class by this call.
+            # This call takes care of files and folders. As we have converted runs into files
+            # already, they are just stored in the class by this call.
             super().read_dataframe(
                 files=files,
                 folders=folders,
