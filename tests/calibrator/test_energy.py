@@ -21,7 +21,7 @@ package_dir = os.path.dirname(find_spec("sed").origin)
 df_folder = package_dir + "/../tests/data/loader/mpes/"
 folder = package_dir + "/../tests/data/calibrator/"
 files = glob.glob(df_folder + "*.h5")
-config = parse_config(package_dir + "/../tests/data/config/config.yaml")
+config = parse_config(package_dir + "/config/mpes_example_config.yaml")
 
 traces_list = []
 with open(folder + "traces.csv", newline="", encoding="utf-8") as csvfile:
