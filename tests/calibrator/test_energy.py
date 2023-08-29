@@ -55,7 +55,7 @@ def test_bin_data_and_read_biases_from_files():
     assert len(ec.biases) == 2
     default_config = parse_config(config={}, user_config={}, system_config={})
     ec = EnergyCalibrator(
-        config=config,
+        config=default_config,
         loader=get_loader("mpes", config=default_config),
     )
     with pytest.raises(ValueError):
@@ -66,7 +66,7 @@ def test_bin_data_and_read_biases_from_files():
         system_config={},
     )
     ec = EnergyCalibrator(
-        config=config,
+        config=faulty_config,
         loader=get_loader("mpes", config=faulty_config),
     )
     with pytest.raises(ValueError):

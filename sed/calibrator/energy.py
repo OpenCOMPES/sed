@@ -21,6 +21,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import psutil
 import xarray as xr
 from bokeh.io import output_notebook
 from bokeh.palettes import Category10 as ColorCycle
@@ -207,7 +208,10 @@ class EnergyCalibrator:
         hist_mode = kwds.pop("hist_mode", self._config["binning"]["hist_mode"])
         mode = kwds.pop("mode", self._config["binning"]["mode"])
         pbar = kwds.pop("pbar", self._config["binning"]["pbar"])
-        num_cores = kwds.pop("num_cores", self._config["binning"]["num_cores"])
+        try:
+            num_cores = kwds.pop("num_cores", self._config["binning"]["num_cores"])
+        except KeyError:
+            num_cores = psutil.cpu_count() - 1
         threads_per_worker = kwds.pop(
             "threads_per_worker",
             self._config["binning"]["threads_per_worker"],
@@ -237,12 +241,12 @@ class EnergyCalibrator:
             bins=bins,
             axes=axes,
             ranges=ranges,
-            histMode=hist_mode,
+            hist_mode=hist_mode,
             mode=mode,
             pbar=pbar,
-            nCores=num_cores,
-            nThreadsPerWorker=threads_per_worker,
-            threadpoolAPI=threadpool_api,
+            n_cores=num_cores,
+            threads_per_worker=threads_per_worker,
+            threadpool_api=threadpool_api,
             return_partitions=True,
             **kwds,
         )
