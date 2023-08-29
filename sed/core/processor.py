@@ -900,6 +900,7 @@ class SedProcessor:
         mode: str = "replace",
         radius: int = None,
         peak_window: int = None,
+        apply: bool = False,
     ):
         """2. step of the energy calibration workflow: Find a peak within a given range
         for the indicated reference trace, and tries to find the same peak for all
@@ -922,35 +923,46 @@ class SedProcessor:
             peak_window (int, optional): Peak_window parameter for the peak detection
                 algorthm. amount of points that have to have to behave monotoneously
                 around a peak. Defaults to config["energy"]["peak_window"].
+            apply (bool, optional): Option to directly apply the provided parameters.
+                Defaults to False.
         """
         if radius is None:
             radius = self._config["energy"]["fastdtw_radius"]
-        self.ec.add_features(
-            ranges=ranges,
-            ref_id=ref_id,
-            infer_others=infer_others,
-            mode=mode,
-            radius=radius,
-        )
-        self.ec.view(
-            traces=self.ec.traces_normed,
-            segs=self.ec.featranges,
-            xaxis=self.ec.tof,
-            backend="bokeh",
-        )
-        print(self.ec.featranges)
         if peak_window is None:
             peak_window = self._config["energy"]["peak_window"]
-        try:
-            self.ec.feature_extract(peak_window=peak_window)
-            self.ec.view(
-                traces=self.ec.traces_normed,
-                peaks=self.ec.peaks,
-                backend="bokeh",
+        if not infer_others:
+            self.ec.add_ranges(
+                ranges=ranges,
+                ref_id=ref_id,
+                infer_others=infer_others,
+                mode=mode,
+                radius=radius,
             )
-        except IndexError:
-            print("Could not determine all peaks!")
-            raise
+            print(self.ec.featranges)
+            try:
+                self.ec.feature_extract(peak_window=peak_window)
+                self.ec.view(
+                    traces=self.ec.traces_normed,
+                    segs=self.ec.featranges,
+                    xaxis=self.ec.tof,
+                    peaks=self.ec.peaks,
+                    backend="bokeh",
+                )
+            except IndexError:
+                print("Could not determine all peaks!")
+                raise
+        else:
+            # New adjustment tool
+            assert isinstance(ranges, tuple)
+            self.ec.adjust_ranges(
+                ranges=ranges,
+                ref_id=ref_id,
+                traces=self.ec.traces_normed,
+                infer_others=infer_others,
+                radius=radius,
+                peak_window=peak_window,
+                apply=apply,
+            )
 
     # 3. Fit the energy calibration relation
     def calibrate_energy_axis(

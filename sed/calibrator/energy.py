@@ -280,7 +280,147 @@ class EnergyCalibrator:
             order=order,
         )
 
-    def add_features(
+    def adjust_ranges(
+        self,
+        ranges: Tuple,
+        ref_id: int = 0,
+        traces: np.ndarray = None,
+        peak_window: int = 7,
+        apply: bool = False,
+        **kwds,
+    ):
+        """Display a tool to select or extract the equivalent feature ranges
+        (containing the peaks) among all traces.
+
+        Args:
+            ranges (Tuple):
+                Collection of feature detection ranges, within which an algorithm
+                (i.e. 1D peak detector) with look for the feature.
+            ref_id (int, optional): Index of the reference trace. Defaults to 0.
+            traces (np.ndarray, optional): Collection of energy dispersion curves.
+                Defaults to self.traces_normed.
+            peak_window (int, optional): area around a peak to check for other peaks.
+                Defaults to 7.
+            apply (bool, optional): Option to directly apply the provided parameters.
+                Defaults to False.
+            **kwds:
+                keyword arguments for trace alignment (see ``find_correspondence()``).
+        """
+        if traces is None:
+            traces = self.traces_normed
+
+        self.add_ranges(
+            ranges=ranges,
+            ref_id=ref_id,
+            traces=traces,
+            infer_others=True,
+            mode="replace",
+        )
+        self.feature_extract(peak_window=peak_window)
+
+        # make plot
+        labels = kwds.pop("labels", [str(b) + " V" for b in self.biases])
+        figsize = kwds.pop("figsize", (8, 4))
+        plot_segs = []
+        plot_peaks = []
+        fig, ax = plt.subplots(figsize=figsize)
+        colors = plt.get_cmap("rainbow")(np.linspace(0, 1, len(traces)))
+        for itr, color in zip(range(len(traces)), colors):
+            trace = traces[itr, :]
+            # main traces
+            ax.plot(
+                self.tof,
+                trace,
+                ls="-",
+                color=color,
+                linewidth=1,
+                label=labels[itr],
+            )
+            # segments:
+            seg = self.featranges[itr]
+            cond = (self.tof >= seg[0]) & (self.tof <= seg[1])
+            tofseg, traceseg = self.tof[cond], trace[cond]
+            (line,) = ax.plot(
+                tofseg,
+                traceseg,
+                ls="-",
+                color=color,
+                linewidth=3,
+            )
+            plot_segs.append(line)
+            # markers
+            (scatt,) = ax.plot(
+                self.peaks[itr, 0],
+                self.peaks[itr, 1],
+                ls="",
+                marker=".",
+                color="k",
+                markersize=10,
+            )
+            plot_peaks.append(scatt)
+        ax.legend(fontsize=8, loc="upper right")
+        ax.set_title("")
+
+        def update(refid, ranges):
+            self.add_ranges(ranges, refid, traces=traces)
+            self.feature_extract(peak_window=7)
+            for itr, _ in enumerate(self.traces_normed):
+                seg = self.featranges[itr]
+                cond = (self.tof >= seg[0]) & (self.tof <= seg[1])
+                tofseg, traceseg = (
+                    self.tof[cond],
+                    self.traces_normed[itr][cond],
+                )
+                plot_segs[itr].set_ydata(traceseg)
+                plot_segs[itr].set_xdata(tofseg)
+
+                plot_peaks[itr].set_xdata(self.peaks[itr, 0])
+                plot_peaks[itr].set_ydata(self.peaks[itr, 1])
+
+            fig.canvas.draw_idle()
+
+        refid_slider = ipw.IntSlider(
+            value=ref_id,
+            min=0,
+            max=10,
+            step=1,
+        )
+
+        ranges_slider = ipw.IntRangeSlider(
+            value=list(ranges),
+            min=min(self.tof),
+            max=max(self.tof),
+            step=1,
+        )
+
+        update(ranges=ranges, refid=ref_id)
+
+        ipw.interact(
+            update,
+            refid=refid_slider,
+            ranges=ranges_slider,
+        )
+
+        def apply_func(apply: bool):  # pylint: disable=unused-argument
+            self.add_ranges(
+                ranges_slider.value,
+                refid_slider.value,
+                traces=self.traces_normed,
+            )
+            self.feature_extract(peak_window=7)
+            ranges_slider.close()
+            refid_slider.close()
+            apply_button.close()
+
+        apply_button = ipw.Button(description="apply")
+        display(apply_button)  # pylint: disable=duplicate-code
+        apply_button.on_click(apply_func)
+        plt.show()
+
+        if apply:
+            apply_func(True)
+
+    def add_ranges(
         self,
         ranges: Union[List[Tuple], Tuple],
         ref_id: int = 0,
@@ -289,7 +429,7 @@ class EnergyCalibrator:
         mode: str = "replace",
         **kwds,
     ):
-        """Select or extract the equivalent landmarks (e.g. peaks) among all traces.
+        """Select or extract the equivalent feature ranges (containing the peaks) among all traces.
 
         Args:
             ranges (Union[List[Tuple], Tuple]):
@@ -512,7 +652,7 @@ class EnergyCalibrator:
                     ax.plot(
                         xaxis + sign * (self.biases[itr] - self.biases[self.calibration["refid"]]),
                         trace,
-                        ls="--",
+                        ls="-",
                         linewidth=1,
                         label=lbs[itr],
                         **linekwds,
@@ -521,7 +661,7 @@ class EnergyCalibrator:
                     ax.plot(
                         xaxis,
                         trace,
-                        ls="--",
+                        ls="-",
                         linewidth=1,
                         label=lbs[itr],
                         **linekwds,
@@ -535,7 +675,7 @@ class EnergyCalibrator:
                     ax.plot(
                         tofseg,
                         traceseg,
-                        color="k",
+                        ls="-",
                         linewidth=2,
                         **linesegkwds,
                     )
@@ -766,7 +906,7 @@ class EnergyCalibrator:
         amplitude: float = None,
         center: Tuple[float, float] = None,
         correction: dict = None,
-        apply=False,
+        apply: bool = False,
         **kwds,
     ):
         """Visualize the energy correction function on top of the TOF/X/Y graphs.
