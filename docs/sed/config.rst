@@ -20,8 +20,20 @@ API
 
 .. _example_config:
 
-Example configuration file
+Default configuration settings
 ***************************************************
 
-.. literalinclude:: ../../tests/data/config/config.yaml
+.. literalinclude:: ../../sed/config/default.yaml
+   :language: yaml
+
+Example configuration file for mpes (METIS momentum microscope at FHI-Berlin)
+*********************************************************************************
+
+.. literalinclude:: ../../sed/config/mpes_example_config.yaml
+   :language: yaml
+
+Example configuration file for flash (HEXTOF momentum microscope at FLASH, Desy)
+*********************************************************************************
+
+.. literalinclude:: ../../sed/config/flash_example_config.yaml
    :language: yaml
