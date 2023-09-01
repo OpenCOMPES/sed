@@ -436,18 +436,18 @@ class SedProcessor:
     # If no features have been selected before, use class defaults.
     def generate_splinewarp(
         self,
-        include_center: bool = True,
+        use_center: bool = None,
         **kwds,
     ):
         """3. Step of the distortion correction workflow: Generate the correction
         function restoring the symmetry in the image using a splinewarp algortihm.
 
         Args:
-            include_center (bool, optional): Option to include the position of the
-                center point in the correction. Defaults to True.
+            use_center (bool, optional): Option to use the position of the
+                center point in the correction. Default is read from config, or set to True.
             **kwds: Keyword arguments for MomentumCorrector.spline_warp_estimate().
         """
-        self.mc.spline_warp_estimate(include_center=include_center, **kwds)
+        self.mc.spline_warp_estimate(use_center=use_center, **kwds)
 
         if self.mc.slice is not None:
             print("Original slice with reference features")
@@ -490,7 +490,7 @@ class SedProcessor:
         try:
             for point in self.mc.pouter_ord:
                 points.append([float(i) for i in point])
-            if self.mc.pcent:
+            if self.mc.include_center:
                 points.append([float(i) for i in self.mc.pcent])
         except AttributeError as exc:
             raise AttributeError(
@@ -498,7 +498,12 @@ class SedProcessor:
             ) from exc
         config = {
             "momentum": {
-                "correction": {"rotation_symmetry": self.mc.rotsym, "feature_points": points},
+                "correction": {
+                    "rotation_symmetry": self.mc.rotsym,
+                    "feature_points": points,
+                    "include_center": self.mc.include_center,
+                    "use_center": self.mc.use_center,
+                },
             },
         }
         save_config(config, filename, overwrite)

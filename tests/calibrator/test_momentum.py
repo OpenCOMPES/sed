@@ -91,7 +91,7 @@ def test_splinewarp(include_center: bool):
     if not include_center:
         features = features[0:-1]
     mc.add_features(features=features, rotsym=6)
-    mc.spline_warp_estimate(include_center=include_center)
+    mc.spline_warp_estimate(use_center=include_center)
     assert mc.cdeform_field.shape == mc.rdeform_field.shape == mc.image.shape
     assert len(mc.ptargs) == len(mc.prefs)
 
