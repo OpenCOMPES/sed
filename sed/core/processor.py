@@ -220,46 +220,6 @@ class SedProcessor:
             num_cores = N_CPU - 1
         self._config["binning"]["num_cores"] = num_cores
 
-    @property
-    def dimensions(self) -> list:
-        """Getter attribute for the dimensions.
-
-        Returns:
-            list: List of dimensions.
-        """
-        return self._dimensions
-
-    @dimensions.setter
-    def dimensions(self, dims: list):
-        """Setter function for the dimensions.
-
-        Args:
-            dims (list): List of dimensions to set.
-        """
-        assert isinstance(dims, list)
-        self._dimensions = dims
-
-    @property
-    def coordinates(self) -> dict:
-        """Getter attribute for the coordinates dict.
-
-        Returns:
-            dict: Dictionary of coordinates.
-        """
-        return self._coordinates
-
-    @coordinates.setter
-    def coordinates(self, coords: dict):
-        """Setter function for the coordinates dict
-
-        Args:
-            coords (dict): Dictionary of coordinates.
-        """
-        assert isinstance(coords, dict)
-        self._coordinates = {}
-        for k, v in coords.items():
-            self._coordinates[k] = xr.DataArray(v)
-
     def cpy(self, path: Union[str, List[str]]) -> Union[str, List[str]]:
         """Function to mirror a list of files or a folder from a network drive to a
         local storage. Returns either the original or the copied path to the given
