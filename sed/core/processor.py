@@ -181,7 +181,7 @@ class SedProcessor:
         Returns:
             dict: The metadata dict.
         """
-        return self._dataframe
+        return self._attributes.metadata
 
     @attributes.setter
     def attributes(self, attributes: dict, name: str, **kwds):
