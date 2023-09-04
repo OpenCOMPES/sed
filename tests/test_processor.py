@@ -36,7 +36,7 @@ def test_processor_from_dataframe():
         system_config={},
     )
     for column in dataframe.columns:
-        assert (dataframe[column].compute() == processor[column].compute()).all()
+        assert (dataframe[column].compute() == processor.dataframe[column].compute()).all()
 
 
 def test_processor_from_files():
@@ -56,7 +56,7 @@ def test_processor_from_files():
         system_config={},
     )
     for column in dataframe.columns:
-        assert (dataframe[column].compute() == processor[column].compute()).all()
+        assert (dataframe[column].compute() == processor.dataframe[column].compute()).all()
 
 
 def test_processor_from_folders():
@@ -76,7 +76,7 @@ def test_processor_from_folders():
         system_config={},
     )
     for column in dataframe.columns:
-        assert (dataframe[column].compute() == processor[column].compute()).all()
+        assert (dataframe[column].compute() == processor.dataframe[column].compute()).all()
 
 
 feature4 = np.array([[203.2, 341.96], [299.16, 345.32], [304.38, 149.88], [199.52, 152.48]])
@@ -105,6 +105,13 @@ feature7 = np.array(
     ],
 )
 feature_list = [feature4, feature5, feature6, feature7]
+
+adjust_params = {
+    "scale": np.random.randint(1, 10) / 10 + 0.5,
+    "xtrans": np.random.randint(1, 50),
+    "ytrans": np.random.randint(1, 50),
+    "angle": np.random.randint(1, 50),
+}
 
 
 @pytest.mark.parametrize(
@@ -160,6 +167,41 @@ def test_momentum_correction_workflow(features):
     np.testing.assert_allclose(processor.mc.pouter_ord, pouter_ord)
     np.testing.assert_allclose(processor.mc.cdeform_field, cdeform_field)
     np.testing.assert_allclose(processor.mc.rdeform_field, rdeform_field)
+
+
+def test_pose_adjustment():
+    """Test for the pose correction and application of momentum correction workflow"""
+    config = parse_config(
+        config={"core": {"loader": "generic"}},
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+    processor = SedProcessor(
+        folder=df_folder,
+        config=config,
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+    with pytest.raises(ValueError):
+        processor.pose_adjustment(**adjust_params, use_correction=False, apply=True)
+
+    processor.bin_and_load_momentum_calibration(apply=True)
+    # test pose adjustment
+    processor.pose_adjustment(**adjust_params, use_correction=False, apply=True)
+    processor = SedProcessor(
+        folder=df_folder,
+        config=config,
+        folder_config="sed_config7.yaml",
+        user_config={},
+        system_config={},
+    )
+    processor.bin_and_load_momentum_calibration(apply=True)
+    processor.pose_adjustment(**adjust_params, apply=True)
+    processor.apply_momentum_correction()
+    assert "Xm" in processor.dataframe.columns
+    assert "Ym" in processor.dataframe.columns
 
 
 def test_compute():
