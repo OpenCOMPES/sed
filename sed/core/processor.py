@@ -156,16 +156,46 @@ class SedProcessor:
         pretty_str = df_str + "\n" + coordinates_str + "\n" + dimensions_str
         return pretty_str
 
-    def __getitem__(self, val: str) -> pd.DataFrame:
-        """Accessor to the underlying data structure.
-
-        Args:
-            val (str): Name of the dataframe column to retrieve.
+    @property
+    def dataframe(self) -> Union[pd.DataFrame, ddf.DataFrame]:
+        """Accessor to the underlying dataframe.
 
         Returns:
-            pd.DataFrame: Selected dataframe column.
+            Union[pd.DataFrame, ddf.DataFrame]: Dataframe object.
         """
-        return self._dataframe[val]
+        return self._dataframe
+
+    @dataframe.setter
+    def dataframe(self, dataframe: Union[pd.DataFrame, ddf.DataFrame]):
+        """Setter for the underlying dataframe.
+
+        Args:
+            dataframe (Union[pd.DataFrame, ddf.DataFrame]): The dataframe object to set.
+        """
+        self._dataframe = dataframe
+
+    @property
+    def attributes(self) -> dict:
+        """Accessor to the metadata dict.
+
+        Returns:
+            dict: The metadata dict.
+        """
+        return self._dataframe
+
+    @attributes.setter
+    def attributes(self, attributes: dict, name: str, **kwds):
+        """Function to add element to the attributes dict.
+
+        Args:
+            attributes (dict): The attributes dictionary object to add.
+            name (str): Key under which to add the dictionary to the attributes.
+        """
+        self._attributes.add(
+            entry=attributes,
+            name=name,
+            **kwds,
+        )
 
     @property
     def config(self) -> Dict[Any, Any]:
@@ -546,13 +576,13 @@ class SedProcessor:
                 )
             self.mc.slice_corrected = self.mc.slice
 
+        if not use_correction:
+            self.mc.reset_deformation()
+
         if self.mc.cdeform_field is None or self.mc.rdeform_field is None:
             # Generate default distortion correction
             self.mc.add_features()
             self.mc.spline_warp_estimate()
-
-        if not use_correction:
-            self.mc.reset_deformation()
 
         self.mc.pose_adjustment(
             scale=scale,
@@ -1530,28 +1560,3 @@ class SedProcessor:
             raise NotImplementedError(
                 f"Unrecognized file format: {extension}.",
             )
-
-    def add_dimension(self, name: str, axis_range: Tuple):
-        """Add a dimension axis.
-
-        Args:
-            name (str): name of the axis
-            axis_range (Tuple): range for the axis.
-
-        Raises:
-            ValueError: Raised if an axis with that name already exists.
-        """
-        if name in self._coordinates:
-            raise ValueError(f"Axis {name} already exists")
-
-        self.axis[name] = self.make_axis(axis_range)
-
-    def make_axis(self, axis_range: Tuple) -> np.ndarray:
-        """Function to make an axis.
-
-        Args:
-            axis_range (Tuple): range for the new axis.
-        """
-
-        # TODO: What shall this function do?
-        return np.arange(*axis_range)
