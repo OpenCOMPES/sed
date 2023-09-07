@@ -134,6 +134,7 @@ def test_copy_tool():
             "use_copy_tool": True,
             "copy_tool_source": source_folder,
             "copy_tool_dest": dest_folder,
+            "copy_tool_kwds": {"gid": os.getgid()},
         },
     }
     processor = SedProcessor(
