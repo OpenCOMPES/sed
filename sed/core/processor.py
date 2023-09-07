@@ -96,9 +96,6 @@ class SedProcessor:
         self._binned: xr.DataArray = None
         self._pre_binned: xr.DataArray = None
 
-        self._dimensions: List[str] = []
-        self._coordinates: Dict[Any, Any] = {}
-        self.axis: Dict[Any, Any] = {}
         self._attributes = MetaHandler(meta=metadata)
 
         loader_name = self._config["core"]["loader"]
@@ -151,9 +148,8 @@ class SedProcessor:
             df_str = "Data Frame: No Data loaded"
         else:
             df_str = self._dataframe.__repr__()
-        coordinates_str = f"Coordinates: {self._coordinates}"
-        dimensions_str = f"Dimensions: {self._dimensions}"
-        pretty_str = df_str + "\n" + coordinates_str + "\n" + dimensions_str
+        attributes_str = f"Metadata: {self._attributes.metadata}"
+        pretty_str = df_str + "\n" + attributes_str
         return pretty_str
 
     @property
