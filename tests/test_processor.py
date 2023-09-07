@@ -2,6 +2,7 @@
 """
 import glob
 import os
+import tempfile
 from importlib.util import find_spec
 
 import numpy as np
@@ -16,17 +17,16 @@ package_dir = os.path.dirname(find_spec("sed").origin)
 df_folder = package_dir + "/../tests/data/loader/generic/"
 folder = package_dir + "/../tests/data/calibrator/"
 files = glob.glob(df_folder + "*.parquet")
+runs = ["43878", "43878"]
 loader = get_loader(loader_name="generic")
+source_folder = package_dir + "/../"
+dest_folder = tempfile.mkdtemp()
+gid = os.getgid()
 
 
 def test_processor_from_dataframe():
     """Test generation of the processor from a dataframe object"""
-    config = parse_config(
-        config={"core": {"loader": "generic"}},
-        folder_config={},
-        user_config={},
-        system_config={},
-    )
+    config = {"core": {"loader": "generic"}}
     dataframe, _ = loader.read_dataframe(files=files)
     processor = SedProcessor(
         dataframe=dataframe,
@@ -41,12 +41,7 @@ def test_processor_from_dataframe():
 
 def test_processor_from_files():
     """Test generation of the processor from a list of files"""
-    config = parse_config(
-        config={"core": {"loader": "generic"}},
-        folder_config={},
-        user_config={},
-        system_config={},
-    )
+    config = {"core": {"loader": "generic"}}
     dataframe, _ = loader.read_dataframe(files=files)
     processor = SedProcessor(
         files=files,
@@ -61,12 +56,7 @@ def test_processor_from_files():
 
 def test_processor_from_folders():
     """Test generation of the processor from a folder"""
-    config = parse_config(
-        config={"core": {"loader": "generic"}},
-        folder_config={},
-        user_config={},
-        system_config={},
-    )
+    config = {"core": {"loader": "generic"}}
     dataframe, _ = loader.read_dataframe(files=files)
     processor = SedProcessor(
         folder=df_folder,
@@ -77,6 +67,84 @@ def test_processor_from_folders():
     )
     for column in dataframe.columns:
         assert (dataframe[column].compute() == processor.dataframe[column].compute()).all()
+
+
+def test_processor_from_runs():
+    """Test generation of the processor from runs"""
+    config = df_folder + "../flash/config.yaml"
+    processor = SedProcessor(
+        folder=df_folder + "../flash/",
+        config=config,
+        runs=runs,
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+    assert "dldPosX" in processor.dataframe.columns
+
+
+def test_additional_parameter_to_loader():
+    """Test if additinal keyword parameter can be passed to the loader from the
+    Processor initialiuzation.
+    """
+    config = {"core": {"loader": "generic"}}
+    processor = SedProcessor(
+        folder=df_folder,
+        ftype="json",
+        config=config,
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+    assert processor.files[0].find("json") > -1
+
+
+def test_repr():
+    """test the ___repr___ method"""
+    config = {"core": {"loader": "generic"}}
+    processor = SedProcessor(
+        config=config,
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+    processor_str = str(processor)
+    assert processor_str.find("No Data loaded") > 0
+    with pytest.raises(ValueError):
+        processor.load()
+    processor.load(files=files, metadata={"test": {"key1": "value1"}})
+    processor_str = str(processor)
+    assert processor_str.find("ADC") > 0
+    assert processor_str.find("key1") > 0
+
+
+def test_copy_tool():
+    """Test the copy tool functionality in the processor"""
+    config = {"core": {"loader": "generic", "use_copy_tool": True}}
+    processor = SedProcessor(
+        config=config,
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+    assert processor.use_copy_tool is False
+    config = {
+        "core": {
+            "loader": "generic",
+            "use_copy_tool": True,
+            "copy_tool_source": source_folder,
+            "copy_tool_dest": dest_folder,
+        },
+    }
+    processor = SedProcessor(
+        config=config,
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+    assert processor.use_copy_tool is True
+    processor.load(files=files)
+    assert processor.files[0].find(dest_folder) > -1
 
 
 feature4 = np.array([[203.2, 341.96], [299.16, 345.32], [304.38, 149.88], [199.52, 152.48]])

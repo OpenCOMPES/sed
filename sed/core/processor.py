@@ -82,9 +82,14 @@ class SedProcessor:
                 defined in the config. Defaults to None.
             collect_metadata (bool): Option to collect metadata from files.
                 Defaults to False.
-            **kwds: Keyword arguments passed to the reader.
+            **kwds: Keyword arguments passed to parse_config and to the reader.
         """
-        self._config = parse_config(config, **kwds)
+        config_kwds = {
+            key: value for key, value in kwds.items() if key in parse_config.__code__.co_varnames
+        }
+        for key in config_kwds.keys():
+            del kwds[key]
+        self._config = parse_config(config, **config_kwds)
         num_cores = self._config.get("binning", {}).get("num_cores", N_CPU - 1)
         if num_cores >= N_CPU:
             num_cores = N_CPU - 1
@@ -161,15 +166,6 @@ class SedProcessor:
         """
         return self._dataframe
 
-    @dataframe.setter
-    def dataframe(self, dataframe: Union[pd.DataFrame, ddf.DataFrame]):
-        """Setter for the underlying dataframe.
-
-        Args:
-            dataframe (Union[pd.DataFrame, ddf.DataFrame]): The dataframe object to set.
-        """
-        self._dataframe = dataframe
-
     @property
     def attributes(self) -> dict:
         """Accessor to the metadata dict.
@@ -179,8 +175,7 @@ class SedProcessor:
         """
         return self._attributes.metadata
 
-    @attributes.setter
-    def attributes(self, attributes: dict, name: str, **kwds):
+    def add_attribute(self, attributes: dict, name: str, **kwds):
         """Function to add element to the attributes dict.
 
         Args:
@@ -202,19 +197,14 @@ class SedProcessor:
         """
         return self._config
 
-    @config.setter
-    def config(self, config: Union[dict, str]):
-        """Setter function for the config dictionary.
+    @property
+    def files(self) -> List[str]:
+        """Getter attribute for the list of files
 
-        Args:
-            config (Union[dict, str]): Config dictionary or path of config file
-                to load.
+        Returns:
+            List[str]: The list of loaded files
         """
-        self._config = parse_config(config)
-        num_cores = self._config.get("binning", {}).get("num_cores", N_CPU - 1)
-        if num_cores >= N_CPU:
-            num_cores = N_CPU - 1
-        self._config["binning"]["num_cores"] = num_cores
+        return self._files
 
     def cpy(self, path: Union[str, List[str]]) -> Union[str, List[str]]:
         """Function to mirror a list of files or a folder from a network drive to a
