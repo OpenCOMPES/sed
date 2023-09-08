@@ -5,6 +5,7 @@ import os
 import tempfile
 from importlib.util import find_spec
 
+import dask.dataframe as ddf
 import numpy as np
 import pytest
 
@@ -116,6 +117,32 @@ def test_repr():
     processor_str = str(processor)
     assert processor_str.find("ADC") > 0
     assert processor_str.find("key1") > 0
+
+
+def test_attributes_setters():
+    """Test class attributes and setters."""
+    config = {"core": {"loader": "generic"}}
+    processor = SedProcessor(
+        config=config,
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+    processor.load(files=files, metadata={"test": {"key1": "value1"}})
+    dataframe = processor.dataframe
+    assert isinstance(dataframe, ddf.DataFrame)
+    processor.dataframe["X"] = processor.dataframe["Y"]
+    np.testing.assert_allclose(
+        processor.dataframe["X"].compute(),
+        processor.dataframe["Y"].compute(),
+    )
+    metadata = processor.attributes
+    assert isinstance(metadata, dict)
+    assert "test" in metadata.keys()
+    processor.add_attribute({"key2": 5}, name="test2")
+    assert processor.attributes["test2"]["key2"] == 5
+    assert processor.config["core"]["loader"] == "generic"
+    assert len(processor.files) == 2
 
 
 def test_copy_tool():
