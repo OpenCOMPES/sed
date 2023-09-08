@@ -301,6 +301,60 @@ def test_pose_adjustment():
     assert "Ym" in processor.dataframe.columns
 
 
+point_a = [308, 345]
+k_distance = 4 / 3 * np.pi / 3.28
+k_coord_a = [k_distance * 0.3, k_distance * 0.8]
+
+
+def test_calibrate_momentum_axes():
+    """Test the calibration of the momentum axes"""
+    config = parse_config(
+        config={"core": {"loader": "generic"}},
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+    processor = SedProcessor(
+        folder=df_folder,
+        config=config,
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+    with pytest.raises(ValueError):
+        processor.calibrate_momentum_axes(apply=True)
+    processor.bin_and_load_momentum_calibration(apply=True)
+    with pytest.raises(AssertionError):
+        processor.calibrate_momentum_axes(point_a=point_a, apply=True)
+    processor.calibrate_momentum_axes(point_a=point_a, k_distance=k_distance, apply=True)
+    assert processor.mc.calibration["kx_scale"] == processor.mc.calibration["ky_scale"]
+    with pytest.raises(AssertionError):
+        processor.calibrate_momentum_axes(point_a=point_a, k_coord_a=k_coord_a, apply=True)
+    with pytest.raises(AssertionError):
+        processor.calibrate_momentum_axes(point_a=point_a, equiscale=False, apply=True)
+    processor.calibrate_momentum_axes(
+        point_a=point_a,
+        k_coord_a=k_coord_a,
+        equiscale=False,
+        apply=True,
+    )
+    assert processor.mc.calibration["kx_scale"] != processor.mc.calibration["ky_scale"]
+    processor.save_momentum_calibration()
+    processor = SedProcessor(
+        folder=df_folder,
+        config=config,
+        user_config={},
+        system_config={},
+    )
+    processor.apply_momentum_calibration()
+    assert (
+        processor.config["momentum"]["calibration"]["kx_scale"]
+        != processor.config["momentum"]["calibration"]["ky_scale"]
+    )
+    assert "kx" in processor.dataframe.columns
+    assert "ky" in processor.dataframe.columns
+
+
 def test_compute():
     """Test binning of final result"""
     config = parse_config(
