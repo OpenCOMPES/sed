@@ -166,6 +166,15 @@ class SedProcessor:
         """
         return self._dataframe
 
+    @dataframe.setter
+    def dataframe(self, dataframe: Union[pd.DataFrame, ddf.DataFrame]):
+        """Setter for the underlying dataframe.
+
+        Args:
+            dataframe (Union[pd.DataFrame, ddf.DataFrame]): The dataframe object to set.
+        """
+        self._dataframe = dataframe
+
     @property
     def attributes(self) -> dict:
         """Accessor to the metadata dict.
