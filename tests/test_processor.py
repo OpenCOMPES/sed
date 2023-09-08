@@ -4,6 +4,7 @@ import glob
 import os
 import tempfile
 from importlib.util import find_spec
+from pathlib import Path
 
 import dask.dataframe as ddf
 import numpy as np
@@ -82,6 +83,10 @@ def test_processor_from_runs():
         system_config={},
     )
     assert "dldPosX" in processor.dataframe.columns
+    # cleanup flash inermediaries
+    _, parquet_data_dir = processor.loader.initialize_paths()
+    for file in os.listdir(Path(parquet_data_dir, "per_file")):
+        os.remove(Path(parquet_data_dir, "per_file", file))
 
 
 def test_additional_parameter_to_loader():
@@ -264,6 +269,7 @@ def test_momentum_correction_workflow(features):
     np.testing.assert_allclose(processor.mc.pouter_ord, pouter_ord)
     np.testing.assert_allclose(processor.mc.cdeform_field, cdeform_field)
     np.testing.assert_allclose(processor.mc.rdeform_field, rdeform_field)
+    os.remove(f"sed_config{len(features)}.yaml")
 
 
 def test_pose_adjustment():
@@ -297,15 +303,14 @@ def test_pose_adjustment():
     )
     with pytest.raises(ValueError):
         processor.apply_momentum_correction()
-
-    processor = SedProcessor(
-        folder=df_folder,
-        config=config,
-        folder_config="sed_config7.yaml",
-        user_config={},
-        system_config={},
-    )
     processor.bin_and_load_momentum_calibration(apply=True)
+    processor.define_features(
+        features=feature7,
+        rotation_symmetry=6,
+        include_center=True,
+        apply=True,
+    )
+    processor.generate_splinewarp(use_center=True)
     processor.pose_adjustment(**adjust_params, apply=True)
     processor.apply_momentum_correction()
     assert "Xm" in processor.dataframe.columns
@@ -366,6 +371,7 @@ def test_momentum_calibration_workflow():
     )
     assert "kx" in processor.dataframe.columns
     assert "ky" in processor.dataframe.columns
+    os.remove("sed_config.yaml")
 
 
 def test_energy_correction():
@@ -414,6 +420,7 @@ def test_energy_correction():
     )
     processor.apply_energy_correction()
     assert "t_corrected" in processor.dataframe.columns
+    os.remove("sed_config.yaml")
 
 
 def test_compute():

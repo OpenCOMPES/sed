@@ -1,6 +1,7 @@
 """Test cases for loaders used to load dataframes"""
 import os
 from importlib.util import find_spec
+from pathlib import Path
 from typing import List
 
 import dask.dataframe as ddf
@@ -146,6 +147,11 @@ def test_has_correct_read_dataframe_func(loader, read_type):
             assert isinstance(loaded_dataframe, ddf.DataFrame)
             assert loaded_dataframe.npartitions == expected_size
             assert isinstance(loaded_metadata, dict)
+
+    if loader.__name__ == "flash":
+        _, parquet_data_dir = loader.initialize_paths()
+        for file in os.listdir(Path(parquet_data_dir, "per_file")):
+            os.remove(Path(parquet_data_dir, "per_file", file))
 
 
 def test_mpes_timestamps():
