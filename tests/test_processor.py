@@ -131,7 +131,8 @@ def test_attributes_setters():
     processor.load(files=files, metadata={"test": {"key1": "value1"}})
     dataframe = processor.dataframe
     assert isinstance(dataframe, ddf.DataFrame)
-    processor.dataframe["X"] = processor.dataframe["Y"]
+    dataframe["X"] = dataframe["Y"]
+    processor.dataframe = dataframe
     np.testing.assert_allclose(
         processor.dataframe["X"].compute(),
         processor.dataframe["Y"].compute(),
