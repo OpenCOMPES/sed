@@ -768,13 +768,13 @@ class SedProcessor:
             filename = "sed_config.yaml"
         correction = {}
         try:
-            for key in self.ec.correction.keys():
+            for key, val in self.ec.correction.items():
                 if key == "correction_type":
-                    correction[key] = self.ec.correction[key]
+                    correction[key] = val
                 elif key == "center":
-                    correction[key] = [float(i) for i in self.ec.correction[key]]
+                    correction[key] = [float(i) for i in val]
                 else:
-                    correction[key] = float(self.ec.correction[key])
+                    correction[key] = float(val)
         except AttributeError as exc:
             raise AttributeError(
                 "Energy correction parameters not found, need to generate parameters first!",

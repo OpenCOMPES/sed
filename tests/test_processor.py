@@ -287,6 +287,17 @@ def test_pose_adjustment():
     processor.bin_and_load_momentum_calibration(apply=True)
     # test pose adjustment
     processor.pose_adjustment(**adjust_params, use_correction=False, apply=True)
+
+    processor = SedProcessor(
+        folder=df_folder,
+        config=config,
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+    with pytest.raises(ValueError):
+        processor.apply_momentum_correction()
+
     processor = SedProcessor(
         folder=df_folder,
         config=config,
@@ -306,7 +317,7 @@ k_distance = 4 / 3 * np.pi / 3.28
 k_coord_a = [k_distance * 0.3, k_distance * 0.8]
 
 
-def test_calibrate_momentum_axes():
+def test_momentum_calibration_workflow():
     """Test the calibration of the momentum axes"""
     config = parse_config(
         config={"core": {"loader": "generic"}},
@@ -321,6 +332,8 @@ def test_calibrate_momentum_axes():
         user_config={},
         system_config={},
     )
+    with pytest.raises(ValueError):
+        processor.apply_momentum_calibration()
     with pytest.raises(ValueError):
         processor.calibrate_momentum_axes(apply=True)
     processor.bin_and_load_momentum_calibration(apply=True)
@@ -353,6 +366,54 @@ def test_calibrate_momentum_axes():
     )
     assert "kx" in processor.dataframe.columns
     assert "ky" in processor.dataframe.columns
+
+
+def test_energy_correction():
+    """Test energy correction workflow."""
+    config = parse_config(
+        config={"core": {"loader": "generic"}},
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+    processor = SedProcessor(
+        folder=df_folder,
+        config=config,
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+    with pytest.raises(ValueError):
+        processor.apply_energy_correction()
+    with pytest.raises(ValueError):
+        processor.adjust_energy_correction(apply=True)
+    assert processor._pre_binned is not None  # pylint: disable=protected-access
+    processor.adjust_energy_correction(
+        correction_type="Lorentzian",
+        amplitude=2.5,
+        center=(730, 730),
+        gamma=920,
+        tof_fermi=66200,
+        apply=True,
+    )
+    assert processor.ec.correction["correction_type"] == "Lorentzian"
+    processor.save_energy_correction()
+    processor = SedProcessor(
+        folder=df_folder,
+        config=config,
+        user_config={},
+        system_config={},
+    )
+    processor.adjust_energy_correction(tof_fermi=66200, apply=True)
+    assert processor.ec.correction["correction_type"] == "Lorentzian"
+    processor = SedProcessor(
+        folder=df_folder,
+        config=config,
+        user_config={},
+        system_config={},
+    )
+    processor.apply_energy_correction()
+    assert "t_corrected" in processor.dataframe.columns
 
 
 def test_compute():
