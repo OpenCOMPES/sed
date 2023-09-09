@@ -132,7 +132,7 @@ class DelayCalibrator:
 
         if "delay_range" not in calibration.keys():
             if "delay_range_mm" not in calibration.keys() or "time0" not in calibration.keys():
-                if datafile is not None:
+                if datafile is not None and p1_key and p2_key and t0_key:
                     try:
                         ret = extract_delay_stage_parameters(
                             datafile,
@@ -149,7 +149,7 @@ class DelayCalibrator:
                     calibration["time0"] = ret[2]
                     print(f"Extract delay range from file '{datafile}'.")
                 else:
-                    raise NotImplementedError(
+                    raise ValueError(
                         "Not enough parameters for delay calibration.",
                     )
 

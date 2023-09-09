@@ -534,6 +534,35 @@ def test_energy_calibration_workflow(energy_scale: str, calibration_method: str)
     os.remove("sed_config.yaml")
 
 
+def test_delay_calibration_workflow():
+    """Test the delay calibration workflow"""
+    config = parse_config(
+        config={"core": {"loader": "mpes"}},
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+    processor = SedProcessor(
+        folder=df_folder + "../mpes/",
+        config=config,
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+    delay_range = (-500, 1500)
+    processor.calibrate_delay_axis(delay_range=delay_range, preview=False)
+    # read from datafile
+    with pytest.raises(ValueError):
+        processor.calibrate_delay_axis(preview=True)
+    processor.calibrate_delay_axis(
+        p1_key="@trARPES:DelayStage:p1",
+        p2_key="@trARPES:DelayStage:p2",
+        t0_key="@trARPES:DelayStage:t0",
+        preview=True,
+    )
+    assert "delay" in processor.dataframe.columns
+
+
 def test_compute():
     """Test binning of final result"""
     config = parse_config(
