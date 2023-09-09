@@ -563,6 +563,49 @@ def test_delay_calibration_workflow():
     assert "delay" in processor.dataframe.columns
 
 
+def test_add_jitter():
+    """Test the jittering function"""
+    config = parse_config(
+        config={"core": {"loader": "generic"}},
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+    processor = SedProcessor(
+        folder=df_folder,
+        config=config,
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+    res1 = processor.dataframe["X"].compute()
+    processor.add_jitter()
+    res2 = processor.dataframe["X"].compute()
+    np.testing.assert_allclose(res1, np.round(res1))
+    np.testing.assert_allclose(res1, np.round(res2))
+    assert (res1 != res2).all()
+
+
+def test_event_histogram():
+    """Test histogram plotting function"""
+    config = parse_config(
+        config={"core": {"loader": "generic"}},
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+    processor = SedProcessor(
+        folder=df_folder,
+        config=config,
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+    processor.view_event_histogram(dfpid=0)
+    with pytest.raises(ValueError):
+        processor.view_event_histogram(dfpid=5)
+
+
 def test_compute():
     """Test binning of final result"""
     config = parse_config(
