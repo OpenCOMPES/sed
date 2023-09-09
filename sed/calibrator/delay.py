@@ -149,7 +149,7 @@ class DelayCalibrator:
                     calibration["time0"] = ret[2]
                     print(f"Extract delay range from file '{datafile}'.")
                 else:
-                    raise ValueError(
+                    raise NotImplementedError(
                         "Not enough parameters for delay calibration.",
                     )
 

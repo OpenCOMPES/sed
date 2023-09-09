@@ -7,7 +7,7 @@ import os
 import tempfile
 from importlib.util import find_spec
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict
 from typing import List
 from typing import Tuple
 
@@ -160,9 +160,9 @@ def test_attributes_setters():
         processor.dataframe["X"].compute(),
         processor.dataframe["Y"].compute(),
     )
-    metadata = processor.attributes
-    assert isinstance(metadata, dict)
-    assert "test" in metadata.keys()
+    processor_metadata = processor.attributes
+    assert isinstance(processor_metadata, dict)
+    assert "test" in processor_metadata.keys()
     processor.add_attribute({"key2": 5}, name="test2")
     assert processor.attributes["test2"]["key2"] == 5
     assert processor.config["core"]["loader"] == "generic"
@@ -552,7 +552,7 @@ def test_delay_calibration_workflow():
     delay_range = (-500, 1500)
     processor.calibrate_delay_axis(delay_range=delay_range, preview=False)
     # read from datafile
-    with pytest.raises(ValueError):
+    with pytest.raises(NotImplementedError):
         processor.calibrate_delay_axis(preview=True)
     processor.calibrate_delay_axis(
         p1_key="@trARPES:DelayStage:p1",
@@ -627,3 +627,64 @@ def test_compute():
     result = processor.compute(bins=bins, axes=axes, ranges=ranges, df_partitions=5)
     assert result.data.shape == (10, 10, 10, 10)
     assert result.data.sum(axis=(0, 1, 2, 3)) > 0
+
+
+metadata: Dict[Any, Any] = {}
+metadata["entry_title"] = "Title"
+# User
+metadata["user0"] = {}
+metadata["user0"]["name"] = "Name"
+metadata["user0"]["email"] = "email"
+# NXinstrument
+metadata["instrument"] = {}
+# analyzer
+metadata["instrument"]["analyzer"] = {}
+metadata["instrument"]["analyzer"]["energy_resolution"] = 110.0
+metadata["instrument"]["analyzer"]["momentum_resolution"] = 0.08
+# probe beam
+metadata["instrument"]["beam"] = {}
+metadata["instrument"]["beam"]["probe"] = {}
+metadata["instrument"]["beam"]["probe"]["incident_energy"] = 21.7
+# sample
+metadata["sample"] = {}
+metadata["sample"]["preparation_date"] = "2019-01-13T10:00:00+00:00"
+metadata["sample"]["name"] = "Sample Name"
+
+
+def test_save():
+    """Test the save functionality"""
+    config = parse_config(
+        config={"dataframe": {"tof_binning": 1}},
+        folder_config={},
+        user_config=package_dir + "/../tests/data/config/config.yaml",
+        system_config={},
+    )
+    processor = SedProcessor(
+        folder=df_folder + "../mpes/",
+        config=config,
+        folder_config={},
+        user_config={},
+        system_config={},
+        metadata=metadata,
+        collect_metadata=True,
+    )
+    processor.apply_momentum_calibration()
+    processor.append_energy_axis()
+    processor.calibrate_delay_axis()
+    with pytest.raises(NameError):
+        processor.save("output.tiff")
+    axes = ["kx", "ky", "energy", "delay"]
+    bins = [100, 100, 200, 50]
+    ranges = [[-2, 2], [-2, 2], [-4, 2], [-600, 1600]]
+    processor.compute(bins=bins, axes=axes, ranges=ranges)
+    with pytest.raises(NotImplementedError):
+        processor.save("output.jpeg")
+    processor.save("output.tiff")
+    assert os.path.isfile("output.tiff")
+    os.remove("output.tiff")
+    processor.save("output.h5")
+    assert os.path.isfile("output.h5")
+    os.remove("output.h5")
+    processor.save("output.nxs", input_files=df_folder + "../../config/NXmpes_config.json")
+    assert os.path.isfile("output.nxs")
+    os.remove("output.nxs")
