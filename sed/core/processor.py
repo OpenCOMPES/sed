@@ -1056,10 +1056,12 @@ class SedProcessor:
         calibration = {}
         try:
             for (key, value) in self.ec.calibration.items():
-                if key in ["axis", "refid"]:
+                if key in ["axis", "refid", "Tmat", "bvec"]:
                     continue
                 if key == "energy_scale":
                     calibration[key] = value
+                elif key == "coeffs":
+                    calibration[key] = [float(i) for i in value]
                 else:
                     calibration[key] = float(value)
         except AttributeError as exc:

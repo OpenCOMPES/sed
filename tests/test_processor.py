@@ -1,10 +1,15 @@
 """Module tests.processor, tests for the sed.core.processor module
 """
+import csv
 import glob
+import itertools
 import os
 import tempfile
 from importlib.util import find_spec
 from pathlib import Path
+from typing import Any
+from typing import List
+from typing import Tuple
 
 import dask.dataframe as ddf
 import numpy as np
@@ -24,6 +29,19 @@ loader = get_loader(loader_name="generic")
 source_folder = package_dir + "/../"
 dest_folder = tempfile.mkdtemp()
 gid = os.getgid()
+
+traces_list = []
+with open(folder + "traces.csv", newline="", encoding="utf-8") as csvfile:
+    reader = csv.reader(csvfile, quoting=csv.QUOTE_NONNUMERIC)
+    for row in reader:
+        traces_list.append(row)
+traces = np.asarray(traces_list).T
+with open(folder + "tof.csv", newline="", encoding="utf-8") as csvfile:
+    reader = csv.reader(csvfile, quoting=csv.QUOTE_NONNUMERIC)
+    tof = np.asarray(next(reader))
+with open(folder + "biases.csv", newline="", encoding="utf-8") as csvfile:
+    reader = csv.reader(csvfile, quoting=csv.QUOTE_NONNUMERIC)
+    biases = np.asarray(next(reader))
 
 
 def test_processor_from_dataframe():
@@ -420,6 +438,99 @@ def test_energy_correction():
     )
     processor.apply_energy_correction()
     assert "t_corrected" in processor.dataframe.columns
+    os.remove("sed_config.yaml")
+
+
+energy_scales = ["kinetic", "binding"]
+calibration_methods = ["lmfit", "lstsq", "lsqr"]
+
+
+@pytest.mark.parametrize(
+    "energy_scale, calibration_method",
+    itertools.product(energy_scales, calibration_methods),
+)
+def test_energy_calibration_workflow(energy_scale: str, calibration_method: str):
+    """Test energy calibration workflow
+
+    Args:
+        energy_scale (str): Energy scale
+        calibration_method (str): _description_
+    """
+    config = parse_config(
+        config={"core": {"loader": "mpes"}},
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+    processor = SedProcessor(
+        folder=df_folder + "../mpes/",
+        config=config,
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+    with pytest.raises(ValueError):
+        processor.load_bias_series(data_files=glob.glob(df_folder + "../mpes/*.h5"), normalize=True)
+    processor.load_bias_series(
+        data_files=glob.glob(df_folder + "../mpes/*.h5"),
+        normalize=True,
+        bias_key="@KTOF:Lens:Sample:V",
+    )
+    assert len(processor.ec.biases) == 2
+    # load test data into class
+    processor.ec.load_data(biases=biases, traces=traces, tof=tof)
+    processor.ec.normalize()
+    ref_id = 5
+    rng = (66100, 67000)
+    processor.find_bias_peaks(ranges=rng, ref_id=ref_id, infer_others=True, apply=True)
+    ranges: List[Tuple[Any, ...]] = [
+        (64638.0, 65386.0),
+        (64913.0, 65683.0),
+        (65188.0, 65991.0),
+        (65474.0, 66310.0),
+        (65782.0, 66651.0),
+        (66101.0, 67003.0),
+        (66442.0, 67388.0),
+        (66794.0, 67795.0),
+        (67190.0, 68213.0),
+        (67575.0, 68664.0),
+        (67993.0, 69148.0),
+    ]
+    processor.find_bias_peaks(ranges=ranges, infer_others=False, apply=True)
+    np.testing.assert_allclose(processor.ec.featranges, ranges)
+    ref_id = 4
+    ref_energy = -0.5
+    with pytest.raises(ValueError):
+        processor.calibrate_energy_axis(
+            ref_energy=ref_energy,
+            ref_id=ref_id,
+            energy_scale="myfantasyscale",
+        )
+    with pytest.raises(NotImplementedError):
+        processor.calibrate_energy_axis(
+            ref_energy=ref_energy,
+            ref_id=ref_id,
+            method="myfantasymethod",
+        )
+    processor.calibrate_energy_axis(
+        ref_energy=ref_energy,
+        ref_id=ref_id,
+        energy_scale=energy_scale,
+        method=calibration_method,
+    )
+    assert processor.ec.calibration["energy_scale"] == energy_scale
+    processor.save_energy_calibration()
+    processor.append_energy_axis()
+    assert "E" in processor.dataframe.columns
+    processor = SedProcessor(
+        folder=df_folder + "../mpes/",
+        config=config,
+        user_config={},
+        system_config={},
+    )
+    processor.append_energy_axis(preview=True)
+    assert "E" in processor.dataframe.columns
+    assert processor.attributes["energy_calibration"]["calibration"]["energy_scale"] == energy_scale
     os.remove("sed_config.yaml")
 
 

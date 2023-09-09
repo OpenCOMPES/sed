@@ -251,12 +251,13 @@ class EnergyCalibrator:
             **kwds,
         )
         if read_biases:
-            try:
-                biases = extract_bias(data_files, bias_key)
-            except KeyError as exc:
-                raise ValueError(
-                    "Either Bias Values or a valid bias_key has to be present!",
-                ) from exc
+            if bias_key:
+                try:
+                    biases = extract_bias(data_files, bias_key)
+                except KeyError as exc:
+                    raise ValueError(
+                        "Either Bias Values or a valid bias_key has to be present!",
+                    ) from exc
         tof = traces.coords[(axes[0])]
         self.traces = self.traces_normed = np.asarray(traces.T)
         self.tof = np.asarray(tof)
@@ -587,6 +588,7 @@ class EnergyCalibrator:
                 aug=self.dup,
                 method=method,
                 t=t,
+                energy_scale=energy_scale,
                 **kwds,
             )
         else:
@@ -1944,6 +1946,7 @@ def poly_energy_calibration(
     t: Union[List[float], np.ndarray] = None,
     aug: int = 1,
     method: str = "lstsq",
+    energy_scale: str = "kinetic",
     **kwds,
 ) -> dict:
     """Energy calibration by nonlinear least squares fitting of spectral landmarks on
@@ -1973,6 +1976,10 @@ def poly_energy_calibration(
             - **'lstsq'**, **'lsqr'**: Energy calibration using polynomial form..
 
             Defaults to "lstsq".
+        energy_scale (str, optional): Direction of increasing energy scale.
+
+            - **'kinetic'**: increasing energy with decreasing TOF.
+            - **'binding'**: increasing energy with increasing TOF.
 
     Returns:
         dict: A dictionary of fitting parameters including the following,
@@ -2031,6 +2038,7 @@ def poly_energy_calibration(
     ecalibdict["coeffs"] = poly_a
     ecalibdict["Tmat"] = t_mat
     ecalibdict["bvec"] = bvec
+    ecalibdict["energy_scale"] = energy_scale
 
     if ref_energy is not None and t is not None:
         energy_offset = pfunc(-1 * ref_energy, pos[ref_id])
