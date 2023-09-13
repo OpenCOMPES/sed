@@ -2,7 +2,7 @@ Single-Event DataFrame (SED) documentation
 ================================================
 
 .. toctree::
-   :maxdepth: 3
+   :maxdepth: 1
    :numbered:
    :caption: SED Core Modules
 
