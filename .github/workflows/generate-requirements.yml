@@ -1,0 +1,14 @@
+name: Generate requirements.txt for readthedocs
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  generate-requirements:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Poetry
+        run: sudo apt install poetry
+      - name: Export requirements.txt
+        run: poetry export --without-hashes --format=requirements.txt -o docs/requirements.txt -E docs -E notebook
