@@ -2,6 +2,7 @@
 import os
 from importlib.util import find_spec
 from pathlib import Path
+from typing import cast
 from typing import List
 
 import dask.dataframe as ddf
@@ -10,6 +11,7 @@ from _pytest.mark.structures import ParameterSet
 
 from sed.core.config import parse_config
 from sed.loader.base.loader import BaseLoader
+from sed.loader.flash.loader import FlashLoader
 from sed.loader.loader_interface import get_loader
 from sed.loader.loader_interface import get_names_of_all_loaders
 from sed.loader.utils import gather_files
@@ -72,7 +74,7 @@ def get_all_loaders() -> List[ParameterSet]:
 
 
 @pytest.mark.parametrize("loader", get_all_loaders())
-def test_if_loaders_are_children_of_base_loader(loader):
+def test_if_loaders_are_children_of_base_loader(loader: BaseLoader):
     """Test to verify that all loaders are children of BaseLoader"""
     if loader.__name__ != "BaseLoader":
         assert isinstance(loader, BaseLoader)
@@ -80,7 +82,7 @@ def test_if_loaders_are_children_of_base_loader(loader):
 
 @pytest.mark.parametrize("loader", get_all_loaders())
 @pytest.mark.parametrize("read_type", read_types)
-def test_has_correct_read_dataframe_func(loader, read_type):
+def test_has_correct_read_dataframe_func(loader: BaseLoader, read_type: str):
     """Test if all loaders have a valid read function implemented"""
     assert callable(loader.read_dataframe)
     if loader.__name__ != "BaseLoader":
@@ -149,9 +151,60 @@ def test_has_correct_read_dataframe_func(loader, read_type):
             assert isinstance(loaded_metadata, dict)
 
     if loader.__name__ == "flash":
+        loader = cast(FlashLoader, loader)
         _, parquet_data_dir = loader.initialize_paths()
         for file in os.listdir(Path(parquet_data_dir, "per_file")):
             os.remove(Path(parquet_data_dir, "per_file", file))
+
+
+@pytest.mark.parametrize("loader", get_all_loaders())
+def test_get_count_rate(loader: BaseLoader):
+    """Test the get_count_rate function
+
+    Args:
+        loader (BaseLoader): the loader object to test
+    """
+    if loader.__name__ != "BaseLoader":
+        loader_name = get_loader_name_from_loader_object(loader)
+        input_folder = os.path.join(test_data_dir, "loader", loader_name)
+        for supported_file_type in loader.supported_file_types:
+            loader.read_dataframe(
+                folders=input_folder,
+                ftype=supported_file_type,
+                collect_metadata=False,
+            )
+            loaded_time, loaded_countrate = loader.get_count_rate()
+            if loaded_time is None and loaded_countrate is None:
+                pytest.skip("Not implemented")
+            assert len(loaded_time) == len(loaded_countrate)
+            loaded_time2, loaded_countrate2 = loader.get_count_rate(fids=[0])
+            assert len(loaded_time2) == len(loaded_countrate2)
+            assert len(loaded_time2) < len(loaded_time)
+
+
+@pytest.mark.parametrize("loader", get_all_loaders())
+def test_get_elapsed_time(loader: BaseLoader):
+    """Test the get_elapsed_time function
+
+    Args:
+        loader (BaseLoader): the loader object to test
+    """
+    if loader.__name__ != "BaseLoader":
+        loader_name = get_loader_name_from_loader_object(loader)
+        input_folder = os.path.join(test_data_dir, "loader", loader_name)
+        for supported_file_type in loader.supported_file_types:
+            loader.read_dataframe(
+                folders=input_folder,
+                ftype=supported_file_type,
+                collect_metadata=False,
+            )
+            elapsed_time = loader.get_elapsed_time()
+            if elapsed_time is None:
+                pytest.skip("Not implemented")
+            assert elapsed_time > 0
+            elapsed_time2 = loader.get_elapsed_time(fids=[0])
+            assert elapsed_time2 > 0
+            assert elapsed_time > elapsed_time2
 
 
 def test_mpes_timestamps():
