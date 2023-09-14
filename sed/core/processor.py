@@ -1399,8 +1399,15 @@ class SedProcessor:
                 axes[loc] = self._config["dataframe"].get(axis.strip("@"))
         if ranges is None:
             ranges = list(self._config["histogram"]["ranges"])
-            ranges[2] = np.asarray(ranges[2]) / 2 ** (self._config["dataframe"]["tof_binning"] - 1)
-            ranges[3] = np.asarray(ranges[3]) / 2 ** (self._config["dataframe"]["adc_binning"] - 1)
+            for loc, axis in enumerate(axes):
+                if axis == self._config["dataframe"]["tof_column"]:
+                    ranges[loc] = np.asarray(ranges[loc]) / 2 ** (
+                        self._config["dataframe"]["tof_binning"] - 1
+                    )
+                elif axis == self._config["dataframe"]["adc_column"]:
+                    ranges[loc] = np.asarray(ranges[loc]) / 2 ** (
+                        self._config["dataframe"]["adc_binning"] - 1
+                    )
 
         input_types = map(type, [axes, bins, ranges])
         allowed_types = [list, tuple]

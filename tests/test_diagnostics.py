@@ -35,5 +35,8 @@ def test_plot_histogram(ncols: int, backend: str):
     axes = config["histogram"]["axes"]
     ranges = config["histogram"]["ranges"]
     bins = config["histogram"]["bins"]
+    for loc, axis in enumerate(axes):
+        if axis.startswith("@"):
+            axes[loc] = config["dataframe"].get(axis.strip("@"))
     values = {axis: dataframe[axis].compute() for axis in axes}
     grid_histogram(values, ncols, axes, bins, ranges, backend)

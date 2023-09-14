@@ -7,7 +7,8 @@ import os
 import tempfile
 from importlib.util import find_spec
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
+from typing import Dict
 from typing import List
 from typing import Tuple
 
@@ -417,7 +418,6 @@ def test_energy_correction():
         amplitude=2.5,
         center=(730, 730),
         gamma=920,
-        tof_fermi=66200,
         apply=True,
     )
     assert processor.ec.correction["correction_type"] == "Lorentzian"
@@ -428,7 +428,7 @@ def test_energy_correction():
         user_config={},
         system_config={},
     )
-    processor.adjust_energy_correction(tof_fermi=66200, apply=True)
+    processor.adjust_energy_correction(apply=True)
     assert processor.ec.correction["correction_type"] == "Lorentzian"
     processor = SedProcessor(
         folder=df_folder,
@@ -437,7 +437,7 @@ def test_energy_correction():
         system_config={},
     )
     processor.apply_energy_correction()
-    assert "t_corrected" in processor.dataframe.columns
+    assert "tm" in processor.dataframe.columns
     os.remove("sed_config.yaml")
 
 
@@ -521,7 +521,7 @@ def test_energy_calibration_workflow(energy_scale: str, calibration_method: str)
     assert processor.ec.calibration["energy_scale"] == energy_scale
     processor.save_energy_calibration()
     processor.append_energy_axis()
-    assert "E" in processor.dataframe.columns
+    assert "energy" in processor.dataframe.columns
     processor = SedProcessor(
         folder=df_folder + "../mpes/",
         config=config,
@@ -529,7 +529,7 @@ def test_energy_calibration_workflow(energy_scale: str, calibration_method: str)
         system_config={},
     )
     processor.append_energy_axis(preview=True)
-    assert "E" in processor.dataframe.columns
+    assert "energy" in processor.dataframe.columns
     assert processor.attributes["energy_calibration"]["calibration"]["energy_scale"] == energy_scale
     os.remove("sed_config.yaml")
 
@@ -656,7 +656,7 @@ def test_save():
     config = parse_config(
         config={"dataframe": {"tof_binning": 1}},
         folder_config={},
-        user_config=package_dir + "/../tests/data/config/config.yaml",
+        user_config=package_dir + "/../sed/config/mpes_example_config.yaml",
         system_config={},
     )
     processor = SedProcessor(
@@ -685,6 +685,9 @@ def test_save():
     processor.save("output.h5")
     assert os.path.isfile("output.h5")
     os.remove("output.h5")
-    processor.save("output.nxs", input_files=df_folder + "../../config/NXmpes_config.json")
+    processor.save(
+        "output.nxs",
+        input_files=df_folder + "../../../../sed/config/NXmpes_config.json",
+    )
     assert os.path.isfile("output.nxs")
     os.remove("output.nxs")

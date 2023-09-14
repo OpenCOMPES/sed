@@ -62,15 +62,7 @@ energy:
   y_width: [-20, 20]
   # High intensity cutoff for the visulaization tool
   color_clip: 300
-  correction:
-    # Default correction type
-    correction_type: "Lorentzian"
-    # Default correction amplitude
-    amplitude: 2.5
-    # center coordinates for the correction (in detector coordinates)
-    center: [730.0, 730.0]
-    # gamma value for the Lorentzian correction (same for x and y)
-    gamma: 900.0
+
 
 momentum:
   # binning axes to use for momentum correction/calibration.
