@@ -1,35 +1,62 @@
+# This file contains the default configuration for the flash loader.
+
 core:
+  # defines the loader
   loader: flash
+
+  # the beamline where experiment took place
+  beamline: pg2
+
+  # The paths to the raw and parquet data directories.
   paths:
     data_raw_dir: "tests/data/loader/flash/"
     data_parquet_dir: "tests/data/loader/flash/parquet"
+    
+  # These can be replaced by beamtime_id and year to automatically
+  # find the folders on the desy cluster
+  
+  # beamtime_id: xxxxxxxx
+  # year: 20xx
 
 dataframe:
+  # The offset correction to the pulseId
   ubid_offset: 5
+
+  # The name of the DAQ system to use. Necessary to resolve the filenames/paths.
   daq: fl1user3
+
+  # The channels to load.
+  # channels have the following structure:
+  # channelAlias:
+  #   format: per_pulse/per_electron/per_train
+  #   group_name: the hdf5 group path
+  #   slice: if the group contains multidim data, where to slice
+  
   channels:
+    # pulse ID is a necessary channel for using the loader.
     pulseId:
-      axis: 1
       format: per_electron
       group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
       slice: 2
+
     dldPosX:
-      axis: 1
       format: per_electron
       group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
       slice: 1
+      
     dldPosY:
-      axis: 1
       format: per_electron
       group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
       slice: 0
+      
     dldTime:
-      axis: 1
       format: per_electron
       group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
       slice: 3
+      
+    # The auxillary channel has a special structure where the group further contains
+    # a multidim structure so further aliases are defined below
     dldAux:
-      axis: 1
       format: per_pulse
       group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
       slice: 4
@@ -41,6 +68,9 @@ dataframe:
         cryoTemperature: 4
         sampleTemperature: 5
         dldTimeBinSize: 15
+        
+  # The prefixes of the stream names for different DAQ systems for parsing filenames
+  # (Not to be changed by user)
   stream_name_prefixes:
     pbd: "GMD_DATA_gmd_data"
     pbd2: "FL2PhotDiag_pbd2_gmd_data"
@@ -49,7 +79,20 @@ dataframe:
     fl1user3: "FLASH1_USER3_stream_2"
     fl2user1: "FLASH2_USER1_stream_2"
     fl2user2: "FLASH2_USER2_stream_2"
+
+  # The beamtime directories for different DAQ systems.
+  # (Not to be changed by user)
   beamtime_dir:
     pg2: "/asap3/flash/gpfs/pg2/"
-    hextof: "/asap3/flash/gpfs/pg2/"
-    wespe: "/asap3/fs-flash-o/gpfs/wespe/"
+
+# metadata collection from scicat
+# metadata:
+#   scicat_url: <URL>
+#   scicat_username: <username>
+#   scicat_password: <password>
+
+# The nexus collection routine shall be finalized soon for both instruments
+# nexus:
+#   reader: "flash"
+#   definition: "NXmpes"
+#   input_files: ["NXmpes_config_HEXTOF_light.json"]
