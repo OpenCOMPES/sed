@@ -25,6 +25,12 @@ MpesLoader
    :members:
    :undoc-members:
 
+FlashLoader
+###################################################
+.. automodule:: sed.loader.flash.loader
+   :members:
+   :undoc-members:
+
 Utilities
 ###################################################
 .. automodule:: sed.loader.utils
