@@ -834,7 +834,8 @@ class SedProcessor:
     # 1. Load and normalize data
     def load_bias_series(
         self,
-        data_files: List[str],
+        binned_data: Union[xr.DataArray, Tuple[np.ndarray, np.ndarray, np.ndarray]] = None,
+        data_files: List[str] = None,
         axes: List[str] = None,
         bins: List = None,
         ranges: Sequence[Tuple[float, float]] = None,
@@ -845,10 +846,14 @@ class SedProcessor:
         order: int = None,
     ):
         """1. step of the energy calibration workflow: Load and bin data from
-        single-event files.
+        single-event files, or load binned bias/TOF traces.
 
         Args:
-            data_files (List[str]): list of file paths to bin
+            binned_data (Union[xr.DataArray, Tuple[np.ndarray, np.ndarray, np.ndarray]], optional):
+                Binned data If provided as DataArray, Needs to contain dimensions
+                config["dataframe"]["tof_column"] and config["dataframe"]["bias_column"]. If
+                provided as tuple, needs to contain elements tof, biases, traces.
+            data_files (List[str], optional): list of file paths to bin
             axes (List[str], optional): bin axes.
                 Defaults to config["dataframe"]["tof_column"].
             bins (List, optional): number of bins.
@@ -868,14 +873,44 @@ class SedProcessor:
                 (see ``scipy.signal.savgol_filter()``).
                 Defaults to config["energy"]["normalize_order"].
         """
-        self.ec.bin_data(
-            data_files=cast(List[str], self.cpy(data_files)),
-            axes=axes,
-            bins=bins,
-            ranges=ranges,
-            biases=biases,
-            bias_key=bias_key,
-        )
+        if binned_data is not None:
+            if isinstance(binned_data, xr.DataArray):
+                if (
+                    self._config["dataframe"]["tof_column"] not in binned_data.dims
+                    or self._config["dataframe"]["bias_column"] not in binned_data.dims
+                ):
+                    raise ValueError(
+                        "If binned_data is provided as an xarray, it needs to contain dimensions "
+                        f"'{self._config['dataframe']['tof_column']}' and "
+                        f"'{self._config['dataframe']['bias_column']}'!.",
+                    )
+                tof = binned_data.coords[self._config["dataframe"]["tof_column"]].values
+                biases = binned_data.coords[self._config["dataframe"]["bias_column"]].values
+                traces = binned_data.values[:, :]
+            else:
+                try:
+                    (tof, biases, traces) = binned_data
+                except ValueError as exc:
+                    raise ValueError(
+                        "If binned_data is provided as tuple, it needs to contain "
+                        "(tof, biases, traces)!",
+                    ) from exc
+            self.ec.load_data(biases=biases, traces=traces, tof=tof)
+
+        elif data_files is not None:
+
+            self.ec.bin_data(
+                data_files=cast(List[str], self.cpy(data_files)),
+                axes=axes,
+                bins=bins,
+                ranges=ranges,
+                biases=biases,
+                bias_key=bias_key,
+            )
+
+        else:
+            raise ValueError("Either binned_data or data_files needs to be provided!")
+
         if (normalize is not None and normalize is True) or (
             normalize is None and self._config["energy"]["normalize"]
         ):
@@ -1154,7 +1189,7 @@ class SedProcessor:
                         datafile = self._files[0]
                     except IndexError:
                         print(
-                            "No datafile available, specify eihter",
+                            "No datafile available, specify either",
                             " 'datafile' or 'delay_range'",
                         )
                         raise
