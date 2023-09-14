@@ -409,17 +409,11 @@ class SedProcessor:
                 MomentumCorrector.feature_select()
         """
         if auto_detect:  # automatic feature selection
-            sigma = kwds.pop(
-                "sigma",
-                self._config.get("momentum", {}).get("sigma", 5),
-            )
-            fwhm = kwds.pop(
-                "fwhm",
-                self._config.get("momentum", {}).get("fwhm", 8),
-            )
+            sigma = kwds.pop("sigma", self._config["momentum"]["sigma"])
+            fwhm = kwds.pop("fwhm", self._config["momentum"]["fwhm"])
             sigma_radius = kwds.pop(
                 "sigma_radius",
-                self._config.get("momentum", {}).get("sigma_radius", 1),
+                self._config["momentum"]["sigma_radius"],
             )
             self.mc.feature_extract(
                 sigma=sigma,
@@ -637,10 +631,7 @@ class SedProcessor:
                 in the class. Defaults to False.
         """
         if point_b is None:
-            point_b = self._config.get("momentum", {}).get(
-                "center_pixel",
-                [256, 256],
-            )
+            point_b = self._config["momentum"]["center_pixel"]
 
         self.mc.select_k_range(
             point_a=point_a,
@@ -887,15 +878,12 @@ class SedProcessor:
             bias_key=bias_key,
         )
         if (normalize is not None and normalize is True) or (
-            normalize is None and self._config.get("energy", {}).get("normalize", True)
+            normalize is None and self._config["energy"]["normalize"]
         ):
             if span is None:
-                span = self._config.get("energy", {}).get("normalize_span", 7)
+                span = self._config["energy"]["normalize_span"]
             if order is None:
-                order = self._config.get("energy", {}).get(
-                    "normalize_order",
-                    1,
-                )
+                order = self._config["energy"]["normalize_order"]
             self.ec.normalize(smooth=True, span=span, order=order)
         self.ec.view(
             traces=self.ec.traces_normed,
@@ -939,9 +927,9 @@ class SedProcessor:
                 Defaults to False.
         """
         if radius is None:
-            radius = self._config.get("energy", {}).get("fastdtw_radius", 2)
+            radius = self._config["energy"]["fastdtw_radius"]
         if peak_window is None:
-            peak_window = self._config.get("energy", {}).get("peak_window", 7)
+            peak_window = self._config["energy"]["peak_window"]
         if not infer_others:
             self.ec.add_ranges(
                 ranges=ranges,
@@ -1009,16 +997,10 @@ class SedProcessor:
                 Defaults to config["energy"]["energy_scale"]
         """
         if method is None:
-            method = self._config.get("energy", {}).get(
-                "calibration_method",
-                "lmfit",
-            )
+            method = self._config["energy"]["calibration_method"]
 
         if energy_scale is None:
-            energy_scale = self._config.get("energy", {}).get(
-                "energy_scale",
-                "kinetic",
-            )
+            energy_scale = self._config["energy"]["energy_scale"]
 
         self.ec.calibrate(
             ref_id=ref_id,
@@ -1201,7 +1183,7 @@ class SedProcessor:
                 Defaults to config["dataframe"]["jitter_cols"].
         """
         if cols is None:
-            cols = self._config.get("dataframe", {}).get(
+            cols = self._config["dataframe"].get(
                 "jitter_cols",
                 self._dataframe.columns,
             )  # jitter all columns
@@ -1241,23 +1223,17 @@ class SedProcessor:
             xr.DataArray: pre-binned data-array.
         """
         if axes is None:
-            axes = self._config.get("momentum", {}).get(
-                "axes",
-                ["@x_column, @y_column, @tof_column"],
-            )
+            axes = self._config["momentum"]["axes"]
         for loc, axis in enumerate(axes):
             if axis.startswith("@"):
-                axes[loc] = self._config.get("dataframe").get(axis.strip("@"))
+                axes[loc] = self._config["dataframe"].get(axis.strip("@"))
 
         if bins is None:
-            bins = self._config.get("momentum", {}).get(
-                "bins",
-                [512, 512, 300],
-            )
+            bins = self._config["momentum"]["bins"]
         if ranges is None:
-            ranges_ = self._config.get("momentum", {}).get(
-                "ranges",
-                [[-256, 1792], [-256, 1792], [128000, 138000]],
+            ranges_ = list(self._config["momentum"]["ranges"])
+            ranges_[2] = np.asarray(ranges_[2]) / 2 ** (
+                self._config["dataframe"]["tof_binning"] - 1
             )
             ranges = [cast(Tuple[float, float], tuple(v)) for v in ranges_]
 
@@ -1425,8 +1401,14 @@ class SedProcessor:
             bins = self._config["histogram"]["bins"]
         if axes is None:
             axes = self._config["histogram"]["axes"]
+        axes = list(axes)
+        for loc, axis in enumerate(axes):
+            if axis.startswith("@"):
+                axes[loc] = self._config["dataframe"].get(axis.strip("@"))
         if ranges is None:
-            ranges = self._config["histogram"]["ranges"]
+            ranges = list(self._config["histogram"]["ranges"])
+            ranges[2] = np.asarray(ranges[2]) / 2 ** (self._config["dataframe"]["tof_binning"] - 1)
+            ranges[3] = np.asarray(ranges[3]) / 2 ** (self._config["dataframe"]["adc_binning"] - 1)
 
         input_types = map(type, [axes, bins, ranges])
         allowed_types = [list, tuple]
@@ -1512,15 +1494,21 @@ class SedProcessor:
                 **kwds,
             )
         elif extension in (".nxs", ".nexus"):
-            reader = kwds.pop("reader", self._config["nexus"]["reader"])
-            definition = kwds.pop(
-                "definition",
-                self._config["nexus"]["definition"],
-            )
-            input_files = kwds.pop(
-                "input_files",
-                self._config["nexus"]["input_files"],
-            )
+            try:
+                reader = kwds.pop("reader", self._config["nexus"]["reader"])
+                definition = kwds.pop(
+                    "definition",
+                    self._config["nexus"]["definition"],
+                )
+                input_files = kwds.pop(
+                    "input_files",
+                    self._config["nexus"]["input_files"],
+                )
+            except KeyError as exc:
+                raise ValueError(
+                    "The nexus reader, definition and input files need to be provide!",
+                ) from exc
+
             if isinstance(input_files, str):
                 input_files = [input_files]
 

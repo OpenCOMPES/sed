@@ -11,8 +11,8 @@ import numpy as np
 import pytest
 
 from sed.calibrator.momentum import MomentumCorrector
-from sed.core.config import parse_config
 from sed.core import SedProcessor
+from sed.core.config import parse_config
 from sed.loader.loader_interface import get_loader
 
 # pylint: disable=duplicate-code
@@ -20,7 +20,11 @@ package_dir = os.path.dirname(find_spec("sed").origin)
 df_folder = package_dir + "/../tests/data/loader/mpes/"
 folder = package_dir + "/../tests/data/calibrator/"
 files = glob.glob(df_folder + "*.h5")
-config = parse_config(package_dir + "/../tests/data/config/config.yaml")
+config = parse_config(
+    package_dir + "/config/mpes_example_config.yaml",
+    user_config={},
+    system_config={},
+)
 
 momentum_map_list = []
 with open(
@@ -36,7 +40,7 @@ momentum_map = np.asarray(momentum_map_list).T
 
 def test_bin_data_and_slice_image():
     """Test binning the data and slicing of the image"""
-    sed_processor = SedProcessor(config=config)
+    sed_processor = SedProcessor(config=config, system_config={})
     sed_processor.load(files=files)
     sed_processor.bin_and_load_momentum_calibration(
         plane=33,
