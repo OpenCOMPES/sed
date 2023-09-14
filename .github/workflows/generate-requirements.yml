@@ -9,6 +9,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install Poetry
-        run: sudo apt install poetry
+        run: curl -sSL https://install.python-poetry.org | python3 -
       - name: Export requirements.txt
         run: poetry export --without-hashes --format=requirements.txt -o docs/requirements.txt -E docs -E notebook
