@@ -6,10 +6,14 @@ from typing import Sequence
 from typing import Tuple
 from typing import Union
 
+import dask.dataframe as ddf
 import numpy as np
 import pandas as pd
 import pytest
+import xarray as xr
 
+from sed.binning.binning import bin_dataframe
+from sed.binning.binning import bin_partition
 from sed.binning.binning import numba_histogramdd
 from sed.binning.binning import simplify_binning_arguments
 from sed.binning.numba_bin import _hist_from_bin_range
@@ -21,7 +25,8 @@ from .helpers import get_linear_bin_edges  # noreorder
 
 sample = np.random.randn(int(1e5), 3)
 columns = ["x", "y", "z"]
-sample_df = pd.DataFrame(sample, columns=columns)
+sample_pdf = pd.DataFrame(sample, columns=columns)
+sample_ddf = ddf.from_pandas(sample_pdf, npartitions=10)
 bins: Sequence[int] = tuple(np.random.randint(5, 50, size=3, dtype=int))
 ranges_array = 0.5 + np.random.rand(6).reshape(3, 2)
 ranges_array[:, 0] = -ranges_array[:, 0]
@@ -290,17 +295,12 @@ def test_bin_edges_to_bin_centers():
         assert stepped_array[i + 1] > bin_centers[i]
 
 
-bins = [10, 20, 30]
-axes = ["a", "b", "c"]
-ranges = [(-1, 1), (-2, 2), (-3, 3)]
-
-
 @pytest.mark.parametrize(
     "args",
     [
-        (bins[:1], axes[:1], ranges[:1], 1),
-        (bins[:2], axes[:2], ranges[:2], 2),
-        (bins[:3], axes[:3], ranges[:3], 3),
+        (bins[:1], columns[:1], ranges[:1], 1),
+        (bins[:2], columns[:2], ranges[:2], 2),
+        (bins[:3], columns[:3], ranges[:3], 3),
     ],
     ids=lambda x: f"ndim: {x[3]}",
 )
@@ -398,3 +398,109 @@ def test_simplify_binning_arguments(
         np.testing.assert_array_equal(axes__[i], axes_expected[i])
         if ranges__ is not None:
             np.testing.assert_array_equal(ranges__[i], ranges_expected[i])
+
+
+def test_bin_partition():
+    """Test bin_partition function"""
+    # test skipping checks in bin_partition
+    with pytest.raises(TypeError):
+        res = bin_partition(
+            part=sample_pdf,
+            bins=[10, np.array([10, 20])],
+            axes=columns,
+            ranges=ranges,
+            skip_test=True,
+        )
+    with pytest.raises(TypeError):
+        res = bin_partition(
+            part=sample_pdf,
+            bins=bins,
+            axes=["x", 10],
+            ranges=ranges,
+            skip_test=True,
+        )
+    # binning with bin numbers
+    res1, edges1 = bin_partition(
+        part=sample_pdf,
+        bins=bins,
+        axes=columns,
+        ranges=ranges,
+        skip_test=False,
+        return_edges=True,
+    )
+    assert isinstance(res1, np.ndarray)
+    # binning with bin centers
+    bin_centers = [np.linspace(r[0], r[1], b, endpoint=False) for r, b in zip(ranges, bins)]
+
+    res2, edges2 = bin_partition(
+        part=sample_pdf,
+        bins=bin_centers,
+        axes=columns,
+        skip_test=False,
+        return_edges=True,
+    )
+    assert isinstance(res2, np.ndarray)
+    np.testing.assert_allclose(res1, res2)
+    for edge1, edge2 in zip(edges1, edges2):
+        np.testing.assert_allclose(edge1, edge2)
+
+    # test jittering, list
+    res = bin_partition(
+        part=sample_pdf,
+        bins=bins,
+        axes=columns,
+        ranges=ranges,
+        skip_test=False,
+        jitter=columns,
+    )
+    assert not np.allclose(res, res1)
+    # test jittering, dict
+    res = bin_partition(
+        part=sample_pdf,
+        bins=bins,
+        axes=columns,
+        ranges=ranges,
+        skip_test=False,
+        jitter={axis: {"amplitude": 0.5, "mode": "normal"} for axis in columns},
+    )
+    assert not np.allclose(res, res1)
+    # numpy mode
+    with pytest.raises(ValueError):
+        res = bin_partition(
+            part=sample_pdf,
+            bins=bins,
+            axes=columns,
+            ranges=ranges,
+            skip_test=False,
+            hist_mode="invalid",
+        )
+    res = bin_partition(
+        part=sample_pdf,
+        bins=bins,
+        axes=columns,
+        ranges=ranges,
+        skip_test=False,
+        hist_mode="numpy",
+    )
+    assert np.allclose(res, res1)
+
+
+def test_bin_dataframe():
+    """Test bin_dataframe function"""
+    res = bin_dataframe(df=sample_ddf, bins=bins, axes=columns, ranges=ranges)
+    assert isinstance(res, xr.DataArray)
+    for i, axis in enumerate(columns):
+        assert len(res.coords[axis]) == bins[i]
+    # binning with bin centers
+    bin_centers = [np.linspace(r[0], r[1], b, endpoint=False) for r, b in zip(ranges, bins)]
+    res = bin_dataframe(df=sample_ddf, bins=bin_centers, axes=columns)
+    assert isinstance(res, xr.DataArray)
+    for i, axis in enumerate(columns):
+        assert len(res.coords[axis]) == len(bin_centers[i])
+    # legacy modes
+    with pytest.raises(ValueError):
+        res = bin_dataframe(df=sample_ddf, bins=bins, axes=columns, ranges=ranges, mode="invalid")
+    res2 = bin_dataframe(df=sample_ddf, bins=bins, axes=columns, ranges=ranges, mode="legacy")
+    np.testing.assert_allclose(res.values, res2.values)
+    res2 = bin_dataframe(df=sample_ddf, bins=bins, axes=columns, ranges=ranges, mode="lean")
+    np.testing.assert_allclose(res.values, res2.values)
