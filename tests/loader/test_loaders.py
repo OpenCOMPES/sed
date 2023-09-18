@@ -1,4 +1,5 @@
-"""Test cases for loaders used to load dataframes"""
+"""Test cases for loaders used to load dataframes
+"""
 import os
 from importlib.util import find_spec
 from pathlib import Path

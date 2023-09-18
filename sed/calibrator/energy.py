@@ -1360,10 +1360,7 @@ class EnergyCalibrator:
             if self.correction:
                 correction = deepcopy(self.correction)
             else:
-                try:
-                    correction = deepcopy(self._config["energy"]["correction"])
-                except KeyError as exc:
-                    raise ValueError("No valid energy correction found in config!") from exc
+                correction = deepcopy(self._config["energy"].get("correction", {}))
 
         if correction_type is not None:
             correction["correction_type"] = correction_type
@@ -1382,6 +1379,10 @@ class EnergyCalibrator:
 
         if new_tof_column is None:
             new_tof_column = self.corrected_tof_column
+
+        missing_keys = {"correction_type", "center", "amplitude"} - set(correction.keys())
+        if missing_keys:
+            raise ValueError(f"Required correction parameters '{missing_keys}' missing!")
 
         df[new_tof_column] = df[tof_column] + correction_function(
             x=df[x_column],
@@ -1465,7 +1466,13 @@ def correction_function(
         float: calculated correction value
     """
     if correction_type == "spherical":
-        diameter = kwds.pop("diameter", 50)
+        try:
+            diameter = kwds.pop("diameter")
+        except KeyError as exc:
+            raise ValueError(
+                f"Parameter 'diameter' required for correction type '{correction_type}' "
+                "but not provided!",
+            ) from exc
         correction = -(
             (
                 1
@@ -1478,7 +1485,13 @@ def correction_function(
         )
 
     elif correction_type == "Lorentzian":
-        gamma = kwds.pop("gamma", 700)
+        try:
+            gamma = kwds.pop("gamma")
+        except KeyError as exc:
+            raise ValueError(
+                f"Parameter 'gamma' required for correction type '{correction_type}' "
+                "but not provided!",
+            ) from exc
         correction = (
             100000
             * amplitude
@@ -1487,7 +1500,13 @@ def correction_function(
         )
 
     elif correction_type == "Gaussian":
-        sigma = kwds.pop("sigma", 400)
+        try:
+            sigma = kwds.pop("sigma")
+        except KeyError as exc:
+            raise ValueError(
+                f"Parameter 'sigma' required for correction type '{correction_type}' "
+                "but not provided!",
+            ) from exc
         correction = (
             20000
             * amplitude
@@ -1501,7 +1520,13 @@ def correction_function(
         )
 
     elif correction_type == "Lorentzian_asymmetric":
-        gamma = kwds.pop("gamma", 700)
+        try:
+            gamma = kwds.pop("gamma")
+        except KeyError as exc:
+            raise ValueError(
+                f"Parameter 'gamma' required for correction type '{correction_type}' "
+                "but not provided!",
+            ) from exc
         gamma2 = kwds.pop("gamma2", gamma)
         amplitude2 = kwds.pop("amplitude2", amplitude)
         correction = (

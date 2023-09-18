@@ -21,11 +21,6 @@ package_dir = os.path.dirname(find_spec("sed").origin)
 df_folder = package_dir + "/../tests/data/loader/mpes/"
 folder = package_dir + "/../tests/data/calibrator/"
 files = glob.glob(df_folder + "*.h5")
-config = parse_config(
-    package_dir + "/config/mpes_example_config.yaml",
-    user_config={},
-    system_config={},
-)
 
 traces_list = []
 with open(folder + "traces.csv", newline="", encoding="utf-8") as csvfile:
@@ -43,6 +38,11 @@ with open(folder + "biases.csv", newline="", encoding="utf-8") as csvfile:
 
 def test_bin_data_and_read_biases_from_files():
     """Test binning the data and extracting the bias values from the files"""
+    config = parse_config(
+        config={"dataframe": {"tof_binning": 2}, "energy": {"bias_key": "@KTOF:Lens:Sample:V"}},
+        user_config={},
+        system_config={},
+    )
     ec = EnergyCalibrator(
         config=config,
         loader=get_loader("mpes", config=config),
@@ -75,6 +75,11 @@ def test_bin_data_and_read_biases_from_files():
 
 def test_energy_calibrator_from_arrays_norm():
     """Test loading the energy, bias and tof traces into the class"""
+    config = parse_config(
+        config={"dataframe": {"tof_binning": 2}},
+        user_config={},
+        system_config={},
+    )
     ec = EnergyCalibrator(
         config=config,
         loader=get_loader("mpes", config=config),
@@ -89,6 +94,11 @@ def test_energy_calibrator_from_arrays_norm():
 
 def test_feature_extract():
     """Test generating the ranges, and extracting the features"""
+    config = parse_config(
+        config={"dataframe": {"tof_binning": 2}},
+        user_config={},
+        system_config={},
+    )
     rand = [int((i + 1) * (20 + np.random.random() * 10)) for i in range(11)]
     traces_rand = np.zeros((len(rand), traces.shape[1]))
     for i, rnd in enumerate(rand):
@@ -116,6 +126,11 @@ def test_feature_extract():
 
 def test_adjust_ranges():
     """Test the interactive function for adjusting the feature ranges"""
+    config = parse_config(
+        config={"dataframe": {"tof_binning": 2}},
+        user_config={},
+        system_config={},
+    )
     rand = [int((i + 1) * (20 + np.random.random() * 10)) for i in range(11)]
     traces_rand = np.zeros((len(rand), traces.shape[1]))
     for i, rnd in enumerate(rand):
@@ -156,6 +171,11 @@ def test_calibrate_append(energy_scale: str, calibration_method: str):
         energy_scale (str): tpye of energy scaling
         calibration_method (str): method used for ralibration
     """
+    config = parse_config(
+        config={"dataframe": {"tof_binning": 2}},
+        user_config={},
+        system_config={},
+    )
     loader = get_loader(loader_name="mpes", config=config)
     df, _ = loader.read_dataframe(folders=df_folder, collect_metadata=False)
     ec = EnergyCalibrator(config=config, loader=loader)
@@ -197,7 +217,7 @@ calib_dicts = [{"d": 1, "t0": 0, "E0": 0}, {"coeffs": [1, 2, 3], "E0": 0}]
     "calib_type, calib_dict",
     zip(calib_types, calib_dicts),
 )
-def test_apply_correction_from_dict_kwds(calib_type: str, calib_dict: dict):
+def test_append_energy_axis_from_dict_kwds(calib_type: str, calib_dict: dict):
     """Function to test if the energy calibration is correctly applied using a dict or
     kwd parameters.
 
@@ -205,6 +225,7 @@ def test_apply_correction_from_dict_kwds(calib_type: str, calib_dict: dict):
         calib_type (str): type of calibration.
         calib_dict (dict): Dictionary with calibration parameters.
     """
+    config = parse_config(config={}, user_config={}, system_config={})
     loader = get_loader(loader_name="mpes", config=config)
     # from dict
     df, _ = loader.read_dataframe(folders=df_folder, collect_metadata=False)
@@ -225,6 +246,21 @@ def test_apply_correction_from_dict_kwds(calib_type: str, calib_dict: dict):
     for key in calib_dict:
         np.testing.assert_equal(metadata["calibration"][key], calib_dict[key])
     assert metadata["calibration"]["calib_type"] == calib_type
+
+
+def test_append_energy_axis_raises():
+    """Test if apply_correction raises the correct errors"""
+    config = parse_config(config={}, user_config={}, system_config={})
+    loader = get_loader(loader_name="mpes", config=config)
+    df, _ = loader.read_dataframe(folders=df_folder, collect_metadata=False)
+    ec = EnergyCalibrator(config=config, loader=loader)
+    with pytest.raises(ValueError):
+        df, _ = ec.append_energy_axis(df, calibration={"d": 1, "t0": 0})
+    with pytest.raises(NotImplementedError):
+        df, _ = ec.append_energy_axis(
+            df,
+            calibration={"d": 1, "t0": 0, "E0": 0, "calib_type": "invalid"},
+        )
 
 
 amplitude = 2.5  # pylint: disable=invalid-name
@@ -276,6 +312,7 @@ def test_energy_correction(correction_type: str, correction_kwd: dict):
         correction_type (str): type of correction to test
         correction_kwd (dict): parameters to pass to the function
     """
+    config = parse_config(config={}, user_config={}, system_config={})
     sample_df = pd.DataFrame(sample, columns=columns)
     ec = EnergyCalibrator(
         config=config,
@@ -306,6 +343,50 @@ def test_energy_correction(correction_type: str, correction_kwd: dict):
 
 
 @pytest.mark.parametrize(
+    "correction_type",
+    correction_types,
+)
+def test_adjust_energy_correction_raises(
+    correction_type: str,
+):
+    """Function to test if the adjust_energy_correction function raises the correct errors.
+
+    Args:
+        correction_type (str): type of correction to test
+    """
+    config = parse_config(config={}, user_config={}, system_config={})
+    ec = EnergyCalibrator(
+        config=config,
+        loader=get_loader("mpes", config=config),
+    )
+    correction_dict: Dict[str, Any] = {
+        "correction_type": correction_type,
+        "amplitude": amplitude,
+        "center": center,
+    }
+    with pytest.raises(ValueError):
+        ec.adjust_energy_correction(
+            image=image,
+            **correction_dict,
+            apply=True,
+        )
+    if correction_type == "Lorentzian_asymmetric":
+        correction_dict = {
+            "correction_type": correction_type,
+            "amplitude": amplitude,
+            "center": center,
+            "gamma": 900,
+        }
+        ec.adjust_energy_correction(
+            image=image,
+            **correction_dict,
+            apply=True,
+        )
+        assert ec.correction["gamma2"] == correction_dict["gamma"]
+        assert ec.correction["amplitude2"] == correction_dict["amplitude"]
+
+
+@pytest.mark.parametrize(
     "correction_type, correction_kwd",
     zip(correction_types, correction_kwds),
 )
@@ -320,7 +401,7 @@ def test_energy_correction_from_dict_kwds(
         correction_type (str): type of correction to test
         correction_kwd (dict): parameters to pass to the function
     """
-    # from dict
+    config = parse_config(config={}, user_config={}, system_config={})
     sample_df = pd.DataFrame(sample, columns=columns)
     ec = EnergyCalibrator(
         config=config,
@@ -368,3 +449,45 @@ def test_energy_correction_from_dict_kwds(
             metadata["correction"][key],
             value,
         )
+
+
+@pytest.mark.parametrize(
+    "correction_type",
+    correction_types,
+)
+def test_apply_energy_correction_raises(
+    correction_type: str,
+):
+    """Function to test if the apply_energy_correction raises the correct errors.
+
+    Args:
+        correction_type (str): type of correction to test
+    """
+    config = parse_config(config={}, user_config={}, system_config={})
+    sample_df = pd.DataFrame(sample, columns=columns)
+    ec = EnergyCalibrator(
+        config=config,
+        loader=get_loader("mpes", config=config),
+    )
+    correction_dict: Dict[str, Any] = {
+        "correction_type": correction_type,
+        "amplitude": amplitude,
+        "center": center,
+    }
+    with pytest.raises(ValueError):
+        df, metadata = ec.apply_energy_correction(
+            sample_df,
+            correction=correction_dict,
+        )
+    if correction_type == "Lorentzian_asymmetric":
+        correction_dict = {
+            "correction_type": correction_type,
+            "amplitude": amplitude,
+            "center": center,
+            "gamma": 900,
+        }
+        df, _ = ec.apply_energy_correction(
+            sample_df,
+            correction=correction_dict,
+        )
+        assert config["dataframe"]["corrected_tof_column"] in df.columns

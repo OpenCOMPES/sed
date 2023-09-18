@@ -239,7 +239,7 @@ adjust_params = {
     "features",
     feature_list,
 )
-def test_momentum_correction_workflow(features):
+def test_momentum_correction_workflow(features: np.ndarray):
     """Test for the momentum correction workflow"""
     config = parse_config(
         config={"core": {"loader": "generic"}},
