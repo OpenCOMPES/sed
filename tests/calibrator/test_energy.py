@@ -40,6 +40,7 @@ def test_bin_data_and_read_biases_from_files():
     """Test binning the data and extracting the bias values from the files"""
     config = parse_config(
         config={"dataframe": {"tof_binning": 2}, "energy": {"bias_key": "@KTOF:Lens:Sample:V"}},
+        folder_config={},
         user_config={},
         system_config={},
     )
@@ -53,7 +54,7 @@ def test_bin_data_and_read_biases_from_files():
     assert ec.tof.ndim == 1
     assert ec.biases.ndim == 1
     assert len(ec.biases) == 2
-    default_config = parse_config(config={}, user_config={}, system_config={})
+    default_config = parse_config(config={}, folder_config={}, user_config={}, system_config={})
     ec = EnergyCalibrator(
         config=default_config,
         loader=get_loader("mpes", config=default_config),
@@ -62,6 +63,7 @@ def test_bin_data_and_read_biases_from_files():
         ec.bin_data(data_files=files)
     faulty_config = parse_config(
         config={"energy": {"bias_key": "@KTOF:Lens:Sample"}},
+        folder_config={},
         user_config={},
         system_config={},
     )
@@ -77,6 +79,7 @@ def test_energy_calibrator_from_arrays_norm():
     """Test loading the energy, bias and tof traces into the class"""
     config = parse_config(
         config={"dataframe": {"tof_binning": 2}},
+        folder_config={},
         user_config={},
         system_config={},
     )
@@ -96,6 +99,7 @@ def test_feature_extract():
     """Test generating the ranges, and extracting the features"""
     config = parse_config(
         config={"dataframe": {"tof_binning": 2}},
+        folder_config={},
         user_config={},
         system_config={},
     )
@@ -128,6 +132,7 @@ def test_adjust_ranges():
     """Test the interactive function for adjusting the feature ranges"""
     config = parse_config(
         config={"dataframe": {"tof_binning": 2}},
+        folder_config={},
         user_config={},
         system_config={},
     )
@@ -173,6 +178,7 @@ def test_calibrate_append(energy_scale: str, calibration_method: str):
     """
     config = parse_config(
         config={"dataframe": {"tof_binning": 2}},
+        folder_config={},
         user_config={},
         system_config={},
     )
@@ -225,7 +231,7 @@ def test_append_energy_axis_from_dict_kwds(calib_type: str, calib_dict: dict):
         calib_type (str): type of calibration.
         calib_dict (dict): Dictionary with calibration parameters.
     """
-    config = parse_config(config={}, user_config={}, system_config={})
+    config = parse_config(config={}, folder_config={}, user_config={}, system_config={})
     loader = get_loader(loader_name="mpes", config=config)
     # from dict
     df, _ = loader.read_dataframe(folders=df_folder, collect_metadata=False)
@@ -250,7 +256,7 @@ def test_append_energy_axis_from_dict_kwds(calib_type: str, calib_dict: dict):
 
 def test_append_energy_axis_raises():
     """Test if apply_correction raises the correct errors"""
-    config = parse_config(config={}, user_config={}, system_config={})
+    config = parse_config(config={}, folder_config={}, user_config={}, system_config={})
     loader = get_loader(loader_name="mpes", config=config)
     df, _ = loader.read_dataframe(folders=df_folder, collect_metadata=False)
     ec = EnergyCalibrator(config=config, loader=loader)
@@ -312,6 +318,7 @@ def test_energy_correction(correction_type: str, correction_kwd: dict):
         correction_type (str): type of correction to test
         correction_kwd (dict): parameters to pass to the function
     """
+    # From keywords
     config = parse_config(config={}, user_config={}, system_config={})
     sample_df = pd.DataFrame(sample, columns=columns)
     ec = EnergyCalibrator(
@@ -335,6 +342,46 @@ def test_energy_correction(correction_type: str, correction_kwd: dict):
     assert t[3] < t[4]
     assert t[1] == t[4]
 
+    assert ec.correction["correction_type"] == correction_type
+    assert ec.correction["amplitude"] == amplitude
+    assert ec.correction["center"] == center
+
+    for key, value in ec.correction.items():
+        np.testing.assert_equal(
+            metadata["correction"][key],
+            value,
+        )
+    # From dict
+    config = parse_config(config={}, user_config={}, system_config={})
+    sample_df = pd.DataFrame(sample, columns=columns)
+    ec = EnergyCalibrator(
+        config=config,
+        loader=get_loader("mpes", config=config),
+    )
+    correction: Dict[Any, Any] = {
+        "correction_type": correction_type,
+        "amplitude": amplitude,
+        "center": center,
+        **correction_kwd,
+    }
+    ec.adjust_energy_correction(
+        image=image,
+        tof_fermi=tof_fermi,
+        apply=True,
+        **correction,
+    )
+    df, metadata = ec.apply_energy_correction(sample_df)
+    t = df[config["dataframe"]["corrected_tof_column"]]
+    assert t[0] == t[2]
+    assert t[0] < t[1]
+    assert t[3] == t[5]
+    assert t[3] < t[4]
+    assert t[1] == t[4]
+
+    assert ec.correction["correction_type"] == correction["correction_type"]
+    assert ec.correction["amplitude"] == correction["amplitude"]
+    assert ec.correction["center"] == correction["center"]
+
     for key, value in ec.correction.items():
         np.testing.assert_equal(
             metadata["correction"][key],
@@ -354,7 +401,7 @@ def test_adjust_energy_correction_raises(
     Args:
         correction_type (str): type of correction to test
     """
-    config = parse_config(config={}, user_config={}, system_config={})
+    config = parse_config(config={}, folder_config={}, user_config={}, system_config={})
     ec = EnergyCalibrator(
         config=config,
         loader=get_loader("mpes", config=config),
@@ -401,7 +448,7 @@ def test_energy_correction_from_dict_kwds(
         correction_type (str): type of correction to test
         correction_kwd (dict): parameters to pass to the function
     """
-    config = parse_config(config={}, user_config={}, system_config={})
+    config = parse_config(config={}, folder_config={}, user_config={}, system_config={})
     sample_df = pd.DataFrame(sample, columns=columns)
     ec = EnergyCalibrator(
         config=config,
@@ -463,7 +510,7 @@ def test_apply_energy_correction_raises(
     Args:
         correction_type (str): type of correction to test
     """
-    config = parse_config(config={}, user_config={}, system_config={})
+    config = parse_config(config={}, folder_config={}, user_config={}, system_config={})
     sample_df = pd.DataFrame(sample, columns=columns)
     ec = EnergyCalibrator(
         config=config,
@@ -475,7 +522,7 @@ def test_apply_energy_correction_raises(
         "center": center,
     }
     with pytest.raises(ValueError):
-        df, metadata = ec.apply_energy_correction(
+        df, _ = ec.apply_energy_correction(
             sample_df,
             correction=correction_dict,
         )
