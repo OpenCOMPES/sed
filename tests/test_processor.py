@@ -155,6 +155,8 @@ def test_attributes_setters():
     processor.load(files=files, metadata={"test": {"key1": "value1"}})
     dataframe = processor.dataframe
     assert isinstance(dataframe, ddf.DataFrame)
+    with pytest.raises(ValueError):
+        processor.dataframe = dataframe["X"]
     dataframe["X"] = dataframe["Y"]
     processor.dataframe = dataframe
     np.testing.assert_allclose(

@@ -173,6 +173,15 @@ class SedProcessor:
         Args:
             dataframe (Union[pd.DataFrame, ddf.DataFrame]): The dataframe object to set.
         """
+        if not isinstance(dataframe, (pd.DataFrame, ddf.DataFrame)) or not isinstance(
+            dataframe,
+            self._dataframe.__class__,
+        ):
+            raise ValueError(
+                "'dataframe' has to be a Pandas or Dask dataframe and has to be of the same kind "
+                "as the dataframe loaded into the SedProcessor!.\n"
+                f"Loaded type: {self._dataframe.__class__}, provided type: {dataframe}.",
+            )
         self._dataframe = dataframe
 
     @property
