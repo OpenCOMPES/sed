@@ -20,11 +20,6 @@ package_dir = os.path.dirname(find_spec("sed").origin)
 df_folder = package_dir + "/../tests/data/loader/mpes/"
 folder = package_dir + "/../tests/data/calibrator/"
 files = glob.glob(df_folder + "*.h5")
-config = parse_config(
-    package_dir + "/config/mpes_example_config.yaml",
-    user_config={},
-    system_config={},
-)
 
 momentum_map_list = []
 with open(
@@ -40,6 +35,12 @@ momentum_map = np.asarray(momentum_map_list).T
 
 def test_bin_data_and_slice_image():
     """Test binning the data and slicing of the image"""
+    config = parse_config(
+        config={"core": {"loader": "mpes"}},
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
     sed_processor = SedProcessor(config=config, system_config={})
     sed_processor.load(files=files)
     sed_processor.bin_and_load_momentum_calibration(
@@ -52,6 +53,12 @@ def test_bin_data_and_slice_image():
 
 def test_feature_extract():
     """Testextracting the feature from a 2D slice"""
+    config = parse_config(
+        config={"core": {"loader": "mpes"}},
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
     mc = MomentumCorrector(config=config)
     mc.load_data(
         data=momentum_map,
@@ -72,6 +79,12 @@ def test_splinewarp(include_center: bool):
     Args:
         include_center (bool): Option to include the center point.
     """
+    config = parse_config(
+        config={"core": {"loader": "mpes"}},
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
     mc = MomentumCorrector(config=config)
     mc.load_data(
         data=momentum_map,
@@ -98,6 +111,12 @@ def test_splinewarp(include_center: bool):
 
 def test_pose_correction():
     """Test the adjustment of the pose correction."""
+    config = parse_config(
+        config={"core": {"loader": "mpes"}},
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
     mc = MomentumCorrector(config=config)
     mc.load_data(
         data=momentum_map,
@@ -111,6 +130,12 @@ def test_pose_correction():
 
 def test_apply_correction():
     """Test the application of the distortion correction to the dataframe."""
+    config = parse_config(
+        config={"core": {"loader": "mpes"}},
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
     df, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
         folders=df_folder,
         collect_metadata=False,
@@ -218,6 +243,12 @@ def test_apply_registration(
     depends_on: Dict[Any, Any],
 ):
     """Test the application of the distortion correction to the dataframe."""
+    config = parse_config(
+        config={"core": {"loader": "mpes"}},
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
     df, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
         folders=df_folder,
         collect_metadata=False,
@@ -227,8 +258,19 @@ def test_apply_registration(
         data=momentum_map,
         bin_ranges=[(-256, 1792), (-256, 1792)],
     )
-    mc.add_features()
-    mc.spline_warp_estimate()  # use spline warp with default parameters
+    features = np.array(
+        [
+            [203.2, 341.96],
+            [299.16, 345.32],
+            [350.25, 243.70],
+            [304.38, 149.88],
+            [199.52, 152.48],
+            [154.28, 242.27],
+            [248.29, 248.62],
+        ],
+    )
+    mc.add_features(features=features, rotsym=6)
+    mc.spline_warp_estimate()
     mc.pose_adjustment(**transformations, apply=True)
     df, metadata = mc.apply_corrections(df=df)
     assert "Xm" in df.columns
@@ -262,6 +304,12 @@ def test_momentum_calibration_equiscale():
     """Test the calibration using one point and the k-distance,
     and application to the dataframe.
     """
+    config = parse_config(
+        config={"core": {"loader": "mpes"}},
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
     df, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
         folders=df_folder,
         collect_metadata=False,
@@ -287,6 +335,12 @@ def test_momentum_calibration_equiscale():
 
 def test_momentum_calibration_two_points():
     """Test the calibration using two k-points, and application to the dataframe."""
+    config = parse_config(
+        config={"core": {"loader": "mpes"}},
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
     df, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
         folders=df_folder,
         collect_metadata=False,
