@@ -1,7 +1,7 @@
 """
 This module implements the flash data loader.
 This loader currently supports hextof, wespe and instruments with similar structure.
-The raw hdf5 data is combined and saved into intermediate files and loaded as a dask dataframe.
+The raw hdf5 data is combined and saved into buffer files and loaded as a dask dataframe.
 The dataframe is a amalgamation of all h5 files for a combination of runs, where the NaNs are
 automatically forward filled across different files.
 This can then be saved as a parquet for out-of-sed processing and reread back to access other
@@ -591,9 +591,9 @@ class FlashLoader(BaseLoader):
             self.reset_multi_index()  # Reset MultiIndexes for next file
             return self.concatenate_channels(h5_file)
 
-    def h5_to_parquet(self, h5_path: Path, parquet_path: Path) -> None:
+    def create_buffer_file(self, h5_path: Path, parquet_path: Path) -> None:
         """
-        Convert HDF5 file to Parquet format.
+        Converts an HDF5 file to Parquet format to create a buffer file.
 
         This method uses `create_dataframe_per_file` method to create dataframes from individual
         files within an HDF5 file. The resulting dataframe is then saved to a Parquet file.
@@ -617,9 +617,9 @@ class FlashLoader(BaseLoader):
                 f"{parquet_path}: {failed_string_error}",
             )
 
-    def intermediate_file_handler(self, data_parquet_dir, detector):
+    def buffer_file_handler(self, data_parquet_dir, detector):
         """
-        Handles the conversion of intermediate files (h5 to parquet) and returns the filenames.
+        Handles the conversion of buffer files (h5 to parquet) and returns the filenames.
 
         Args:
             data_parquet_dir (str or Path): Directory where the parquet files will be stored.
@@ -633,13 +633,13 @@ class FlashLoader(BaseLoader):
 
         """
 
-        # Create the directory for intermediate parquet files
-        intermediate_file_dir = data_parquet_dir.joinpath("per_file")
-        intermediate_file_dir.mkdir(parents=True, exist_ok=True)
+        # Create the directory for buffer parquet files
+        buffer_file_dir = data_parquet_dir.joinpath("buffer")
+        buffer_file_dir.mkdir(parents=True, exist_ok=True)
 
         # Create a dictionary to store the filenames of h5 and parquet files
         filenames = {
-            Path(file): intermediate_file_dir.joinpath(
+            Path(file): buffer_file_dir.joinpath(
                 Path(file).stem + detector,
             )
             for file in self.files
@@ -658,13 +658,13 @@ class FlashLoader(BaseLoader):
             f"Reading files: {len(files_to_read)} new files of {len(filenames)} total.",
         )
 
-        # Initialize the indices for h5_to_parquet conversion
+        # Initialize the indices for create_buffer_file conversion
         self.reset_multi_index()
 
         # Convert the remaining h5 files to parquet in parallel if there are any
         if len(files_to_read) > 0:
             Parallel(n_jobs=len(files_to_read), verbose=10)(
-                delayed(self.h5_to_parquet)(h5_path, parquet_path)
+                delayed(self.create_buffer_file)(h5_path, parquet_path)
                 for h5_path, parquet_path in files_to_read.items()
             )
 
@@ -781,8 +781,8 @@ class FlashLoader(BaseLoader):
                 ) from exc
 
         else:
-            # Obtain the filenames from the method which handles intermediate file creation/reading
-            filenames = self.intermediate_file_handler(
+            # Obtain the filenames from the method which handles buffer file creation/reading
+            filenames = self.buffer_file_handler(
                 data_parquet_dir,
                 detector,
             )
