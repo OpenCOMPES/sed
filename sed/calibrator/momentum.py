@@ -110,12 +110,8 @@ class MomentumCorrector:
 
         self.x_column = self._config["dataframe"]["x_column"]
         self.y_column = self._config["dataframe"]["y_column"]
-        self.corrected_x_column = self._config["dataframe"][
-            "corrected_x_column"
-        ]
-        self.corrected_y_column = self._config["dataframe"][
-            "corrected_y_column"
-        ]
+        self.corrected_x_column = self._config["dataframe"]["corrected_x_column"]
+        self.corrected_y_column = self._config["dataframe"]["corrected_y_column"]
         self.kx_column = self._config["dataframe"]["kx_column"]
         self.ky_column = self._config["dataframe"]["ky_column"]
 
@@ -735,7 +731,7 @@ class MomentumCorrector:
         if verbose:
             print("Calulated thin spline correction based on the following landmarks:")
             print(f"pouter: {self.pouter}")
-            if include_center:
+            if use_center:
                 print(f"pcent: {self.pcent}")
 
         return corrected_image
