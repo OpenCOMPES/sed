@@ -484,7 +484,7 @@ def test_energy_calibration_workflow(energy_scale: str, calibration_method: str)
     assert len(processor.ec.biases) == 2
     # load data as tuple
     with pytest.raises(ValueError):
-        processor.load_bias_series(binned_data=(tof, traces))
+        processor.load_bias_series(binned_data=(tof, traces))  # type: ignore
     processor.load_bias_series(binned_data=(tof, biases, traces))
     assert processor.ec.traces.shape == traces.shape
     assert len(processor.ec.biases) == processor.ec.traces.shape[0]
