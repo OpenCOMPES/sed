@@ -220,7 +220,7 @@
   "/ENTRY[entry]/SAMPLE[sample]/preparation_description/description": "Here should be a description of the preparation procedure.",
   "/ENTRY[entry]/SAMPLE[sample]/chemical_formula": "@attrs:metadata/sample/chemical_formula",
   "/ENTRY[entry]/SAMPLE[sample]/description": "@attrs:metadata/sample/chemical_formula",
-  "/ENTRY[entry]/SAMPLE[sample]/name": "@attrs:metadata/sample/chemical_formula",
+  "/ENTRY[entry]/SAMPLE[sample]/name": "@attrs:metadata/sample/name",
   "/ENTRY[entry]/SAMPLE[sample]/gas_pressure": "@attrs:metadata/file/trARPES:XGS600:PressureAC:P_RD",
   "/ENTRY[entry]/SAMPLE[sample]/gas_pressure/@units": "mbar",
   "/ENTRY[entry]/SAMPLE[sample]/situation": "vacuum",

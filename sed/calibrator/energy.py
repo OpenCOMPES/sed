@@ -109,7 +109,7 @@ class EnergyCalibrator:
         self.tof_fermi = self._config["energy"]["tof_fermi"] / 2 ** (self.binning - 1)
         self.color_clip = self._config["energy"]["color_clip"]
 
-        self.correction = self._config["energy"].get("correction", {})
+        self.correction: Dict[Any, Any] = {}
 
     @property
     def ntraces(self) -> int:
@@ -251,12 +251,13 @@ class EnergyCalibrator:
             **kwds,
         )
         if read_biases:
-            try:
-                biases = extract_bias(data_files, bias_key)
-            except KeyError as exc:
-                raise ValueError(
-                    "Either Bias Values or a valid bias_key has to be present!",
-                ) from exc
+            if bias_key:
+                try:
+                    biases = extract_bias(data_files, bias_key)
+                except KeyError as exc:
+                    raise ValueError(
+                        "Either Bias Values or a valid bias_key has to be present!",
+                    ) from exc
         tof = traces.coords[(axes[0])]
         self.traces = self.traces_normed = np.asarray(traces.T)
         self.tof = np.asarray(tof)
@@ -587,6 +588,7 @@ class EnergyCalibrator:
                 aug=self.dup,
                 method=method,
                 t=t,
+                energy_scale=energy_scale,
                 **kwds,
             )
         else:
@@ -926,6 +928,8 @@ class EnergyCalibrator:
                 term. Defaults to config["energy"]["correction"]["correction_type"].
             center (Tuple[float, float], optional): Center (x/y) coordinates for the
                 correction. Defaults to config["energy"]["correction"]["center"].
+            correction (dict, optional): Correction dict. Defaults to the config values
+                and is updated from provided and adjusted parameters.
             apply (bool, optional): whether to store the provided parameters within
                 the class. Defaults to False.
             **kwds: Additional parameters to use for the adjustment plots:
@@ -957,22 +961,19 @@ class EnergyCalibrator:
         matplotlib.use("module://ipympl.backend_nbagg")
 
         if correction is None:
-            correction = deepcopy(self.correction)
+            if self.correction:
+                correction = deepcopy(self.correction)
+            else:
+                correction = deepcopy(self._config["energy"].get("correction", {}))
 
         if correction_type is not None:
             correction["correction_type"] = correction_type
 
-        correction_type = correction["correction_type"]
-
         if amplitude is not None:
             correction["amplitude"] = amplitude
 
-        amplitude = correction["amplitude"]
-
         if center is not None:
             correction["center"] = center
-
-        center = correction["center"]
 
         x_column = kwds.pop("x_column", self.x_column)
         y_column = kwds.pop("y_column", self.y_column)
@@ -983,27 +984,31 @@ class EnergyCalibrator:
         tof_width = kwds.pop("tof_width", self.tof_width)
         color_clip = kwds.pop("color_clip", self.color_clip)
 
+        correction = {**correction, **kwds}
+
+        if not {"correction_type", "amplitude", "center"}.issubset(set(correction.keys())):
+            raise ValueError(
+                "No valid energy correction found in config and required parameters missing!",
+            )
+
+        if isinstance(correction["center"], list):
+            correction["center"] = tuple(correction["center"])
+
         x = image.coords[x_column].values
         y = image.coords[y_column].values
 
-        x_center = center[0]
-        y_center = center[1]
+        x_center = correction["center"][0]
+        y_center = correction["center"][1]
 
         correction_x = tof_fermi - correction_function(
             x=x,
             y=y_center,
-            correction_type=correction_type,
-            center=center,
-            amplitude=amplitude,
-            **kwds,
+            **correction,
         )
         correction_y = tof_fermi - correction_function(
             x=x_center,
             y=y,
-            correction_type=correction_type,
-            center=center,
-            amplitude=amplitude,
-            **kwds,
+            **correction,
         )
         fig, ax = plt.subplots(2, 1)
         image.loc[
@@ -1040,7 +1045,7 @@ class EnergyCalibrator:
         line2 = ax[1].axvline(x=y_center)
 
         amplitude_slider = ipw.FloatSlider(
-            value=amplitude,
+            value=correction["amplitude"],
             min=0,
             max=10,
             step=0.1,
@@ -1052,28 +1057,26 @@ class EnergyCalibrator:
             step=1,
         )
         y_center_slider = ipw.FloatSlider(
-            value=x_center,
+            value=y_center,
             min=0,
             max=self._config["momentum"]["detector_ranges"][1][1],
             step=1,
         )
 
         def update(amplitude, x_center, y_center, **kwds):
+            nonlocal correction
+            correction["amplitude"] = amplitude
+            correction["center"] = (x_center, y_center)
+            correction = {**correction, **kwds}
             correction_x = tof_fermi - correction_function(
                 x=x,
                 y=y_center,
-                correction_type=correction_type,
-                center=(x_center, y_center),
-                amplitude=amplitude,
-                **kwds,
+                **correction,
             )
             correction_y = tof_fermi - correction_function(
                 x=x_center,
                 y=y,
-                correction_type=correction_type,
-                center=(x_center, y_center),
-                amplitude=amplitude,
-                **kwds,
+                **correction,
             )
 
             trace1.set_ydata(correction_x)
@@ -1083,10 +1086,24 @@ class EnergyCalibrator:
 
             fig.canvas.draw_idle()
 
-        if correction_type == "spherical":
-            assert "diameter" in correction.keys()
-            diameter = correction["diameter"]
-            update(amplitude, x_center, y_center, diameter=diameter)
+        def common_apply_func(apply: bool):  # pylint: disable=unused-argument
+            self.correction = {}
+            self.correction["amplitude"] = correction["amplitude"]
+            self.correction["center"] = correction["center"]
+            self.correction["correction_type"] = correction["correction_type"]
+            amplitude_slider.close()
+            x_center_slider.close()
+            y_center_slider.close()
+            apply_button.close()
+
+        if correction["correction_type"] == "spherical":
+            try:
+                update(correction["amplitude"], x_center, y_center, diameter=correction["diameter"])
+            except KeyError as exc:
+                raise ValueError(
+                    "Parameter 'diameter' required for correction type 'sperical', ",
+                    "but not present!",
+                ) from exc
 
             diameter_slider = ipw.FloatSlider(
                 value=correction["diameter"],
@@ -1103,28 +1120,21 @@ class EnergyCalibrator:
                 diameter=diameter_slider,
             )
 
-            def apply_func(apply: bool):  # pylint: disable=unused-argument
-                self.correction["amplitude"] = amplitude_slider.value
-                self.correction["center"] = (
-                    x_center_slider.value,
-                    y_center_slider.value,
-                )
-                self.correction["correction_type"] = correction_type
-                self.correction["diameter"] = diameter_slider.value
-                amplitude_slider.close()
-                x_center_slider.close()
-                y_center_slider.close()
+            def apply_func(apply: bool):
+                common_apply_func(apply)
+                self.correction["diameter"] = correction["diameter"]
                 diameter_slider.close()
-                apply_button.close()
 
-        elif correction_type == "Lorentzian":
-            assert "gamma" in correction.keys()
-            gamma = correction["gamma"]
-
-            update(amplitude, x_center, y_center, gamma=gamma)
+        elif correction["correction_type"] == "Lorentzian":
+            try:
+                update(correction["amplitude"], x_center, y_center, gamma=correction["gamma"])
+            except KeyError as exc:
+                raise ValueError(
+                    "Parameter 'gamma' required for correction type 'Lorentzian', but not present!",
+                ) from exc
 
             gamma_slider = ipw.FloatSlider(
-                value=gamma,
+                value=correction["gamma"],
                 min=0,
                 max=2000,
                 step=1,
@@ -1138,28 +1148,21 @@ class EnergyCalibrator:
                 gamma=gamma_slider,
             )
 
-            def apply_func(apply: bool):  # pylint: disable=unused-argument
-                self.correction["amplitude"] = amplitude_slider.value
-                self.correction["center"] = (
-                    x_center_slider.value,
-                    y_center_slider.value,
-                )
-                self.correction["correction_type"] = correction_type
-                self.correction["gamma"] = gamma_slider.value
-                amplitude_slider.close()
-                x_center_slider.close()
-                y_center_slider.close()
+            def apply_func(apply: bool):
+                common_apply_func(apply)
+                self.correction["gamma"] = correction["gamma"]
                 gamma_slider.close()
-                apply_button.close()
 
-        elif correction_type == "Gaussian":
-            assert "sigma" in correction.keys()
-            sigma = correction["sigma"]
-
-            update(amplitude, x_center, y_center, sigma=sigma)
+        elif correction["correction_type"] == "Gaussian":
+            try:
+                update(correction["amplitude"], x_center, y_center, sigma=correction["sigma"])
+            except KeyError as exc:
+                raise ValueError(
+                    "Parameter 'sigma' required for correction type 'Gaussian', but not present!",
+                ) from exc
 
             sigma_slider = ipw.FloatSlider(
-                value=sigma,
+                value=correction["sigma"],
                 min=0,
                 max=1000,
                 step=1,
@@ -1173,58 +1176,47 @@ class EnergyCalibrator:
                 sigma=sigma_slider,
             )
 
-            def apply_func(apply: bool):  # pylint: disable=unused-argument
-                self.correction["amplitude"] = amplitude_slider.value
-                self.correction["center"] = (
-                    x_center_slider.value,
-                    y_center_slider.value,
-                )
-                self.correction["correction_type"] = correction_type
-                self.correction["sigma"] = sigma_slider.value
-                amplitude_slider.close()
-                x_center_slider.close()
-                y_center_slider.close()
+            def apply_func(apply: bool):
+                common_apply_func(apply)
+                self.correction["sigma"] = correction["sigma"]
                 sigma_slider.close()
-                apply_button.close()
 
-        elif correction_type == "Lorentzian_asymmetric":
-            assert "gamma" in correction.keys()
-            gamma = correction["gamma"]
-            gamma = kwds.pop("gamma", 700)
-            if "amplitude2" in correction.keys():
-                amplitude2 = correction["amplitude2"]
-            else:
-                amplitude2 = amplitude
-            if "gamma2" in correction.keys():
-                gamma2 = correction["gamma2"]
-            else:
-                gamma2 = gamma
-
-            update(
-                amplitude,
-                x_center,
-                y_center,
-                gamma=gamma,
-                amplitude2=amplitude2,
-                gamma2=gamma2,
-            )
+        elif correction["correction_type"] == "Lorentzian_asymmetric":
+            try:
+                if "amplitude2" not in correction:
+                    correction["amplitude2"] = correction["amplitude"]
+                if "sigma2" not in correction:
+                    correction["gamma2"] = correction["gamma"]
+                update(
+                    correction["amplitude"],
+                    x_center,
+                    y_center,
+                    gamma=correction["gamma"],
+                    amplitude2=correction["amplitude2"],
+                    gamma2=correction["gamma2"],
+                )
+            except KeyError as exc:
+                raise ValueError(
+                    "Parameter 'gamma' required for correction type 'Lorentzian_asymmetric', ",
+                    "but not present!",
+                ) from exc
 
             gamma_slider = ipw.FloatSlider(
-                value=gamma,
+                value=correction["gamma"],
                 min=0,
                 max=2000,
                 step=1,
             )
 
             amplitude2_slider = ipw.FloatSlider(
-                value=amplitude,
+                value=correction["amplitude2"],
                 min=0,
                 max=10,
                 step=0.1,
             )
 
             gamma2_slider = ipw.FloatSlider(
-                value=gamma2,
+                value=correction["gamma2"],
                 min=0,
                 max=2000,
                 step=1,
@@ -1240,23 +1232,14 @@ class EnergyCalibrator:
                 gamma2=gamma2_slider,
             )
 
-            def apply_func(apply: bool):  # pylint: disable=unused-argument
-                self.correction["amplitude"] = amplitude_slider.value
-                self.correction["center"] = (
-                    x_center_slider.value,
-                    y_center_slider.value,
-                )
-                self.correction["correction_type"] = correction_type
-                self.correction["gamma"] = gamma_slider.value
-                self.correction["amplitude2"] = amplitude2_slider.value
-                self.correction["gamma2"] = gamma2_slider.value
-                amplitude_slider.close()
-                x_center_slider.close()
-                y_center_slider.close()
+            def apply_func(apply: bool):
+                common_apply_func(apply)
+                self.correction["gamma"] = correction["gamma"]
+                self.correction["amplitude2"] = correction["amplitude2"]
+                self.correction["gamma2"] = correction["gamma2"]
                 gamma_slider.close()
                 amplitude2_slider.close()
                 gamma2_slider.close()
-                apply_button.close()
 
         else:
             raise NotImplementedError
@@ -1324,12 +1307,7 @@ class EnergyCalibrator:
             if self.correction:
                 correction = deepcopy(self.correction)
             else:
-                correction = deepcopy(
-                    self._config["energy"].get(
-                        "correction",
-                        {},
-                    ),
-                )
+                correction = deepcopy(self._config["energy"].get("correction", {}))
 
         if correction_type is not None:
             correction["correction_type"] = correction_type
@@ -1348,6 +1326,10 @@ class EnergyCalibrator:
 
         if new_tof_column is None:
             new_tof_column = self.corrected_tof_column
+
+        missing_keys = {"correction_type", "center", "amplitude"} - set(correction.keys())
+        if missing_keys:
+            raise ValueError(f"Required correction parameters '{missing_keys}' missing!")
 
         df[new_tof_column] = df[tof_column] + correction_function(
             x=df[x_column],
@@ -1431,7 +1413,13 @@ def correction_function(
         float: calculated correction value
     """
     if correction_type == "spherical":
-        diameter = kwds.pop("diameter", 50)
+        try:
+            diameter = kwds.pop("diameter")
+        except KeyError as exc:
+            raise ValueError(
+                f"Parameter 'diameter' required for correction type '{correction_type}' "
+                "but not provided!",
+            ) from exc
         correction = -(
             (
                 1
@@ -1444,7 +1432,13 @@ def correction_function(
         )
 
     elif correction_type == "Lorentzian":
-        gamma = kwds.pop("gamma", 700)
+        try:
+            gamma = kwds.pop("gamma")
+        except KeyError as exc:
+            raise ValueError(
+                f"Parameter 'gamma' required for correction type '{correction_type}' "
+                "but not provided!",
+            ) from exc
         correction = (
             100000
             * amplitude
@@ -1453,7 +1447,13 @@ def correction_function(
         )
 
     elif correction_type == "Gaussian":
-        sigma = kwds.pop("sigma", 400)
+        try:
+            sigma = kwds.pop("sigma")
+        except KeyError as exc:
+            raise ValueError(
+                f"Parameter 'sigma' required for correction type '{correction_type}' "
+                "but not provided!",
+            ) from exc
         correction = (
             20000
             * amplitude
@@ -1467,7 +1467,13 @@ def correction_function(
         )
 
     elif correction_type == "Lorentzian_asymmetric":
-        gamma = kwds.pop("gamma", 700)
+        try:
+            gamma = kwds.pop("gamma")
+        except KeyError as exc:
+            raise ValueError(
+                f"Parameter 'gamma' required for correction type '{correction_type}' "
+                "but not provided!",
+            ) from exc
         gamma2 = kwds.pop("gamma2", gamma)
         amplitude2 = kwds.pop("amplitude2", amplitude)
         correction = (
@@ -1912,6 +1918,7 @@ def poly_energy_calibration(
     t: Union[List[float], np.ndarray] = None,
     aug: int = 1,
     method: str = "lstsq",
+    energy_scale: str = "kinetic",
     **kwds,
 ) -> dict:
     """Energy calibration by nonlinear least squares fitting of spectral landmarks on
@@ -1941,6 +1948,10 @@ def poly_energy_calibration(
             - **'lstsq'**, **'lsqr'**: Energy calibration using polynomial form..
 
             Defaults to "lstsq".
+        energy_scale (str, optional): Direction of increasing energy scale.
+
+            - **'kinetic'**: increasing energy with decreasing TOF.
+            - **'binding'**: increasing energy with increasing TOF.
 
     Returns:
         dict: A dictionary of fitting parameters including the following,
@@ -1999,6 +2010,7 @@ def poly_energy_calibration(
     ecalibdict["coeffs"] = poly_a
     ecalibdict["Tmat"] = t_mat
     ecalibdict["bvec"] = bvec
+    ecalibdict["energy_scale"] = energy_scale
 
     if ref_energy is not None and t is not None:
         energy_offset = pfunc(-1 * ref_energy, pos[ref_id])

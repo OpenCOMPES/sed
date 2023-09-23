@@ -80,7 +80,7 @@ def simplify_binning_arguments(
         bins = bins_
 
     # if bins provided as single int, apply to all dimensions
-    if isinstance(bins, int):
+    if isinstance(bins, (int, np.int64)):
         bins = [bins] * len(axes)
 
     # Check that we have a sequence of bins now
@@ -112,7 +112,7 @@ def simplify_binning_arguments(
         bins = bins_
 
     # if bins are provided as int, check that ranges are present
-    if all(isinstance(x, int) for x in bins):
+    if all(isinstance(x, (int, np.int64)) for x in bins):
         bins = cast(List[int], list(bins))
         if ranges is None:
             raise AttributeError(

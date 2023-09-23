@@ -46,7 +46,7 @@ def bin_partition(
     Args:
         part (Union[dask.dataframe.DataFrame, pd.DataFrame]): dataframe on which
             to perform the histogram. Usually a partition of a dask DataFrame.
-            bins (int, dict, Sequence[int], Sequence[np.ndarray], Sequence[tuple], optional):
+        bins (int, dict, Sequence[int], Sequence[np.ndarray], Sequence[tuple], optional):
             Definition of the bins. Can  be any of the following cases:
 
                 - an integer describing the number of bins for all dimensions. This
@@ -85,7 +85,7 @@ def bin_partition(
             jitter={'axis':{'amplitude':0.5,'mode':'uniform'}}.
             This example also shows the default behaviour, in case None is
             passed in the dictionary, or jitter is a list of strings.
-            Warning: this is not the most performing approach. applying jitter
+            Warning: this is not the most performing approach. Applying jitter
             on the dataframe before calling the binning is much faster.
             Defaults to None.
         return_edges (bool, optional): If True, returns a list of D arrays
@@ -112,7 +112,8 @@ def bin_partition(
         bins, axes, ranges = simplify_binning_arguments(bins, axes, ranges)
     else:
         if not isinstance(bins, list) or not (
-            all(isinstance(x, int) for x in bins) or all(isinstance(x, np.ndarray) for x in bins)
+            all(isinstance(x, (int, np.int64)) for x in bins)
+            or all(isinstance(x, np.ndarray) for x in bins)
         ):
             raise TypeError(
                 "bins needs to be of type 'List[int] or List[np.ndarray]' if tests are skipped!",
@@ -157,7 +158,7 @@ def bin_partition(
                 mode = jpars.get("mode", "uniform")
                 ax_index = axes.index(col)
                 _bin = bins[ax_index]
-                if isinstance(_bin, int):
+                if isinstance(_bin, (int, np.int64)):
                     rng = ranges[ax_index]
                     binsize = abs(rng[1] - rng[0]) / _bin
                 else:

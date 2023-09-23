@@ -172,6 +172,12 @@ momentum:
   correction:
     # default feature points used for calculating the distortion correction.
     feature_points: [[203.2, 341.96], [299.16, 345.32], [350.25, 243.70], [304.38, 149.88], [199.52, 152.48], [154.28, 242.27], [248.29, 248.62]]
+    # rotational symmetry of the structure used for correction. Should be an even number
+    rotation_symmetry: 6
+    # Option whether the center of the structure is included in the feature points.
+    include_center: True
+    # Option whether the center should be included in the correction algorithm
+    use_center: True
 
 delay:
   # value ranges of the analog-to-digital converter axes used for encoding the delay stage position

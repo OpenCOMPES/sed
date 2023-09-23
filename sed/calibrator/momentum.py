@@ -84,6 +84,8 @@ class MomentumCorrector:
         self.arot = np.array([0] + [self.rotsym_angle] * (self.rotsym - 1))
         self.ascale = np.array([1.0] * self.rotsym)
         self.peaks: np.ndarray = None
+        self.include_center: bool = False
+        self.use_center: bool = False
         self.pouter: np.ndarray = None
         self.pcent: Tuple[float, ...] = None
         self.pouter_ord: np.ndarray = None
@@ -343,26 +345,38 @@ class MomentumCorrector:
         Raises:
             ValueError: Raised if the number of points does not match the rotsym.
         """
+        if features is None:
+            # loading config defauls
+            try:
+                features = np.asarray(
+                    self._config["momentum"]["correction"]["feature_points"],
+                )
+                rotsym = self._config["momentum"]["correction"]["rotation_symmetry"]
+                include_center = self._config["momentum"]["correction"]["include_center"]
+                if not include_center and len(features) > rotsym:
+                    features = features[:rotsym, :]
+            except KeyError as exc:
+                raise ValueError(
+                    "No valid landmarks defined, and no defaults found in configuration!",
+                ) from exc
+
         self.rotsym = int(rotsym)
         self.rotsym_angle = int(360 / self.rotsym)
         self.arot = np.array([0] + [self.rotsym_angle] * (self.rotsym - 1))
         self.ascale = np.array([1.0] * self.rotsym)
-
-        if features is None:
-            features = np.asarray(
-                self._config["momentum"]["correction"]["feature_points"],
-            )
 
         if features.shape[0] == self.rotsym:  # assume no center present
             self.pcent, self.pouter = po.pointset_center(
                 features,
                 method="centroid",
             )
+            self.include_center = False
         elif features.shape[0] == self.rotsym + 1:  # assume center included
             self.pcent, self.pouter = po.pointset_center(
                 features,
                 method="centroidnn",
             )
+            self.include_center = True
         else:
             raise ValueError(
                 f"Found {features.shape[0]} points, ",
@@ -503,8 +517,8 @@ class MomentumCorrector:
             point_input_y.value = point_y
 
         def update_point_pos(
-            point_x: int,
-            point_y: int,
+            point_x: float,
+            point_y: float,
         ):
             fig.canvas.draw_idle()
             point_no = point_no_input.value
@@ -519,8 +533,8 @@ class MomentumCorrector:
             description="Point:",
         )
 
-        point_input_x = ipw.IntText(features[0][0])
-        point_input_y = ipw.IntText(features[0][1])
+        point_input_x = ipw.FloatText(features[0][0])
+        point_input_y = ipw.FloatText(features[0][1])
         ipw.interact(
             update_point_no,
             point_no=point_no_input,
@@ -534,9 +548,7 @@ class MomentumCorrector:
         def onclick(event):
             point_input_x.value = event.xdata
             point_input_y.value = event.ydata
-            point_no_input.value = (point_no_input.value + 1) % features.shape[
-                0
-            ]
+            point_no_input.value = (point_no_input.value + 1) % features.shape[0]
 
         cid = fig.canvas.mpl_connect("button_press_event", onclick)
 
@@ -598,7 +610,7 @@ class MomentumCorrector:
     def spline_warp_estimate(
         self,
         image: np.ndarray = None,
-        include_center: bool = True,
+        use_center: bool = None,
         fixed_center: bool = True,
         interp_order: int = 1,
         **kwds,
@@ -608,9 +620,9 @@ class MomentumCorrector:
         Args:
             image (np.ndarray, optional):
                 2D array. Image slice to be corrected. Defaults to self.slice.
-            include_center (bool, optional):
-                Option to include the image center/centroid in the registration
-                process. Defaults to True.
+            use_center (bool, optional):
+                Option to use the image center/centroid in the registration
+                process. Defaults to config value, or True.
             fixed_center (bool, optional):
                 Option to have a fixed center during registration-based
                 symmetrization. Defaults to True.
@@ -644,6 +656,13 @@ class MomentumCorrector:
                 print("No landmarks defined, using config defaults.")
                 self.add_features()
 
+        if use_center is None:
+            try:
+                use_center = self._config["momentum"]["correction"]["use_center"]
+            except KeyError:
+                use_center = True
+        self.use_center = use_center
+
         self.prefs = kwds.pop("landmarks", self.pouter_ord)
         self.ptargs = kwds.pop("targets", [])
 
@@ -658,8 +677,8 @@ class MomentumCorrector:
                 ret="all",
             )[1:, :]
 
-        if include_center is True:
-            # Include center of image pattern in the registration-based symmetrization
+        if use_center is True:
+            # Use center of image pattern in the registration-based symmetrization
             if fixed_center is True:
                 # Add the same center to both the reference and target sets
 
@@ -699,6 +718,7 @@ class MomentumCorrector:
         self.correction["prefs"] = self.prefs
         self.correction["ptargs"] = self.ptargs
         self.correction["rotsym"] = self.rotsym
+        self.correction["use_center"] = self.use_center
 
         if self.slice is not None:
             self.slice_corrected = corrected_image

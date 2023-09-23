@@ -1,5 +1,4 @@
 """This is a code that performs several tests for the settings loader.
-
 """
 import os
 import tempfile
