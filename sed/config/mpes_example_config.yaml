@@ -58,7 +58,7 @@ dataframe:
   # Binning factor of the tof_column-data compared to tof_binwidth (2^(tof_binning-1))
   tof_binning: 2
   # binning factor used for the adc coordinate (2^(adc_binning-1))
-  adc_binning: 2
+  adc_binning: 3
   # Default units for dataframe entries
   units:
     X: 'step'
