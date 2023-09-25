@@ -5,7 +5,7 @@
 ![](https://img.shields.io/pypi/pyversions/sedprocessor)
 ![](https://img.shields.io/pypi/l/sedprocessor)
 ![](https://img.shields.io/pypi/v/sedprocessor)
-[![Coverage Status](https://coveralls.io/repos/github/OpenCOMPES/sed/badge.svg?branch=main)](https://coveralls.io/github/OpenCOMPES/sed?branch=main)
+[![Coverage Status](https://coveralls.io/repos/github/OpenCOMPES/sed/badge.svg?branch=main&kill_cache=1)](https://coveralls.io/github/OpenCOMPES/sed?branch=main)
 
 
 Single Event Data Frame Processor: Backend to handle photoelectron resolved datastreams
