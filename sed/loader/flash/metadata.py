@@ -2,6 +2,7 @@
 The module provides a MetadataRetriever class for retrieving metadata
 from a Scicatinstance based on beamtime and run IDs.
 """
+import warnings
 from typing import Dict
 from typing import Optional
 
@@ -79,16 +80,17 @@ class MetadataRetriever:
         Raises:
             Exception: If the request to retrieve metadata fails.
         """
-        # Create the dataset URL using the PID
-        dataset_response = requests.get(self._create_dataset_url_by_PID(pid), timeout=10)
-
-        # If the dataset request is successful, return the retrieved metadata
-        # as a JSON object
-        if dataset_response.ok:
+        try:
+            # Create the dataset URL using the PID
+            dataset_response = requests.get(self._create_dataset_url_by_PID(pid), timeout=10)
+            dataset_response.raise_for_status()  # Raise HTTPError if request fails
+            # If the dataset request is successful, return the retrieved metadata
+            # as a JSON object
             return dataset_response.json()
-
-        # If the request fails, raise an exception with the error message
-        raise ConnectionError(f"{dataset_response.text}")
+        except requests.exceptions.RequestException as e:
+            # If the request fails, raise warning
+            warnings.warn(f"Failed to retrieve metadata for PID {pid}: {str(e)}")
+            return {}  # Return an empty dictionary for this run
 
     def _create_dataset_url_by_PID(self, pid: str) -> str:  # pylint: disable=invalid-name
         """
@@ -120,18 +122,20 @@ class MetadataRetriever:
         Raises:
             Exception: If the token request fails.
         """
-        token_url = f"{self.url}/Users/login"
-        # Send a POST request to the token URL with the username and password
-        token_response = requests.post(
-            token_url,
-            headers=self.headers,
-            json={"username": self.username, "password": self.password},
-            timeout=10,
-        )
-
-        # If the token request is successful, return the access token from the response
-        if token_response.ok:
+        try:
+            token_url = f"{self.url}/Users/login"
+            # Send a POST request to the token URL with the username and password
+            token_response = requests.post(
+                token_url,
+                headers=self.headers,
+                json={"username": self.username, "password": self.password},
+                timeout=10,
+            )
+            token_response.raise_for_status()
+            # If the token request is successful, return the access token from the response
             return token_response.json()["id"]
 
-        # If the request fails, raise an exception with the error message
-        raise ConnectionError(f"{token_response.text}")
+            # Otherwise issue warning
+        except requests.exceptions.RequestException as e:
+            warnings.warn(f"Failed to retrieve authentication token: {str(e)}")
+            return ""  # Return an empty string if token retrieval fails
