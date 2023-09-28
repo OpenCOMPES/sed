@@ -154,8 +154,8 @@ def test_has_correct_read_dataframe_func(loader: BaseLoader, read_type: str):
     if loader.__name__ == "flash":
         loader = cast(FlashLoader, loader)
         _, parquet_data_dir = loader.initialize_paths()
-        for file in os.listdir(Path(parquet_data_dir, "per_file")):
-            os.remove(Path(parquet_data_dir, "per_file", file))
+        for file in os.listdir(Path(parquet_data_dir, "buffer")):
+            os.remove(Path(parquet_data_dir, "buffer", file))
 
 
 @pytest.mark.parametrize("loader", get_all_loaders())
