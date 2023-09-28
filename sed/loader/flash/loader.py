@@ -779,7 +779,7 @@ class FlashLoader(BaseLoader):
 
         else:
             # Obtain the filenames from the method which handles buffer file creation/reading
-            h5_filenames, parquet_filenames = self.buffer_file_handler(
+            _, parquet_filenames = self.buffer_file_handler(
                 data_parquet_dir,
                 detector,
             )

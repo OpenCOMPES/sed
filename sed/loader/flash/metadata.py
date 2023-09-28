@@ -87,9 +87,9 @@ class MetadataRetriever:
             # If the dataset request is successful, return the retrieved metadata
             # as a JSON object
             return dataset_response.json()
-        except requests.exceptions.RequestException as e:
+        except requests.exceptions.RequestException as exception:
             # If the request fails, raise warning
-            warnings.warn(f"Failed to retrieve metadata for PID {pid}: {str(e)}")
+            warnings.warn(f"Failed to retrieve metadata for PID {pid}: {str(exception)}")
             return {}  # Return an empty dictionary for this run
 
     def _create_dataset_url_by_PID(self, pid: str) -> str:  # pylint: disable=invalid-name
