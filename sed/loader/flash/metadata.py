@@ -136,6 +136,6 @@ class MetadataRetriever:
             return token_response.json()["id"]
 
             # Otherwise issue warning
-        except requests.exceptions.RequestException as e:
-            warnings.warn(f"Failed to retrieve authentication token: {str(e)}")
+        except requests.exceptions.RequestException as exception:
+            warnings.warn(f"Failed to retrieve authentication token: {str(exception)}")
             return ""  # Return an empty string if token retrieval fails
