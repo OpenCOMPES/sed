@@ -104,8 +104,8 @@ def test_processor_from_runs():
     assert "dldPosX" in processor.dataframe.columns
     # cleanup flash inermediaries
     _, parquet_data_dir = processor.loader.initialize_paths()
-    for file in os.listdir(Path(parquet_data_dir, "per_file")):
-        os.remove(Path(parquet_data_dir, "per_file", file))
+    for file in os.listdir(Path(parquet_data_dir, "buffer")):
+        os.remove(Path(parquet_data_dir, "buffer", file))
 
 
 def test_additional_parameter_to_loader():
