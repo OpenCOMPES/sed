@@ -617,12 +617,12 @@ class FlashLoader(BaseLoader):
                 f"{parquet_path}: {failed_string_error}",
             )
 
-    def buffer_file_handler(self, data_parquet_dir, detector):
+    def buffer_file_handler(self, data_parquet_dir: Path, detector: str):
         """
         Handles the conversion of buffer files (h5 to parquet) and returns the filenames.
 
         Args:
-            data_parquet_dir (str or Path): Directory where the parquet files will be stored.
+            data_parquet_dir (Path): Directory where the parquet files will be stored.
             detector (str): Detector name.
 
         Returns:
@@ -730,15 +730,24 @@ class FlashLoader(BaseLoader):
         # Concatenate the filled dataframes
         return dd.concat(dataframes)
 
-    def parquet_handler(self, data_parquet_dir, **kwds):
+    def parquet_handler(
+        self,
+        data_parquet_dir: Path,
+        detector: str = "",
+        parquet_path: Path = None,
+        augmented: bool = False,
+        load_parquet: bool = False,
+        save_parquet: bool = False,
+    ):
         """
         Handles loading and saving of parquet files based on the provided parameters.
 
         Args:
-            data_parquet_dir (str or Path): Directory where the parquet files are located.
+            data_parquet_dir (Path): Directory where the parquet files are located.
             detector (str, optional): Adds a identifier for parquets to distinguish multidetector
                 systems.
             parquet_path (str, optional): Path to the combined parquet file.
+            augmented (bool, optional): True if data is augmented and saved into augmented folder.
             load_parquet (bool, optional): Loads the entire parquet into the dd dataframe.
             save_parquet (bool, optional): Saves the entire dataframe into a parquet.
 
@@ -750,25 +759,17 @@ class FlashLoader(BaseLoader):
 
         """
 
-        # Creates the identifier for detector, if the parameter exists
-        detector = f"_{kwds.get('detector')}" if "detector" in kwds else ""
-
-        # Get the parquet path from the keyword arguments, or construct it if not provided
-        parquet_path = kwds.get("parquet_path")
+        # Construct the parquet path if not provided
         if parquet_path is None:
             parquet_name = "_".join(str(run) for run in self.runs)
-            parquet_dir = (
-                data_parquet_dir.joinpath("converted")
-                if kwds.get("converted", False)
-                else data_parquet_dir
-            )
+            parquet_dir = data_parquet_dir.joinpath("augmented") if augmented else data_parquet_dir
 
             parquet_path = parquet_dir.joinpath(
                 "run_" + parquet_name + detector,
             ).with_suffix(".parquet")
 
         # Check if load_parquet is flagged and then load the file if it exists
-        if kwds.get("load_parquet", False):
+        if load_parquet:
             try:
                 dataframe = dd.read_parquet(parquet_path)
             except Exception as exc:
@@ -794,7 +795,7 @@ class FlashLoader(BaseLoader):
             )
 
         # Save the dataframe as parquet if requested
-        if kwds.get("save_parquet", False):
+        if save_parquet:
             dataframe.compute().reset_index(drop=True).to_parquet(parquet_path)
             print("Combined parquet file saved.")
 
