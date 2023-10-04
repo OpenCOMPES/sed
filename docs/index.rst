@@ -21,7 +21,7 @@ Single-Event DataFrame (SED) documentation
    :numbered:
    :caption: Examples
 
-   examples/example
+   examples/1 - Binning fake data
 
 .. toctree::
    :maxdepth: 2
