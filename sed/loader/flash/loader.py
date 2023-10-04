@@ -735,7 +735,7 @@ class FlashLoader(BaseLoader):
         data_parquet_dir: Path,
         detector: str = "",
         parquet_path: Path = None,
-        augmented: bool = False,
+        converted: bool = False,
         load_parquet: bool = False,
         save_parquet: bool = False,
     ):
@@ -747,7 +747,8 @@ class FlashLoader(BaseLoader):
             detector (str, optional): Adds a identifier for parquets to distinguish multidetector
                 systems.
             parquet_path (str, optional): Path to the combined parquet file.
-            augmented (bool, optional): True if data is augmented and saved into augmented folder.
+            converted (bool, optional): True if data is augmented by adding additional columns
+                externally and saved into converted folder.
             load_parquet (bool, optional): Loads the entire parquet into the dd dataframe.
             save_parquet (bool, optional): Saves the entire dataframe into a parquet.
 
@@ -762,7 +763,7 @@ class FlashLoader(BaseLoader):
         # Construct the parquet path if not provided
         if parquet_path is None:
             parquet_name = "_".join(str(run) for run in self.runs)
-            parquet_dir = data_parquet_dir.joinpath("augmented") if augmented else data_parquet_dir
+            parquet_dir = data_parquet_dir.joinpath("converted") if converted else data_parquet_dir
 
             parquet_path = parquet_dir.joinpath(
                 "run_" + parquet_name + detector,
