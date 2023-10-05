@@ -1,0 +1,103 @@
+name: Convert Tutorial Files
+
+on:
+  push:
+    branches: [documentation]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest  # You can specify a different runner if needed
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.8  # Specify the Python version you need
+
+    - name: Install dependencies
+      run: pip install jupyter nbconvert
+
+    - name: Run Conversion Script
+      run: |
+        python - <<EOF
+            import pathlib
+            import shutil
+            import subprocess
+
+            def create_new_directory_with_modified_files(directory_path, new_directory_path):
+                try:
+                    # Create a Path object for the source directory
+                    source_directory = pathlib.Path(directory_path)
+
+                    # Ensure the source directory exists
+                    if not source_directory.is_dir():
+                        raise FileNotFoundError(f"The source directory '{directory_path}' does not exist.")
+
+                    # Create a Path object for the new directory
+                    new_directory = pathlib.Path(new_directory_path)
+
+                    # Create the new directory if it doesn't exist
+                    new_directory.mkdir(parents=True, exist_ok=True)
+
+                    # Loop through files in the source directory
+                    for file_path in source_directory.iterdir():
+                        if file_path.is_file():
+                            # Remove spaces and change hyphens to underscores in the filename
+                            new_name = file_path.name.replace(' ', '').replace('-', '_')
+
+                            # Construct the path for the new file in the new directory
+                            new_file_path = new_directory / new_name
+
+                            # Copy the file to the new directory with the modified name
+                            shutil.copy2(file_path, new_file_path)
+
+                            print(f"Copied '{file_path}' to '{new_file_path}'")
+
+                    print("File copying completed successfully.")
+
+
+                except Exception as e:
+                    print(f"An error occurred: {str(e)}")
+
+            def convert_ipynb_to_rst(directory_path):
+                try:
+                    # Create a Path object for the directory
+                    directory = pathlib.Path(directory_path)
+
+                    # Ensure the directory exists
+                    if not directory.is_dir():
+                        raise FileNotFoundError(f"The directory '{directory_path}' does not exist.")
+
+                    # Loop through files in the directory
+                    for file_path in directory.iterdir():
+                        if file_path.is_file() and file_path.suffix == '.ipynb':
+                            # Construct the command to run nbconvert
+                            command = f"jupyter nbconvert --to rst {str(file_path)}"
+
+                            # Run nbconvert using subprocess
+                            subprocess.run(command, shell=True, check=True)
+
+                            print(f"Converted '{file_path}' to .rst")
+
+                    print("Conversion to .rst completed successfully.")
+
+                except Exception as e:
+                    print(f"An error occurred during conversion: {str(e)}")
+
+            if __name__ == "__main__":
+                # Specify the source directory path where you want to process files
+                source_directory_path = "tutorial/"
+
+                # Specify the new directory path where you want to create modified files
+                new_directory_path = "docs/tutorial"
+
+                # Call the function to create a new directory with modified filenames
+                create_new_directory_with_modified_files(source_directory_path, new_directory_path)
+
+                # Run nbconvert to convert .ipynb files to .rst in the new directory
+                convert_ipynb_to_rst(new_directory_path)
+
+        EOF
