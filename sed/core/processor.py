@@ -512,6 +512,7 @@ class SedProcessor:
         angle: float = 0,
         apply: bool = False,
         use_correction: bool = True,
+        reset: bool = True,
     ):
         """3. step of the distortion correction workflow: Generate an interactive panel
         to adjust affine transformations that are applied to the image. Applies first
@@ -531,6 +532,8 @@ class SedProcessor:
                 transformations. Defaults to False.
             use_correction (bool, option): Whether to use the spline warp correction
                 or not. Defaults to True.
+            reset (bool, optional):
+                Option to reset the correction before transformation. Defaults to True.
         """
         # Generate homomorphy as default if no distortion correction has been applied
         if self.mc.slice_corrected is None:
@@ -544,7 +547,7 @@ class SedProcessor:
             self.mc.reset_deformation()
 
         if self.mc.cdeform_field is None or self.mc.rdeform_field is None:
-            # Generate default distortion correction
+            # Generate distortion correction from config values
             self.mc.add_features()
             self.mc.spline_warp_estimate()
 
@@ -554,6 +557,7 @@ class SedProcessor:
             ytrans=ytrans,
             angle=angle,
             apply=apply,
+            reset=reset,
         )
 
     # 5. Apply the momentum correction to the dataframe
@@ -1483,6 +1487,8 @@ class SedProcessor:
                   config["nexus"]["definition"]
                 - **input_files**: A list of input files to pass to the reader.
                   Defaults to config["nexus"]["input_files"]
+                - **eln_data**: An electronic-lab-notebook file in '.yaml' format
+                  to add to the list of files to pass to the reader.
         """
         if self._binned is None:
             raise NameError("Need to bin data first!")
@@ -1519,6 +1525,9 @@ class SedProcessor:
 
             if isinstance(input_files, str):
                 input_files = [input_files]
+
+            if "eln_data" in kwds:
+                input_files.append(kwds.pop("eln_data"))
 
             to_nexus(
                 data=self._binned,
