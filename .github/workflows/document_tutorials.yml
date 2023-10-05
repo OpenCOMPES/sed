@@ -13,7 +13,7 @@ jobs:
       uses: actions/checkout@v3
 
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: 3.8  # Specify the Python version you need
 
@@ -21,8 +21,9 @@ jobs:
       run: pip install jupyter nbconvert
 
     - name: Run Conversion Script
-      run: |
-        python - <<EOF
+      uses: jannekem/run-python-script-action@v1
+      with:
+        script: |
             import pathlib
             import shutil
             import subprocess
@@ -99,5 +100,3 @@ jobs:
 
                 # Run nbconvert to convert .ipynb files to .rst in the new directory
                 convert_ipynb_to_rst(new_directory_path)
-
-        EOF
