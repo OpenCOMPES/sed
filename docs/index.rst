@@ -21,7 +21,10 @@ Single-Event DataFrame (SED) documentation
    :numbered:
    :caption: Examples
 
-   examples/example
+   tutorial/1_Binningfakedata.rst
+   tutorial/2_Binningofexampletime_resolvedARPESdata.rst
+   tutorial/3_ConversionPipelineforexampletime_resolvedARPESdata.rst
+   tutorial/4_MetadatacollectionandexporttoNeXus.rst
 
 .. toctree::
    :maxdepth: 2
