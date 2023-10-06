@@ -711,7 +711,7 @@ class FlashLoader(BaseLoader):
             )
 
         # Forward fill between consecutive dataframes
-        for i in tqdm(range(1, len(dataframes)), desc='Filling NaNs', leave=True, total=len(dataframes)-1):
+        for i in tqdm(range(1, len(dataframes)), desc='Filling NaNs', leave=True, total=len(dataframes)-1, disable=len(dataframes)==1):
             # Select pulse channels from current dataframe
             subset = dataframes[i][channels]
             # Find columns with NaN values in the first row
@@ -788,6 +788,7 @@ class FlashLoader(BaseLoader):
                 data_parquet_dir,
                 detector,
             )
+            print(parquet_filenames)
 
             # Read all parquet files using dask and concatenate into one dataframe after filling
             dataframe = self.fill_na(
