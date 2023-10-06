@@ -29,6 +29,9 @@ from sed.loader.base.loader import BaseLoader
 from sed.loader.flash.metadata import MetadataRetriever
 from sed.loader.utils import parse_h5_keys
 
+from tqdm.auto import trange, tqdm
+import time
+
 
 class FlashLoader(BaseLoader):
     """
@@ -701,13 +704,14 @@ class FlashLoader(BaseLoader):
         channels: List[str] = self.get_channels_by_format(["per_pulse", "per_train"])
 
         # Fill NaN values within each dataframe
+        t0 = time.time()
         for i, _ in enumerate(dataframes):
             dataframes[i][channels] = dataframes[i][channels].fillna(
                 method="ffill",
             )
 
         # Forward fill between consecutive dataframes
-        for i in range(1, len(dataframes)):
+        for i in tqdm(range(1, len(dataframes)), desc='Filling NaNs', leave=True, total=len(dataframes)-1):
             # Select pulse channels from current dataframe
             subset = dataframes[i][channels]
             # Find columns with NaN values in the first row
@@ -726,7 +730,6 @@ class FlashLoader(BaseLoader):
                 dataframes[i][channels_to_overwrite] = subset[channels_to_overwrite].fillna(
                     fill_dict,
                 )
-
         # Concatenate the filled dataframes
         return dd.concat(dataframes)
 
