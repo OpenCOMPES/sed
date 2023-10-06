@@ -788,7 +788,6 @@ class FlashLoader(BaseLoader):
                 data_parquet_dir,
                 detector,
             )
-            print(parquet_filenames)
 
             # Read all parquet files using dask and concatenate into one dataframe after filling
             dataframe = self.fill_na(
