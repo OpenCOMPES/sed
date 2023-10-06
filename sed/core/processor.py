@@ -87,9 +87,14 @@ class SedProcessor:
                 defined in the config. Defaults to None.
             collect_metadata (bool): Option to collect metadata from files.
                 Defaults to False.
-            **kwds: Keyword arguments passed to the reader.
+            **kwds: Keyword arguments passed to parse_config and to the reader.
         """
-        self._config = parse_config(config, **kwds)
+        config_kwds = {
+            key: value for key, value in kwds.items() if key in parse_config.__code__.co_varnames
+        }
+        for key in config_kwds.keys():
+            del kwds[key]
+        self._config = parse_config(config, **config_kwds)
         num_cores = self._config.get("binning", {}).get("num_cores", N_CPU - 1)
         if num_cores >= N_CPU:
             num_cores = N_CPU - 1
@@ -106,9 +111,6 @@ class SedProcessor:
         self._binned: xr.DataArray = None
         self._pre_binned: xr.DataArray = None
 
-        self._dimensions: List[str] = []
-        self._coordinates: Dict[Any, Any] = {}
-        self.axis: Dict[Any, Any] = {}
         self._attributes = MetaHandler(meta=metadata)
 
         loader_name = self._config["core"]["loader"]
@@ -161,21 +163,58 @@ class SedProcessor:
             df_str = "Data Frame: No Data loaded"
         else:
             df_str = self._dataframe.__repr__()
-        coordinates_str = f"Coordinates: {self._coordinates}"
-        dimensions_str = f"Dimensions: {self._dimensions}"
-        pretty_str = df_str + "\n" + coordinates_str + "\n" + dimensions_str
+        attributes_str = f"Metadata: {self._attributes.metadata}"
+        pretty_str = df_str + "\n" + attributes_str
         return pretty_str
 
-    def __getitem__(self, val: str) -> pd.DataFrame:
-        """Accessor to the underlying data structure.
-
-        Args:
-            val (str): Name of the dataframe column to retrieve.
+    @property
+    def dataframe(self) -> Union[pd.DataFrame, ddf.DataFrame]:
+        """Accessor to the underlying dataframe.
 
         Returns:
-            pd.DataFrame: Selected dataframe column.
+            Union[pd.DataFrame, ddf.DataFrame]: Dataframe object.
         """
-        return self._dataframe[val]
+        return self._dataframe
+
+    @dataframe.setter
+    def dataframe(self, dataframe: Union[pd.DataFrame, ddf.DataFrame]):
+        """Setter for the underlying dataframe.
+
+        Args:
+            dataframe (Union[pd.DataFrame, ddf.DataFrame]): The dataframe object to set.
+        """
+        if not isinstance(dataframe, (pd.DataFrame, ddf.DataFrame)) or not isinstance(
+            dataframe,
+            self._dataframe.__class__,
+        ):
+            raise ValueError(
+                "'dataframe' has to be a Pandas or Dask dataframe and has to be of the same kind "
+                "as the dataframe loaded into the SedProcessor!.\n"
+                f"Loaded type: {self._dataframe.__class__}, provided type: {dataframe}.",
+            )
+        self._dataframe = dataframe
+
+    @property
+    def attributes(self) -> dict:
+        """Accessor to the metadata dict.
+
+        Returns:
+            dict: The metadata dict.
+        """
+        return self._attributes.metadata
+
+    def add_attribute(self, attributes: dict, name: str, **kwds):
+        """Function to add element to the attributes dict.
+
+        Args:
+            attributes (dict): The attributes dictionary object to add.
+            name (str): Key under which to add the dictionary to the attributes.
+        """
+        self._attributes.add(
+            entry=attributes,
+            name=name,
+            **kwds,
+        )
 
     @property
     def config(self) -> Dict[Any, Any]:
@@ -186,59 +225,14 @@ class SedProcessor:
         """
         return self._config
 
-    @config.setter
-    def config(self, config: Union[dict, str]):
-        """Setter function for the config dictionary.
-
-        Args:
-            config (Union[dict, str]): Config dictionary or path of config file
-                to load.
-        """
-        self._config = parse_config(config)
-        num_cores = self._config.get("binning", {}).get("num_cores", N_CPU - 1)
-        if num_cores >= N_CPU:
-            num_cores = N_CPU - 1
-        self._config["binning"]["num_cores"] = num_cores
-
     @property
-    def dimensions(self) -> list:
-        """Getter attribute for the dimensions.
+    def files(self) -> List[str]:
+        """Getter attribute for the list of files
 
         Returns:
-            list: List of dimensions.
+            List[str]: The list of loaded files
         """
-        return self._dimensions
-
-    @dimensions.setter
-    def dimensions(self, dims: list):
-        """Setter function for the dimensions.
-
-        Args:
-            dims (list): List of dimensions to set.
-        """
-        assert isinstance(dims, list)
-        self._dimensions = dims
-
-    @property
-    def coordinates(self) -> dict:
-        """Getter attribute for the coordinates dict.
-
-        Returns:
-            dict: Dictionary of coordinates.
-        """
-        return self._coordinates
-
-    @coordinates.setter
-    def coordinates(self, coords: dict):
-        """Setter function for the coordinates dict
-
-        Args:
-            coords (dict): Dictionary of coordinates.
-        """
-        assert isinstance(coords, dict)
-        self._coordinates = {}
-        for k, v in coords.items():
-            self._coordinates[k] = xr.DataArray(v)
+        return self._files
 
     def cpy(self, path: Union[str, List[str]]) -> Union[str, List[str]]:
         """Function to mirror a list of files or a folder from a network drive to a
@@ -419,17 +413,11 @@ class SedProcessor:
                 MomentumCorrector.feature_select()
         """
         if auto_detect:  # automatic feature selection
-            sigma = kwds.pop(
-                "sigma",
-                self._config.get("momentum", {}).get("sigma", 5),
-            )
-            fwhm = kwds.pop(
-                "fwhm",
-                self._config.get("momentum", {}).get("fwhm", 8),
-            )
+            sigma = kwds.pop("sigma", self._config["momentum"]["sigma"])
+            fwhm = kwds.pop("fwhm", self._config["momentum"]["fwhm"])
             sigma_radius = kwds.pop(
                 "sigma_radius",
-                self._config.get("momentum", {}).get("sigma_radius", 1),
+                self._config["momentum"]["sigma_radius"],
             )
             self.mc.feature_extract(
                 sigma=sigma,
@@ -452,18 +440,18 @@ class SedProcessor:
     # If no features have been selected before, use class defaults.
     def generate_splinewarp(
         self,
-        include_center: bool = True,
+        use_center: bool = None,
         **kwds,
     ):
         """3. Step of the distortion correction workflow: Generate the correction
         function restoring the symmetry in the image using a splinewarp algortihm.
 
         Args:
-            include_center (bool, optional): Option to include the position of the
-                center point in the correction. Defaults to True.
+            use_center (bool, optional): Option to use the position of the
+                center point in the correction. Default is read from config, or set to True.
             **kwds: Keyword arguments for MomentumCorrector.spline_warp_estimate().
         """
-        self.mc.spline_warp_estimate(include_center=include_center, **kwds)
+        self.mc.spline_warp_estimate(use_center=use_center, **kwds)
 
         if self.mc.slice is not None:
             print("Original slice with reference features")
@@ -506,7 +494,7 @@ class SedProcessor:
         try:
             for point in self.mc.pouter_ord:
                 points.append([float(i) for i in point])
-            if self.mc.pcent:
+            if self.mc.include_center:
                 points.append([float(i) for i in self.mc.pcent])
         except AttributeError as exc:
             raise AttributeError(
@@ -514,7 +502,12 @@ class SedProcessor:
             ) from exc
         config = {
             "momentum": {
-                "correction": {"rotation_symmetry": self.mc.rotsym, "feature_points": points},
+                "correction": {
+                    "rotation_symmetry": self.mc.rotsym,
+                    "feature_points": points,
+                    "include_center": self.mc.include_center,
+                    "use_center": self.mc.use_center,
+                },
             },
         }
         save_config(config, filename, overwrite)
@@ -529,6 +522,7 @@ class SedProcessor:
         angle: float = 0,
         apply: bool = False,
         use_correction: bool = True,
+        reset: bool = True,
     ):
         """3. step of the distortion correction workflow: Generate an interactive panel
         to adjust affine transformations that are applied to the image. Applies first
@@ -548,6 +542,8 @@ class SedProcessor:
                 transformations. Defaults to False.
             use_correction (bool, option): Whether to use the spline warp correction
                 or not. Defaults to True.
+            reset (bool, optional):
+                Option to reset the correction before transformation. Defaults to True.
         """
         # Generate homomorphy as default if no distortion correction has been applied
         if self.mc.slice_corrected is None:
@@ -557,13 +553,13 @@ class SedProcessor:
                 )
             self.mc.slice_corrected = self.mc.slice
 
-        if self.mc.cdeform_field is None or self.mc.rdeform_field is None:
-            # Generate default distortion correction
-            self.mc.add_features()
-            self.mc.spline_warp_estimate()
-
         if not use_correction:
             self.mc.reset_deformation()
+
+        if self.mc.cdeform_field is None or self.mc.rdeform_field is None:
+            # Generate distortion correction from config values
+            self.mc.add_features()
+            self.mc.spline_warp_estimate()
 
         self.mc.pose_adjustment(
             scale=scale,
@@ -571,6 +567,7 @@ class SedProcessor:
             ytrans=ytrans,
             angle=angle,
             apply=apply,
+            reset=reset,
         )
 
     # 5. Apply the momentum correction to the dataframe
@@ -647,10 +644,7 @@ class SedProcessor:
                 in the class. Defaults to False.
         """
         if point_b is None:
-            point_b = self._config.get("momentum", {}).get(
-                "center_pixel",
-                [256, 256],
-            )
+            point_b = self._config["momentum"]["center_pixel"]
 
         self.mc.select_k_range(
             point_a=point_a,
@@ -797,13 +791,13 @@ class SedProcessor:
             filename = "sed_config.yaml"
         correction = {}
         try:
-            for key in self.ec.correction.keys():
+            for key, val in self.ec.correction.items():
                 if key == "correction_type":
-                    correction[key] = self.ec.correction[key]
+                    correction[key] = val
                 elif key == "center":
-                    correction[key] = [float(i) for i in self.ec.correction[key]]
+                    correction[key] = [float(i) for i in val]
                 else:
-                    correction[key] = float(self.ec.correction[key])
+                    correction[key] = float(val)
         except AttributeError as exc:
             raise AttributeError(
                 "Energy correction parameters not found, need to generate parameters first!",
@@ -897,15 +891,12 @@ class SedProcessor:
             bias_key=bias_key,
         )
         if (normalize is not None and normalize is True) or (
-            normalize is None and self._config.get("energy", {}).get("normalize", True)
+            normalize is None and self._config["energy"]["normalize"]
         ):
             if span is None:
-                span = self._config.get("energy", {}).get("normalize_span", 7)
+                span = self._config["energy"]["normalize_span"]
             if order is None:
-                order = self._config.get("energy", {}).get(
-                    "normalize_order",
-                    1,
-                )
+                order = self._config["energy"]["normalize_order"]
             self.ec.normalize(smooth=True, span=span, order=order)
         self.ec.view(
             traces=self.ec.traces_normed,
@@ -922,6 +913,7 @@ class SedProcessor:
         mode: str = "replace",
         radius: int = None,
         peak_window: int = None,
+        apply: bool = False,
     ):
         """2. step of the energy calibration workflow: Find a peak within a given range
         for the indicated reference trace, and tries to find the same peak for all
@@ -944,35 +936,46 @@ class SedProcessor:
             peak_window (int, optional): Peak_window parameter for the peak detection
                 algorthm. amount of points that have to have to behave monotoneously
                 around a peak. Defaults to config["energy"]["peak_window"].
+            apply (bool, optional): Option to directly apply the provided parameters.
+                Defaults to False.
         """
         if radius is None:
-            radius = self._config.get("energy", {}).get("fastdtw_radius", 2)
-        self.ec.add_features(
-            ranges=ranges,
-            ref_id=ref_id,
-            infer_others=infer_others,
-            mode=mode,
-            radius=radius,
-        )
-        self.ec.view(
-            traces=self.ec.traces_normed,
-            segs=self.ec.featranges,
-            xaxis=self.ec.tof,
-            backend="bokeh",
-        )
-        print(self.ec.featranges)
+            radius = self._config["energy"]["fastdtw_radius"]
         if peak_window is None:
-            peak_window = self._config.get("energy", {}).get("peak_window", 7)
-        try:
-            self.ec.feature_extract(peak_window=peak_window)
-            self.ec.view(
-                traces=self.ec.traces_normed,
-                peaks=self.ec.peaks,
-                backend="bokeh",
+            peak_window = self._config["energy"]["peak_window"]
+        if not infer_others:
+            self.ec.add_ranges(
+                ranges=ranges,
+                ref_id=ref_id,
+                infer_others=infer_others,
+                mode=mode,
+                radius=radius,
             )
-        except IndexError:
-            print("Could not determine all peaks!")
-            raise
+            print(self.ec.featranges)
+            try:
+                self.ec.feature_extract(peak_window=peak_window)
+                self.ec.view(
+                    traces=self.ec.traces_normed,
+                    segs=self.ec.featranges,
+                    xaxis=self.ec.tof,
+                    peaks=self.ec.peaks,
+                    backend="bokeh",
+                )
+            except IndexError:
+                print("Could not determine all peaks!")
+                raise
+        else:
+            # New adjustment tool
+            assert isinstance(ranges, tuple)
+            self.ec.adjust_ranges(
+                ranges=ranges,
+                ref_id=ref_id,
+                traces=self.ec.traces_normed,
+                infer_others=infer_others,
+                radius=radius,
+                peak_window=peak_window,
+                apply=apply,
+            )
 
     # 3. Fit the energy calibration relation
     def calibrate_energy_axis(
@@ -1007,16 +1010,10 @@ class SedProcessor:
                 Defaults to config["energy"]["energy_scale"]
         """
         if method is None:
-            method = self._config.get("energy", {}).get(
-                "calibration_method",
-                "lmfit",
-            )
+            method = self._config["energy"]["calibration_method"]
 
         if energy_scale is None:
-            energy_scale = self._config.get("energy", {}).get(
-                "energy_scale",
-                "kinetic",
-            )
+            energy_scale = self._config["energy"]["energy_scale"]
 
         self.ec.calibrate(
             ref_id=ref_id,
@@ -1082,10 +1079,12 @@ class SedProcessor:
         calibration = {}
         try:
             for (key, value) in self.ec.calibration.items():
-                if key in ["axis", "refid"]:
+                if key in ["axis", "refid", "Tmat", "bvec"]:
                     continue
                 if key == "energy_scale":
                     calibration[key] = value
+                elif key == "coeffs":
+                    calibration[key] = [float(i) for i in value]
                 else:
                     calibration[key] = float(value)
         except AttributeError as exc:
@@ -1199,7 +1198,7 @@ class SedProcessor:
                 Defaults to config["dataframe"]["jitter_cols"].
         """
         if cols is None:
-            cols = self._config.get("dataframe", {}).get(
+            cols = self._config["dataframe"].get(
                 "jitter_cols",
                 self._dataframe.columns,
             )  # jitter all columns
@@ -1239,23 +1238,17 @@ class SedProcessor:
             xr.DataArray: pre-binned data-array.
         """
         if axes is None:
-            axes = self._config.get("momentum", {}).get(
-                "axes",
-                ["@x_column, @y_column, @tof_column"],
-            )
+            axes = self._config["momentum"]["axes"]
         for loc, axis in enumerate(axes):
             if axis.startswith("@"):
-                axes[loc] = self._config.get("dataframe").get(axis.strip("@"))
+                axes[loc] = self._config["dataframe"].get(axis.strip("@"))
 
         if bins is None:
-            bins = self._config.get("momentum", {}).get(
-                "bins",
-                [512, 512, 300],
-            )
+            bins = self._config["momentum"]["bins"]
         if ranges is None:
-            ranges_ = self._config.get("momentum", {}).get(
-                "ranges",
-                [[-256, 1792], [-256, 1792], [128000, 138000]],
+            ranges_ = list(self._config["momentum"]["ranges"])
+            ranges_[2] = np.asarray(ranges_[2]) / 2 ** (
+                self._config["dataframe"]["tof_binning"] - 1
             )
             ranges = [cast(Tuple[float, float], tuple(v)) for v in ranges_]
 
@@ -1423,8 +1416,21 @@ class SedProcessor:
             bins = self._config["histogram"]["bins"]
         if axes is None:
             axes = self._config["histogram"]["axes"]
+        axes = list(axes)
+        for loc, axis in enumerate(axes):
+            if axis.startswith("@"):
+                axes[loc] = self._config["dataframe"].get(axis.strip("@"))
         if ranges is None:
-            ranges = self._config["histogram"]["ranges"]
+            ranges = list(self._config["histogram"]["ranges"])
+            for loc, axis in enumerate(axes):
+                if axis == self._config["dataframe"]["tof_column"]:
+                    ranges[loc] = np.asarray(ranges[loc]) / 2 ** (
+                        self._config["dataframe"]["tof_binning"] - 1
+                    )
+                elif axis == self._config["dataframe"]["adc_column"]:
+                    ranges[loc] = np.asarray(ranges[loc]) / 2 ** (
+                        self._config["dataframe"]["adc_binning"] - 1
+                    )
 
         input_types = map(type, [axes, bins, ranges])
         allowed_types = [list, tuple]
@@ -1491,6 +1497,8 @@ class SedProcessor:
                   config["nexus"]["definition"]
                 - **input_files**: A list of input files to pass to the reader.
                   Defaults to config["nexus"]["input_files"]
+                - **eln_data**: An electronic-lab-notebook file in '.yaml' format
+                  to add to the list of files to pass to the reader.
         """
         if self._binned is None:
             raise NameError("Need to bin data first!")
@@ -1510,17 +1518,26 @@ class SedProcessor:
                 **kwds,
             )
         elif extension in (".nxs", ".nexus"):
-            reader = kwds.pop("reader", self._config["nexus"]["reader"])
-            definition = kwds.pop(
-                "definition",
-                self._config["nexus"]["definition"],
-            )
-            input_files = kwds.pop(
-                "input_files",
-                self._config["nexus"]["input_files"],
-            )
+            try:
+                reader = kwds.pop("reader", self._config["nexus"]["reader"])
+                definition = kwds.pop(
+                    "definition",
+                    self._config["nexus"]["definition"],
+                )
+                input_files = kwds.pop(
+                    "input_files",
+                    self._config["nexus"]["input_files"],
+                )
+            except KeyError as exc:
+                raise ValueError(
+                    "The nexus reader, definition and input files need to be provide!",
+                ) from exc
+
             if isinstance(input_files, str):
                 input_files = [input_files]
+
+            if "eln_data" in kwds:
+                input_files.append(kwds.pop("eln_data"))
 
             to_nexus(
                 data=self._binned,
@@ -1535,31 +1552,6 @@ class SedProcessor:
             raise NotImplementedError(
                 f"Unrecognized file format: {extension}.",
             )
-
-    def add_dimension(self, name: str, axis_range: Tuple):
-        """Add a dimension axis.
-
-        Args:
-            name (str): name of the axis
-            axis_range (Tuple): range for the axis.
-
-        Raises:
-            ValueError: Raised if an axis with that name already exists.
-        """
-        if name in self._coordinates:
-            raise ValueError(f"Axis {name} already exists")
-
-        self.axis[name] = self.make_axis(axis_range)
-
-    def make_axis(self, axis_range: Tuple) -> np.ndarray:
-        """Function to make an axis.
-
-        Args:
-            axis_range (Tuple): range for the new axis.
-        """
-
-        # TODO: What shall this function do?
-        return np.arange(*axis_range)
 
     def pre_process(self) -> ddf.DataFrame:
         """Apply preprocessing pipeline to dataframe"""

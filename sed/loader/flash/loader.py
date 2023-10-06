@@ -1,9 +1,12 @@
 """
 This module implements the flash data loader.
-The raw hdf5 data is saved into parquet files and loaded as a dask dataframe.
-If there are multiple files, the NaNs are forward filled.
+This loader currently supports hextof, wespe and instruments with similar structure.
+The raw hdf5 data is combined and saved into buffer files and loaded as a dask dataframe.
+The dataframe is a amalgamation of all h5 files for a combination of runs, where the NaNs are
+automatically forward filled across different files.
+This can then be saved as a parquet for out-of-sed processing and reread back to access other
+sed funtionality.
 """
-import os
 from functools import reduce
 from itertools import compress
 from pathlib import Path
@@ -29,9 +32,9 @@ from sed.loader.utils import parse_h5_keys
 
 class FlashLoader(BaseLoader):
     """
-    The class generates multiindexed multidimensional pandas dataframes
-    from the new FLASH dataformat resolved by both macro and microbunches
-    alongside electrons.
+    The class generates multiindexed multidimensional pandas dataframes from the new FLASH
+    dataformat resolved by both macro and microbunches alongside electrons.
+    Only the read_dataframe (inherited and implemented) method is accessed by other modules.
     """
 
     __name__ = "flash"
@@ -41,10 +44,128 @@ class FlashLoader(BaseLoader):
     def __init__(self, config: dict) -> None:
 
         super().__init__(config=config)
+        self.multi_index = ["trainId", "pulseId", "electronId"]
         self.index_per_electron: MultiIndex = None
         self.index_per_pulse: MultiIndex = None
-        self.parquet_names: List[Path] = []
         self.failed_files_error: List[str] = []
+
+    def initialize_paths(self) -> Tuple[List[Path], Path]:
+        """
+        Initializes the paths based on the configuration.
+
+        Returns:
+            Tuple[List[Path], Path]: A tuple containing a list of raw data directories
+            paths and the parquet data directory path.
+
+        Raises:
+            ValueError: If required values are missing from the configuration.
+            FileNotFoundError: If the raw data directories are not found.
+        """
+        # Parses to locate the raw beamtime directory from config file
+        if "paths" in self._config["core"]:
+            data_raw_dir = [
+                Path(self._config["core"]["paths"].get("data_raw_dir", "")),
+            ]
+            data_parquet_dir = Path(
+                self._config["core"]["paths"].get("data_parquet_dir", ""),
+            )
+
+        else:
+            try:
+                beamtime_id = self._config["core"]["beamtime_id"]
+                year = self._config["core"]["year"]
+                daq = self._config["dataframe"]["daq"]
+            except KeyError as exc:
+                raise ValueError(
+                    "The beamtime_id, year and daq are required.",
+                ) from exc
+
+            beamtime_dir = Path(
+                self._config["dataframe"]["beamtime_dir"][self._config["core"]["beamline"]],
+            )
+            beamtime_dir = beamtime_dir.joinpath(f"{year}/data/{beamtime_id}/")
+
+            # Use pathlib walk to reach the raw data directory
+            data_raw_dir = []
+            raw_path = beamtime_dir.joinpath("raw")
+
+            for path in raw_path.glob("**/*"):
+                if path.is_dir():
+                    dir_name = path.name
+                    if dir_name.startswith("express-") or dir_name.startswith(
+                        "online-",
+                    ):
+                        data_raw_dir.append(path.joinpath(daq))
+                    elif dir_name == daq.upper():
+                        data_raw_dir.append(path)
+
+            if not data_raw_dir:
+                raise FileNotFoundError("Raw data directories not found.")
+
+            parquet_path = "processed/parquet"
+            data_parquet_dir = beamtime_dir.joinpath(parquet_path)
+
+        data_parquet_dir.mkdir(parents=True, exist_ok=True)
+
+        return data_raw_dir, data_parquet_dir
+
+    def get_files_from_run_id(
+        self,
+        run_id: str,
+        folders: Union[str, Sequence[str]] = None,
+        extension: str = "h5",
+        **kwds,
+    ) -> List[str]:
+        """Returns a list of filenames for a given run located in the specified directory
+        for the specified data acquisition (daq).
+
+        Args:
+            run_id (str): The run identifier to locate.
+            folders (Union[str, Sequence[str]], optional): The directory(ies) where the raw
+                data is located. Defaults to config["core"]["base_folder"].
+            extension (str, optional): The file extension. Defaults to "h5".
+            kwds: Keyword arguments:
+                - daq (str): The data acquisition identifier.
+                Defaults to config["dataframe"]["daq"].
+
+        Returns:
+            List[str]: A list of path strings representing the collected file names.
+
+        Raises:
+            FileNotFoundError: If no files are found for the given run in the directory.
+        """
+        # Define the stream name prefixes based on the data acquisition identifier
+        stream_name_prefixes = self._config["dataframe"]["stream_name_prefixes"]
+
+        if folders is None:
+            folders = self._config["core"]["base_folder"]
+
+        if isinstance(folders, str):
+            folders = [folders]
+
+        daq = kwds.pop("daq", self._config.get("dataframe", {}).get("daq"))
+
+        # Generate the file patterns to search for in the directory
+        file_pattern = f"{stream_name_prefixes[daq]}_run{run_id}_*." + extension
+
+        files: List[Path] = []
+        # Use pathlib to search for matching files in each directory
+        for folder in folders:
+            files.extend(
+                natsorted(
+                    Path(folder).glob(file_pattern),
+                    key=lambda filename: str(filename).rsplit("_", maxsplit=1)[-1],
+                ),
+            )
+
+        # Check if any files are found
+        if not files:
+            raise FileNotFoundError(
+                f"No files found for run {run_id} in directory {str(folders)}",
+            )
+
+        # Return the list of found files
+        return [str(file.resolve()) for file in files]
 
     @property
     def available_channels(self) -> List:
@@ -126,8 +247,7 @@ class FlashLoader(BaseLoader):
             names=["trainId", "pulseId"],
         )
 
-        # Calculate the electron counts per pulseId
-        # unique preserves the order of appearance
+        # Calculate the electron counts per pulseId unique preserves the order of appearance
         electron_counts = index_temp.value_counts()[index_temp.unique()].values
 
         # Series object for indexing with electrons
@@ -142,7 +262,7 @@ class FlashLoader(BaseLoader):
         # Create a pandas MultiIndex using the exploded datasets
         self.index_per_electron = MultiIndex.from_arrays(
             (microbunches.index, microbunches.values, electrons),
-            names=["trainId", "pulseId", "electronId"],
+            names=self.multi_index,
         )
 
     def create_multi_index_per_pulse(
@@ -151,16 +271,15 @@ class FlashLoader(BaseLoader):
         np_array: np.ndarray,
     ) -> None:
         """
-        Creates an index per pulse using a pulse resolved channel's macrobunch ID,
-        for usage with the pulse resolved pandas DataFrame.
+        Creates an index per pulse using a pulse resolved channel's macrobunch ID, for usage with
+        the pulse resolved pandas DataFrame.
 
         Args:
             train_id (Series): The train ID Series.
             np_array (np.ndarray): The numpy array containing the pulse resolved data.
 
         Notes:
-            - This method creates a MultiIndex with trainId and pulseId as the
-                index levels.
+            - This method creates a MultiIndex with trainId and pulseId as the index levels.
         """
 
         # Create a pandas MultiIndex, useful for comparing electron and
@@ -183,8 +302,8 @@ class FlashLoader(BaseLoader):
             channel (str): The name of the channel.
 
         Returns:
-            Tuple[Series, np.ndarray]: A tuple containing the train ID Series
-            and the numpy array for the channel's data.
+            Tuple[Series, np.ndarray]: A tuple containing the train ID Series and the numpy array
+            for the channel's data.
 
         """
         # Get the data from the necessary h5 file and channel
@@ -228,9 +347,8 @@ class FlashLoader(BaseLoader):
             DataFrame: The pandas DataFrame for the channel's data.
 
         Notes:
-            The microbunch resolved data is exploded and converted to a DataFrame.
-            The MultiIndex is set, and the NaN values are dropped, alongside the
-            pulseId = 0 (meaningless).
+            The microbunch resolved data is exploded and converted to a DataFrame. The MultiIndex
+            is set, and the NaN values are dropped, alongside the pulseId = 0 (meaningless).
 
         """
         return (
@@ -266,18 +384,17 @@ class FlashLoader(BaseLoader):
             DataFrame: The pandas DataFrame for the channel's data.
 
         Notes:
-            - For auxillary channels, the macrobunch resolved data is repeated 499
-              times to be compared to electron resolved data for each auxillary
-              channel. The data is then converted to a multicolumn DataFrame.
-            - For all other pulse resolved channels, the macrobunch resolved
-              data is exploded to a DataFrame and the MultiIndex is set.
+            - For auxillary channels, the macrobunch resolved data is repeated 499 times to be
+              compared to electron resolved data for each auxillary channel. The data is then
+              converted to a multicolumn DataFrame.
+            - For all other pulse resolved channels, the macrobunch resolved data is exploded
+              to a DataFrame and the MultiIndex is set.
 
         """
 
         # Special case for auxillary channels
         if channel == "dldAux":
-            # Checks the channel dictionary for correct slices and creates a
-            # multicolumn DataFrame
+            # Checks the channel dictionary for correct slices and creates a multicolumn DataFrame
             data_frames = (
                 Series(
                     (np_array[i, value] for i in train_id.index),
@@ -292,8 +409,7 @@ class FlashLoader(BaseLoader):
 
         # For all other pulse resolved channels
         else:
-            # Macrobunch resolved data is exploded to a DataFrame and
-            # the MultiIndex is set
+            # Macrobunch resolved data is exploded to a DataFrame and the MultiIndex is set
 
             # Creates the index_per_pulse for the given channel
             self.create_multi_index_per_pulse(train_id, np_array)
@@ -337,18 +453,16 @@ class FlashLoader(BaseLoader):
         """
         Returns a pandas DataFrame for a given channel name from a given file.
 
-        This method takes an h5py.File object `h5_file` and a channel name `channel`,
-        and returns a pandas DataFrame containing the data for that channel from the
-        file. The format of the DataFrame depends on the channel's format specified
-        in the configuration.
+        This method takes an h5py.File object `h5_file` and a channel name `channel`, and returns
+        a pandas DataFrame containing the data for that channel from the file. The format of the
+        DataFrame depends on the channel's format specified in the configuration.
 
         Args:
             h5_file (h5py.File): The h5py.File object representing the HDF5 file.
             channel (str): The name of the channel.
 
         Returns:
-            Union[Series, DataFrame]: A pandas Series or DataFrame representing the
-            channel's data.
+            Union[Series, DataFrame]: A pandas Series or DataFrame representing the channel's data.
 
         Raises:
             ValueError: If the channel has an undefined format.
@@ -415,9 +529,9 @@ class FlashLoader(BaseLoader):
         """
         Concatenates the channels from the provided h5py.File into a pandas DataFrame.
 
-        This method takes an h5py.File object `h5_file` and concatenates the channels
-        present in the file into a single pandas DataFrame. The concatenation is
-        performed based on the available channels specified in the configuration.
+        This method takes an h5py.File object `h5_file` and concatenates the channels present in
+        the file into a single pandas DataFrame. The concatenation is performed based on the
+        available channels specified in the configuration.
 
         Args:
             h5_file (h5py.File): The h5py.File object representing the HDF5 file.
@@ -461,9 +575,9 @@ class FlashLoader(BaseLoader):
         """
         Create pandas DataFrames for the given file.
 
-        This method loads an HDF5 file specified by `file_path` and constructs a pandas
-        DataFrame from the datasets within the file. The order of datasets in the
-        DataFrames is the opposite of the order specified by channel names.
+        This method loads an HDF5 file specified by `file_path` and constructs a pandas DataFrame
+        from the datasets within the file. The order of datasets in the DataFrames is the opposite
+        of the order specified by channel names.
 
         Args:
             file_path (Path): Path to the input HDF5 file.
@@ -477,13 +591,12 @@ class FlashLoader(BaseLoader):
             self.reset_multi_index()  # Reset MultiIndexes for next file
             return self.concatenate_channels(h5_file)
 
-    def h5_to_parquet(self, h5_path: Path, parquet_path: Path) -> None:
+    def create_buffer_file(self, h5_path: Path, parquet_path: Path) -> None:
         """
-        Convert HDF5 file to Parquet format.
+        Converts an HDF5 file to Parquet format to create a buffer file.
 
-        This method uses the `create_dataframe_per_file` method to create dataframes
-        from individual files within an HDF5 file. The resulting dataframe is then
-        saved to a Parquet file.
+        This method uses `create_dataframe_per_file` method to create dataframes from individual
+        files within an HDF5 file. The resulting dataframe is then saved to a Parquet file.
 
         Args:
             h5_path (Path): Path to the input HDF5 file.
@@ -496,14 +609,72 @@ class FlashLoader(BaseLoader):
         try:
             (
                 self.create_dataframe_per_file(h5_path)
-                .reset_index(level=["trainId", "pulseId", "electronId"])
+                .reset_index(level=self.multi_index)
                 .to_parquet(parquet_path, index=False)
             )
         except ValueError as failed_string_error:
             self.failed_files_error.append(
                 f"{parquet_path}: {failed_string_error}",
             )
-            self.parquet_names.remove(parquet_path)
+
+    def buffer_file_handler(self, data_parquet_dir: Path, detector: str):
+        """
+        Handles the conversion of buffer files (h5 to parquet) and returns the filenames.
+
+        Args:
+            data_parquet_dir (Path): Directory where the parquet files will be stored.
+            detector (str): Detector name.
+
+        Returns:
+            Tuple[List[Path], List[Path]]: Two lists, one for h5 file paths and one for
+            corresponding parquet file paths.
+
+        Raises:
+            FileNotFoundError: If the conversion fails for any files or no data is available.
+        """
+
+        # Create the directory for buffer parquet files
+        buffer_file_dir = data_parquet_dir.joinpath("buffer")
+        buffer_file_dir.mkdir(parents=True, exist_ok=True)
+
+        # Create two separate lists for h5 and parquet file paths
+        h5_filenames = [Path(file) for file in self.files]
+        parquet_filenames = [
+            buffer_file_dir.joinpath(Path(file).stem + detector) for file in self.files
+        ]
+
+        # Raise a value error if no data is available after the conversion
+        if len(h5_filenames) == 0:
+            raise ValueError("No data available. Probably failed reading all h5 files")
+
+        # Choose files to read
+        files_to_read = [
+            (h5_path, parquet_path)
+            for h5_path, parquet_path in zip(h5_filenames, parquet_filenames)
+            if not parquet_path.exists()
+        ]
+
+        print(f"Reading files: {len(files_to_read)} new files of {len(h5_filenames)} total.")
+
+        # Initialize the indices for create_buffer_file conversion
+        self.reset_multi_index()
+
+        # Convert the remaining h5 files to parquet in parallel if there are any
+        if len(files_to_read) > 0:
+            Parallel(n_jobs=len(files_to_read), verbose=10)(
+                delayed(self.create_buffer_file)(h5_path, parquet_path)
+                for h5_path, parquet_path in files_to_read
+            )
+
+        # Raise an error if the conversion failed for any files
+        if self.failed_files_error:
+            raise FileNotFoundError(
+                "Conversion failed for the following files:\n" + "\n".join(self.failed_files_error),
+            )
+
+        print("All files converted successfully!")
+
+        return h5_filenames, parquet_filenames
 
     def fill_na(
         self,
@@ -519,17 +690,15 @@ class FlashLoader(BaseLoader):
             dd.DataFrame: Concatenated dataframe with filled NaN values.
 
         Notes:
-            This method is specific to the flash data structure and is used to fill NaN
-            values in certain channels that only store information at a lower frequency
-            The low frequency channels are exploded to match the dimensions of higher
-            frequency channels, but they may contain NaNs in the other columns. This
-            method fills the NaNs for the specific channels (per_pulse and per_train).
+            This method is specific to the flash data structure and is used to fill NaN values in
+            certain channels that only store information at a lower frequency. The low frequency
+            channels are exploded to match the dimensions of higher frequency channels, but they
+            may contain NaNs in the other columns. This method fills the NaNs for the specific
+            channels (per_pulse and per_train).
 
         """
         # Channels to fill NaN values
-        channels: List[str] = self.get_channels_by_format(
-            ["per_pulse", "per_train"],
-        )
+        channels: List[str] = self.get_channels_by_format(["per_pulse", "per_train"])
 
         # Fill NaN values within each dataframe
         for i, _ in enumerate(dataframes):
@@ -560,6 +729,78 @@ class FlashLoader(BaseLoader):
 
         # Concatenate the filled dataframes
         return dd.concat(dataframes)
+
+    def parquet_handler(
+        self,
+        data_parquet_dir: Path,
+        detector: str = "",
+        parquet_path: Path = None,
+        converted: bool = False,
+        load_parquet: bool = False,
+        save_parquet: bool = False,
+    ):
+        """
+        Handles loading and saving of parquet files based on the provided parameters.
+
+        Args:
+            data_parquet_dir (Path): Directory where the parquet files are located.
+            detector (str, optional): Adds a identifier for parquets to distinguish multidetector
+                systems.
+            parquet_path (str, optional): Path to the combined parquet file.
+            converted (bool, optional): True if data is augmented by adding additional columns
+                externally and saved into converted folder.
+            load_parquet (bool, optional): Loads the entire parquet into the dd dataframe.
+            save_parquet (bool, optional): Saves the entire dataframe into a parquet.
+
+        Returns:
+            dataframe: Dataframe containing the loaded or processed data.
+
+        Raises:
+            FileNotFoundError: If the requested parquet file is not found.
+
+        """
+
+        # Construct the parquet path if not provided
+        if parquet_path is None:
+            parquet_name = "_".join(str(run) for run in self.runs)
+            parquet_dir = data_parquet_dir.joinpath("converted") if converted else data_parquet_dir
+
+            parquet_path = parquet_dir.joinpath(
+                "run_" + parquet_name + detector,
+            ).with_suffix(".parquet")
+
+        # Check if load_parquet is flagged and then load the file if it exists
+        if load_parquet:
+            try:
+                dataframe = dd.read_parquet(parquet_path)
+            except Exception as exc:
+                raise FileNotFoundError(
+                    "The final parquet for this run(s) does not exist yet. "
+                    "If it is in another location, please provide the path as parquet_path.",
+                ) from exc
+
+        else:
+            # Obtain the filenames from the method which handles buffer file creation/reading
+            _, parquet_filenames = self.buffer_file_handler(
+                data_parquet_dir,
+                detector,
+            )
+
+            # Read all parquet files using dask and concatenate into one dataframe after filling
+            dataframe = self.fill_na(
+                [dd.read_parquet(file) for file in parquet_filenames],
+            )
+
+            dataframe = dataframe.dropna(
+                subset=self.get_channels_by_format(["per_electron"]),
+            )
+
+        # Save the dataframe as parquet if requested
+        if save_parquet:
+            dataframe.compute().reset_index(drop=True).to_parquet(parquet_path)
+            print("Combined parquet file saved.")
+
+        return dataframe
 
     def parse_metadata(self) -> dict:
         """Uses the MetadataRetriever class to fetch metadata from scicat for each run.
@@ -600,38 +841,28 @@ class FlashLoader(BaseLoader):
         Read express data from the DAQ, generating a parquet in between.
 
         Args:
-            files (Union[str, Sequence[str]], optional): File path(s) to process.
+            files (Union[str, Sequence[str]], optional): File path(s) to process. Defaults to None.
+            folders (Union[str, Sequence[str]], optional): Path to folder(s) where files are stored
+                Path has priority such that if it's specified, the specified files will be ignored.
                 Defaults to None.
-            folders (Union[str, Sequence[str]], optional): Path to folder(s) where files
-                are stored. Path has priority such that if it's specified, the specified
-                files will be ignored. Defaults to None.
-            runs (Union[str, Sequence[str]], optional): Run identifier(s). Corresponding
-                files will be located in the location provided by ``folders``. Takes
-                precendence over ``files`` and ``folders``. Defaults to None.
+            runs (Union[str, Sequence[str]], optional): Run identifier(s). Corresponding files will
+                be located in the location provided by ``folders``. Takes precendence over
+                ``files`` and ``folders``. Defaults to None.
             ftype (str, optional): The file extension type. Defaults to "h5".
             metadata (dict, optional): Additional metadata. Defaults to None.
-            collect_metadata (bool, optional): Whether to collect metadata.
-                Defaults to False.
-
+            collect_metadata (bool, optional): Whether to collect metadata. Defaults to False.
 
         Returns:
-            Tuple[dd.DataFrame, dict]: A tuple containing the concatenated DataFrame
-            and metadata.
+            Tuple[dd.DataFrame, dict]: A tuple containing the concatenated DataFrame and metadata.
 
         Raises:
             ValueError: If neither 'runs' nor 'files'/'data_raw_dir' is provided.
-            FileNotFoundError: If the conversion fails for some files or no
-            data is available.
+            FileNotFoundError: If the conversion fails for some files or no data is available.
         """
 
         data_raw_dir, data_parquet_dir = self.initialize_paths()
 
-        # Create a per_file directory
-        temp_parquet_dir = data_parquet_dir.joinpath("per_file")
-        os.makedirs(temp_parquet_dir, exist_ok=True)
-
         # Prepare a list of names for the runs to read and parquets to write
-
         if runs is not None:
             files = []
             if isinstance(runs, (str, int)):
@@ -648,8 +879,8 @@ class FlashLoader(BaseLoader):
             super().read_dataframe(files=files, ftype=ftype)
 
         else:
-            # This call takes care of files and folders. As we have converted runs
-            # into files already, they are just stored in the class by this call.
+            # This call takes care of files and folders. As we have converted runs into files
+            # already, they are just stored in the class by this call.
             super().read_dataframe(
                 files=files,
                 folders=folders,
@@ -657,181 +888,11 @@ class FlashLoader(BaseLoader):
                 metadata=metadata,
             )
 
-        parquet_name = f"{temp_parquet_dir}/"
-        self.parquet_names = [Path(parquet_name + Path(file).stem) for file in self.files]
-        missing_files: List[Path] = []
-        missing_parquet_names: List[Path] = []
-
-        # Only read and write files which were not read already
-        for i, parquet_file in enumerate(self.parquet_names):
-            if not parquet_file.exists():
-                missing_files.append(Path(self.files[i]))
-                missing_parquet_names.append(parquet_file)
-
-        print(
-            f"Reading files: {len(missing_files)} new files of {len(self.files)} total.",
-        )
-
-        self.reset_multi_index()  # Initializes the indices for h5_to_parquet
-
-        # Run self.h5_to_parquet in parallel
-        if len(missing_files) > 0:
-            Parallel(n_jobs=len(missing_files), verbose=10)(
-                delayed(self.h5_to_parquet)(h5_path, parquet_path)
-                for h5_path, parquet_path in zip(
-                    missing_files,
-                    missing_parquet_names,
-                )
-            )
-
-        if self.failed_files_error:
-            raise FileNotFoundError(
-                "Conversion failed for the following files: \n"
-                + "\n".join(self.failed_files_error),
-            )
-
-        print("All files converted successfully!")
-
-        if len(self.parquet_names) == 0:
-            raise ValueError(
-                "No data available. Probably failed reading all h5 files",
-            )
-
-        print(
-            f"Loading {len(self.parquet_names)} dataframes. Failed reading "
-            f"{len(self.files)-len(self.parquet_names)} files.",
-        )
-        # Read all parquet files using dask and concatenate into one dataframe
-        # after filling
-        dataframe = self.fill_na(
-            [dd.read_parquet(parquet_file) for parquet_file in self.parquet_names],
-        )
-        dataframe = dataframe.dropna(
-            subset=self.get_channels_by_format(["per_electron"]),
-        )
+        dataframe = self.parquet_handler(data_parquet_dir, **kwds)
 
         metadata = self.parse_metadata() if collect_metadata else {}
 
         return dataframe, metadata
-
-    def get_files_from_run_id(
-        self,
-        run_id: str,
-        folders: Union[str, Sequence[str]] = None,
-        extension: str = "h5",
-        **kwds,
-    ) -> List[str]:
-        """Returns a list of filenames for a given run located in the specified directory
-        for the specified data acquisition (daq).
-
-        Args:
-            run_id (str): The run identifier to locate.
-            folders (Union[str, Sequence[str]], optional): The directory(ies) where the raw
-                data is located. Defaults to config["core"]["base_folder"].
-            extension (str, optional): The file extension. Defaults to "h5".
-            kwds: Keyword arguments:
-                - daq (str): The data acquisition identifier.
-                  Defaults to config["dataframe"]["daq"].
-
-        Returns:
-            List[str]: A list of path strings representing the collected file names.
-
-        Raises:
-            FileNotFoundError: If no files are found for the given run in the directory.
-        """
-        # Define the stream name prefixes based on the data acquisition identifier
-        stream_name_prefixes = self._config["dataframe"]["stream_name_prefixes"]
-
-        if folders is None:
-            folders = self._config["core"]["base_folder"]
-
-        if isinstance(folders, str):
-            folders = [folders]
-
-        daq = kwds.pop("daq", self._config.get("dataframe", {}).get("daq"))
-
-        # Generate the file patterns to search for in the directory
-        file_pattern = f"{stream_name_prefixes[daq]}_run{run_id}_*." + extension
-
-        files: List[Path] = []
-        # Use pathlib to search for matching files in each directory
-        for folder in folders:
-            files.extend(
-                natsorted(
-                    Path(folder).glob(file_pattern),
-                    key=lambda filename: str(filename).rsplit("_", maxsplit=1)[-1],
-                ),
-            )
-
-        # Check if any files are found
-        if not files:
-            raise FileNotFoundError(
-                f"No files found for run {run_id} in directory {str(folders)}",
-            )
-
-        # Return the list of found files
-        return [str(file.resolve()) for file in files]
-
-    def initialize_paths(self) -> Tuple[List[Path], Path]:
-        """
-        Initializes the paths based on the configuration.
-
-        Returns:
-            Tuple[List[Path], Path]: A tuple containing a list of raw data directories
-            paths and the parquet data directory path.
-
-        Raises:
-            ValueError: If required values are missing from the configuration.
-            FileNotFoundError: If the raw data directories are not found.
-        """
-        # Parses to locate the raw beamtime directory from config file
-        if "paths" in self._config["core"]:
-            data_raw_dir = [
-                Path(self._config["core"]["paths"].get("data_raw_dir", "")),
-            ]
-            data_parquet_dir = Path(
-                self._config["core"]["paths"].get("data_parquet_dir", ""),
-            )
-
-        else:
-            try:
-                beamtime_id = self._config["core"]["beamtime_id"]
-                year = self._config["core"]["year"]
-                daq = self._config["dataframe"]["daq"]
-            except KeyError as exc:
-                raise ValueError(
-                    "The beamtime_id, year and daq are required.",
-                ) from exc
-
-            beamtime_dir = Path(
-                self._config["dataframe"]["beamtime_dir"][self._config["core"]["beamline"]],
-            )
-            beamtime_dir = beamtime_dir.joinpath(f"{year}/data/{beamtime_id}/")
-
-            # Use os walk to reach the raw data directory
-            data_raw_dir = []
-            for root, dirs, files in os.walk(  # pylint: disable=W0612
-                beamtime_dir.joinpath("raw/"),
-            ):
-                for dir_name in dirs:
-                    if dir_name.startswith("express-") or dir_name.startswith(
-                        "online-",
-                    ):
-                        data_raw_dir.append(Path(root, dir_name, daq))
-                    elif dir_name == daq.upper():
-                        data_raw_dir.append(Path(root, dir_name))
-
-            if not data_raw_dir:
-                raise FileNotFoundError("Raw data directories not found.")
-
-            parquet_path = "processed/parquet"
-            data_parquet_dir = beamtime_dir.joinpath(parquet_path)
-
-        # TODO: This will fail of more than one level of directories needs to be created...
-        if not data_parquet_dir.exists():
-            os.mkdir(data_parquet_dir)
-
-        return data_raw_dir, data_parquet_dir
 
 
 LOADER = FlashLoader

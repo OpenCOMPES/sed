@@ -11,11 +11,23 @@ from sed.loader.loader_interface import get_loader
 
 package_dir = os.path.dirname(find_spec("sed").origin)
 file = package_dir + "/../tests/data/loader/mpes/Scan0030_2.h5"
-config = parse_config(package_dir + "/../tests/data/config/config.yaml")
 
 
 def test_delay_parameters_from_file():
     """Test the option to extract the delay parameters from a file"""
+    config = parse_config(
+        config={
+            "core": {"loader": "mpes"},
+            "delay": {
+                "p1_key": "@trARPES:DelayStage:p1",
+                "p2_key": "@trARPES:DelayStage:p2",
+                "t0_key": "@trARPES:DelayStage:t0",
+            },
+        },
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
     df, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
         files=[file],
         collect_metadata=False,
@@ -33,6 +45,12 @@ def test_delay_parameters_from_file():
 def test_delay_parameters_from_delay_range():
     """Test the option to extract the delay parameters from a delay range"""
     # from keywords
+    config = parse_config(
+        config={"core": {"loader": "mpes"}},
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
     df, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
         files=[file],
         collect_metadata=False,
@@ -60,6 +78,12 @@ def test_delay_parameters_from_delay_range():
 def test_delay_parameters_from_delay_range_mm():
     """Test the option to extract the delay parameters from a mm range + t0"""
     # from keywords
+    config = parse_config(
+        config={"core": {"loader": "mpes"}},
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
     df, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
         files=[file],
         collect_metadata=False,

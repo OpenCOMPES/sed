@@ -36,14 +36,8 @@ class DelayCalibrator:
 
         self._config = config
 
-        self.adc_column = self._config.get("dataframe", {}).get(
-            "adc_column",
-            "ADC",
-        )
-        self.delay_column = self._config.get("dataframe", {}).get(
-            "delay_column",
-            "delay",
-        )
+        self.adc_column = self._config["dataframe"]["adc_column"]
+        self.delay_column = self._config["dataframe"]["delay_column"]
         self.calibration: Dict[Any, Any] = {}
 
     def append_delay_axis(
@@ -105,7 +99,7 @@ class DelayCalibrator:
                 calibration = deepcopy(self.calibration)
             else:
                 calibration = deepcopy(
-                    self._config.get("delay", {}).get(
+                    self._config["delay"].get(
                         "calibration",
                         {},
                     ),
@@ -125,23 +119,20 @@ class DelayCalibrator:
         if delay_column is None:
             delay_column = self.delay_column
         if p1_key is None:
-            p1_key = self._config.get("delay", {}).get("p1_key", "")
+            p1_key = self._config["delay"].get("p1_key", "")
         if p2_key is None:
-            p2_key = self._config.get("delay", {}).get("p2_key", "")
+            p2_key = self._config["delay"].get("p2_key", "")
         if t0_key is None:
-            t0_key = self._config.get("delay", {}).get("t0_key", "")
+            t0_key = self._config["delay"].get("t0_key", "")
 
         if "adc_range" not in calibration.keys():
             calibration["adc_range"] = np.asarray(
-                self._config.get("delay", {}).get(
-                    "adc_range",
-                    [2600, 27600],
-                ),
-            ) / 2 ** self._config.get("delay", {}).get("adc_binning", 2)
+                self._config["delay"]["adc_range"],
+            ) / 2 ** (self._config["dataframe"]["adc_binning"] - 1)
 
         if "delay_range" not in calibration.keys():
             if "delay_range_mm" not in calibration.keys() or "time0" not in calibration.keys():
-                if datafile is not None:
+                if datafile is not None and p1_key and p2_key and t0_key:
                     try:
                         ret = extract_delay_stage_parameters(
                             datafile,

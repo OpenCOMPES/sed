@@ -77,16 +77,15 @@ class MomentumCorrector:
         if data is not None:
             self.load_data(data=data, bin_ranges=bin_ranges)
 
-        self.detector_ranges = self._config.get("momentum", {}).get(
-            "detector_ranges",
-            [[0, 2048], [0, 2048]],
-        )
+        self.detector_ranges = self._config["momentum"]["detector_ranges"]
 
         self.rotsym = int(rotsym)
         self.rotsym_angle = int(360 / self.rotsym)
         self.arot = np.array([0] + [self.rotsym_angle] * (self.rotsym - 1))
         self.ascale = np.array([1.0] * self.rotsym)
         self.peaks: np.ndarray = None
+        self.include_center: bool = False
+        self.use_center: bool = False
         self.pouter: np.ndarray = None
         self.pcent: Tuple[float, ...] = None
         self.pouter_ord: np.ndarray = None
@@ -100,6 +99,8 @@ class MomentumCorrector:
         self.vvdist: float = np.nan
         self.rdeform_field: np.ndarray = None
         self.cdeform_field: np.ndarray = None
+        self.rdeform_field_bkp: np.ndarray = None
+        self.cdeform_field_bkp: np.ndarray = None
         self.inverse_dfield: np.ndarray = None
         self.dfield_updated: bool = False
         self.transformations: Dict[Any, Any] = {}
@@ -107,30 +108,12 @@ class MomentumCorrector:
         self.adjust_params: Dict[Any, Any] = {"applied": False}
         self.calibration: Dict[Any, Any] = {}
 
-        self.x_column = self._config.get("dataframe", {}).get(
-            "x_column",
-            "X",
-        )
-        self.y_column = self._config.get("dataframe", {}).get(
-            "y_column",
-            "Y",
-        )
-        self.corrected_x_column = self._config.get("dataframe", {}).get(
-            "corrected_x_column",
-            "Xm",
-        )
-        self.corrected_y_column = self._config.get("dataframe", {}).get(
-            "corrected_y_column",
-            "Ym",
-        )
-        self.kx_column = self._config.get("dataframe", {}).get(
-            "kx_column",
-            "kx",
-        )
-        self.ky_column = self._config.get("dataframe", {}).get(
-            "ky_column",
-            "ky",
-        )
+        self.x_column = self._config["dataframe"]["x_column"]
+        self.y_column = self._config["dataframe"]["y_column"]
+        self.corrected_x_column = self._config["dataframe"]["corrected_x_column"]
+        self.corrected_y_column = self._config["dataframe"]["corrected_y_column"]
+        self.kx_column = self._config["dataframe"]["kx_column"]
+        self.ky_column = self._config["dataframe"]["ky_column"]
 
         self._state: int = 0
 
@@ -360,26 +343,38 @@ class MomentumCorrector:
         Raises:
             ValueError: Raised if the number of points does not match the rotsym.
         """
+        if features is None:
+            # loading config defauls
+            try:
+                features = np.asarray(
+                    self._config["momentum"]["correction"]["feature_points"],
+                )
+                rotsym = self._config["momentum"]["correction"]["rotation_symmetry"]
+                include_center = self._config["momentum"]["correction"]["include_center"]
+                if not include_center and len(features) > rotsym:
+                    features = features[:rotsym, :]
+            except KeyError as exc:
+                raise ValueError(
+                    "No valid landmarks defined, and no defaults found in configuration!",
+                ) from exc
+
         self.rotsym = int(rotsym)
         self.rotsym_angle = int(360 / self.rotsym)
         self.arot = np.array([0] + [self.rotsym_angle] * (self.rotsym - 1))
         self.ascale = np.array([1.0] * self.rotsym)
-
-        if features is None:
-            features = np.asarray(
-                self._config["momentum"]["correction"]["feature_points"],
-            )
 
         if features.shape[0] == self.rotsym:  # assume no center present
             self.pcent, self.pouter = po.pointset_center(
                 features,
                 method="centroid",
             )
+            self.include_center = False
         elif features.shape[0] == self.rotsym + 1:  # assume center included
             self.pcent, self.pouter = po.pointset_center(
                 features,
                 method="centroidnn",
             )
+            self.include_center = True
         else:
             raise ValueError(
                 f"Found {features.shape[0]} points, ",
@@ -520,8 +515,8 @@ class MomentumCorrector:
             point_input_y.value = point_y
 
         def update_point_pos(
-            point_x: int,
-            point_y: int,
+            point_x: float,
+            point_y: float,
         ):
             fig.canvas.draw_idle()
             point_no = point_no_input.value
@@ -536,8 +531,8 @@ class MomentumCorrector:
             description="Point:",
         )
 
-        point_input_x = ipw.IntText(features[0][0])
-        point_input_y = ipw.IntText(features[0][1])
+        point_input_x = ipw.FloatText(features[0][0])
+        point_input_y = ipw.FloatText(features[0][1])
         ipw.interact(
             update_point_no,
             point_no=point_no_input,
@@ -551,9 +546,7 @@ class MomentumCorrector:
         def onclick(event):
             point_input_x.value = event.xdata
             point_input_y.value = event.ydata
-            point_no_input.value = (point_no_input.value + 1) % features.shape[
-                0
-            ]
+            point_no_input.value = (point_no_input.value + 1) % features.shape[0]
 
         cid = fig.canvas.mpl_connect("button_press_event", onclick)
 
@@ -615,9 +608,10 @@ class MomentumCorrector:
     def spline_warp_estimate(
         self,
         image: np.ndarray = None,
-        include_center: bool = True,
+        use_center: bool = None,
         fixed_center: bool = True,
         interp_order: int = 1,
+        verbose: bool = True,
         **kwds,
     ) -> np.ndarray:
         """Estimate the spline deformation field using thin plate spline registration.
@@ -625,15 +619,17 @@ class MomentumCorrector:
         Args:
             image (np.ndarray, optional):
                 2D array. Image slice to be corrected. Defaults to self.slice.
-            include_center (bool, optional):
-                Option to include the image center/centroid in the registration
-                process. Defaults to True.
+            use_center (bool, optional):
+                Option to use the image center/centroid in the registration
+                process. Defaults to config value, or True.
             fixed_center (bool, optional):
                 Option to have a fixed center during registration-based
                 symmetrization. Defaults to True.
             interp_order (int, optional):
                 Order of interpolation (see ``scipy.ndimage.map_coordinates()``).
                 Defaults to 1.
+            verbose (bool, optional): Option to report the used landmarks for correction.
+                Defaults to True.
             **kwds: keyword arguments:
 
                 - **landmarks**: (list/array): Landmark positions (row, column) used
@@ -661,6 +657,13 @@ class MomentumCorrector:
                 print("No landmarks defined, using config defaults.")
                 self.add_features()
 
+        if use_center is None:
+            try:
+                use_center = self._config["momentum"]["correction"]["use_center"]
+            except KeyError:
+                use_center = True
+        self.use_center = use_center
+
         self.prefs = kwds.pop("landmarks", self.pouter_ord)
         self.ptargs = kwds.pop("targets", [])
 
@@ -675,8 +678,8 @@ class MomentumCorrector:
                 ret="all",
             )[1:, :]
 
-        if include_center is True:
-            # Include center of image pattern in the registration-based symmetrization
+        if use_center is True:
+            # Use center of image pattern in the registration-based symmetrization
             if fixed_center is True:
                 # Add the same center to both the reference and target sets
 
@@ -710,15 +713,26 @@ class MomentumCorrector:
             splinewarp[1],
         )
 
+        # save backup copies to reset transformations
+        self.rdeform_field_bkp = self.rdeform_field
+        self.cdeform_field_bkp = self.cdeform_field
+
         self.correction["applied"] = True
         self.correction["pouter"] = self.pouter_ord
         self.correction["pcent"] = np.asarray(self.pcent)
         self.correction["prefs"] = self.prefs
         self.correction["ptargs"] = self.ptargs
         self.correction["rotsym"] = self.rotsym
+        self.correction["use_center"] = self.use_center
 
         if self.slice is not None:
             self.slice_corrected = corrected_image
+
+        if verbose:
+            print("Calulated thin spline correction based on the following landmarks:")
+            print(f"pouter: {self.pouter}")
+            if use_center:
+                print(f"pcent: {self.pcent}")
 
         return corrected_image
 
@@ -963,6 +977,8 @@ class MomentumCorrector:
         ytrans: float = 0,
         angle: float = 0,
         apply: bool = False,
+        reset: bool = True,
+        verbose: bool = True,
     ):
         """Interactive panel to adjust transformations that are applied to the image.
         Applies first a scaling, next a x/y translation, and last a rotation around
@@ -980,18 +996,26 @@ class MomentumCorrector:
             apply (bool, optional):
                 Option to directly apply the provided transformations.
                 Defaults to False.
+            reset (bool, optional):
+                Option to reset the correction before transformation. Defaults to True.
+            verbose (bool, optional):
+                Option to report the performed transformations. Defaults to True.
         """
         matplotlib.use("module://ipympl.backend_nbagg")
         source_image = self.slice_corrected
 
         transformed_image = source_image
 
+        if reset:
+            if self.rdeform_field_bkp is not None and self.cdeform_field_bkp is not None:
+                self.rdeform_field = self.rdeform_field_bkp
+                self.cdeform_field = self.cdeform_field_bkp
+            else:
+                self.reset_deformation()
+
         fig, ax = plt.subplots(1, 1)
         img = ax.imshow(transformed_image.T, origin="lower", cmap="terrain_r")
-        center = self._config.get("momentum", {}).get(
-            "center_pixel",
-            [256, 256],
-        )
+        center = self._config["momentum"]["center_pixel"]
         ax.axvline(x=center[0])
         ax.axhline(y=center[1])
 
@@ -1050,6 +1074,7 @@ class MomentumCorrector:
             step=1,
         )
         angle_slider = ipw.FloatSlider(value=angle, min=-180, max=180, step=1)
+        results_box = ipw.Output()
         ipw.interact(
             update,
             scale=scale_slider,
@@ -1066,6 +1091,9 @@ class MomentumCorrector:
                     yscale=self.transformations["scale"],
                     keep=True,
                 )
+                if verbose:
+                    with results_box:
+                        print(f"Applied scaling with scale={self.transformations['scale']}.")
             if (
                 self.transformations.get("xtrans", 0) != 0
                 or self.transformations.get("ytrans", 0) != 0
@@ -1076,6 +1104,12 @@ class MomentumCorrector:
                     ytrans=self.transformations["ytrans"],
                     keep=True,
                 )
+                if verbose:
+                    with results_box:
+                        print(
+                            f"Applied translation with (xtrans={self.transformations['xtrans']},",
+                            f"ytrans={self.transformations['ytrans']}).",
+                        )
             if self.transformations.get("angle", 0) != 0:
                 self.coordinate_transform(
                     transform_type="rotation",
@@ -1083,6 +1117,11 @@ class MomentumCorrector:
                     center=center,
                     keep=True,
                 )
+                if verbose:
+                    with results_box:
+                        print(f"Applied rotation with angle={self.transformations['angle']}.")
+
+                display(results_box)
 
             img.set_data(self.slice_transformed.T)
             axmin = np.min(self.slice_transformed, axis=(0, 1))
@@ -1189,10 +1228,7 @@ class MomentumCorrector:
             ax.imshow(image.T, origin=origin, cmap=cmap, **imkwds)
 
             if cross:
-                center = self._config.get("momentum", {}).get(
-                    "center_pixel",
-                    [256, 256],
-                )
+                center = self._config["momentum"]["center_pixel"]
                 ax.axvline(x=center[0])
                 ax.axhline(y=center[1])
 
@@ -1340,10 +1376,7 @@ class MomentumCorrector:
             raise ValueError("No valid image loaded!")
 
         if point_b is None:
-            point_b = self._config.get("momentum", {}).get(
-                "center_pixel",
-                [256, 256],
-            )
+            point_b = self._config["momentum"]["center_pixel"]
 
         if point_a is None:
             point_a = [0, 0]
@@ -1750,7 +1783,7 @@ class MomentumCorrector:
                 calibration = deepcopy(self.calibration)
             else:
                 calibration = deepcopy(
-                    self._config.get("momentum", {}).get(
+                    self._config["momentum"].get(
                         "calibration",
                         {},
                     ),

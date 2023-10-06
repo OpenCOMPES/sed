@@ -4,6 +4,7 @@ Mostly ported from https://github.com/mpes-kit/mpes.
 @author: L. Rettig
 """
 import datetime
+import glob
 import json
 import os
 import urllib
@@ -19,6 +20,7 @@ import dask.dataframe as ddf
 import h5py
 import numpy as np
 import scipy.interpolate as sint
+from natsort import natsorted
 
 from sed.loader.base.loader import BaseLoader
 
@@ -362,14 +364,30 @@ class MpesLoader(BaseLoader):
             Tuple[ddf.DataFrame, dict]: Dask dataframe and metadata read from specified
             files.
         """
-        # pylint: disable=duplicate-code
-        super().read_dataframe(
-            files=files,
-            folders=folders,
-            runs=runs,
-            ftype=ftype,
-            metadata=metadata,
-        )
+        # if runs is provided, try to locate the respective files relative to the provided folder.
+        if runs is not None:  # pylint: disable=duplicate-code
+            files = []
+            if isinstance(runs, (str, int)):
+                runs = [runs]
+            for run in runs:
+                files.extend(
+                    self.get_files_from_run_id(run_id=run, folders=folders, extension=ftype),
+                )
+            self.runs = list(runs)
+            super().read_dataframe(
+                files=files,
+                ftype=ftype,
+                metadata=metadata,
+            )
+        else:
+            # pylint: disable=duplicate-code
+            super().read_dataframe(
+                files=files,
+                folders=folders,
+                runs=runs,
+                ftype=ftype,
+                metadata=metadata,
+            )
 
         hdf5_groupnames = kwds.pop(
             "hdf5_groupnames",
@@ -425,7 +443,7 @@ class MpesLoader(BaseLoader):
         self,
         run_id: str,
         folders: Union[str, Sequence[str]] = None,
-        extension: str = None,
+        extension: str = "h5",
         **kwds,
     ) -> List[str]:
         """Locate the files for a given run identifier.
@@ -433,14 +451,37 @@ class MpesLoader(BaseLoader):
         Args:
             run_id (str): The run identifier to locate.
             folders (Union[str, Sequence[str]], optional): The directory(ies) where the raw
-                data is located. Defaults to None.
+                data is located. Defaults to config["core"]["base_folder"]
             extension (str, optional): The file extension. Defaults to "h5".
             kwds: Keyword arguments
 
         Return:
-            str: Path to the location of run data.
+            List[str]: List of file path strings to the location of run data.
         """
-        raise NotImplementedError
+        if folders is None:
+            folders = self._config["core"]["paths"]["data_raw_dir"]
+
+        if isinstance(folders, str):
+            folders = [folders]
+
+        files: List[str] = []
+        for folder in folders:
+            run_files = natsorted(
+                glob.glob(
+                    folder + "/**/Scan" + str(run_id).zfill(4) + "_*." + extension,
+                    recursive=True,
+                ),
+            )
+            files.extend(run_files)
+
+        # Check if any files are found
+        if not files:
+            raise FileNotFoundError(
+                f"No files found for run {run_id} in directory {str(folders)}",
+            )
+
+        # Return the list of found files
+        return files
 
     def gather_metadata(
         self,

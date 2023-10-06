@@ -1,1 +1,3 @@
-test:
+core:
+  paths:
+    data_raw_dir: "tests/data/loader/mpes/"
