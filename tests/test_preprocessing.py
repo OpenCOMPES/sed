@@ -92,4 +92,3 @@ def test_preprocessing_pipeline():
     assert pipeline.steps[0].func == square
     assert pipeline.steps[1].func == add
     assert pipeline.steps[1].args == (1,)
-eeeeeeeeeeeee
