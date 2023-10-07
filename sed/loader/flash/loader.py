@@ -737,8 +737,13 @@ class FlashLoader(BaseLoader):
             # Channels to fill NaN values
             channels: List[str] = self.get_channels_by_format(["per_pulse", "per_train"])
 
-            # Fill NaN values
-            dataframe[channels] = dataframe[channels].ffill()
+            # Define a custom function to forward fill specified columns
+            def forward_fill_partition(df):
+                df[channels] = df[channels].ffill()
+                return df
+
+            # Use map_overlap to apply forward_fill_partition
+            dataframe = dataframe.map_overlap(forward_fill_partition, before=0, after=1)
 
             # Remove the NaNs from per_electron channels
             dataframe = dataframe.dropna(
