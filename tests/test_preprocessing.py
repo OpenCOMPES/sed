@@ -16,11 +16,11 @@ cols = ["posx", "posy", "energy"]
 df = pd.DataFrame(np.random.randn(N_PTS, len(cols)), columns=cols)
 
 def square(df,col):
-    df[f'col_squared'] = df[col] ** 2
+    df[f'{col}_squared'] = df[col] ** 2
     return df
 
 def add(df,col,value):
-    df[f'col_added'] = df[col] + value
+    df[f'{col}_added'] = df[col] + value
     return df
 
 def test_pp_decorator():
