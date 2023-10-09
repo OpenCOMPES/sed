@@ -12,6 +12,7 @@ from typing import Tuple
 from typing import Union
 
 import dask.dataframe as ddf
+import dask.array as dda
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -1193,7 +1194,7 @@ class SedProcessor:
     def convert_8s_time(
         self, 
         step_to_tof:float=None, 
-        sector_delays:Sequece[float]=None,
+        sector_delays:Sequence[float]=None,
     ) -> None:
         """Converts the 8s time in steps to time in ns and sectorID.
 
@@ -1209,17 +1210,18 @@ class SedProcessor:
         if step_to_tof is None:
             step_to_tof = self._config["dataframe"]["step_to_tof"]
         if sector_delays is None:
-            sector_delays = self._config["dataframe"].get(["sector_delays"], [0.0] * 8)
+            sector_delays = self._config["dataframe"].get("sector_delays", [0.0] * 8)
 
-        sector_id = self._dataframe["dldTimeSteps"] & 0b111
+        sector_id = self._dataframe["dldTimeSteps"] % 8
         self._dataframe["dldTime"] = (
-            self._dataframe["dldTimeSteps"] >> 3 
+            self._dataframe["dldTimeSteps"] // 8
         ) 
         # convert to ns
         self._dataframe["dldTime"] *= step_to_tof
-        # Apply sector delays in nanoseconds
-        self._dataframe["dldTime"] -= sector_delays[sector_id]
-        self._dataframe["dldSectorID"] = sector_id
+        self._dataframe["dldSectorID"] = sector_id.astype(np.int8)
+        # Apply sector delays in nanoseconds 
+
+        self._dataframe["dldTime"] = dda.from_array(sector_delays)[self._dataframe["dldSectorID"].values]
 
         metadata = {}
         metadata["applied"] = True
