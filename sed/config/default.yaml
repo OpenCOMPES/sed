@@ -31,6 +31,8 @@ dataframe:
   tof_binning: 1
   # binning factor used for the adc coordinate (2^(adc_binning-1))
   adc_binning: 1
+    # list of columns to apply jitter to
+  jitter_cols: ["@x_column", "@y_column", "@tof_column"]
 
 energy:
   # Number of bins to use for energy calibration traces
