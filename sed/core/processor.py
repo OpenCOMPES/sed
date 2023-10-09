@@ -1190,6 +1190,45 @@ class SedProcessor:
             else:
                 print(self._dataframe)
 
+    def convert_8s_time(
+        self, 
+        step_to_tof:float=None, 
+        sector_delays:Sequece[float]=None,
+    ) -> None:
+        """Converts the 8s time in steps to time in ns and sectorID.
+
+        The 8s detector encodes the dldSectorID in the 3 least significant bits of the
+        dldTimeSteps channel.
+
+        Args:
+            step_to_tof (float, optional): Conversion factor from step to TOF.
+                Defaults to config["dataframe"]["step_to_tof"].
+            sector_delays (Sequece[float], optional): Sector delays for the 8s time.
+                Defaults to config["dataframe"]["sector_delays"].
+        """
+        if step_to_tof is None:
+            step_to_tof = self._config["dataframe"]["step_to_tof"]
+        if sector_delays is None:
+            sector_delays = self._config["dataframe"].get(["sector_delays"], [0.0] * 8)
+
+        sector_id = self._dataframe["dldTimeSteps"] & 0b111
+        self._dataframe["dldTime"] = (
+            self._dataframe["dldTimeSteps"] >> 3 
+        ) 
+        # convert to ns
+        self._dataframe["dldTime"] *= step_to_tof
+        # Apply sector delays in nanoseconds
+        self._dataframe["dldTime"] -= sector_delays[sector_id]
+        self._dataframe["dldSectorID"] = sector_id
+
+        metadata = {}
+        metadata["applied"] = True
+        metadata["step_to_tof"] = step_to_tof
+        metadata["sector_delays"] = sector_delays
+        self._attributes.add(metadata, "8s_time_conversion", duplicate_policy="merge")
+        return None
+
+    
     def add_jitter(self, cols: Sequence[str] = None):
         """Add jitter to the selected dataframe columns.
 
