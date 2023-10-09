@@ -1212,12 +1212,17 @@ class SedProcessor:
         if sector_delays is None:
             sector_delays = self._config["dataframe"].get("sector_delays", [0.0] * 8)
         # extract dld sector id information
-        self._dataframe["dldSectorID"] = (self._dataframe["dldTimeSteps"] % 8).astype(np.int8)
-        # clean the tof channel from the sector id information, convert to ns and 
+        def get_sector_id(x):
+            return x % 8
+        self._dataframe['dldSectorID'] = self._dataframe['dldTimeSteps'].map_partitions(
+            get_sector_id#, meta=np.float32
+        ).astype(np.int8)
+        # clean the tof channel from the sector id information, convert to ns and
         # correct the detector alginment with the sector delays
-        self._dataframe["dldTime"] = (
-            self._dataframe["dldTimeSteps"] - self._dataframe["dldSectorID"]
-        ) * step_to_tof - dda.from_array(sector_delays)[self._dataframe["dldSectorID"].values]
+        self._dataframe['dldTime'] = self._dataframe.map_partitions(
+            lambda x: (x['dldTimeSteps'] - x['dldSectorID']) * step_to_tof - x['dldSectorID'],
+            # meta=np.float32
+        )
 
         metadata = {}
         metadata["applied"] = True
