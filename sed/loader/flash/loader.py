@@ -742,8 +742,16 @@ class FlashLoader(BaseLoader):
                 df[channels] = df[channels].ffill()
                 return df
 
+            # calculate the number of rows in each partition and choose least
+            nrows = dataframe.map_partitions(len)
+            max_part_size = min(nrows)
+
             # Use map_overlap to apply forward_fill_partition
-            dataframe = dataframe.map_overlap(forward_fill_partition, before=0, after=1)
+            dataframe = dataframe.map_overlap(
+                forward_fill_partition,
+                before=max_part_size + 1,
+                after=0,
+            )
 
             # Remove the NaNs from per_electron channels
             dataframe = dataframe.dropna(
