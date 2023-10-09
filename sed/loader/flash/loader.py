@@ -704,7 +704,6 @@ class FlashLoader(BaseLoader):
         channels: List[str] = self.get_channels_by_format(["per_pulse", "per_train"])
 
         # Fill NaN values within each dataframe
-        t0 = time.time()
         for i, _ in enumerate(dataframes):
             dataframes[i][channels] = dataframes[i][channels].fillna(
                 method="ffill",
