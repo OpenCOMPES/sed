@@ -1211,17 +1211,13 @@ class SedProcessor:
             step_to_tof = self._config["dataframe"]["step_to_tof"]
         if sector_delays is None:
             sector_delays = self._config["dataframe"].get("sector_delays", [0.0] * 8)
-
-        sector_id = self._dataframe["dldTimeSteps"] % 8
+        # extract dld sector id information
+        self._dataframe["dldSectorID"] = (self._dataframe["dldTimeSteps"] % 8).astype(np.int8)
+        # clean the tof channel from the sector id information, convert to ns and 
+        # correct the detector alginment with the sector delays
         self._dataframe["dldTime"] = (
-            self._dataframe["dldTimeSteps"] // 8
-        ) 
-        # convert to ns
-        self._dataframe["dldTime"] *= step_to_tof
-        self._dataframe["dldSectorID"] = sector_id.astype(np.int8)
-        # Apply sector delays in nanoseconds 
-
-        self._dataframe["dldTime"] = dda.from_array(sector_delays)[self._dataframe["dldSectorID"].values]
+            self._dataframe["dldTimeSteps"] - self._dataframe["dldSectorID"]
+        ) * step_to_tof - dda.from_array(sector_delays)[self._dataframe["dldSectorID"].values]
 
         metadata = {}
         metadata["applied"] = True
