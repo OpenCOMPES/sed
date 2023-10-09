@@ -29,6 +29,9 @@ from sed.loader.base.loader import BaseLoader
 from sed.loader.flash.metadata import MetadataRetriever
 from sed.loader.utils import parse_h5_keys
 
+from tqdm.auto import trange, tqdm
+import time
+
 
 class FlashLoader(BaseLoader):
     """
@@ -675,6 +678,7 @@ class FlashLoader(BaseLoader):
         print("All files converted successfully!")
 
         return h5_filenames, parquet_filenames
+
 
     def parquet_handler(
         self,
