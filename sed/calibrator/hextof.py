@@ -1,0 +1,94 @@
+from typing import Sequence
+from typing import Tuple
+from typing import Union
+
+import numpy as np
+import pandas as pd
+import dask.dataframe
+
+
+def unravel_8s_detector_time_channel(
+    df: dask.dataframe.DataFrame,
+) -> None:
+    """Converts the 8s time in steps to time in steps and sectorID.
+
+    The 8s detector encodes the dldSectorID in the 3 least significant bits of the
+    dldTimeSteps channel.
+
+    Args:
+        sector_delays (Sequece[float], optional): Sector delays for the 8s time.
+            Defaults to config["dataframe"]["sector_delays"].
+    """
+    # extract dld sector id information
+    df['dldSectorID'] = (df['dldTimeSteps'] % 8).astype(np.int8)
+    df['dldTimeSteps'] = (df['dldTimeSteps'] // 8).astype(np.int32)
+
+    # # clean the tof channel from the sector id information, convert to ns and
+    # # correct the detector alginment with the sector delays
+    # def correct_time_steps(x):
+    #     """ Corrects the time steps for the sector id and the sector delays.
+    #     Centers the time steps around the mid of the truncated time steps."""
+    #     return x['dldTimeSteps'] - x['dldSectorID'] + 4
+    # df['dldTimeSteps'] = df..map_partitions(correct_time_steps).astype(np.int32)
+
+    # df['dldTimeSteps'] = df['dldTimeSteps'].map_partitions(lambda x: x//8).astype(np.int32)
+    return df
+
+
+def align_8s_sectors(
+        dataframe: dask.dataframe.DataFrame,
+        sector_delays: Sequence[float] = None,
+        config: dict = None,
+    ) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
+    """Aligns the 8s sectors to the first sector.
+
+    Args:
+        sector_delays (Sequece[float], optional): Sector delays for the 8s time.
+        in units of step. Calibration should be done with binning along dldTimeSteps.
+        Defaults to config["dataframe"]["sector_delays"].
+    """
+    if sector_delays is None:
+        if config is None:
+            raise ValueError("Either sector_delays or config must be given.")
+        sector_delays = config["dataframe"]["sector_delays"]
+    # align the 8s sectors
+    def align_sector(x):
+        return x - sector_delays[x['dldSectorID']]
+    dataframe['dldTimeSteps'] = dataframe.map_partitions(
+        align_sector, meta=('dldTimeSteps', np.int32)
+    )
+
+    metadata = {}
+    metadata["applied"] = True
+    metadata["sector_delays"] = sector_delays
+
+    return dataframe, metadata
+
+
+def convert_8s_time_to_ns(
+        df: Union[pd.DataFrame, dask.dataframe.DataFrame],
+        time_step_size: float = None,
+        config: dict = None,
+    ) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
+    """Converts the 8s time in steps to time in ns.
+
+    Args:
+        time_step_size (float, optional): Size of one time step in ns.
+            Defaults to config["dataframe"]["time_step_size"].
+    """
+    if time_step_size is None:
+        if config is None:
+            raise ValueError("Either time_step_size or config must be given.")
+        time_step_size = config["dataframe"]["time_step_size"]
+    # convert the 8s time to ns
+    def convert_to_ns(x):
+        return x * time_step_size
+    df['dldTimeSteps'] = df.map_partitions(
+        convert_to_ns, meta=('dldTimeSteps', np.float64)
+    )
+    metadata = {}
+    metadata["applied"] = True
+    metadata["time_step_size"] = time_step_size
+
+    return df, metadata
+

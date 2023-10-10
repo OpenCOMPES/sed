@@ -30,6 +30,7 @@ from sed.core import dfops
 from sed.loader.base.loader import BaseLoader
 from sed.loader.flash.metadata import MetadataRetriever
 from sed.loader.utils import parse_h5_keys
+from sed.calibrator.hextof import unravel_8s_detector_time_channel
 
 
 class FlashLoader(BaseLoader):
@@ -591,7 +592,10 @@ class FlashLoader(BaseLoader):
         # Loads h5 file and creates a dataframe
         with h5py.File(file_path, "r") as h5_file:
             self.reset_multi_index()  # Reset MultiIndexes for next file
-            return self.concatenate_channels(h5_file)
+            df = self.concatenate_channels(h5_file)
+            # correct the 3 bit shift which encodes the detector ID in the 8s time
+            df = unravel_8s_detector_time_channel(df)
+            return df
 
     def create_buffer_file(self, h5_path: Path, parquet_path: Path) -> None:
         """
