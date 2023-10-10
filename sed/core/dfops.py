@@ -142,18 +142,18 @@ def map_columns_2d(
 
 
 def forward_fill_lazy(
-        df:dask.dataframe.DataFrame, 
-        channels:Sequence[str],
-        before:Union[str,int]='max',
-        compute_lengths:bool=False,
-    ) -> dask.dataframe.DataFrame:
+        df: dask.dataframe.DataFrame,
+        channels: Sequence[str],
+        before: Union[str, int] = 'max',
+        compute_lengths: bool = False,
+) -> dask.dataframe.DataFrame:
     """Forward fill the specified columns in a dask dataframe.
 
     Allows forward filling between partitions. Fails if two consecutive partitions are
     full of nans. This does not however rise any errors, as to do so would require
     checking the entire dataframe before hand. Instead it silently fails to forward
     fill the second partition.
-    
+
     Args:
         df (dask.dataframe.DataFrame): The dataframe to forward fill.
         channels (list): The columns to forward fill.
@@ -162,7 +162,7 @@ def forward_fill_lazy(
             the size of the smallest partition in the dataframe. Defaults to 'max'.
         after (int, optional): The number of rows to include after the current partition.
             Defaults to 'part'.
-    
+
     Returns:
         dask.dataframe.DataFrame: The dataframe with the specified columns forward filled.
     """
@@ -174,18 +174,17 @@ def forward_fill_lazy(
     # calculate the number of rows in each partition and choose least
     if before == 'max':
         nrows = df.map_partitions(len)
-        if compute_lengths:        
+        if compute_lengths:
             with ProgressBar():
                 print("Computing dataframe shape...")
                 nrows = nrows.compute()
         before = min(nrows)
-    elif not isinstance(before,int):
-        raise TypeError('before must be an integer or "max"')    
+    elif not isinstance(before, int):
+        raise TypeError('before must be an integer or "max"')
     # Use map_overlap to apply forward_fill_partition
     df = df.map_overlap(
         forward_fill_partition,
         before=before,
         after=0,
     )
-
     return df
