@@ -25,7 +25,6 @@ from natsort import natsorted
 from pandas import DataFrame
 from pandas import MultiIndex
 from pandas import Series
-from tqdm.auto import tqdm
 
 from sed.core import dfops
 from sed.loader.base.loader import BaseLoader
@@ -624,7 +623,7 @@ class FlashLoader(BaseLoader):
         #     print(f"Conversion failed for {parquet_path}:\nValueError: {failed_string_error}")
         #     error = f"{parquet_path}: {failed_string_error}"
         #     self.failed_files_error.append(error)
-        except Exception as exc:
+        except Exception as exc: # pylint: disable=broad-except
             self.failed_files_error.append(f"{parquet_path}: {type(exc)} {exc}")
             return exc
         return False
@@ -673,20 +672,15 @@ class FlashLoader(BaseLoader):
 
         # Convert the remaining h5 files to parquet in parallel if there are any
         if len(files_to_read) > 0:
-            if self._config["core"].get("parallel_loader",True):
-                error = Parallel(n_jobs=len(files_to_read), verbose=10)(
-                    delayed(self.create_buffer_file)(h5_path, parquet_path)
-                    for h5_path, parquet_path in files_to_read
-                )
-                if any(error):
-                    raise RuntimeError(f"Conversion failed for some files. {error}")
-            else:
-                for h5_path, parquet_path in tqdm(files_to_read, desc="Converting h5 to parquet"):
-                    error = self.create_buffer_file(h5_path, parquet_path)
-                    if error:
-                        raise ValueError(f"Conversion failed for some files. {error}")
+            error = Parallel(n_jobs=len(files_to_read), verbose=10)(
+                delayed(self.create_buffer_file)(h5_path, parquet_path)
+                for h5_path, parquet_path in files_to_read
+            )
+            if any(error):
+                raise RuntimeError(f"Conversion failed for some files. {error}")
 
         # Raise an error if the conversion failed for any files
+        # TODO: merge this and the previous error trackings
         if self.failed_files_error:
             raise FileNotFoundError(
                 "Conversion failed for the following files:\n" + "\n".join(self.failed_files_error),
