@@ -146,13 +146,15 @@ def forward_fill_lazy(
         channels: Sequence[str],
         before: Union[str, int] = 'max',
         compute_lengths: bool = False,
+        iterations: int = 2,
 ) -> dask.dataframe.DataFrame:
-    """Forward fill the specified columns in a dask dataframe.
+    """Forward fill the specified columns multiple times in a dask dataframe.
 
-    Allows forward filling between partitions. Fails if two consecutive partitions are
-    full of nans. This does not however rise any errors, as to do so would require
-    checking the entire dataframe before hand. Instead it silently fails to forward
-    fill the second partition.
+    Allows forward filling between partitions. This is useful for dataframes
+    that have sparse data, such as those with many NaNs.
+    Runnin the forward filling multiple times can fix the issue of having 
+    entire partitions consisting of NaNs. By default we run this twice, which
+    is enough to fix the issue for dataframes with no consecutive partitions of NaNs.
 
     Args:
         df (dask.dataframe.DataFrame): The dataframe to forward fill.
@@ -162,6 +164,8 @@ def forward_fill_lazy(
             the size of the smallest partition in the dataframe. Defaults to 'max'.
         after (int, optional): The number of rows to include after the current partition.
             Defaults to 'part'.
+        compute_lengths (bool, optional): Whether to compute the length of each partition
+        iterations (int, optional): The number of times to forward fill the dataframe.
 
     Returns:
         dask.dataframe.DataFrame: The dataframe with the specified columns forward filled.
@@ -182,9 +186,10 @@ def forward_fill_lazy(
     elif not isinstance(before, int):
         raise TypeError('before must be an integer or "max"')
     # Use map_overlap to apply forward_fill_partition
-    df = df.map_overlap(
-        forward_fill_partition,
-        before=before,
-        after=0,
-    )
+    for i in range(iterations):
+        df = df.map_overlap(
+            forward_fill_partition,
+            before=before,
+            after=0,
+        )
     return df
