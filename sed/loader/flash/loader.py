@@ -619,11 +619,7 @@ class FlashLoader(BaseLoader):
                 .reset_index(level=self.multi_index)
                 .to_parquet(parquet_path, index=False)
             )
-        # except ValueError as failed_string_error:
-        #     print(f"Conversion failed for {parquet_path}:\nValueError: {failed_string_error}")
-        #     error = f"{parquet_path}: {failed_string_error}"
-        #     self.failed_files_error.append(error)
-        except Exception as exc: # pylint: disable=broad-except
+        except Exception as exc:  # pylint: disable=broad-except
             self.failed_files_error.append(f"{parquet_path}: {type(exc)} {exc}")
             return exc
         return False

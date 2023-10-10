@@ -21,6 +21,7 @@ from sed.binning import bin_dataframe
 from sed.calibrator import DelayCalibrator
 from sed.calibrator import EnergyCalibrator
 from sed.calibrator import MomentumCorrector
+from sed.calibrator import hextof
 from sed.core.config import parse_config
 from sed.core.config import save_config
 from sed.core.dfops import apply_jitter
@@ -1202,6 +1203,70 @@ class SedProcessor:
         for col in cols:
             metadata.append(col)
         self._attributes.add(metadata, "jittering", duplicate_policy="append")
+
+    def hextof_step_to_ns(
+            self,
+            time_step_size: float = None,
+            tof_step_column: str = None,
+            tof_column: str = None,
+    ):
+        """Convert time-of-flight channel steps to nanoseconds.
+
+        Intended for use with HEXTOF endstation
+
+        Args:
+            time_step_size (float, optional): Time step size in nanoseconds.
+                Defaults to config["dataframe"]["time_step_size"].
+            tof_step_column (str, optional): Name of the column containing the
+                time-of-flight steps. Defaults to config["dataframe"]["tof_step_column"].
+            tof_column (str, optional): Name of the column containing the
+                time-of-flight. Defaults to config["dataframe"]["tof_column"].
+        """
+        if self._dataframe is not None:
+            print("Adding energy column to dataframe:")
+            # TODO assert order of execution through metadata
+
+            self._dataframe, metadata = hextof.convert_8s_time_to_ns(
+                df=self._dataframe,
+                time_step_size=time_step_size or self._config["dataframe"]["time_step_size"],
+                tof_step_column=tof_step_column or self._config["dataframe"]["tof_step_column"],
+                tof_column=tof_column or self._config["dataframe"]["tof_column"],
+            )
+            self._attributes.add(
+                metadata,
+                "energy_calibration",
+                duplicate_policy="merge",
+            )
+
+    def hextof_align_8s_sectors(
+            self,
+            sector_delays: Sequence[float] = None,
+    ):
+        """ Align the 8s sectors of the HEXTOF endstation.
+
+        Intended for use with HEXTOF endstation
+
+        Args:
+            sector_delays (Sequence[float], optional): Delays of the 8s sectors in
+                picoseconds. Defaults to config["dataframe"]["sector_delays"].
+        """
+        if self._dataframe is not None:
+            print("Aligning 8s sectors of dataframe")
+            # TODO assert order of execution through metadata
+            sector_delays = sector_delays or self._config["dataframe"].get("sector_delays", [0.0] * 8)
+            if len(sector_delays) != 8:
+                raise ValueError("sector_delays must be a list of 8 floats")
+            if all(sector_delays == 0):
+                print("All sector delays are 0, skipping alignment")
+            self._dataframe, metadata = hextof.align_8s_sectors(
+                df=self._dataframe,
+                sector_delays=sector_delays,
+            )
+            self._attributes.add(
+                metadata,
+                "energy_calibration",
+                duplicate_policy="merge",
+            )
 
     def pre_binning(
         self,
