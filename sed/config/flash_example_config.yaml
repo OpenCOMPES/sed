@@ -19,12 +19,23 @@ core:
   # year: 20xx
 
 dataframe:
+  # The name of the DAQ system to use. Necessary to resolve the filenames/paths.
+  daq: fl1user3
   # The offset correction to the pulseId
   ubid_offset: 5
   # the number of iterations to fill the pulseId forward. 
   forward_fill_iterations: 2 
-  # The name of the DAQ system to use. Necessary to resolve the filenames/paths.
-  daq: fl1user3
+  # if true, removes the 3 bits reserved for dldSectorID from the dldTimeandSector column
+  unravel_8s_detector_time_channel: True
+  time_step_size: 0.16460905596613884 # 0.020576131995767355
+  raw_time_column: dldTimeAndSector
+  time_step_column: dldTimeSteps
+  tof_step_column: dldTimeSteps
+  sector_id_column: dldSectorID
+  sector_delays: [0., 0., 0., 0., 0., 0., 0., 0.]
+  tof_column: dldTime
+  jitter_cols: ["dldPosX", "dldPosY", "dldTimeSteps"]
+
 
   # The channels to load.
   # channels have the following structure:
@@ -49,8 +60,9 @@ dataframe:
       format: per_electron
       group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
       slice: 0
-      
-    dldTime:
+    # This channel will actually create dldTimeSteps and dldSectorID, 
+    # if unravel_8s_detector_time_channel is set to True
+    dldTimeAndSector:
       format: per_electron
       group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
       slice: 3
