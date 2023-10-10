@@ -598,7 +598,7 @@ class FlashLoader(BaseLoader):
             df = unravel_8s_detector_time_channel(df)
             return df
 
-    def create_buffer_file(self, h5_path: Path, parquet_path: Path) -> None:
+    def create_buffer_file(self, h5_path: Path, parquet_path: Path) -> Union[bool, Exception]:
         """
         Converts an HDF5 file to Parquet format to create a buffer file.
 

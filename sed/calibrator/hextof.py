@@ -16,7 +16,7 @@ def unravel_8s_detector_time_channel(
     tof_step_column: str = "dldTimeSteps",
     sector_id_column: str = "dldSectorID",
     config: dict = None,
-) -> None:
+) -> dask.dataframe.DataFrame:
     """Converts the 8s time in steps to time in steps and sectorID.
 
     The 8s detector encodes the dldSectorID in the 3 least significant bits of the
@@ -66,10 +66,10 @@ def align_8s_sectors(
             raise ValueError("Either sector_delays or config must be given.")
         sector_delays = config["dataframe"]["sector_delays"]
     # align the 8s sectors
-    sector_delays = dask.array.from_array(sector_delays)
+    sector_delays_arr = dask.array.from_array(sector_delays)
 
     def align_sector(x):
-        return x[tof_step_column] - sector_delays[x[sector_id_column].values.astype(int)]
+        return x[tof_step_column] - sector_delays_arr[x[sector_id_column].values.astype(int)]
     df[tof_step_column] = df.map_partitions(
         align_sector, meta=(tof_step_column, np.float64)
     )
@@ -101,15 +101,15 @@ def convert_8s_time_to_ns(
     if time_step_size is None:
         if config is None:
             raise ValueError("Either time_step_size or config must be given.")
-        time_step_size = config["dataframe"]["time_step_size"]
+        time_step_size: float = config["dataframe"]["time_step_size"]
     if tof_step_column is None:
         if config is None:
             raise ValueError("Either tof_step_column or config must be given.")
-        tof_step_column = config["dataframe"]["tof_step_column"]
+        tof_step_column: str = config["dataframe"]["tof_step_column"]
     if tof_column is None:
         if config is None:
             raise ValueError("Either tof_time_column or config must be given.")
-        tof_column = config["dataframe"]["tof_column"]
+        tof_column: str = config["dataframe"]["tof_column"]
 
     def convert_to_ns(x):
         return x[tof_step_column] * time_step_size
