@@ -742,6 +742,7 @@ class FlashLoader(BaseLoader):
                 channels=channels,
                 before='max',
                 compute_lengths=True,
+                iterations=self.config['dataframe'].get('forward_fill_iterations',2),
             )
             # Remove the NaNs from per_electron channels
             dataframe = dataframe.dropna(
