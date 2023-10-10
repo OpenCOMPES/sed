@@ -8,6 +8,7 @@ from typing import Sequence
 from typing import Union
 
 import dask.dataframe
+from dask.diagnostics import ProgressBar
 import numpy as np
 import pandas as pd
 
@@ -137,4 +138,58 @@ def map_columns_2d(
         **kwds,
     )
 
+    return df
+
+
+def forward_fill_lazy(
+        df: dask.dataframe.DataFrame,
+        channels: Sequence[str],
+        before: Union[str, int] = 'max',
+        compute_lengths: bool = False,
+        iterations: int = 2,
+) -> dask.dataframe.DataFrame:
+    """Forward fill the specified columns multiple times in a dask dataframe.
+
+    Allows forward filling between partitions. This is useful for dataframes
+    that have sparse data, such as those with many NaNs.
+    Runnin the forward filling multiple times can fix the issue of having
+    entire partitions consisting of NaNs. By default we run this twice, which
+    is enough to fix the issue for dataframes with no consecutive partitions of NaNs.
+
+    Args:
+        df (dask.dataframe.DataFrame): The dataframe to forward fill.
+        channels (list): The columns to forward fill.
+        before (int, str, optional): The number of rows to include before the current partition.
+            if 'max' it takes as much as possible from the previous partition, which is
+            the size of the smallest partition in the dataframe. Defaults to 'max'.
+        after (int, optional): The number of rows to include after the current partition.
+            Defaults to 'part'.
+        compute_lengths (bool, optional): Whether to compute the length of each partition
+        iterations (int, optional): The number of times to forward fill the dataframe.
+
+    Returns:
+        dask.dataframe.DataFrame: The dataframe with the specified columns forward filled.
+    """
+    # Define a custom function to forward fill specified columns
+    def forward_fill_partition(df):
+        df[channels] = df[channels].ffill()
+        return df
+
+    # calculate the number of rows in each partition and choose least
+    if before == 'max':
+        nrows = df.map_partitions(len)
+        if compute_lengths:
+            with ProgressBar():
+                print("Computing dataframe shape...")
+                nrows = nrows.compute()
+        before = min(nrows)
+    elif not isinstance(before, int):
+        raise TypeError('before must be an integer or "max"')
+    # Use map_overlap to apply forward_fill_partition
+    for _ in range(iterations):
+        df = df.map_overlap(
+            forward_fill_partition,
+            before=before,
+            after=0,
+        )
     return df

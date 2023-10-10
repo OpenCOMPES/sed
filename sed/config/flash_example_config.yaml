@@ -21,7 +21,8 @@ core:
 dataframe:
   # The offset correction to the pulseId
   ubid_offset: 5
-
+  # the number of iterations to fill the pulseId forward. 
+  forward_fill_iterations: 2 
   # The name of the DAQ system to use. Necessary to resolve the filenames/paths.
   daq: fl1user3
 
