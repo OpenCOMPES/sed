@@ -8,6 +8,7 @@ from typing import Sequence
 from typing import Union
 
 import dask.dataframe
+from dask.diagnostics import ProgressBar
 import numpy as np
 import pandas as pd
 
@@ -173,6 +174,10 @@ def forward_fill_lazy(
     # calculate the number of rows in each partition and choose least
     if before == 'max':
         nrows = df.map_partitions(len)
+        if compute_lengths:        
+            with ProgressBar():
+                print("Computing dataframe shape...")
+                nrows = nrows.compute()
         before = min(nrows)
     elif not isinstance(before,int):
         raise TypeError('before must be an integer or "max"')    

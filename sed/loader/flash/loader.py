@@ -16,6 +16,7 @@ from typing import Union
 import time
 
 import dask.dataframe as dd
+from dask.diagnostics import ProgressBar
 import h5py
 import numpy as np
 from joblib import delayed
@@ -737,7 +738,12 @@ class FlashLoader(BaseLoader):
             # Channels to fill NaN values
             print('Filling nan values...')
             channels: List[str] = self.get_channels_by_format(["per_pulse", "per_train"])
-            dataframe = dfops.forward_fill_lazy(df=dataframe, channels=channels, before='max')
+            dataframe = dfops.forward_fill_lazy(
+                df=dataframe, 
+                channels=channels, 
+                before='max',
+                compute_lengths=False,
+            )
             # Remove the NaNs from per_electron channels
             dataframe = dataframe.dropna(
                 subset=self.get_channels_by_format(["per_electron"]),
