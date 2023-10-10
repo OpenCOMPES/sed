@@ -140,7 +140,12 @@ def map_columns_2d(
     return df
 
 
-def forward_fill_lazy(df, channels, before:Union[str,int]='max'):
+def forward_fill_lazy(
+        df:dask.dataframe.DataFrame, 
+        channels:Sequence[str],
+        before:Union[str,int]='max',
+        compute_lengths:bool=False,
+    ) -> dask.dataframe.DataFrame:
     """Forward fill the specified columns in a dask dataframe.
 
     Allows forward filling between partitions. Fails if two consecutive partitions are
@@ -166,12 +171,11 @@ def forward_fill_lazy(df, channels, before:Union[str,int]='max'):
         return df
 
     # calculate the number of rows in each partition and choose least
-    if before == 'part':
+    if before == 'max':
         nrows = df.map_partitions(len)
         before = min(nrows)
     elif not isinstance(before,int):
         raise TypeError('before must be an integer or "max"')    
-
     # Use map_overlap to apply forward_fill_partition
     df = df.map_overlap(
         forward_fill_partition,

@@ -13,6 +13,7 @@ from typing import List
 from typing import Sequence
 from typing import Tuple
 from typing import Union
+import time
 
 import dask.dataframe as dd
 import h5py
@@ -731,18 +732,16 @@ class FlashLoader(BaseLoader):
                 data_parquet_dir,
                 detector,
             )
-
             # Read all parquet files into one dataframe using dask
-            dataframe = dd.read_parquet(parquet_filenames)
-
+            dataframe = dd.read_parquet(parquet_filenames, calculate_divisions=True)
             # Channels to fill NaN values
+            print('Filling nan values...')
             channels: List[str] = self.get_channels_by_format(["per_pulse", "per_train"])
-            dataframe = dfops.forward_fill_lazy(channels, before='max')
+            dataframe = dfops.forward_fill_lazy(df=dataframe, channels=channels, before='max')
             # Remove the NaNs from per_electron channels
             dataframe = dataframe.dropna(
                 subset=self.get_channels_by_format(["per_electron"]),
             )
-
         # Save the dataframe as parquet if requested
         if save_parquet:
             dataframe.compute().reset_index(drop=True).to_parquet(parquet_path)
@@ -807,6 +806,7 @@ class FlashLoader(BaseLoader):
             ValueError: If neither 'runs' nor 'files'/'data_raw_dir' is provided.
             FileNotFoundError: If the conversion fails for some files or no data is available.
         """
+        t0 = time.time()
 
         data_raw_dir, data_parquet_dir = self.initialize_paths()
 
@@ -839,6 +839,7 @@ class FlashLoader(BaseLoader):
         dataframe = self.parquet_handler(data_parquet_dir, **kwds)
 
         metadata = self.parse_metadata() if collect_metadata else {}
+        print(f'loading complete  in {time.time() - t0:.2f} s')
 
         return dataframe, metadata
 
