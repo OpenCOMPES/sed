@@ -138,3 +138,45 @@ def map_columns_2d(
     )
 
     return df
+
+
+def forward_fill_lazy(df, channels, before:Union[str,int]='max'):
+    """Forward fill the specified columns in a dask dataframe.
+
+    Allows forward filling between partitions. Fails if two consecutive partitions are
+    full of nans. This does not however rise any errors, as to do so would require
+    checking the entire dataframe before hand. Instead it silently fails to forward
+    fill the second partition.
+    
+    Args:
+        df (dask.dataframe.DataFrame): The dataframe to forward fill.
+        channels (list): The columns to forward fill.
+        before (int, str, optional): The number of rows to include before the current partition.
+            if 'max' it takes as much as possible from the previous partition, which is
+            the size of the smallest partition in the dataframe. Defaults to 'max'.
+        after (int, optional): The number of rows to include after the current partition.
+            Defaults to 'part'.
+    
+    Returns:
+        dask.dataframe.DataFrame: The dataframe with the specified columns forward filled.
+    """
+    # Define a custom function to forward fill specified columns
+    def forward_fill_partition(df):
+        df[channels] = df[channels].ffill()
+        return df
+
+    # calculate the number of rows in each partition and choose least
+    if before == 'part':
+        nrows = df.map_partitions(len)
+        before = min(nrows)
+    elif not isinstance(before,int):
+        raise TypeError('before must be an integer or "max"')    
+
+    # Use map_overlap to apply forward_fill_partition
+    df = df.map_overlap(
+        forward_fill_partition,
+        before=before,
+        after=0,
+    )
+
+    return df

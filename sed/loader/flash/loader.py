@@ -27,6 +27,7 @@ from pandas import Series
 from sed.loader.base.loader import BaseLoader
 from sed.loader.flash.metadata import MetadataRetriever
 from sed.loader.utils import parse_h5_keys
+from sed.core import dfops
 
 
 class FlashLoader(BaseLoader):
@@ -736,23 +737,7 @@ class FlashLoader(BaseLoader):
 
             # Channels to fill NaN values
             channels: List[str] = self.get_channels_by_format(["per_pulse", "per_train"])
-
-            # Define a custom function to forward fill specified columns
-            def forward_fill_partition(df):
-                df[channels] = df[channels].ffill()
-                return df
-
-            # calculate the number of rows in each partition and choose least
-            nrows = dataframe.map_partitions(len)
-            max_part_size = min(nrows)
-
-            # Use map_overlap to apply forward_fill_partition
-            dataframe = dataframe.map_overlap(
-                forward_fill_partition,
-                before=max_part_size + 1,
-                after=0,
-            )
-
+            dataframe = dfops.forward_fill_lazy(channels, before='max')
             # Remove the NaNs from per_electron channels
             dataframe = dataframe.dropna(
                 subset=self.get_channels_by_format(["per_electron"]),
