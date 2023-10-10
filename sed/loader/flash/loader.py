@@ -25,6 +25,7 @@ from natsort import natsorted
 from pandas import DataFrame
 from pandas import MultiIndex
 from pandas import Series
+from tqdm.auto import tqdm
 
 from sed.core import dfops
 from sed.loader.base.loader import BaseLoader
@@ -593,6 +594,7 @@ class FlashLoader(BaseLoader):
         with h5py.File(file_path, "r") as h5_file:
             self.reset_multi_index()  # Reset MultiIndexes for next file
             df = self.concatenate_channels(h5_file)
+            df = df.dropna(subset=['dldTimeAndSector'])
             # correct the 3 bit shift which encodes the detector ID in the 8s time
             df = unravel_8s_detector_time_channel(df)
             return df
@@ -618,10 +620,14 @@ class FlashLoader(BaseLoader):
                 .reset_index(level=self.multi_index)
                 .to_parquet(parquet_path, index=False)
             )
-        except ValueError as failed_string_error:
-            self.failed_files_error.append(
-                f"{parquet_path}: {failed_string_error}",
-            )
+        # except ValueError as failed_string_error:
+        #     print(f"Conversion failed for {parquet_path}:\nValueError: {failed_string_error}")
+        #     error = f"{parquet_path}: {failed_string_error}"
+        #     self.failed_files_error.append(error)
+        except Exception as exc:
+            self.failed_files_error.append(f"{parquet_path}: {type(exc)} {exc}")
+            return exc
+        return False
 
     def buffer_file_handler(self, data_parquet_dir: Path, detector: str):
         """
@@ -667,10 +673,18 @@ class FlashLoader(BaseLoader):
 
         # Convert the remaining h5 files to parquet in parallel if there are any
         if len(files_to_read) > 0:
-            Parallel(n_jobs=len(files_to_read), verbose=10)(
-                delayed(self.create_buffer_file)(h5_path, parquet_path)
-                for h5_path, parquet_path in files_to_read
-            )
+            if self._config["core"].get("parallel_loader",True):
+                error = Parallel(n_jobs=len(files_to_read), verbose=10)(
+                    delayed(self.create_buffer_file)(h5_path, parquet_path)
+                    for h5_path, parquet_path in files_to_read
+                )
+                if any(error):
+                    raise RuntimeError(f"Conversion failed for some files. {error}")
+            else:
+                for h5_path, parquet_path in tqdm(files_to_read, desc="Converting h5 to parquet"):
+                    error = self.create_buffer_file(h5_path, parquet_path)
+                    if error:
+                        raise ValueError(f"Conversion failed for some files. {error}")
 
         # Raise an error if the conversion failed for any files
         if self.failed_files_error:

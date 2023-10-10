@@ -9,6 +9,10 @@ import dask.dataframe
 
 def unravel_8s_detector_time_channel(
     df: dask.dataframe.DataFrame,
+    time_sector_column:str = "dldTimeAndSector",
+    time_step_column:str = "dldTimeSteps",
+    sector_id_column:str = "dldSectorID",
+    config: dict = None,
 ) -> None:
     """Converts the 8s time in steps to time in steps and sectorID.
 
@@ -19,19 +23,24 @@ def unravel_8s_detector_time_channel(
         sector_delays (Sequece[float], optional): Sector delays for the 8s time.
             Defaults to config["dataframe"]["sector_delays"].
     """
+    df = df.dropna(subset=[time_sector_column])
+    if time_sector_column is None:
+        if config is None:
+            raise ValueError("Either time_sector_column or config must be given.")
+        time_sector_column = config["dataframe"]["time_sector_column"]
+    if time_step_column is None:
+        if config is None:
+            raise ValueError("Either time_step_column or config must be given.")
+        time_step_column = config["dataframe"]["time_step_column"]
+    if sector_id_column is None:
+        if config is None:
+            raise ValueError("Either sector_id_column or config must be given.")
+        sector_id_column = config["dataframe"]["sector_id_column"]
+
+    
     # extract dld sector id information
-    df['dldSectorID'] = (df['dldTimeSteps'] % 8).astype(np.int8)
-    df['dldTimeSteps'] = (df['dldTimeSteps'] // 8).astype(np.int32)
-
-    # # clean the tof channel from the sector id information, convert to ns and
-    # # correct the detector alginment with the sector delays
-    # def correct_time_steps(x):
-    #     """ Corrects the time steps for the sector id and the sector delays.
-    #     Centers the time steps around the mid of the truncated time steps."""
-    #     return x['dldTimeSteps'] - x['dldSectorID'] + 4
-    # df['dldTimeSteps'] = df..map_partitions(correct_time_steps).astype(np.int32)
-
-    # df['dldTimeSteps'] = df['dldTimeSteps'].map_partitions(lambda x: x//8).astype(np.int32)
+    df[sector_id_column] = (df[time_sector_column] % 8).astype(np.int8)
+    df[time_step_column] = (df[time_sector_column] // 8).astype(np.int32)
     return df
 
 
