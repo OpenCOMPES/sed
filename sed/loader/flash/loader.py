@@ -7,17 +7,18 @@ automatically forward filled across different files.
 This can then be saved as a parquet for out-of-sed processing and reread back to access other
 sed funtionality.
 """
+import time
 from functools import reduce
 from pathlib import Path
 from typing import List
 from typing import Sequence
 from typing import Tuple
 from typing import Union
-import time
 
 import dask.dataframe as dd
 import h5py
 import numpy as np
+import pyarrow as pa
 from joblib import delayed
 from joblib import Parallel
 from natsort import natsorted
@@ -25,10 +26,10 @@ from pandas import DataFrame
 from pandas import MultiIndex
 from pandas import Series
 
+from sed.core import dfops
 from sed.loader.base.loader import BaseLoader
 from sed.loader.flash.metadata import MetadataRetriever
 from sed.loader.utils import parse_h5_keys
-from sed.core import dfops
 
 
 class FlashLoader(BaseLoader):
@@ -735,14 +736,16 @@ class FlashLoader(BaseLoader):
             # Read all parquet files into one dataframe using dask
             dataframe = dd.read_parquet(parquet_filenames, calculate_divisions=True)
             # Channels to fill NaN values
-            print('Filling nan values...')
+            print("Filling nan values...")
             channels: List[str] = self.get_channels_by_format(["per_pulse", "per_train"])
+
+            overlap = min(pa.parquet.read_metadata(prq).num_rows for prq in parquet_filenames)
+
             dataframe = dfops.forward_fill_lazy(
                 df=dataframe,
                 channels=channels,
-                before='max',
-                compute_lengths=True,
-                iterations=self._config['dataframe'].get('forward_fill_iterations', 2),
+                before=overlap,
+                iterations=self._config["dataframe"].get("forward_fill_iterations", 2),
             )
             # Remove the NaNs from per_electron channels
             dataframe = dataframe.dropna(
@@ -845,7 +848,7 @@ class FlashLoader(BaseLoader):
         dataframe = self.parquet_handler(data_parquet_dir, **kwds)
 
         metadata = self.parse_metadata() if collect_metadata else {}
-        print(f'loading complete  in {time.time() - t0:.2f} s')
+        print(f"loading complete  in {time.time() - t0:.2f} s")
 
         return dataframe, metadata
 
