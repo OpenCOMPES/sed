@@ -1253,7 +1253,8 @@ class SedProcessor:
         if self._dataframe is not None:
             print("Aligning 8s sectors of dataframe")
             # TODO assert order of execution through metadata
-            sector_delays = sector_delays or self._config["dataframe"].get("sector_delays", [0.0] * 8)
+            if sector_delays is None:
+                sector_delays = self._config["dataframe"].get("sector_delays", [0.0] * 8)
             if len(sector_delays) != 8:
                 raise ValueError("sector_delays must be a list of 8 floats")
             if all(delay == 0.0 for delay in sector_delays):
