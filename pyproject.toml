@@ -30,6 +30,7 @@ tifffile = ">=2022.2.9, <2023.0.0"
 tqdm = "^4.62.3"
 xarray = "^0.20.2"
 joblib = "^1.2.0"
+pyarrow = "^13.0.0"
 jupyter = {version = "^1.0.0", extras = ["notebook"], optional = true}
 ipykernel = {version = "^6.9.1", extras = ["notebook"], optional = true}
 sphinx = {version = ">4.4.0", extras = ["docs"], optional = true}
