@@ -1256,7 +1256,7 @@ class SedProcessor:
             sector_delays = sector_delays or self._config["dataframe"].get("sector_delays", [0.0] * 8)
             if len(sector_delays) != 8:
                 raise ValueError("sector_delays must be a list of 8 floats")
-            if all(sector_delays == 0):
+            if all(delay == 0.0 for delay in sector_delays):
                 print("All sector delays are 0, skipping alignment")
             self._dataframe, metadata = hextof.align_8s_sectors(
                 df=self._dataframe,
