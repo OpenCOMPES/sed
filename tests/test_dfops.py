@@ -128,7 +128,7 @@ def test_forward_fill_lazy_compute():
 
 
 def test_forward_fill_lazy_keep_head_nans():
-    """ test that a lazy forward fill works as expected with missing values at the 
+    """ test that a lazy forward fill works as expected with missing values at the
     beginning of the dataframe"""
     t_df = df.copy()
     t_df['energy'][:5] = np.nan

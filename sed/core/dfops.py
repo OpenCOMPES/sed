@@ -152,7 +152,7 @@ def forward_fill_lazy(
 
     Allows forward filling between partitions. This is useful for dataframes
     that have sparse data, such as those with many NaNs.
-    Runnin the forward filling multiple times can fix the issue of having 
+    Runnin the forward filling multiple times can fix the issue of having
     entire partitions consisting of NaNs. By default we run this twice, which
     is enough to fix the issue for dataframes with no consecutive partitions of NaNs.
 
@@ -186,7 +186,7 @@ def forward_fill_lazy(
     elif not isinstance(before, int):
         raise TypeError('before must be an integer or "max"')
     # Use map_overlap to apply forward_fill_partition
-    for i in range(iterations):
+    for _ in range(iterations):
         df = df.map_overlap(
             forward_fill_partition,
             before=before,
