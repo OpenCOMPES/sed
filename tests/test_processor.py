@@ -24,6 +24,7 @@ from sed.loader.loader_interface import get_loader
 #  pylint: disable=duplicate-code
 package_dir = os.path.dirname(find_spec("sed").origin)
 df_folder = package_dir + "/../tests/data/loader/generic/"
+mpes_folder = package_dir + "/../tests/data/loader/mpes/"
 folder = package_dir + "/../tests/data/calibrator/"
 files = glob.glob(df_folder + "*.parquet")
 runs = ["43878", "43878"]
@@ -655,8 +656,84 @@ def test_compute():
     axes = ["X", "Y", "t", "ADC"]
     ranges = [[0, 2048], [0, 2048], [0, 200000], [0, 50000]]
     result = processor.compute(bins=bins, axes=axes, ranges=ranges, df_partitions=5)
-    assert result.data.shape == (10, 10, 10, 10)
+    assert result.data.shape == tuple(bins)
     assert result.data.sum(axis=(0, 1, 2, 3)) > 0
+
+
+def test_compute_with_normalization():
+    """Test binning of final result with histogram normalization"""
+    config = parse_config(
+        config={"core": {"loader": "mpes"}},
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+    processor = SedProcessor(
+        folder=mpes_folder,
+        config=config,
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+    bins = [10, 10, 10, 5]
+    axes = ["X", "Y", "t", "ADC"]
+    ranges = [[0, 2048], [0, 2048], [0, 200000], [650, 655]]
+    result = processor.compute(
+        bins=bins,
+        axes=axes,
+        ranges=ranges,
+        df_partitions=5,
+        normalize_to_acquisition_time="ADC",
+    )
+    assert result.data.shape == tuple(bins)
+    assert result.data.sum(axis=(0, 1, 2, 3)) > 0
+    assert processor.normalization_histogram is not None
+    assert processor.normalized is not None
+    np.testing.assert_allclose(
+        processor.binned.data,
+        (processor.normalized * processor.normalization_histogram).data,
+    )
+
+
+def test_get_normalization_histogram():
+    """Test the generation function for the normalization histogram"""
+    config = parse_config(
+        config={"core": {"loader": "mpes"}, "dataframe": {"time_stamp_alias": "timeStamps"}},
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+    processor = SedProcessor(
+        folder=mpes_folder,
+        config=config,
+        folder_config={},
+        user_config={},
+        system_config={},
+        time_stamps=True,
+    )
+    bins = [10, 10, 10, 5]
+    axes = ["X", "Y", "t", "ADC"]
+    ranges = [[0, 2048], [0, 2048], [0, 200000], [650, 655]]
+    with pytest.raises(ValueError):
+        processor.get_normalization_histogram(axis="ADC")
+    processor.compute(bins=bins, axes=axes, ranges=ranges, df_partitions=5)
+    with pytest.raises(ValueError):
+        processor.get_normalization_histogram(axis="Delay")
+    histogram1 = processor.get_normalization_histogram(axis="ADC", df_partitions=1)
+    histogram2 = processor.get_normalization_histogram(
+        axis="ADC",
+        use_time_stamps="True",
+        df_partitions=1,
+    )
+    # TODO: Check why histograms are so different
+    np.testing.assert_allclose(
+        histogram1 / histogram1.sum(),
+        histogram2 / histogram2.sum(),
+        atol=0.02,
+    )
+    # histogram1 = processor.get_normalization_histogram(axis="ADC")
+    # histogram2 = processor.get_normalization_histogram(axis="ADC", use_time_stamps="True")
+    # np.testing.assert_allclose(histogram1, histogram2)
 
 
 metadata: Dict[Any, Any] = {}

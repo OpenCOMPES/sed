@@ -190,6 +190,34 @@ class SedProcessor:
         self._dataframe = dataframe
 
     @property
+    def timed_dataframe(self) -> Union[pd.DataFrame, ddf.DataFrame]:
+        """Accessor to the underlying timed_dataframe.
+
+        Returns:
+            Union[pd.DataFrame, ddf.DataFrame]: Timed Dataframe object.
+        """
+        return self._timed_dataframe
+
+    @timed_dataframe.setter
+    def timed_dataframe(self, timed_dataframe: Union[pd.DataFrame, ddf.DataFrame]):
+        """Setter for the underlying timed dataframe.
+
+        Args:
+            timed_dataframe (Union[pd.DataFrame, ddf.DataFrame]): The timed dataframe object to set
+        """
+        if not isinstance(timed_dataframe, (pd.DataFrame, ddf.DataFrame)) or not isinstance(
+            timed_dataframe,
+            self._timed_dataframe.__class__,
+        ):
+            raise ValueError(
+                "'timed_dataframe' has to be a Pandas or Dask dataframe and has to be of the same "
+                "kind as the dataframe loaded into the SedProcessor!.\n"
+                f"Loaded type: {self._timed_dataframe.__class__}, "
+                f"provided type: {timed_dataframe}.",
+            )
+        self._timed_dataframe = timed_dataframe
+
+    @property
     def attributes(self) -> dict:
         """Accessor to the metadata dict.
 
@@ -228,6 +256,41 @@ class SedProcessor:
             List[str]: The list of loaded files
         """
         return self._files
+
+    @property
+    def binned(self) -> xr.DataArray:
+        """Getter attribute for the binned data array
+
+        Returns:
+            xr.DataArray: The binned data array
+        """
+        if self._binned is None:
+            raise ValueError("No binned data available, need to compute histogram first!")
+        return self._binned
+
+    @property
+    def normalized(self) -> xr.DataArray:
+        """Getter attribute for the normalized data array
+
+        Returns:
+            xr.DataArray: The normalized data array
+        """
+        if self._normalized is None:
+            raise ValueError(
+                "No normalized data available, compute data with normalization enabled!",
+            )
+        return self._normalized
+
+    @property
+    def normalization_histogram(self) -> xr.DataArray:
+        """Getter attribute for the normalization histogram
+
+        Returns:
+            xr.DataArray: The normalizazion histogram
+        """
+        if self._normalization_histogram is None:
+            raise ValueError("No normalization histogram available, generate histogram first!")
+        return self._normalization_histogram
 
     def cpy(self, path: Union[str, List[str]]) -> Union[str, List[str]]:
         """Function to mirror a list of files or a folder from a network drive to a

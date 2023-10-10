@@ -169,6 +169,29 @@ def test_has_correct_read_dataframe_func(loader: BaseLoader, read_type: str):
 
 
 @pytest.mark.parametrize("loader", get_all_loaders())
+def test_timed_dataframe(loader: BaseLoader):
+    """Test if the loaders return a correct timed dataframe
+
+    Args:
+        loader (BaseLoader): the loader object to test
+    """
+    if loader.__name__ != "BaseLoader":
+        loader_name = get_loader_name_from_loader_object(loader)
+        input_folder = os.path.join(test_data_dir, "loader", loader_name)
+        for supported_file_type in loader.supported_file_types:
+            loaded_dataframe, loaded_timed_dataframe, _ = loader.read_dataframe(
+                folders=input_folder,
+                ftype=supported_file_type,
+                collect_metadata=False,
+            )
+            if loaded_timed_dataframe is None:
+                pytest.skip("Not implemented")
+            assert isinstance(loaded_timed_dataframe, ddf.DataFrame)
+            assert set(loaded_timed_dataframe.columns).issubset(set(loaded_dataframe.columns))
+            assert loaded_timed_dataframe.npartitions == loaded_dataframe.npartitions
+
+
+@pytest.mark.parametrize("loader", get_all_loaders())
 def test_get_count_rate(loader: BaseLoader):
     """Test the get_count_rate function
 
