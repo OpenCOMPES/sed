@@ -79,7 +79,7 @@ def test_forward_fill_lazy_sparse_nans():
     t_df = df.copy()
     t_df['energy'][::2] = np.nan # make every other value nan
     t_dask_df = ddf.from_pandas(t_df, npartitions=N_PARTITIONS)
-    t_dask_df = forward_fill_lazy(t_dask_df, 'energy', before='part')
+    t_dask_df = forward_fill_lazy(t_dask_df, 'energy', before='max')
     t_df = t_df.ffill()
     pd.testing.assert_frame_equal(t_df, t_dask_df.compute())
 
@@ -88,7 +88,7 @@ def test_forward_fill_lazy_full_partition_nans():
     t_df = df.copy()
     t_df['energy'][5:25] = np.nan # make every other value nan
     t_dask_df = ddf.from_pandas(t_df, npartitions=N_PARTITIONS)
-    t_dask_df = forward_fill_lazy(t_dask_df, 'energy', before='part')
+    t_dask_df = forward_fill_lazy(t_dask_df, 'energy', before='max')
     t_df = t_df.ffill()
     pd.testing.assert_frame_equal(t_df, t_dask_df.compute())
 
@@ -99,7 +99,7 @@ def test_forward_fill_lazy_full_partition_nans():
     t_df = df.copy()
     t_df['energy'][5:35] = np.nan # make all values of partition 2 and 3 nan
     t_dask_df = ddf.from_pandas(t_df, npartitions=N_PARTITIONS)
-    t_dask_df = forward_fill_lazy(t_dask_df, 'energy', before='part')
+    t_dask_df = forward_fill_lazy(t_dask_df, 'energy', before='max')
     t_df = t_df.ffill()
     assert not t_df.equals(t_dask_df.compute())
     # pd.testing.assert_frame_equal(t_df, t_dask_df.compute())
@@ -111,3 +111,11 @@ def test_forward_fill_lazy_wrong_parameters():
     t_dask_df = ddf.from_pandas(t_df, npartitions=N_PARTITIONS)
     with pytest.raises(TypeError):
         t_dask_df = forward_fill_lazy(t_dask_df, 'energy', before='wrong parameter')
+
+def test_forward_fill_lazy_compute():
+    t_df = df.copy()
+    t_df['energy'][5:35] = np.nan # make all values of partition 2 and 3 nan
+    t_dask_df = ddf.from_pandas(t_df, npartitions=N_PARTITIONS)
+    t_dask_df_comp = forward_fill_lazy(t_dask_df, 'energy', before='max', compute_lengths=True)
+    t_dask_df_nocomp = forward_fill_lazy(t_dask_df, 'energy', before='max', compute_lengths=False)
+    pd.testing.assert_frame_equal(t_dask_df_comp.compute(), t_dask_df_nocomp.compute())
