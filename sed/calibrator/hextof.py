@@ -154,8 +154,6 @@ def dld_time_to_ns(
     return df, metadata
 
 
-
-
 def calibrate_k_division_model(
         df: Union[pd.DataFrame, dask.dataframe.DataFrame],
         warp_params: Sequence[float] = None,
@@ -165,16 +163,20 @@ def calibrate_k_division_model(
         ky_column: str = "ky",
         config: dict = None,
 ) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
-    """ This function returns the distorted coordinates given the undistorted ones
-        a little complicated by the fact that (warp_params[6],warp_params[7]) needs to go to (0,0)
-        it uses a radial distortion model called division model (https://en.wikipedia.org/wiki/Distortion_(optics)#Software_correction)
-        commonly used to correct for lens artifacts.
+    """ K calibration based on the division model
+    
+    This function returns the distorted coordinates given the undistorted ones
+    a little complicated by the fact that (warp_params[6],warp_params[7]) needs to 
+    go to (0,0)
+    it uses a radial distortion model called division model 
+    (https://en.wikipedia.org/wiki/Distortion_(optics)#Software_correction)
+    commonly used to correct for lens artifacts.
 
     Args:
         warp_params (Sequence[float], optional): warping parameters.
             warp_params[0],warp_params[1] center of distortion in px
             warp_params[6],warp_params[7] normal emission (Gamma) in px
-            warp_params[2],warp_params[3],warp_params[4] K_n; rk = rpx/(K_0 + K_1*rpx^2 + K_2*rpx^4)
+            warp_params[2],warp_params[3], warp_params[4] K_n; rk = rpx/(K_0 + K_1*rpx^2 + K_2*rpx^4)
             warp_params[5] rotation in rad
             Defaults to config["dataframe"]["warp_params"].
         x_column (str, optional): Name of the column containing the
@@ -207,10 +209,30 @@ def calibrate_k_division_model(
             raise ValueError("Either ky_column or config must be given.")
         ky_column: str = config["dataframe"]["ky_column"]
 
-    def convert_to_kx(x):
-        return np.sqrt(np.power((x[x_column]-warp_params[0]),2)+np.power((x[y_column]-warp_params[1]),2))/(warp_params[2]+warp_params[3]*np.power(np.sqrt(np.power((x[x_column]-warp_params[0]),2)+np.power((x[y_column]-warp_params[1]),2)),2)+warp_params[4]*np.power(np.sqrt(np.power((x[x_column]-warp_params[0]),2)+np.power((x[y_column]-warp_params[1]),2)),4)) * np.cos(np.arctan2(x[y_column]-warp_params[1],x[x_column]-warp_params[0])-warp_params[5])-np.sqrt(np.power((warp_params[6]-warp_params[0]),2)+np.power((warp_params[7]-warp_params[1]),2))/(warp_params[2]+warp_params[3]*(np.power((warp_params[6]-warp_params[0]),2)+np.power((warp_params[7]-warp_params[1]),2))+warp_params[4]*np.power((np.power((warp_params[6]-warp_params[0]),2)+np.power((warp_params[7]-warp_params[1]),2)),2))*np.cos(np.arctan2(warp_params[7]-warp_params[1],warp_params[6]-warp_params[0])-warp_params[5])
+    wp = warp_params
+     def convert_to_kx(x):
+        """Converts the x steps to kx."""
+        x_diff = x[x_column] - wp[0]
+        y_diff = x[y_column] - wp[1]
+        dist = np.sqrt(x_diff**2 + y_diff**2)
+        den = wp[2] + wp[3]*dist**2 + wp[4]*dist**4
+        angle = np.arctan2(y_diff, x_diff) - wp[5]
+        warp_diff = np.sqrt((wp[6] - wp[0])**2 + (wp[7] - wp[1])**2)
+        warp_den = wp[2] + wp[3]*(wp[6] - wp[0])**2 + wp[4]*(wp[7] - wp[1])**2
+        warp_angle = np.arctan2(wp[7] - wp[1], wp[6] - wp[0]) - wp[5]
+        return (dist/den)*np.cos(angle) - (warp_diff/warp_den)*np.cos(warp_angle)
+
     def convert_to_ky(x):
-        return np.sqrt(np.power((x[x_column]-warp_params[0]),2)+np.power((x[y_column]-warp_params[1]),2))/(warp_params[2]+warp_params[3]*np.power(np.sqrt(np.power((x[x_column]-warp_params[0]),2)+np.power((x[y_column]-warp_params[1]),2)),2)+warp_params[4]*np.power(np.sqrt(np.power((x[x_column]-warp_params[0]),2)+np.power((x[y_column]-warp_params[1]),2)),4)) * np.sin(np.arctan2(x[y_column]-warp_params[1],x[x_column]-warp_params[0])-warp_params[5])-np.sqrt(np.power((warp_params[6]-warp_params[0]),2)+np.power((warp_params[7]-warp_params[1]),2))/(warp_params[2]+warp_params[3]*(np.power((warp_params[6]-warp_params[0]),2)+np.power((warp_params[7]-warp_params[1]),2))+warp_params[4]*np.power((np.power((warp_params[6]-warp_params[0]),2)+np.power((warp_params[7]-warp_params[1]),2)),2))*np.sin(np.arctan2(warp_params[7]-warp_params[1],warp_params[6]-warp_params[0])-warp_params[5])
+        x_diff = x[x_column] - wp[0]
+        y_diff = x[y_column] - wp[1]
+        dist = np.sqrt(x_diff**2 + y_diff**2)
+        den = wp[2] + wp[3]*dist**2 + wp[4]*dist**4
+        angle = np.arctan2(y_diff, x_diff) - wp[5]
+        warp_diff = np.sqrt((wp[6] - wp[0])**2 + (wp[7] - wp[1])**2)
+        warp_den = wp[2] + wp[3]*(wp[6] - wp[0])**2 + wp[4]*(wp[7] - wp[1])**2
+        warp_angle = np.arctan2(wp[7] - wp[1], wp[6] - wp[0]) - wp[5]
+        return (dist/den)*np.sin(angle) - (warp_diff/warp_den)*np.sin(warp_angle)
+    
     df[kx_column] = df.map_partitions(
         convert_to_kx, meta=(kx_column, np.float64)
     )
@@ -218,8 +240,8 @@ def calibrate_k_division_model(
         convert_to_ky, meta=(ky_column, np.float64)
     )
 
-    metadata = {}
-    metadata["applied"] = True
-    metadata["warp_params"] = warp_params
-
+    metadata = {
+        "applied": True,
+        "warp_params": warp_params,
+    }
     return df, metadata
