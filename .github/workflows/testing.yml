@@ -1,0 +1,38 @@
+name: pytest
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [main]
+
+jobs:
+  pytest:
+    # Using matrix strategy
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.9", "3.10"]
+    runs-on: ubuntu-latest
+    steps:
+      #-------------------------------------#
+      #  Check out repo and set up Python   #
+      #-------------------------------------#
+      - name: Check out the repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: "Setup Python, Poetry and Dependencies"
+        uses: packetcoders/action-setup-cache-python-poetry@main
+        with:
+          python-version: ${{matrix.python-version}}
+          poetry-version: 1.2.2
+
+      #------------------------#
+      #  Run pytest   #
+      #------------------------#
+      - name: Run tests
+        run: |
+          poetry run pytest
+
+      # Coveralls missing
