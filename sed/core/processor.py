@@ -1271,6 +1271,54 @@ class SedProcessor:
                 duplicate_policy="merge",
             )
 
+    def calibrate_k_division_model(
+        self,
+        warp_params: Sequence[float] = None,
+        x_column: str = None,
+        y_column: str = None,
+        kx_column: str = None,
+        ky_column: str = None,
+    ) -> None:
+        """Calibrate k space using the division model.
+
+        This function returns the distorted coordinates given the undistorted ones
+        a little complicated by the fact that (warp_params[6],warp_params[7]) needs to 
+        go to (0,0)
+        it uses a radial distortion model called division model 
+        (https://en.wikipedia.org/wiki/Distortion_(optics)#Software_correction)
+        commonly used to correct for lens artifacts.
+
+        Args:
+            warp_params (Sequence[float], optional): warping parameters.
+                warp_params[0],warp_params[1] center of distortion in px
+                warp_params[6],warp_params[7] normal emission (Gamma) in px
+                warp_params[2],warp_params[3], warp_params[4] K_n; rk = rpx/(K_0 + K_1*rpx^2 + K_2*rpx^4)
+                warp_params[5] rotation in rad
+                Defaults to config["dataframe"]["warp_params"].
+            x_column (str, optional): Name of the column containing the
+                x steps. Defaults to config["dataframe"]["x_column"].
+            y_column (str, optional): Name of the column containing the
+                y steps. Defaults to config["dataframe"]["y_column"].
+            kx_column (str, optional): Name of the column containing the
+                x steps. Defaults to config["dataframe"]["kx_column"].
+            ky_column (str, optional): Name of the column containing the
+                y steps. Defaults to config["dataframe"]["ky_column"].
+        """
+        self._dataframe, metadata = hextof.calibrate_k_division_model(
+            df=self._dataframe,
+            warp_params=warp_params,
+            x_column=x_column,
+            y_column=y_column,
+            kx_column=kx_column,
+            ky_column=ky_column,
+            config=self._config,
+        )
+        self._attributes.add(
+            metadata,
+            "k_division_model",
+            duplicate_policy="raise",
+        )
+
     def pre_binning(
         self,
         df_partitions: int = 100,

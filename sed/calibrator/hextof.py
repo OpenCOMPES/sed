@@ -157,10 +157,10 @@ def dld_time_to_ns(
 def calibrate_k_division_model(
         df: Union[pd.DataFrame, dask.dataframe.DataFrame],
         warp_params: Sequence[float] = None,
-        x_column: str = "dldPosX",
-        y_column: str = "dldPosY",
-        kx_column: str = "kx",
-        ky_column: str = "ky",
+        x_column: str = None,
+        y_column: str = None,
+        kx_column: str = None,
+        ky_column: str = None,
         config: dict = None,
 ) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
     """ K calibration based on the division model
