@@ -1,6 +1,8 @@
 """sed.calibrator.hextof module. Code for handling hextof specific transformations and
 calibrations.
 """
+from typing import Any
+from typing import Dict
 from typing import Sequence
 from typing import Tuple
 from typing import Union
@@ -22,8 +24,14 @@ def unravel_8s_detector_time_channel(
     dldTimeSteps channel.
 
     Args:
-        sector_delays (Sequece[float], optional): Sector delays for the 8s time.
-            Defaults to config["dataframe"]["sector_delays"].
+        tof_column (str, optional): Name of the column containing the
+            time-of-flight steps. Defaults to config["dataframe"]["tof_column"].
+        sector_id_column (str, optional): Name of the column containing the
+            sectorID. Defaults to config["dataframe"]["sector_id_column"].
+        config (dict, optional): Configuration dictionary. Defaults to None.
+
+    Returns:
+        dask.dataframe.DataFrame: Dataframe with the new columns.
     """
     if tof_column is None:
         if config is None:
@@ -53,8 +61,17 @@ def align_dld_sectors(
 
     Args:
         sector_delays (Sequece[float], optional): Sector delays for the 8s time.
-        in units of step. Calibration should be done with binning along dldTimeSteps.
-        Defaults to config["dataframe"]["sector_delays"].
+            in units of step. Calibration should be done with binning along dldTimeSteps.
+            Defaults to config["dataframe"]["sector_delays"].
+        sector_id_column (str, optional): Name of the column containing the
+            sectorID. Defaults to config["dataframe"]["sector_id_column"].
+        tof_column (str, optional): Name of the column containing the
+            time-of-flight. Defaults to config["dataframe"]["tof_column"].
+        config (dict, optional): Configuration dictionary. Defaults to None.
+    
+    Returns:
+        dask.dataframe.DataFrame: Dataframe with the new columns.
+        dict: Metadata dictionary.
     """
     if sector_delays is None:
         if config is None:
@@ -77,11 +94,10 @@ def align_dld_sectors(
     df[tof_column] = df.map_partitions(
         align_sector, meta=(tof_column, np.float32)
     )
-
-    metadata = {}
-    metadata["applied"] = True
-    metadata["sector_delays"] = sector_delays
-
+    metadata: Dict[str,Any] = {
+        "applied": True,
+        "sector_delays": sector_delays,
+    }
     return df, metadata
 
 
@@ -103,23 +119,27 @@ def dld_time_to_ns(
         tof_column (str, optional): Name of the column containing the
             time-of-flight. Defaults to config["dataframe"]["tof_column"].
         tof_binning (int, optional): Binning of the time-of-flight steps.
+    
+    Returns:
+        dask.dataframe.DataFrame: Dataframe with the new columns.
+        dict: Metadata dictionary.
     """
     if tof_binwidth is None:
         if config is None:
             raise ValueError("Either tof_binwidth or config must be given.")
-        tof_binwidth: float = config["dataframe"]["tof_binwidth"]
+        tof_binwidth = config["dataframe"]["tof_binwidth"]
     if tof_column is None:
         if config is None:
             raise ValueError("Either tof_column or config must be given.")
-        tof_column: str = config["dataframe"]["tof_column"]
+        tof_column = config["dataframe"]["tof_column"]
     if tof_binning is None:
         if config is None:
             raise ValueError("Either tof_binning or config must be given.")
-        tof_binning: int = config["dataframe"]["tof_binning"]
+        tof_binning = config["dataframe"]["tof_binning"]
     if tof_ns_column is None:
         if config is None:
             raise ValueError("Either tof_ns_column or config must be given.")
-        tof_ns_column: str = config["dataframe"]["tof_ns_column"]
+        tof_ns_column = config["dataframe"]["tof_ns_column"]
 
     def convert_to_ns(x):
         val = x[tof_column] * tof_binwidth * 2**tof_binning
@@ -127,8 +147,8 @@ def dld_time_to_ns(
     df[tof_ns_column] = df.map_partitions(
         convert_to_ns, meta=(tof_column, np.float32)
     )
-    metadata = {}
-    metadata["applied"] = True
-    metadata["tof_binwidth"] = tof_binwidth
-
+    metadata: Dict[str,Any] = {
+        "applied": True,
+        "tof_binwidth": tof_binwidth
+    }
     return df, metadata
