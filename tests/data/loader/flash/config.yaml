@@ -25,6 +25,17 @@ dataframe:
   # The name of the DAQ system to use. Necessary to resolve the filenames/paths.
   daq: fl1user3
 
+  unravel_8s_detector_time_channel: True
+  # the tof step size is now 8 times larger as we remove the 3 bits of the sectorID
+  time_step_size: 0.16460905596613884 # 0.020576131995767355
+  raw_time_column: dldTimeAndSector
+  time_step_column: dldTimeSteps
+  tof_step_column: dldTimeSteps
+  sector_id_column: dldSectorID
+  sector_delays: [0., 0., 0., 0., 0., 0., 0., 0.]
+  tof_column: dldTime
+  jitter_cols: ["dldPosX", "dldPosY", "dldTimeSteps"]
+
   # The channels to load.
   # channels have the following structure:
   # channelAlias:
@@ -49,7 +60,7 @@ dataframe:
       group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
       slice: 0
       
-    dldTime:
+    dldTimeAndSector:
       format: per_electron
       group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
       slice: 3
