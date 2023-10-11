@@ -156,7 +156,7 @@ def dld_time_to_ns(
 
 
 
-def calibrate_k(
+def calibrate_k_division_model(
         df: Union[pd.DataFrame, dask.dataframe.DataFrame],
         warp_params: Sequence[float] = None,
         x_column: str = "dldPosX",
