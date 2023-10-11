@@ -593,9 +593,10 @@ class FlashLoader(BaseLoader):
         with h5py.File(file_path, "r") as h5_file:
             self.reset_multi_index()  # Reset MultiIndexes for next file
             df = self.concatenate_channels(h5_file)
-            df = df.dropna(subset=['dldTimeAndSector'])
+            df = df.dropna(subset=self._config['dataframe'].get('tof_column', 'dldTimeSteps'))
             # correct the 3 bit shift which encodes the detector ID in the 8s time
-            df = unravel_8s_detector_time_channel(df)
+            if self._config['dataframe'].get('unravel_8s_detector_time_channel', False):
+                df = unravel_8s_detector_time_channel(df, config=self._config)
             return df
 
     def create_buffer_file(self, h5_path: Path, parquet_path: Path) -> Union[bool, Exception]:
