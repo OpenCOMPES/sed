@@ -224,10 +224,10 @@ def rolling_average_on_acquisition_time(
     Returns:
         Union[pd.DataFrame, dask.dataframe.DataFrame]: Dataframe with the new columns.
     """
-    if group_channel is None:
+    if rolling_group_channel is None:
         if config is None:
             raise ValueError("Either group_channel or config must be given.")
-        group_channel = config["dataframe"]["rolling_group_channel"]        
+        rolling_group_channel = config["dataframe"]["rolling_group_channel"]        
     with ProgressBar():
         print(f'rolling average over {columns}...')
         if isinstance(columns,str):
@@ -236,7 +236,13 @@ def rolling_average_on_acquisition_time(
         df_['dt'] = pd.to_datetime(df_.index, unit='s')
         df_['ts'] = df_.index
         for c in columns:
-            df_[c+'_rolled'] = df_[c].interpolate(method='nearest').rolling(window,center=True,win_type='gaussian').mean(std=window/sigma).fillna(df_[c])
+            df_[c+'_rolled'] = df_[c].interpolate(
+                method='nearest'
+            ).rolling(
+                window,center=True,win_type='gaussian'
+            ).mean(
+                std=window/sigma
+            ).fillna(df_[c])
             df_ = df_.drop(c, axis=1)
             if c+'_rolled' in df.columns:
                 df = df.drop(c+'_rolled',axis=1)
