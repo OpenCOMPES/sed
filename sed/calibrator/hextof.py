@@ -141,14 +141,35 @@ def dld_time_to_ns(
             raise ValueError("Either tof_ns_column or config must be given.")
         tof_ns_column = config["dataframe"]["tof_ns_column"]
 
-    def convert_to_ns(x):
-        val = x[tof_column] * tof_binwidth * 2**tof_binning
-        return val.astype(np.float32)
+
     df[tof_ns_column] = df.map_partitions(
-        convert_to_ns, meta=(tof_column, np.float32)
+        step2ns, meta=(tof_column, np.float64)
     )
     metadata: Dict[str,Any] = {
         "applied": True,
         "tof_binwidth": tof_binwidth
     }
     return df, metadata
+
+def step2ns(
+        df: Union[pd.DataFrame, dask.dataframe.DataFrame],
+        tof_column: str, 
+        tof_binwidth: float, 
+        tof_binning: int,
+        dtype: type = np.float64, 
+) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
+    """ Converts the time-of-flight steps to time-of-flight in nanoseconds.
+    
+    designed for use with dask.dataframe.DataFrame.map_partitions.
+
+    Args:
+        df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to convert.
+        tof_column (str): Name of the column containing the time-of-flight steps.
+        tof_binwidth (float): Time step size in nanoseconds.
+        tof_binning (int): Binning of the time-of-flight steps.
+        
+    Returns:
+        Union[pd.DataFrame, dask.dataframe.DataFrame]: Dataframe with the new column.
+    """
+    val = df[tof_column].astype(dtype) * tof_binwidth * 2**tof_binning
+    return val.astype(dtype)
