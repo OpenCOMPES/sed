@@ -165,14 +165,13 @@ def calibrate_k(
         ky_column: str = "ky",
         config: dict = None,
 ) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
-    """Converts the 8s time in steps to time in ns.
+    """ This function returns the distorted coordinates given the undistorted ones
+        a little complicated by the fact that (warp_params[6],warp_params[7]) needs to go to (0,0)
+        it uses a radial distortion model called division model (https://en.wikipedia.org/wiki/Distortion_(optics)#Software_correction)
+        commonly used to correct for lens artifacts.
 
     Args:
         warp_params (Sequence[float], optional): warping parameters.
-            this function returns the distorted coordinates given the undistorted ones
-            a little complicated by the fact that (warp_params[6],warp_params[7]) needs to go to (0,0)
-            it uses a radial distortion model called division model (https://en.wikipedia.org/wiki/Distortion_(optics)#Software_correction)
-            commonly used to correct for lens artifacts
             warp_params[0],warp_params[1] center of distortion in px
             warp_params[6],warp_params[7] normal emission (Gamma) in px
             warp_params[2],warp_params[3],warp_params[4] K_n; rk = rpx/(K_0 + K_1*rpx^2 + K_2*rpx^4)
