@@ -1,5 +1,6 @@
 """This file contains code that performs several tests for the input/output functions
 """
+import os
 import random
 from pathlib import Path
 
@@ -35,9 +36,10 @@ def test_save_and_load_tiff_array(_da: xr.DataArray):
     """
     nd_array = _da.data
     if nd_array.ndim > 1:
-        to_tiff(nd_array, "test")
-        as_array = load_tiff("test.tiff")
+        to_tiff(nd_array, f"test1{nd_array.ndim}")
+        as_array = load_tiff(f"test1{nd_array.ndim}.tiff")
         np.testing.assert_allclose(nd_array, as_array)
+        os.remove(f"test1{nd_array.ndim}.tiff")
 
 
 @pytest.mark.parametrize(
@@ -51,8 +53,9 @@ def test_save_xarr_to_tiff(_da: xr.DataArray):
     Args:
         _da (xr.DataArray): binned DataArray
     """
-    to_tiff(_da, "test")
-    assert Path("test.tiff").is_file()
+    to_tiff(_da, f"test2{len(_da.shape)}")
+    assert Path(f"test2{len(_da.shape)}.tiff").is_file()
+    os.remove(f"test2{len(_da.shape)}.tiff")
 
 
 @pytest.mark.parametrize(
@@ -66,14 +69,15 @@ def test_save_and_load_tiff_xarray(_da: xr.DataArray):
     rgs:
         _da (xr.DataArray): binned DataArray
     """
-    to_tiff(_da, "test")
-    loaded = load_tiff("test.tiff")
+    to_tiff(_da, f"test3{len(_da.shape)}")
+    loaded = load_tiff(f"test3{len(_da.shape)}.tiff")
     dims_order = _sort_dims_for_imagej(_da.dims)
     transposed = _da.transpose(*dims_order).astype(np.float32)
     np.testing.assert_allclose(
         transposed.values,
         loaded.values,
     )
+    os.remove(f"test3{len(_da.shape)}.tiff")
 
 
 @pytest.mark.parametrize(
@@ -87,10 +91,11 @@ def test_save_and_load_hdf5(_da: xr.DataArray):
     Args:
         _da (xr.DataArray): binned DataArray
     """
-    faddr = "test.h5"
+    faddr = f"test{len(_da.shape)}.h5"
     to_h5(_da, faddr, mode="w")
     loaded = load_h5(faddr)
     xr.testing.assert_equal(_da, loaded)
     np.testing.assert_equal(_da.attrs, loaded.attrs)
     for axis in _da.coords:
         np.testing.assert_equal(_da[axis].attrs, loaded[axis].attrs)
+    os.remove(faddr)
