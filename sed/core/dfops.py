@@ -5,7 +5,6 @@
 # inspired by https://github.com/mpes-kit/mpes
 from typing import Any
 from typing import Callable
-from typing import Dict
 from typing import Sequence
 from typing import Union
 
@@ -313,13 +312,15 @@ def apply_energy_shift(
                 col = col + "_rolled"
             if m == "direct" or m == "rolled":
                 df[col] = df.map_partitions(
-                    lambda x: x[col] + s * x[energy_column], meta=(col, np.float32),
+                    lambda x: x[col] + s * x[energy_column],
+                    meta=(col, np.float32),
                 )
             elif m == "mean":
                 print("computing means...")
                 col_mean = df[col].mean()
                 df[col] = df.map_partitions(
-                    lambda x: x[col] + s * (x[energy_column] - col_mean), meta=(col, np.float32),
+                    lambda x: x[col] + s * (x[energy_column] - col_mean),
+                    meta=(col, np.float32),
                 )
             else:
                 raise ValueError(f"mode must be one of 'direct', 'mean' or 'rolled'. Got {m}.")

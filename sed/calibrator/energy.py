@@ -2085,3 +2085,72 @@ def tof2evpoly(
     energy += energy_offset
 
     return energy
+
+
+def tof_step_to_ns(
+    df: Union[pd.DataFrame, dask.dataframe.DataFrame],
+    tof_ns_column: str = None,
+    tof_binwidth: float = None,
+    tof_column: str = None,
+    tof_binning: int = None,
+    config: dict = None,
+) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
+    """Converts the 8s time in steps to time in ns.
+
+    Args:
+        tof_binwidth (float, optional): Time step size in nanoseconds.
+            Defaults to config["dataframe"]["tof_binwidth"].
+        tof_column (str, optional): Name of the column containing the
+            time-of-flight steps. Defaults to config["dataframe"]["tof_column"].
+        tof_column (str, optional): Name of the column containing the
+            time-of-flight. Defaults to config["dataframe"]["tof_column"].
+        tof_binning (int, optional): Binning of the time-of-flight steps.
+
+    Returns:
+        dask.dataframe.DataFrame: Dataframe with the new columns.
+        dict: Metadata dictionary.
+    """
+    if tof_binwidth is None:
+        if config is None:
+            raise ValueError("Either tof_binwidth or config must be given.")
+        tof_binwidth = config["dataframe"]["tof_binwidth"]
+    if tof_column is None:
+        if config is None:
+            raise ValueError("Either tof_column or config must be given.")
+        tof_column = config["dataframe"]["tof_column"]
+    if tof_binning is None:
+        if config is None:
+            raise ValueError("Either tof_binning or config must be given.")
+        tof_binning = config["dataframe"]["tof_binning"]
+    if tof_ns_column is None:
+        if config is None:
+            raise ValueError("Either tof_ns_column or config must be given.")
+        tof_ns_column = config["dataframe"]["tof_ns_column"]
+
+    df[tof_ns_column] = df.map_partitions(step2ns, meta=(tof_column, np.float64))
+    metadata: Dict[str, Any] = {"applied": True, "tof_binwidth": tof_binwidth}
+    return df, metadata
+
+
+def step2ns(
+    df: Union[pd.DataFrame, dask.dataframe.DataFrame],
+    tof_column: str,
+    tof_binwidth: float,
+    tof_binning: int,
+    dtype: type = np.float64,
+) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
+    """Converts the time-of-flight steps to time-of-flight in nanoseconds.
+
+    designed for use with dask.dataframe.DataFrame.map_partitions.
+
+    Args:
+        df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to convert.
+        tof_column (str): Name of the column containing the time-of-flight steps.
+        tof_binwidth (float): Time step size in nanoseconds.
+        tof_binning (int): Binning of the time-of-flight steps.
+
+    Returns:
+        Union[pd.DataFrame, dask.dataframe.DataFrame]: Dataframe with the new column.
+    """
+    val = df[tof_column].astype(dtype) * tof_binwidth * 2**tof_binning
+    return val.astype(dtype)

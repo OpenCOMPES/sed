@@ -26,7 +26,7 @@ from pandas import DataFrame
 from pandas import MultiIndex
 from pandas import Series
 
-from sed.calibrator.hextof import unravel_8s_detector_time_channel
+from sed.calibrator.dld import unravel_8s_detector_time_channel
 from sed.core import dfops
 from sed.loader.base.loader import BaseLoader
 from sed.loader.flash.metadata import MetadataRetriever

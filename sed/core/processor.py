@@ -19,8 +19,9 @@ import xarray as xr
 
 from sed.binning import bin_dataframe
 from sed.calibrator import DelayCalibrator
+from sed.calibrator import dld
+from sed.calibrator import energy
 from sed.calibrator import EnergyCalibrator
-from sed.calibrator import hextof
 from sed.calibrator import MomentumCorrector
 from sed.core.config import parse_config
 from sed.core.config import save_config
@@ -1196,7 +1197,7 @@ class SedProcessor:
                 f"Energy column {energy_column} not found in dataframe! "
                 "Run energy calibration first",
             )
-        self._dataframe, metadata = hextof.shift_energy_axis(
+        self._dataframe, metadata = energy.shift_energy_axis(
             df=self._dataframe,
             columns=columns,
             signs=signs,
@@ -1235,7 +1236,7 @@ class SedProcessor:
             metadata.append(col)
         self._attributes.add(metadata, "jittering", duplicate_policy="append")
 
-    def dld_time_to_ns(
+    def tof_step_to_ns(
         self,
         tof_ns_column: str = None,
         tof_binwidth: float = None,
@@ -1258,7 +1259,7 @@ class SedProcessor:
             print("Adding energy column to dataframe:")
             # TODO assert order of execution through metadata
 
-            self._dataframe, metadata = hextof.dld_time_to_ns(
+            self._dataframe, metadata = energy.tof_step_to_ns(
                 df=self._dataframe,
                 tof_ns_column=tof_ns_column,
                 tof_binwidth=tof_binwidth,
@@ -1268,8 +1269,8 @@ class SedProcessor:
             )
             self._attributes.add(
                 metadata,
-                "energy_calibration",
-                duplicate_policy="merge",
+                "step_to_ns",
+                duplicate_policy="raise",
             )
 
     def align_dld_sectors(
@@ -1289,7 +1290,7 @@ class SedProcessor:
         if self._dataframe is not None:
             print("Aligning 8s sectors of dataframe")
             # TODO assert order of execution through metadata
-            self._dataframe, metadata = hextof.align_dld_sectors(
+            self._dataframe, metadata = dld.align_dld_sectors(
                 df=self._dataframe,
                 sector_delays=sector_delays,
                 sector_id_column=sector_id_column,
@@ -1299,7 +1300,7 @@ class SedProcessor:
             self._attributes.add(
                 metadata,
                 "sector_alignment",
-                duplicate_policy="merge",
+                duplicate_policy="raise",
             )
 
     def pre_binning(
