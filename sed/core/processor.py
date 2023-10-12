@@ -20,8 +20,8 @@ import xarray as xr
 from sed.binning import bin_dataframe
 from sed.calibrator import DelayCalibrator
 from sed.calibrator import EnergyCalibrator
-from sed.calibrator import MomentumCorrector
 from sed.calibrator import hextof
+from sed.calibrator import MomentumCorrector
 from sed.core.config import parse_config
 from sed.core.config import save_config
 from sed.core.dfops import apply_jitter
@@ -1183,9 +1183,9 @@ class SedProcessor:
 
     def shift_energy_axis(
         self,
-        columns: Union[str,Sequence[str]],
-        signs: Union[int,Sequence[int]],
-        mode: Union[str,Sequence[str]] = "direct",
+        columns: Union[str, Sequence[str]],
+        signs: Union[int, Sequence[int]],
+        mode: Union[str, Sequence[str]] = "direct",
         window: float = None,
         sigma: float = 2,
         rolling_group_channel: str = None,
@@ -1236,11 +1236,11 @@ class SedProcessor:
         self._attributes.add(metadata, "jittering", duplicate_policy="append")
 
     def dld_time_to_ns(
-            self,
-            tof_ns_column: str = None,
-            tof_binwidth: float = None,
-            tof_column: str = None,
-            tof_binning: int = None,
+        self,
+        tof_ns_column: str = None,
+        tof_binwidth: float = None,
+        tof_column: str = None,
+        tof_binning: int = None,
     ):
         """Convert time-of-flight channel steps to nanoseconds.
 
@@ -1273,12 +1273,12 @@ class SedProcessor:
             )
 
     def align_dld_sectors(
-            self,
-            sector_delays: Sequence[float] = None,
-            sector_id_column: str = None,
-            tof_column: str = None,
+        self,
+        sector_delays: Sequence[float] = None,
+        sector_id_column: str = None,
+        tof_column: str = None,
     ):
-        """ Align the 8s sectors of the HEXTOF endstation.
+        """Align the 8s sectors of the HEXTOF endstation.
 
         Intended for use with HEXTOF endstation
 

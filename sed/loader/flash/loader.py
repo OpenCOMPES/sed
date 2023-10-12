@@ -26,11 +26,11 @@ from pandas import DataFrame
 from pandas import MultiIndex
 from pandas import Series
 
+from sed.calibrator.hextof import unravel_8s_detector_time_channel
 from sed.core import dfops
 from sed.loader.base.loader import BaseLoader
 from sed.loader.flash.metadata import MetadataRetriever
 from sed.loader.utils import parse_h5_keys
-from sed.calibrator.hextof import unravel_8s_detector_time_channel
 
 
 class FlashLoader(BaseLoader):
@@ -593,9 +593,9 @@ class FlashLoader(BaseLoader):
         with h5py.File(file_path, "r") as h5_file:
             self.reset_multi_index()  # Reset MultiIndexes for next file
             df = self.concatenate_channels(h5_file)
-            df = df.dropna(subset=self._config['dataframe'].get('tof_column', 'dldTimeSteps'))
+            df = df.dropna(subset=self._config["dataframe"].get("tof_column", "dldTimeSteps"))
             # correct the 3 bit shift which encodes the detector ID in the 8s time
-            if self._config['dataframe'].get('unravel_8s_detector_time_channel', False):
+            if self._config["dataframe"].get("unravel_8s_detector_time_channel", False):
                 df = unravel_8s_detector_time_channel(df, config=self._config)
             return df
 
