@@ -36,7 +36,7 @@ from scipy.sparse.linalg import lsqr
 
 from sed.binning import bin_dataframe
 from sed.loader.base.loader import BaseLoader
-
+import logging
 
 class EnergyCalibrator:
     """Electron binding energy calibration workflow.
@@ -800,6 +800,7 @@ class EnergyCalibrator:
             Union[pd.DataFrame, dask.dataframe.DataFrame]: dataframe with added column
             and energy calibration metadata dictionary.
         """
+        logging.debug("appending energy axis")
         if tof_column is None:
             if self.corrected_tof_column in df.columns:
                 tof_column = self.corrected_tof_column

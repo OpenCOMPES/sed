@@ -32,6 +32,8 @@ from sed.io import to_tiff
 from sed.loader import CopyTool
 from sed.loader import get_loader
 
+import logging
+
 N_CPU = psutil.cpu_count()
 
 
@@ -84,6 +86,8 @@ class SedProcessor:
                 Defaults to False.
             **kwds: Keyword arguments passed to parse_config and to the reader.
         """
+        logging.basicConfig(level=logging.DEBUG)
+        logging.info("Welcome to the SED, I will be handling your data today")
         config_kwds = {
             key: value for key, value in kwds.items() if key in parse_config.__code__.co_varnames
         }
