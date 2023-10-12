@@ -273,7 +273,10 @@ def test_momentum_correction_workflow(features: np.ndarray):
     )
     assert len(processor.mc.pouter_ord) == rotsym
     processor.generate_splinewarp(use_center=include_center)
-    processor.save_splinewarp(filename=f"sed_config{len(features)}.yaml", overwrite=True)
+    processor.save_splinewarp(
+        filename=f"sed_config_momentum_correction{len(features)}.yaml",
+        overwrite=True,
+    )
     pouter_ord = processor.mc.pouter_ord
     cdeform_field = processor.mc.cdeform_field
     rdeform_field = processor.mc.rdeform_field
@@ -281,7 +284,7 @@ def test_momentum_correction_workflow(features: np.ndarray):
     processor = SedProcessor(
         folder=df_folder,
         config=config,
-        folder_config=f"sed_config{len(features)}.yaml",
+        folder_config=f"sed_config_momentum_correction{len(features)}.yaml",
         user_config={},
         system_config={},
     )
@@ -290,7 +293,7 @@ def test_momentum_correction_workflow(features: np.ndarray):
     np.testing.assert_allclose(processor.mc.pouter_ord, pouter_ord)
     np.testing.assert_allclose(processor.mc.cdeform_field, cdeform_field)
     np.testing.assert_allclose(processor.mc.rdeform_field, rdeform_field)
-    os.remove(f"sed_config{len(features)}.yaml")
+    os.remove(f"sed_config_momentum_correction{len(features)}.yaml")
 
 
 def test_pose_adjustment():
@@ -378,10 +381,11 @@ def test_momentum_calibration_workflow():
         apply=True,
     )
     assert processor.mc.calibration["kx_scale"] != processor.mc.calibration["ky_scale"]
-    processor.save_momentum_calibration()
+    processor.save_momentum_calibration(filename="sed_config_momentum_calibration.yaml")
     processor = SedProcessor(
         folder=df_folder,
         config=config,
+        folder_config="sed_config_momentum_calibration.yaml",
         user_config={},
         system_config={},
     )
@@ -392,7 +396,7 @@ def test_momentum_calibration_workflow():
     )
     assert "kx" in processor.dataframe.columns
     assert "ky" in processor.dataframe.columns
-    os.remove("sed_config.yaml")
+    os.remove("sed_config_momentum_calibration.yaml")
 
 
 def test_energy_correction():
@@ -521,19 +525,22 @@ def test_energy_calibration_workflow(energy_scale: str, calibration_method: str)
         method=calibration_method,
     )
     assert processor.ec.calibration["energy_scale"] == energy_scale
-    processor.save_energy_calibration()
+    processor.save_energy_calibration(
+        filename=f"sed_config_energy_calibration_{energy_scale}-{calibration_method}.yaml",
+    )
     processor.append_energy_axis()
     assert "energy" in processor.dataframe.columns
     processor = SedProcessor(
         folder=df_folder + "../mpes/",
         config=config,
+        folder_config=f"sed_config_energy_calibration_{energy_scale}-{calibration_method}.yaml",
         user_config={},
         system_config={},
     )
     processor.append_energy_axis(preview=True)
     assert "energy" in processor.dataframe.columns
     assert processor.attributes["energy_calibration"]["calibration"]["energy_scale"] == energy_scale
-    os.remove("sed_config.yaml")
+    os.remove(f"sed_config_energy_calibration_{energy_scale}-{calibration_method}.yaml")
 
 
 def test_delay_calibration_workflow():
@@ -638,6 +645,7 @@ metadata["user0"] = {}
 metadata["user0"]["name"] = "Name"
 metadata["user0"]["email"] = "email"
 # NXinstrument
+metadata["instrument"] = {}
 metadata["instrument"] = {}
 # analyzer
 metadata["instrument"]["analyzer"] = {}
