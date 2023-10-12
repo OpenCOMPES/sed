@@ -1181,6 +1181,37 @@ class SedProcessor:
             else:
                 print(self._dataframe)
 
+    def shift_energy_axis(
+        self,
+        columns: Union[str,Sequence[str]],
+        signs: Union[int,Sequence[int]],
+        mode: Union[str,Sequence[str]] = "direct",
+        window: float = None,
+        sigma: float = 2,
+        rolling_group_channel: str = None,
+    ) -> None:
+        energy_column = self._config["dataframe"]["energy_column"]
+        if energy_column not in self._dataframe.columns:
+            raise ValueError(
+                f"Energy column {energy_column} not found in dataframe! "
+                "Run energy calibration first",
+            )
+        self._dataframe, metadata = hextof.shift_energy_axis(
+            df=self._dataframe,
+            columns=columns,
+            signs=signs,
+            mode=mode,
+            window=window,
+            sigma=sigma,
+            rolling_group_channel=rolling_group_channel,
+            config=self._config,
+        )
+        self._attributes.add(
+            metadata,
+            "shift_energy_axis",
+            duplicate_policy="raise",
+        )
+
     def add_jitter(self, cols: Sequence[str] = None):
         """Add jitter to the selected dataframe columns.
 
