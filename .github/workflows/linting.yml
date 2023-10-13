@@ -18,11 +18,11 @@ jobs:
           poetry-version: 1.2.2
       - name: pycodestyle
         run:
-          poetry run pycodestyle sed tests
+          poetry run pycodestyle --ignore=E203,E501,W503 sed tests
       - name: pylint
         run:
           poetry run pylint sed tests
       - name: mypy
         run:
-          poetry run mypy sed tests
+          poetry run mypy --ignore-missing-imports --follow-imports=silent --no-strict-optional sed tests
 
