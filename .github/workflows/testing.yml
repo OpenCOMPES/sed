@@ -1,4 +1,4 @@
-name: pytest
+name: testing
 
 on:
   push:
@@ -31,10 +31,24 @@ jobs:
       #------------------------#
       #  Run pytest
       #------------------------#
-      - name: Run tests
+      - name: Run tests on python ${{matrix.python-version}}
         run: |
           poetry run pytest --cov=sed -n auto tests/
-
-      # Coveralls missing
-      - name: Coveralls
+      - name: Coveralls Parallel
         uses: coverallsapp/github-action@v2
+        with:
+          flag-name: run-${{ join(matrix.*, '-') }}
+          parallel: true
+    
+  finish:
+    needs: pytest
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+    # Coveralls missing
+    - name: Coveralls Finished
+      uses: coverallsapp/github-action@v2
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        parallel-finished: true
+        carryforward: "run-3.8,run-3.9,run-3.10"
