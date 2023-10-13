@@ -25,6 +25,7 @@ import psutil
 import xarray as xr
 from bokeh.io import output_notebook
 from bokeh.palettes import Category10 as ColorCycle
+from dask.diagnostics import ProgressBar
 from fastdtw import fastdtw
 from IPython.display import display
 from lmfit import Minimizer
@@ -35,6 +36,7 @@ from scipy.signal import savgol_filter
 from scipy.sparse.linalg import lsqr
 
 from sed.binning import bin_dataframe
+from sed.core import dfops
 from sed.loader.base.loader import BaseLoader
 
 
@@ -2127,12 +2129,12 @@ def tof_step_to_ns(
             raise ValueError("Either tof_ns_column or config must be given.")
         tof_ns_column = config["dataframe"]["tof_ns_column"]
 
-    df[tof_ns_column] = df.map_partitions(step2ns, meta=(tof_column, np.float64))
+    df[tof_ns_column] = df.map_partitions(tof2ns, meta=(tof_column, np.float64))
     metadata: Dict[str, Any] = {"applied": True, "tof_binwidth": tof_binwidth}
     return df, metadata
 
 
-def step2ns(
+def tof2ns(
     df: Union[pd.DataFrame, dask.dataframe.DataFrame],
     tof_column: str,
     tof_binwidth: float,
@@ -2154,3 +2156,89 @@ def step2ns(
     """
     val = df[tof_column].astype(dtype) * tof_binwidth * 2**tof_binning
     return val.astype(dtype)
+
+
+def apply_energy_shift(
+    df: Union[pd.DataFrame, dask.dataframe.DataFrame],
+    columns: Union[str, Sequence[str]],
+    signs: Union[int, Sequence[int]],
+    energy_column: str = None,
+    mode: Union[str, Sequence[str]] = "direct",
+    window: float = None,
+    sigma: float = 2,
+    rolling_group_channel: str = None,
+    config: dict = None,
+) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
+    """Apply an energy shift to the given column(s).
+
+    Args:
+        df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to use.
+        energy_column (str): Name of the column containing the energy values.
+        column_name (Union[str,Sequence[str]]): Name of the column(s) to apply the shift to.
+        sign (Union[int,Sequence[int]]): Sign of the shift to apply. (+1 or -1)
+        mode (str): The mode of the shift. One of 'direct', 'average' or rolled.
+            if rolled, window and sigma must be given.
+        config (dict): Configuration dictionary.
+        **kwargs: Additional arguments for the rolling average function.
+    """
+    if energy_column is None:
+        if config is None:
+            raise ValueError("Either energy_column or config must be given.")
+        energy_column = config["dataframe"]["energy_column"]
+    if isinstance(columns, str):
+        columns = [columns]
+    if isinstance(signs, int):
+        signs = [signs]
+    if isinstance(mode, str):
+        mode = [mode] * len(columns)
+    if len(columns) != len(signs):
+        raise ValueError("column_name and sign must have the same length.")
+    with ProgressBar(
+        minimum=5,
+    ):
+        if mode == "rolled":
+            if window is None:
+                if config is None:
+                    raise ValueError("Either window or config must be given.")
+                window = config["dataframe"]["rolling_window"]
+            if sigma is None:
+                if config is None:
+                    raise ValueError("Either sigma or config must be given.")
+                sigma = config["dataframe"]["rolling_sigma"]
+            if rolling_group_channel is None:
+                if config is None:
+                    raise ValueError("Either rolling_group_channel or config must be given.")
+                rolling_group_channel = config["dataframe"]["rolling_group_channel"]
+            print("rolling averages...")
+            df = dfops.rolling_average_on_acquisition_time(
+                df,
+                rolling_group_channel=rolling_group_channel,
+                columns=columns,
+                window=window,
+                sigma=sigma,
+            )
+        for col, s, m in zip(columns, signs, mode):
+            s = s / np.abs(s)  # enusre s is either +1 or -1
+            if m == "rolled":
+                col = col + "_rolled"
+            if m == "direct" or m == "rolled":
+                df[col] = df.map_partitions(
+                    lambda x: x[col] + s * x[energy_column],
+                    meta=(col, np.float32),
+                )
+            elif m == "mean":
+                print("computing means...")
+                col_mean = df[col].mean()
+                df[col] = df.map_partitions(
+                    lambda x: x[col] + s * (x[energy_column] - col_mean),
+                    meta=(col, np.float32),
+                )
+            else:
+                raise ValueError(f"mode must be one of 'direct', 'mean' or 'rolled'. Got {m}.")
+    metadata: dict[str, Any] = {
+        "applied": True,
+        "energy_column": energy_column,
+        "column_name": columns,
+        "sign": signs,
+    }
+    return df, metadata

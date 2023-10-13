@@ -26,7 +26,7 @@ from pandas import DataFrame
 from pandas import MultiIndex
 from pandas import Series
 
-from sed.calibrator.dld import unravel_8s_detector_time_channel
+from sed.calibrator import dld
 from sed.core import dfops
 from sed.loader.base.loader import BaseLoader
 from sed.loader.flash.metadata import MetadataRetriever
@@ -596,7 +596,7 @@ class FlashLoader(BaseLoader):
             df = df.dropna(subset=self._config["dataframe"].get("tof_column", "dldTimeSteps"))
             # correct the 3 bit shift which encodes the detector ID in the 8s time
             if self._config["dataframe"].get("unravel_8s_detector_time_channel", False):
-                df = unravel_8s_detector_time_channel(df, config=self._config)
+                df = dld.unravel_8s_detector_time_channel(df, config=self._config)
             return df
 
     def create_buffer_file(self, h5_path: Path, parquet_path: Path) -> Union[bool, Exception]:

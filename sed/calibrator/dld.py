@@ -12,7 +12,6 @@ import numpy as np
 import pandas as pd
 
 
-# TODO: this could be generalized and moved to dfops for splitting a channel bitwise
 def unravel_8s_detector_time_channel(
     df: dask.dataframe.DataFrame,
     tof_column: str = None,
@@ -20,6 +19,8 @@ def unravel_8s_detector_time_channel(
     config: dict = None,
 ) -> dask.dataframe.DataFrame:
     """Converts the 8s time in steps to time in steps and sectorID.
+
+    # TODO: this could be generalized and moved to dfops for splitting a channel bitwise
 
     The 8s detector encodes the dldSectorID in the 3 least significant bits of the
     dldTimeSteps channel.
