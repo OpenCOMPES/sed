@@ -2129,7 +2129,10 @@ def tof_step_to_ns(
             raise ValueError("Either tof_ns_column or config must be given.")
         tof_ns_column = config["dataframe"]["tof_ns_column"]
 
-    df[tof_ns_column] = df.map_partitions(tof2ns, meta=(tof_column, np.float64))
+    def func(x):
+        return tof2ns(x, tof_column, tof_binwidth, tof_binning)
+
+    df[tof_ns_column] = df.map_partitions(func, meta=(tof_column, np.float64))
     metadata: Dict[str, Any] = {"applied": True, "tof_binwidth": tof_binwidth}
     return df, metadata
 
