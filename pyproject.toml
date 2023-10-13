@@ -58,3 +58,15 @@ omit = [
     "config.py",
     "config-3.py",
 ]
+
+[tool.pylint]
+ignore = ["fixme", "too-many-branches", "too-many-locals", "too-many-statements", "too-many-arguments", "too-many-lines", "too-many-public-methods", "too-many-instance-attributes", "too-few-public-methods"]
+good-names = "i,j,k,ex,x,y,t,k,v,ax,df,ec,mc,dc,ct"
+
+[tool.mypy]
+ignore-missing-imports = true
+follow-imports = "silent"
+no-strict-optional = true
+
+[tool.pycodestyle]
+ignore = "E203,E501,W503"
