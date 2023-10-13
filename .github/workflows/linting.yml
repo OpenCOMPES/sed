@@ -7,9 +7,6 @@ on: [push]
 jobs:
   lint:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        linter: [pylint, mypy, flake8]
     steps:
       - uses: actions/checkout@v3
         with:
@@ -24,7 +21,7 @@ jobs:
           poetry run pycodestyle sed tests
       - name: pylint
         run:
-          poetry run pyling sed tests
+          poetry run pylint sed tests
       - name: mypy
         run:
           poetry run mypy sed tests
