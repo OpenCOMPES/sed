@@ -2221,24 +2221,26 @@ def apply_energy_shift(
                 sigma=sigma,
             )
         for col, s, m in zip(columns, signs, mode):
-            s = s / np.abs(s)  # enusre s is either +1 or -1
+            s = s / np.abs(s)  # ensure s is either +1 or -1
             if m == "rolled":
-                col = col + "_rolled"
-            if m == "direct" or m == "rolled":
-                df[col] = df.map_partitions(
-                    lambda x: x[col] + s * x[energy_column],
-                    meta=(col, np.float32),
+                col_rolled = col + "_rolled"
+            else:
+                col_rolled = col
+            if m in ["direct", "rolled"]:
+                df[col_rolled] = df.map_partitions(
+                    lambda x, c=col, s=s: x[energy_column] + s * x[c],
+                    meta=(col_rolled, np.float32),
                 )
             elif m == "mean":
                 print("computing means...")
                 col_mean = df[col].mean()
-                df[col] = df.map_partitions(
-                    lambda x: x[col] + s * (x[energy_column] - col_mean),
-                    meta=(col, np.float32),
+                df[col_rolled] = df.map_partitions(
+                    lambda x, c=col, s=s, m=col_mean: x[energy_column] + s * m,
+                    meta=(col_rolled, np.float32),
                 )
             else:
                 raise ValueError(f"mode must be one of 'direct', 'mean' or 'rolled'. Got {m}.")
-    metadata: dict[str, Any] = {
+    metadata: Dict[str, Any] = {
         "applied": True,
         "energy_column": energy_column,
         "column_name": columns,

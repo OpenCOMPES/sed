@@ -197,8 +197,8 @@ def forward_fill_lazy(
 
 def rolling_average_on_acquisition_time(
     df: Union[pd.DataFrame, dask.dataframe.DataFrame],
-    rolling_group_channel: str,
-    columns: str = None,
+    rolling_group_channel: str = None,
+    columns: Union[str, Sequence[str]] = None,
     window: float = None,
     sigma: float = 2,
     config: dict = None,
@@ -225,10 +225,13 @@ def rolling_average_on_acquisition_time(
         if config is None:
             raise ValueError("Either group_channel or config must be given.")
         rolling_group_channel = config["dataframe"]["rolling_group_channel"]
+    if isinstance(columns, str):
+        columns = [columns]
+    s = f"rolling average over {rolling_group_channel} on "
+    for c in columns:
+        s += f"{c}, "
+    print(s)
     with ProgressBar():
-        print(f"rolling average over {columns}...")
-        if isinstance(columns, str):
-            columns = [columns]
         df_ = df.groupby(rolling_group_channel).agg({c: "mean" for c in columns}).compute()
         df_["dt"] = pd.to_datetime(df_.index, unit="s")
         df_["ts"] = df_.index

@@ -1191,13 +1191,30 @@ class SedProcessor:
         sigma: float = 2,
         rolling_group_channel: str = None,
     ) -> None:
+        """Shift the energy axis of the dataframe by a given amount.
+
+        Args:
+            columns (Union[str, Sequence[str]]): The columns to shift.
+            signs (Union[int, Sequence[int]]): The sign of the shift.
+            mode (Union[str, Sequence[str]], optional): The mode of the shift.
+                Defaults to "direct".
+            window (float, optional): The window size for the rolling mean.
+                Defaults to None.
+            sigma (float, optional): The sigma for the rolling mean.
+                Defaults to 2.
+            rolling_group_channel (str, optional): The channel to use for the rolling
+                mean. Defaults to None.
+
+        Raises:
+            ValueError: If the energy column is not in the dataframe.
+        """
         energy_column = self._config["dataframe"]["energy_column"]
         if energy_column not in self._dataframe.columns:
             raise ValueError(
                 f"Energy column {energy_column} not found in dataframe! "
                 "Run energy calibration first",
             )
-        self._dataframe, metadata = energy.shift_energy_axis(
+        self._dataframe, metadata = energy.apply_energy_shift(
             df=self._dataframe,
             columns=columns,
             signs=signs,
