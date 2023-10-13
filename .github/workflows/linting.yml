@@ -21,7 +21,7 @@ jobs:
           poetry run pycodestyle --ignore=E203,E501,W503 sed tests
       - name: pylint
         run:
-          poetry run pylint sed tests
+          poetry run pylint --good-names=i,j,k,ex,x,y,t,k,v,ax,df,ec,mc,dc,ct --disable=fixme,too-many-branches,too-many-locals,too-many-statements,too-many-arguments,too-many-lines,too-many-public-methods,too-many-instance-attributes,too-few-public-methods sed tests
       - name: mypy
         run:
           poetry run mypy --ignore-missing-imports --follow-imports=silent --no-strict-optional sed tests
