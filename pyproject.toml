@@ -63,6 +63,9 @@ omit = [
 ignore = ["fixme", "too-many-branches", "too-many-locals", "too-many-statements", "too-many-arguments", "too-many-lines", "too-many-public-methods", "too-many-instance-attributes", "too-few-public-methods"]
 good-names = "i,j,k,ex,x,y,t,k,v,ax,df,ec,mc,dc,ct"
 
+[tool.pylint.main]
+ignore-paths = ["docs"]
+
 [tool.mypy]
 ignore-missing-imports = true
 follow-imports = "silent"
