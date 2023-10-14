@@ -1180,13 +1180,22 @@ class SedProcessor:
             else:
                 print(self._dataframe)
 
-    def add_jitter(self, cols: List[str] = None, **kwds):
+    def add_jitter(
+        self,
+        cols: List[str] = None,
+        amps: Union[float, Sequence[float]] = None,
+        **kwds,
+    ):
         """Add jitter to the selected dataframe columns.
 
         Args:
             cols (List[str], optional): The colums onto which to apply jitter.
                 Defaults to config["dataframe"]["jitter_cols"].
-            **kwds: keyword arguments passed to apply_jitter
+            amps (Union[float, Sequence[float]], optional): Amplitude scalings for the
+                jittering noise. If one number is given, the same is used for all axes.
+                For uniform noise (default) it will cover the interval [-amp, +amp].
+                Defaults to config["dataframe"]["jitter_amps"].
+            **kwds: additional keyword arguments passed to apply_jitter
         """
         if cols is None:
             cols = self._config["dataframe"]["jitter_cols"]
@@ -1194,10 +1203,14 @@ class SedProcessor:
             if col.startswith("@"):
                 cols[loc] = self._config["dataframe"].get(col.strip("@"))
 
+        if amps is None:
+            amps = self._config["dataframe"]["jitter_amps"]
+
         self._dataframe = self._dataframe.map_partitions(
             apply_jitter,
             cols=cols,
             cols_jittered=cols,
+            amps=amps,
             **kwds,
         )
         metadata = []
