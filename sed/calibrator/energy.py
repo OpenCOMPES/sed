@@ -1732,8 +1732,10 @@ def peakdetect1d(
     if lookahead < 1:
         raise ValueError("Lookahead must be '1' or above in value")
 
-    if not (np.isscalar(delta) and delta >= 0):
+    if not (np.isscalar(delta) and cast(int, delta) >= 0):
         raise ValueError("delta must be a positive number")
+    # Hack because TypeGuard with numpy 1.22.4 seems broken
+    delta = cast(int, delta)
 
     # maxima and minima candidates are temporarily stored in
     # mx and mn respectively
