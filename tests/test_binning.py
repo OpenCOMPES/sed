@@ -1,7 +1,6 @@
 """This file contains code that performs several tests for the sed.binning module
 """
 from typing import Any
-from typing import cast
 from typing import List
 from typing import Sequence
 from typing import Tuple
@@ -394,9 +393,8 @@ def test_simplify_binning_arguments(
         ranges_,
     )
 
-    for i, bin_ in enumerate(bins__):
-        # TODO: Why does typing fail?
-        np.testing.assert_array_equal(cast(np.ndarray, bin_), bins_expected[i])
+    for i, _ in enumerate(bins__):
+        np.testing.assert_array_equal(bins__[i], bins_expected[i])
         np.testing.assert_array_equal(axes__[i], axes_expected[i])
         if ranges__ is not None:
             np.testing.assert_array_equal(ranges__[i], ranges_expected[i])
