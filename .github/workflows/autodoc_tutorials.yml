@@ -21,7 +21,10 @@ jobs:
         with:
           python-version: 3.8
           poetry-version: 1.2.2
-
+      
+      - name: Install jupyter
+        run: poetry install -E notebook
+        
       # Execute and convert notebooks
       - name: execute notebooks
         run: find $GITHUB_WORKSPACE/tutorial -type f -name "*.ipynb" -exec poetry run jupyter-nbconvert --execute --to notebook --inplace {} \;
