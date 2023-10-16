@@ -24,14 +24,14 @@ jobs:
 
       # Execute and convert notebooks
       - name: execute notebooks
-        run: find tutorial -type f -name "*.ipynb" -exec jupyter nbconvert --execute --to notebook --inplace {} \;
+        run: find $GITHUB_WORKSPACE/tutorial -type f -name "*.ipynb" -exec poetry run jupyter-nbconvert --execute --to notebook --inplace {} \;
 
       - name: convert notebooks to rst and save to docs
-        run: find tutorial -type f -name "*.ipynb" -exec jupyter-nbconvert --to rst --output-dir docs/tutorial {} \;
+        run: find $GITHUB_WORKSPACE/ttutorial -type f -name "*.ipynb" -exec poetry run jupyter-nbconvert --to rst --output-dir $GITHUB_WORKSPACE/tdocs/tutorial {} \;
 
       - name: Commit changes
         uses: EndBug/add-and-commit@v9
         with:
           default_author: github_actions
           message: 'Updating tutorial rsts for docs'
-          add: 'docs/tutorial/'
+          add: $GITHUB_WORKSPACE/docs/tutorial/
