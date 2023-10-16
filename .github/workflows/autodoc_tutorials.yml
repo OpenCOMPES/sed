@@ -25,6 +25,9 @@ jobs:
       - name: Install jupyter
         run: poetry install -E notebook
 
+      - name: Install pandoc
+        run: sudo apt-get install pandoc
+
       # Execute and convert notebooks
       - name: execute notebooks
         run: find $GITHUB_WORKSPACE/tutorial -type f -name "*.ipynb" -exec poetry run jupyter-nbconvert --execute --to notebook --inplace {} \;
