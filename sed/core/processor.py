@@ -1273,7 +1273,7 @@ class SedProcessor:
 
         """
         if self._dataframe is not None:
-            print("Adding energy column to dataframe:")
+            print("Adding time-of-flight column in nanoseconds to dataframe:")
             # TODO assert order of execution through metadata
 
             self._dataframe, metadata = energy.tof_step_to_ns(
@@ -1287,7 +1287,7 @@ class SedProcessor:
             self._attributes.add(
                 metadata,
                 "step_to_ns",
-                duplicate_policy="raise",
+                duplicate_policy="append",
             )
 
     def align_dld_sectors(
@@ -1303,6 +1303,10 @@ class SedProcessor:
         Args:
             sector_delays (Sequence[float], optional): Delays of the 8s sectors in
                 picoseconds. Defaults to config["dataframe"]["sector_delays"].
+            sector_id_column (str, optional): Name of the column containing the
+                sector id. Defaults to config["dataframe"]["sector_id_column"].
+            tof_column (str, optional): Name of the column containing the
+                time-of-flight. Defaults to config["dataframe"]["tof_column"].
         """
         if self._dataframe is not None:
             print("Aligning 8s sectors of dataframe")

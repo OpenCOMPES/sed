@@ -205,7 +205,13 @@ def rolling_average_on_acquisition_time(
 ) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
     """Perform a rolling average with a gaussian weighted window.
 
-    In order to preserve the number of points, the first and last "widnow"
+    The rolling average is performed on the acquisition time instead of the index.
+    This can be a time-stamp or similar, such as the trainID at FLASH.
+    This is necessary first when considering the recorded electrons do not come at a regular time
+    interval, but even more importantly when loading multiple datasets with gaps in the acquisition.
+
+
+    In order to preserve the number of points, the first and last "window"
     number of points are substituted with the original signal.
     # TODO: this is currently very slow, and could do with a remake.
 

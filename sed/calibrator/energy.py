@@ -2097,15 +2097,16 @@ def tof_step_to_ns(
     tof_binning: int = None,
     config: dict = None,
 ) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
-    """Converts the 8s time in steps to time in ns.
+    """Converts the time-of-flight time from steps to time in ns.
 
     Args:
+        df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to convert.
+        tof_ns_column (str, optional): Name of the column to store the
+            time-of-flight in nanoseconds. Defaults to config["dataframe"]["tof_ns_column"].
         tof_binwidth (float, optional): Time step size in nanoseconds.
             Defaults to config["dataframe"]["tof_binwidth"].
         tof_column (str, optional): Name of the column containing the
             time-of-flight steps. Defaults to config["dataframe"]["tof_column"].
-        tof_column (str, optional): Name of the column containing the
-            time-of-flight. Defaults to config["dataframe"]["tof_column"].
         tof_binning (int, optional): Binning of the time-of-flight steps.
 
     Returns:
@@ -2127,29 +2128,34 @@ def tof_step_to_ns(
     if tof_ns_column is None:
         if config is None:
             raise ValueError("Either tof_ns_column or config must be given.")
-        tof_ns_column = config["dataframe"]["tof_ns_column"]
+        tof_ns_column = config["dataframe"].get("tof_ns_column", None)
+        if tof_ns_column is None:
+            raise ValueError("No value for tof_ns_column present in config.")
 
     def func(x):
-        return tof2ns(x, tof_column, tof_binwidth, tof_binning)
+        return tof2ns(x[tof_column], tof_binwidth, tof_binning)
 
     df[tof_ns_column] = df.map_partitions(func, meta=(tof_column, np.float64))
-    metadata: Dict[str, Any] = {"applied": True, "tof_binwidth": tof_binwidth}
+    metadata: Dict[str, Any] = {
+        "applied": True,
+        "tof_binwidth": tof_binwidth,
+        "tof_binning": tof_binning,
+    }
     return df, metadata
 
 
 def tof2ns(
-    df: Union[pd.DataFrame, dask.dataframe.DataFrame],
-    tof_column: str,
+    x: Union[List[float], np.ndarray],
     tof_binwidth: float,
     tof_binning: int,
     dtype: type = np.float64,
-) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
+) -> Union[List[float], np.ndarray]:
     """Converts the time-of-flight steps to time-of-flight in nanoseconds.
 
     designed for use with dask.dataframe.DataFrame.map_partitions.
 
     Args:
-        df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to convert.
+        x (Union[List[float], np.ndarray]): Time-of-flight steps.
         tof_column (str): Name of the column containing the time-of-flight steps.
         tof_binwidth (float): Time step size in nanoseconds.
         tof_binning (int): Binning of the time-of-flight steps.
@@ -2157,7 +2163,7 @@ def tof2ns(
     Returns:
         Union[pd.DataFrame, dask.dataframe.DataFrame]: Dataframe with the new column.
     """
-    val = df[tof_column].astype(dtype) * tof_binwidth * 2**tof_binning
+    val = x.astype(dtype) * tof_binwidth * 2**tof_binning
     return val.astype(dtype)
 
 
@@ -2245,5 +2251,60 @@ def apply_energy_shift(
         "energy_column": energy_column,
         "column_name": columns,
         "sign": signs,
+    }
+    return df, metadata
+
+
+def align_dld_sectors(
+    df: Union[pd.DataFrame, dask.dataframe.DataFrame],
+    sector_delays: Sequence[float] = None,
+    sector_id_column: str = None,
+    tof_column: str = None,
+    config: dict = None,
+) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
+    """Aligns the time-of-flight axis of the different sections of a detector.
+
+    Args:
+        df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to use.
+        sector_delays (Sequece[float], optional): Sector delays for the 8s time.
+            in units of step. Calibration should be done with binning along dldTimeSteps.
+            Defaults to config["dataframe"]["sector_delays"].
+        sector_id_column (str, optional): Name of the column containing the
+            sectorID. Defaults to config["dataframe"]["sector_id_column"].
+        tof_column (str, optional): Name of the column containing the
+            time-of-flight. Defaults to config["dataframe"]["tof_column"].
+        config (dict, optional): Configuration dictionary. Defaults to None.
+
+    Returns:
+        dask.dataframe.DataFrame: Dataframe with the new columns.
+        dict: Metadata dictionary.
+    """
+    if sector_delays is None:
+        if config is None:
+            raise ValueError("Either sector_delays or config must be given.")
+        sector_delays = config["dataframe"].get("sector_delays", None)
+        if sector_delays is None:
+            raise ValueError("No value for sector_delays found in config.")
+    if sector_id_column is None:
+        if config is None:
+            raise ValueError("Either sector_id_column or config must be given.")
+        sector_id_column = config["dataframe"].get("sector_id_column", None)
+        if sector_id_column is None:
+            raise ValueError("No value for sector_id_column found in config.")
+    if tof_column is None:
+        if config is None:
+            raise ValueError("Either tof_column or config must be given.")
+        tof_column = config["dataframe"]["tof_column"]
+    # align the 8s sectors
+    sector_delays_arr = dask.array.from_array(sector_delays)
+
+    def align_sector(x):
+        val = x[tof_column] - sector_delays_arr[x[sector_id_column].values.astype(int)]
+        return val.astype(np.float32)
+
+    df[tof_column] = df.map_partitions(align_sector, meta=(tof_column, np.float32))
+    metadata: Dict[str, Any] = {
+        "applied": True,
+        "sector_delays": sector_delays,
     }
     return df, metadata
