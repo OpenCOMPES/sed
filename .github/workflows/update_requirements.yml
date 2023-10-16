@@ -1,0 +1,36 @@
+name: update docs/requirements.txt for readthedocs
+
+on:
+  # Triggers the workflow on push but only for the main branch 
+  # and only for changes to the poetry.lock file
+  push:
+    branches: [ main ]
+    paths: [poetry.lock]
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      # Check out repo and set up Python
+      - name: Check out the repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+      
+      # Use cached python and dependencies, install poetry
+      - name: "Setup Python, Poetry and Dependencies"
+        uses: packetcoders/action-setup-cache-python-poetry@main
+        with:
+          python-version: 3.8
+          poetry-version: 1.2.2
+
+      #  Generates and commits a requirements.txt used by readthedocs
+      - name: Export requirements.txt
+        run: poetry export --without-hashes --format=requirements.txt -o docs/requirements.txt -E docs -E notebook
+
+      - name: Commit changes
+        uses: EndBug/add-and-commit@v9
+        with:
+          default_author: github_actions
+          message: 'Updating requirements for docs'
+          add: 'docs/requirements.txt'

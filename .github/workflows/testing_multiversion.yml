@@ -1,0 +1,51 @@
+name: pytest multiversion
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  pytest:
+    # Using matrix strategy
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.9", "3.10"]
+    runs-on: ubuntu-latest
+    steps:
+      # Check out repo and set up Python
+      - name: Check out the repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: "Setup Python, Poetry and Dependencies"
+        uses: packetcoders/action-setup-cache-python-poetry@main
+        with:
+          python-version: ${{matrix.python-version}}
+          poetry-version: 1.2.2
+
+      # Use cached python and dependencies, install poetry
+      - name: Run tests on python ${{matrix.python-version}}
+        run: |
+          poetry run pytest --cov=sed -n auto tests/
+
+      # run this job after each pytest job is finished
+      - name: Coveralls Parallel
+        uses: coverallsapp/github-action@v2
+        with:
+          flag-name: run-${{ join(matrix.*, '-') }}
+          parallel: true
+  
+  # run this job after all the pytest jobs are finished
+  # coveralls will combine the coverage reports and upload to coveralls.io
+  finish:
+    needs: pytest
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+    - name: Coveralls Finished
+      uses: coverallsapp/github-action@v2
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        parallel-finished: true
+        carryforward: "run-3.8,run-3.9,run-3.10"
