@@ -24,13 +24,13 @@ jobs:
       
       - name: Install jupyter
         run: poetry install -E notebook
-        
+
       # Execute and convert notebooks
       - name: execute notebooks
         run: find $GITHUB_WORKSPACE/tutorial -type f -name "*.ipynb" -exec poetry run jupyter-nbconvert --execute --to notebook --inplace {} \;
 
       - name: convert notebooks to rst and save to docs
-        run: find $GITHUB_WORKSPACE/ttutorial -type f -name "*.ipynb" -exec poetry run jupyter-nbconvert --to rst --output-dir $GITHUB_WORKSPACE/tdocs/tutorial {} \;
+        run: find $GITHUB_WORKSPACE/tutorial -type f -name "*.ipynb" -exec poetry run jupyter-nbconvert --to rst --output-dir $GITHUB_WORKSPACE/tdocs/tutorial {} \;
 
       - name: Commit changes
         uses: EndBug/add-and-commit@v9
