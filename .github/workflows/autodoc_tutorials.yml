@@ -31,6 +31,9 @@ jobs:
       # Execute and convert notebooks
       - name: execute notebooks
         run: find $GITHUB_WORKSPACE/tutorial -type f -name "*.ipynb" -exec poetry run jupyter-nbconvert --execute --to notebook --inplace {} \;
+      
+      - name: create docs/tutorial directory
+        run: mkdir -p $GITHUB_WORKSPACE/docs/tutorial
 
       - name: convert notebooks to rst and save to docs
         run: find $GITHUB_WORKSPACE/tutorial -type f -name "*.ipynb" -exec poetry run jupyter-nbconvert --to rst --output-dir $GITHUB_WORKSPACE/tdocs/tutorial {} \;
