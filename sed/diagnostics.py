@@ -1,7 +1,6 @@
 """This module contains diagnostic output functions for the sed module
 
 """
-from typing import List
 from typing import Sequence
 from typing import Tuple
 
@@ -13,16 +12,16 @@ from bokeh.layouts import gridplot
 
 
 def plot_single_hist(
-    histvals: List[int],
-    edges: List[float],
+    histvals: np.ndarray,
+    edges: np.ndarray,
     legend: str = None,
     **kwds,
 ) -> pbk.Figure:
     """Bokeh-based plotting of a single histogram with legend and tooltips.
 
     Args:
-        histvals (List[int]): Histogram counts (e.g. vertical axis).
-        edges (List[float]): Histogram edge values (e.g. horizontal axis).
+        histvals (np.ndarray): Histogram counts (e.g. vertical axis).
+        edges (np.ndarray): Histogram edge values (e.g. horizontal axis).
         legend (str, optional): Text for the plot legend. Defaults to None.
         **kwds: Keyword arguments for ``bokeh.plotting.figure().quad()``.
 

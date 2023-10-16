@@ -393,8 +393,8 @@ def test_simplify_binning_arguments(
         ranges_,
     )
 
-    for i, bin_ in enumerate(bins__):
-        np.testing.assert_array_equal(bin_, bins_expected[i])
+    for i, _ in enumerate(bins__):
+        np.testing.assert_array_equal(bins__[i], bins_expected[i])
         np.testing.assert_array_equal(axes__[i], axes_expected[i])
         if ranges__ is not None:
             np.testing.assert_array_equal(ranges__[i], ranges_expected[i])
