@@ -21,10 +21,10 @@ Single-Event DataFrame (SED) documentation
    :numbered:
    :caption: Examples
 
-   tutorial/1_Binningfakedata.rst
-   tutorial/2_Binningofexampletime_resolvedARPESdata.rst
-   tutorial/3_ConversionPipelineforexampletime_resolvedARPESdata.rst
-   tutorial/4_MetadatacollectionandexporttoNeXus.rst
+   tutorial/1 - Binning fake data.rst 
+   tutorial/2 - Binning of example time-resolved ARPES data.rst
+   tutorial/3 - Conversion Pipeline for example time-resolved ARPES data.rst
+   tutorial/4 - Metadata collection and export to NeXus.rst
 
 .. toctree::
    :maxdepth: 2
