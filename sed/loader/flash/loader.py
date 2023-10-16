@@ -26,10 +26,10 @@ from pandas import DataFrame
 from pandas import MultiIndex
 from pandas import Series
 
-from sed.calibrator import dld
 from sed.core import dfops
 from sed.loader.base.loader import BaseLoader
 from sed.loader.flash.metadata import MetadataRetriever
+from sed.loader.flash.utils import split_dld_time_from_sector_id
 from sed.loader.utils import parse_h5_keys
 
 
@@ -595,8 +595,8 @@ class FlashLoader(BaseLoader):
             df = self.concatenate_channels(h5_file)
             df = df.dropna(subset=self._config["dataframe"].get("tof_column", "dldTimeSteps"))
             # correct the 3 bit shift which encodes the detector ID in the 8s time
-            if self._config["dataframe"].get("unravel_8s_detector_time_channel", False):
-                df = dld.unravel_8s_detector_time_channel(df, config=self._config)
+            if self._config["dataframe"].get("split_sector_id_from_dld_time", False):
+                df = split_dld_time_from_sector_id(df, config=self._config)
             return df
 
     def create_buffer_file(self, h5_path: Path, parquet_path: Path) -> Union[bool, Exception]:
@@ -623,7 +623,7 @@ class FlashLoader(BaseLoader):
         except Exception as exc:  # pylint: disable=broad-except
             self.failed_files_error.append(f"{parquet_path}: {type(exc)} {exc}")
             return exc
-        return False
+        return None
 
     def buffer_file_handler(self, data_parquet_dir: Path, detector: str):
         """
