@@ -26,7 +26,9 @@ jobs:
         run: poetry install -E notebook
 
       - name: Install pandoc
-        run: sudo apt-get install pandoc
+        run: |
+          sudo wget https://github.com/jgm/pandoc/releases/download/3.1.8/pandoc-3.1.8-1-amd64.deb
+          sudo dpkg -i pandoc-3.1.8-1-amd64.deb
 
       # Execute and convert notebooks
       - name: execute notebooks
