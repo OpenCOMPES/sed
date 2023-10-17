@@ -581,11 +581,15 @@ def test_add_jitter():
         system_config={},
     )
     res1 = processor.dataframe["X"].compute()
+    res1a = processor.dataframe["ADC"].compute()
     processor.add_jitter()
     res2 = processor.dataframe["X"].compute()
+    res2a = processor.dataframe["ADC"].compute()
     np.testing.assert_allclose(res1, np.round(res1))
     np.testing.assert_allclose(res1, np.round(res2))
     assert (res1 != res2).all()
+    # test that jittering is not applied on ADC column
+    np.testing.assert_allclose(res1a, res2a)
 
 
 def test_event_histogram():

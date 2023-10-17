@@ -30,6 +30,8 @@ def apply_jitter(
             with added jitter. Defaults to None.
         amps (Union[float, Sequence[float]], optional): Amplitude scalings for the
             jittering noise. If one number is given, the same is used for all axes.
+            For normal noise, the added noise will have sdev [-amp, +amp], for
+            uniform noise it will cover the interval [-amp, +amp].
             Defaults to 0.5.
         jitter_type (str, optional): the type of jitter to add. 'uniform' or 'normal'
             distributed noise. Defaults to "uniform".
