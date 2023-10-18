@@ -1,7 +1,7 @@
 name: pytest
 
-on:
-  pull_request
+# Triggers the workflow on push for all branches
+on: [push]
 
 jobs:
   pytest:
@@ -23,8 +23,9 @@ jobs:
       # Run pytest with coverage report and upload results to coveralls
       - name: Run tests on python 3.8
         run: |
-          poetry run pytest --cov=sed -n auto tests/
+          poetry run pytest --cov --full-trace --show-capture=no -sv -n auto tests/
       - name: Coveralls
         uses: coverallsapp/github-action@v2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          parallel: true

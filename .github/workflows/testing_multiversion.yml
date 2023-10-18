@@ -27,25 +27,4 @@ jobs:
       # Use cached python and dependencies, install poetry
       - name: Run tests on python ${{matrix.python-version}}
         run: |
-          poetry run pytest --cov=sed -n auto tests/
-
-      # run this job after each pytest job is finished
-      - name: Coveralls Parallel
-        uses: coverallsapp/github-action@v2
-        with:
-          flag-name: run-${{ join(matrix.*, '-') }}
-          parallel: true
-  
-  # run this job after all the pytest jobs are finished
-  # coveralls will combine the coverage reports and upload to coveralls.io
-  finish:
-    needs: pytest
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    steps:
-    - name: Coveralls Finished
-      uses: coverallsapp/github-action@v2
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        parallel-finished: true
-        carryforward: "run-3.8,run-3.9,run-3.10"
+          poetry run pytest--full-trace --show-capture=no -sv -n auto tests/
