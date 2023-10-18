@@ -289,7 +289,7 @@ def apply_offset_from_columns(
     if len(signs) != len(offset_columns):
         raise ValueError("signs and offset_columns must have the same length!")
 
-    for col, sign, red in zip(offset_columns, signs):
+    for col, sign, red in zip(offset_columns, signs, reductions):
         assert col in df.columns, f"{col} not in dataframe!"
         if red is not None:
             df[target_column] = df[target_column] + sign * df[col].agg(red)
