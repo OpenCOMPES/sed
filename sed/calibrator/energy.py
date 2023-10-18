@@ -2167,7 +2167,7 @@ def tof2ns(
     return val.astype(dtype)
 
 
-def apply_energy_shift(
+def apply_energy_offset(
     df: Union[pd.DataFrame, dask.dataframe.DataFrame],
     columns: Union[str, Sequence[str]],
     signs: Union[int, Sequence[int]],
@@ -2179,6 +2179,8 @@ def apply_energy_shift(
     config: dict = None,
 ) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
     """Apply an energy shift to the given column(s).
+
+    # TODO: This funcion can still be improved and needs testsing
 
     Args:
         df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to use.
@@ -2198,8 +2200,8 @@ def apply_energy_shift(
         columns = [columns]
     if isinstance(signs, int):
         signs = [signs]
-    if isinstance(mode, str):
-        mode = [mode] * len(columns)
+    # if isinstance(mode, str):
+    #     mode = [mode] * len(columns)
     if len(columns) != len(signs):
         raise ValueError("column_name and sign must have the same length.")
     with ProgressBar(
@@ -2226,30 +2228,34 @@ def apply_energy_shift(
                 window=window,
                 sigma=sigma,
             )
-        for col, s, m in zip(columns, signs, mode):
-            s = s / np.abs(s)  # ensure s is either +1 or -1
-            if m == "rolled":
-                col_rolled = col + "_rolled"
-            else:
-                col_rolled = col
-            if m in ["direct", "rolled"]:
-                df[col_rolled] = df.map_partitions(
-                    lambda x, c=col, s=s: x[energy_column] + s * x[c],
-                    meta=(col_rolled, np.float32),
-                )
-            elif m == "mean":
-                print("computing means...")
-                col_mean = df[col].mean()
-                df[col_rolled] = df.map_partitions(
-                    lambda x, c=col, s=s, m=col_mean: x[energy_column] + s * m,
-                    meta=(col_rolled, np.float32),
-                )
-            else:
-                raise ValueError(f"mode must be one of 'direct', 'mean' or 'rolled'. Got {m}.")
+
+        if mode in ["rolled", "direct"]:
+
+            def apply_shift(x, cols, signs):
+                shifts = [x[c] * s for c, s in zip(cols, signs)]
+                shift = None
+                for s in shifts:
+                    shift = shift + s if shift is not None else s
+                return x[energy_column] + shift
+
+            use_cols = columns if mode == "direct" else [c + "_rolled" for c in columns]
+            df[energy_column] = df.map_partitions(
+                apply_shift,
+                cols=use_cols,
+                signs=signs,
+                meta=(energy_column, np.float32),
+            )
+        elif mode == "mean":
+            with ProgressBar():
+                print("Computing means...")
+                means = dask.compute([df[c].mean() for c in columns])
+            df[energy_column] = df[energy_column] + signs * means
+        else:
+            raise ValueError(f"mode must be one of 'direct', 'mean' or 'rolled'. Got {mode}.")
     metadata: Dict[str, Any] = {
         "applied": True,
         "energy_column": energy_column,
-        "column_name": columns,
+        "column_names": columns,
         "sign": signs,
     }
     return df, metadata

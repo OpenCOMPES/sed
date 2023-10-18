@@ -44,6 +44,7 @@ def test_split_channel_bitwise_raises():
         "wrong",
         ["b", "c"],
         3,
+        False,
         [np.int8, np.int16],
     )
     pytest.raises(
@@ -53,6 +54,7 @@ def test_split_channel_bitwise_raises():
         "a",
         ["b", "c", "wrong"],
         3,
+        False,
         [np.int8, np.int16],
     )
     pytest.raises(
@@ -62,6 +64,7 @@ def test_split_channel_bitwise_raises():
         "a",
         ["b", "c"],
         -1,
+        False,
         [np.int8, np.int16],
     )
     pytest.raises(
@@ -71,6 +74,7 @@ def test_split_channel_bitwise_raises():
         "a",
         ["b", "c"],
         3,
+        False,
         [np.int8, np.int16, np.int32],
     )
     pytest.raises(ValueError, split_channel_bitwise, test_df, "a", ["b", "c"], 3, [np.int8])
@@ -81,6 +85,7 @@ def test_split_channel_bitwise_raises():
         "a",
         ["b", "c"],
         3,
+        False,
         ["wrong", np.int16],
     )
     other_df = pd.DataFrame(
@@ -89,4 +94,4 @@ def test_split_channel_bitwise_raises():
             "b": [0, 1, 2, 3, 4, 5, 6, 7],
         },
     )
-    pytest.raises(KeyError, split_channel_bitwise, other_df, "a", ["b", "c"], 3, None)
+    pytest.raises(KeyError, split_channel_bitwise, other_df, "a", ["b", "c"], 3, False, None)

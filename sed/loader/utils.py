@@ -99,6 +99,7 @@ def split_channel_bitwise(
     input_column: str,
     output_columns: Sequence[str],
     bit_mask: int,
+    overwrite: bool = False,
     types: Sequence[type] = None,
 ) -> dask.dataframe.DataFrame:
     """Splits a channel into two channels bitwise.
@@ -112,6 +113,9 @@ def split_channel_bitwise(
         input_column (str): Name of the column to split.
         output_columns (Sequence[str]): Names of the columns to create.
         bit_mask (int): Bit mask to use for splitting.
+        overwrite (bool, optional): Whether to overwrite existing columns.
+            Defaults to False.
+        types (Sequence[type], optional): Types of the new columns.
 
     Returns:
         dask.dataframe.DataFrame: Dataframe with the new columns.
@@ -120,9 +124,9 @@ def split_channel_bitwise(
         raise ValueError("Exactly two output columns must be given.")
     if input_column not in df.columns:
         raise KeyError(f"Column {input_column} not in dataframe.")
-    if output_columns[0] in df.columns:
+    if output_columns[0] in df.columns and not overwrite:
         raise KeyError(f"Column {output_columns[0]} already in dataframe.")
-    if output_columns[1] in df.columns:
+    if output_columns[1] in df.columns and not overwrite:
         raise KeyError(f"Column {output_columns[1]} already in dataframe.")
     if bit_mask < 0 or not isinstance(bit_mask, int):
         raise ValueError("bit_mask must be a positive. integer")

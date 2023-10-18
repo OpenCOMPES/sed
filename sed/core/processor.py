@@ -19,7 +19,6 @@ import xarray as xr
 
 from sed.binning import bin_dataframe
 from sed.calibrator import DelayCalibrator
-from sed.calibrator import dld
 from sed.calibrator import energy
 from sed.calibrator import EnergyCalibrator
 from sed.calibrator import MomentumCorrector
@@ -1126,6 +1125,142 @@ class SedProcessor:
             else:
                 print(self._dataframe)
 
+    def apply_energy_offset(
+        self,
+        constant: float = None,
+        columns: Union[str, Sequence[str]] = None,
+        signs: Union[int, Sequence[int]] = None,
+        mode: Union[str, Sequence[str]] = "direct",
+        window: float = None,
+        sigma: float = None,
+        rolling_group_channel: str = None,
+    ) -> None:
+        """Shift the energy axis of the dataframe by a given amount.
+
+        Args:
+            constant (float, optional): The constant to shift the energy axis by.
+            columns (Union[str, Sequence[str]]): The columns to shift.
+            signs (Union[int, Sequence[int]]): The sign of the shift.
+            mode (Union[str, Sequence[str]], optional): The mode of the shift.
+                Defaults to "direct".
+            window (float, optional): The window size for the rolling mean.
+                Defaults to None.
+            sigma (float, optional): The sigma for the rolling mean.
+                Defaults to 2.
+            rolling_group_channel (str, optional): The channel to use for the rolling
+                mean. Defaults to None.
+
+        Raises:
+            ValueError: If the energy column is not in the dataframe.
+        """
+        if columns is None and constant is None:
+            offset_dict = self._config["energy"].get("offset", None)
+            if offset_dict is None:
+                raise ValueError(
+                    "No offset parameters provided and no offset found in config file!",
+                )
+            constant = offset_dict["constant"]
+            columns = []
+            signs = []
+            modes = []
+            windows = []
+            sigmas = []
+            for k, v in offset_dict:
+                columns.append(k)
+                signs.append(v["sign"])
+                modes.append(v["mode"])
+                windows.append(v.get("window", None))
+                sigmas.append(v.get("sigma", None))
+
+        energy_column = self._config["dataframe"]["energy_column"]
+        if energy_column not in self._dataframe.columns:
+            raise ValueError(
+                f"Energy column {energy_column} not found in dataframe! "
+                "Run energy calibration first",
+            )
+        self._dataframe, metadata = energy.apply_energy_offset(
+            df=self._dataframe,
+            columns=columns,
+            signs=signs,
+            mode=mode,
+            window=window,
+            sigma=sigma,
+            rolling_group_channel=rolling_group_channel,
+            config=self._config,
+        )
+        self._dataframe[energy_column] += constant
+        metadata["offset"] = constant
+        self._attributes.add(
+            metadata,
+            "apply_energy_offset",
+            # TODO: allow only appending when no offset along this column(s) was applied
+            duplicate_policy="append",
+        )
+
+    def tof_step_to_ns(
+        self,
+        tof_ns_column: str = None,
+        **kwargs,
+    ):
+        """Convert time-of-flight channel steps to nanoseconds.
+
+        Args:
+            tof_ns_column (str, optional): Name of the generated column containing the
+                time-of-flight in nanosecond.
+                Defaults to config["dataframe"]["tof_ns_column"].
+            kwargs: additional arguments are passed to ``energy.tof_step_to_ns``.
+
+        """
+        if self._dataframe is not None:
+            print("Adding time-of-flight column in nanoseconds to dataframe:")
+            # TODO assert order of execution through metadata
+
+            self._dataframe, metadata = energy.tof_step_to_ns(
+                df=self._dataframe,
+                tof_ns_column=tof_ns_column,
+                config=self._config,
+                **kwargs,
+            )
+            self._attributes.add(
+                metadata,
+                "step_to_ns",
+                duplicate_policy="append",
+            )
+
+    def align_dld_sectors(
+        self,
+        sector_delays: Sequence[float] = None,
+        sector_id_column: str = None,
+        tof_column: str = None,
+    ):
+        """Align the 8s sectors of the HEXTOF endstation.
+
+        Intended for use with HEXTOF endstation
+
+        Args:
+            sector_delays (Sequence[float], optional): Delays of the 8s sectors in
+                picoseconds. Defaults to config["dataframe"]["sector_delays"].
+            sector_id_column (str, optional): Name of the column containing the
+                sector id. Defaults to config["dataframe"]["sector_id_column"].
+            tof_column (str, optional): Name of the column containing the
+                time-of-flight. Defaults to config["dataframe"]["tof_column"].
+        """
+        if self._dataframe is not None:
+            print("Aligning 8s sectors of dataframe")
+            # TODO assert order of execution through metadata
+            self._dataframe, metadata = energy.align_dld_sectors(
+                df=self._dataframe,
+                sector_delays=sector_delays,
+                sector_id_column=sector_id_column,
+                tof_column=tof_column,
+                config=self._config,
+            )
+            self._attributes.add(
+                metadata,
+                "sector_alignment",
+                duplicate_policy="raise",
+            )
+
     # Delay calibration function
     def calibrate_delay_axis(
         self,
@@ -1182,54 +1317,6 @@ class SedProcessor:
             else:
                 print(self._dataframe)
 
-    def shift_energy_axis(
-        self,
-        columns: Union[str, Sequence[str]],
-        signs: Union[int, Sequence[int]],
-        mode: Union[str, Sequence[str]] = "direct",
-        window: float = None,
-        sigma: float = 2,
-        rolling_group_channel: str = None,
-    ) -> None:
-        """Shift the energy axis of the dataframe by a given amount.
-
-        Args:
-            columns (Union[str, Sequence[str]]): The columns to shift.
-            signs (Union[int, Sequence[int]]): The sign of the shift.
-            mode (Union[str, Sequence[str]], optional): The mode of the shift.
-                Defaults to "direct".
-            window (float, optional): The window size for the rolling mean.
-                Defaults to None.
-            sigma (float, optional): The sigma for the rolling mean.
-                Defaults to 2.
-            rolling_group_channel (str, optional): The channel to use for the rolling
-                mean. Defaults to None.
-
-        Raises:
-            ValueError: If the energy column is not in the dataframe.
-        """
-        energy_column = self._config["dataframe"]["energy_column"]
-        if energy_column not in self._dataframe.columns:
-            raise ValueError(
-                f"Energy column {energy_column} not found in dataframe! "
-                "Run energy calibration first",
-            )
-        self._dataframe, metadata = energy.apply_energy_shift(
-            df=self._dataframe,
-            columns=columns,
-            signs=signs,
-            mode=mode,
-            window=window,
-            sigma=sigma,
-            rolling_group_channel=rolling_group_channel,
-            config=self._config,
-        )
-        self._attributes.add(
-            metadata,
-            "shift_energy_axis",
-            duplicate_policy="raise",
-        )
-
     def add_jitter(self, cols: Sequence[str] = None):
         """Add jitter to the selected dataframe columns.
 
@@ -1252,77 +1339,6 @@ class SedProcessor:
         for col in cols:
             metadata.append(col)
         self._attributes.add(metadata, "jittering", duplicate_policy="append")
-
-    def tof_step_to_ns(
-        self,
-        tof_ns_column: str = None,
-        tof_binwidth: float = None,
-        tof_column: str = None,
-        tof_binning: int = None,
-    ):
-        """Convert time-of-flight channel steps to nanoseconds.
-
-        Args:
-            tof_binwidth (float, optional): Time step size in nanoseconds.
-                Defaults to config["dataframe"]["tof_binwidth"].
-            tof_column (str, optional): Name of the column containing the
-                time-of-flight steps. Defaults to config["dataframe"]["tof_column"].
-            tof_column (str, optional): Name of the column containing the
-                time-of-flight. Defaults to config["dataframe"]["tof_column"].
-            tof_binning (int, optional): Binning of the time-of-flight steps.
-
-        """
-        if self._dataframe is not None:
-            print("Adding time-of-flight column in nanoseconds to dataframe:")
-            # TODO assert order of execution through metadata
-
-            self._dataframe, metadata = energy.tof_step_to_ns(
-                df=self._dataframe,
-                tof_ns_column=tof_ns_column,
-                tof_binwidth=tof_binwidth,
-                tof_column=tof_column,
-                tof_binning=tof_binning,
-                config=self._config,
-            )
-            self._attributes.add(
-                metadata,
-                "step_to_ns",
-                duplicate_policy="append",
-            )
-
-    def align_dld_sectors(
-        self,
-        sector_delays: Sequence[float] = None,
-        sector_id_column: str = None,
-        tof_column: str = None,
-    ):
-        """Align the 8s sectors of the HEXTOF endstation.
-
-        Intended for use with HEXTOF endstation
-
-        Args:
-            sector_delays (Sequence[float], optional): Delays of the 8s sectors in
-                picoseconds. Defaults to config["dataframe"]["sector_delays"].
-            sector_id_column (str, optional): Name of the column containing the
-                sector id. Defaults to config["dataframe"]["sector_id_column"].
-            tof_column (str, optional): Name of the column containing the
-                time-of-flight. Defaults to config["dataframe"]["tof_column"].
-        """
-        if self._dataframe is not None:
-            print("Aligning 8s sectors of dataframe")
-            # TODO assert order of execution through metadata
-            self._dataframe, metadata = dld.align_dld_sectors(
-                df=self._dataframe,
-                sector_delays=sector_delays,
-                sector_id_column=sector_id_column,
-                tof_column=tof_column,
-                config=self._config,
-            )
-            self._attributes.add(
-                metadata,
-                "sector_alignment",
-                duplicate_policy="raise",
-            )
 
     def pre_binning(
         self,

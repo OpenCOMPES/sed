@@ -1,6 +1,7 @@
 from typing import Union
 
 import dask.dataframe
+import numpy as np
 import pandas as pd
 
 from ..utils import split_channel_bitwise
@@ -54,5 +55,7 @@ def split_dld_time_from_sector_id(
         input_column=tof_column,
         output_columns=[sector_id_column, tof_column],
         bit_mask=sector_id_reserved_bits,
+        overwrite=True,
+        types=[np.int8, np.int32],
     )
     return df
