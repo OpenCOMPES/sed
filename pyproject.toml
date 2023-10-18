@@ -7,7 +7,7 @@ authors = ["Muhammad Zain Sohail <zainsohail04@gmail.com>"]
 [tool.poetry.dependencies]
 python = ">=3.8,<3.11"
 bokeh = "^2.4.2"
-dask = ">=2021.12.0, <2023.0.0"
+dask = ">=2021.12.0,<2024.0.0"
 fastdtw = "^0.3.4"
 fastparquet = "^0.8.0"
 h5py = "^3.6.0"
