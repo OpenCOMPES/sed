@@ -253,3 +253,46 @@ def rolling_average_on_acquisition_time(
             if c + "_rolled" in df.columns:
                 df = df.drop(c + "_rolled", axis=1)
     return df.merge(df_, left_on="timeStamp", right_on="ts").drop(["ts", "dt"], axis=1)
+
+
+def apply_offset_from_columns(
+    df: Union[pd.DataFrame, dask.dataframe.DataFrame],
+    target_column: str,
+    offset_columns: Union[str, Sequence[str]],
+    signs: Union[int, Sequence[int]],
+    reductions: Union[str, Sequence[str]],
+    inplace: bool = True,
+) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
+    """Apply an offset to a column based on the values of other columns.
+
+    Args:
+        df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to use.
+        target_column (str): Name of the column to apply the offset to.
+        offset_columns (str): Name of the column(s) to use for the offset.
+        signs (int): Sign of the offset. Defaults to 1.
+        reductions (str): Reduction function to use for the offset. Defaults to "mean".
+
+    Returns:
+        Union[pd.DataFrame, dask.dataframe.DataFrame]: Dataframe with the new column.
+    """
+    if isinstance(offset_columns, str):
+        offset_columns = [offset_columns]
+    if not inplace:
+        df[target_column + "_offset"] = df[target_column]
+        target_column = target_column + "_offset"
+    if reductions is None:
+        reductions = "mean"
+    if isinstance(reductions, str):
+        reductions = [reductions] * len(offset_columns)
+    if isinstance(signs, int):
+        signs = [signs]
+    if len(signs) != len(offset_columns):
+        raise ValueError("signs and offset_columns must have the same length!")
+
+    for col, sign, red in zip(offset_columns, signs):
+        assert col in df.columns, f"{col} not in dataframe!"
+        if red is not None:
+            df[target_column] = df[target_column] + sign * df[col].agg(red)
+        else:
+            df[target_column] = df[target_column] + sign * df[col]
+    return df

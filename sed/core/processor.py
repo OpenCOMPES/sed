@@ -6,6 +6,7 @@ from typing import Any
 from typing import cast
 from typing import Dict
 from typing import List
+from typing import Literal
 from typing import Sequence
 from typing import Tuple
 from typing import Union
@@ -25,6 +26,7 @@ from sed.calibrator import MomentumCorrector
 from sed.core.config import parse_config
 from sed.core.config import save_config
 from sed.core.dfops import apply_jitter
+from sed.core.dfops import rolling_average_on_acquisition_time
 from sed.core.metadata import MetaHandler
 from sed.diagnostics import grid_histogram
 from sed.io import to_h5
@@ -1339,6 +1341,43 @@ class SedProcessor:
         for col in cols:
             metadata.append(col)
         self._attributes.add(metadata, "jittering", duplicate_policy="append")
+
+    def smooth_columns(
+        self,
+        columns: Union[str, Sequence[str]] = None,
+        method: Literal["rolling"] = "rolling",
+        **kwargs,
+    ) -> None:
+        """Apply a filter along one or more columns of the dataframe.
+
+        Currently only supports rolling average on acquisition time.
+
+        Args:
+            columns (Union[str,Sequence[str]]): The colums onto which to apply the filter.
+            method (Literal['rolling'], optional): The filter method. Defaults to 'rolling'.
+            **kwargs: Keyword arguments passed to the filter method.
+        """
+        if isinstance(columns, str):
+            columns = [columns]
+        for column in columns:
+            if column not in self._dataframe.columns:
+                raise ValueError(f"Cannot smooth {column}. Column not in dataframe!")
+        kwargs = {**self._config["smooth"], **kwargs}
+        if method == "rolling":
+            self._dataframe = rolling_average_on_acquisition_time(
+                df=self._dataframe,
+                rolling_group_channel=kwargs.get("rolling_group_channel", None),
+                columns=columns or kwargs.get("columns", None),
+                window=kwargs.get("window", None),
+                sigma=kwargs.get("sigma", None),
+            )
+        else:
+            raise ValueError(f"Method {method} not supported!")
+        self._attributes.add(
+            columns,
+            "smooth",
+            duplicate_policy="append",
+        )
 
     def pre_binning(
         self,
