@@ -1172,9 +1172,8 @@ class SedProcessor:
             duplicate_policy="append",
         )
 
-    def tof_step_to_ns(
+    def append_tof_ns_axis(
         self,
-        tof_ns_column: str = None,
         **kwargs,
     ):
         """Convert time-of-flight channel steps to nanoseconds.
@@ -1190,15 +1189,13 @@ class SedProcessor:
             print("Adding time-of-flight column in nanoseconds to dataframe:")
             # TODO assert order of execution through metadata
 
-            self._dataframe, metadata = energy.tof_step_to_ns(
+            self._dataframe, metadata = self.ec.append_tof_ns_axis(
                 df=self._dataframe,
-                tof_ns_column=tof_ns_column,
-                config=self._config,
                 **kwargs,
             )
             self._attributes.add(
                 metadata,
-                "step_to_ns",
+                "tof_ns_conversion",
                 duplicate_policy="append",
             )
 

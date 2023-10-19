@@ -96,6 +96,7 @@ class EnergyCalibrator:
         self.calibration: Dict[Any, Any] = {}
 
         self.tof_column = self._config["dataframe"]["tof_column"]
+        self.tof_ns_column = self._config["dataframe"].get("tof_ns_column", None)
         self.corrected_tof_column = self._config["dataframe"]["corrected_tof_column"]
         self.energy_column = self._config["dataframe"]["energy_column"]
         self.x_column = self._config["dataframe"]["x_column"]
@@ -878,6 +879,53 @@ class EnergyCalibrator:
 
         metadata = self.gather_calibration_metadata(calibration)
 
+        return df, metadata
+
+    def append_tof_ns_axis(
+        self,
+        df: Union[pd.DataFrame, dask.dataframe.DataFrame],
+        tof_column: str = None,
+        tof_ns_column: str = None,
+        **kwds,
+    ) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
+        """Converts the time-of-flight time from steps to time in ns.
+
+        # TODO: needs tests
+
+        Args:
+            df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to convert.
+            tof_column (str, optional): Name of the column containing the
+                time-of-flight steps. Defaults to config["dataframe"]["tof_column"].
+            tof_ns_column (str, optional): Name of the column to store the
+                time-of-flight in nanoseconds. Defaults to config["dataframe"]["tof_ns_column"].
+
+        Returns:
+            dask.dataframe.DataFrame: Dataframe with the new columns.
+            dict: Metadata dictionary.
+        """
+        binwidth = kwds.pop("binwidth", self.binwidth)
+        binning = kwds.pop("binning", self.binning)
+        if tof_column is None:
+            if self.corrected_tof_column in df.columns:
+                tof_column = self.corrected_tof_column
+            else:
+                tof_column = self.tof_column
+
+        if tof_ns_column is None:
+            tof_ns_column = self.tof_ns_column
+        if tof_ns_column is None:
+            raise AttributeError("tof_ns_column not set!")
+
+        df[tof_ns_column] = tof2ns(
+            binwidth,
+            binning,
+            df[tof_column].astype("float64"),
+        )
+        metadata: Dict[str, Any] = {
+            "applied": True,
+            "binwidth": binwidth,
+            "binning": binning,
+        }
         return df, metadata
 
     def gather_calibration_metadata(self, calibration: dict = None) -> dict:
@@ -2088,80 +2136,23 @@ def tof2evpoly(
     return energy
 
 
-def tof_step_to_ns(
-    df: Union[pd.DataFrame, dask.dataframe.DataFrame],
-    tof_ns_column: str = None,
-    tof_binwidth: float = None,
-    tof_column: str = None,
-    tof_binning: int = None,
-    config: dict = None,
-) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
-    """Converts the time-of-flight time from steps to time in ns.
-
-    Args:
-        df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to convert.
-        tof_ns_column (str, optional): Name of the column to store the
-            time-of-flight in nanoseconds. Defaults to config["dataframe"]["tof_ns_column"].
-        tof_binwidth (float, optional): Time step size in nanoseconds.
-            Defaults to config["dataframe"]["tof_binwidth"].
-        tof_column (str, optional): Name of the column containing the
-            time-of-flight steps. Defaults to config["dataframe"]["tof_column"].
-        tof_binning (int, optional): Binning of the time-of-flight steps.
-
-    Returns:
-        dask.dataframe.DataFrame: Dataframe with the new columns.
-        dict: Metadata dictionary.
-    """
-    if tof_binwidth is None:
-        if config is None:
-            raise ValueError("Either tof_binwidth or config must be given.")
-        tof_binwidth = config["dataframe"]["tof_binwidth"]
-    if tof_column is None:
-        if config is None:
-            raise ValueError("Either tof_column or config must be given.")
-        tof_column = config["dataframe"]["tof_column"]
-    if tof_binning is None:
-        if config is None:
-            raise ValueError("Either tof_binning or config must be given.")
-        tof_binning = config["dataframe"]["tof_binning"]
-    if tof_ns_column is None:
-        if config is None:
-            raise ValueError("Either tof_ns_column or config must be given.")
-        tof_ns_column = config["dataframe"].get("tof_ns_column", None)
-        if tof_ns_column is None:
-            raise ValueError("No value for tof_ns_column present in config.")
-
-    def func(x):
-        return tof2ns(x[tof_column], tof_binwidth, tof_binning)
-
-    df[tof_ns_column] = df.map_partitions(func, meta=(tof_column, np.float64))
-    metadata: Dict[str, Any] = {
-        "applied": True,
-        "tof_binwidth": tof_binwidth,
-        "tof_binning": tof_binning,
-    }
-    return df, metadata
-
-
 def tof2ns(
-    x: Union[List[float], np.ndarray],
-    tof_binwidth: float,
-    tof_binning: int,
+    binwidth: float,
+    binning: int,
+    t: float,
 ) -> Union[List[float], np.ndarray]:
     """Converts the time-of-flight steps to time-of-flight in nanoseconds.
 
     designed for use with dask.dataframe.DataFrame.map_partitions.
 
     Args:
-        x (Union[List[float], np.ndarray]): Time-of-flight steps.
-        tof_column (str): Name of the column containing the time-of-flight steps.
-        tof_binwidth (float): Time step size in nanoseconds.
-        tof_binning (int): Binning of the time-of-flight steps.
-
+        binwidth (float): Time step size in nanoseconds.
+        binning (int): Binning of the time-of-flight steps.
+        t (float): TOF value in bin number.
     Returns:
-        Union[pd.DataFrame, dask.dataframe.DataFrame]: Dataframe with the new column.
+        float: Converted time in nanoseconds.
     """
-    val = x * tof_binwidth * 2**tof_binning
+    val = t * binwidth * 2**binning
     return val
 
 
@@ -2176,6 +2167,7 @@ def apply_energy_offset(
     """Apply an energy shift to the given column(s).
 
     # TODO: This funcion can still be improved and needs testsing
+    # TODO: move inside the ec class
 
     Args:
         df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to use.
@@ -2243,6 +2235,8 @@ def align_dld_sectors(
     config: dict = None,
 ) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
     """Aligns the time-of-flight axis of the different sections of a detector.
+
+    # TODO: move inside the ec class
 
     Args:
         df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to use.
