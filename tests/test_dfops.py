@@ -7,6 +7,7 @@ import pytest
 
 from sed.core.dfops import apply_filter
 from sed.core.dfops import apply_jitter
+from sed.core.dfops import backward_fill_lazy
 from sed.core.dfops import drop_column
 from sed.core.dfops import forward_fill_lazy
 from sed.core.dfops import map_columns_2d
@@ -136,3 +137,111 @@ def test_forward_fill_lazy_keep_head_nans():
     t_df = forward_fill_lazy(t_dask_df, "energy", before="max").compute()
     assert np.all(np.isnan(t_df["energy"][:5]))
     assert np.all(np.isfinite(t_df["energy"][5:]))
+
+
+def test_forward_fill_lazy_no_channels():
+    """test that a lazy forward fill raises an error when no channels are specified"""
+    t_df = df.copy()
+    t_dask_df = ddf.from_pandas(t_df, npartitions=N_PARTITIONS)
+    with pytest.raises(ValueError):
+        t_dask_df = forward_fill_lazy(t_dask_df, [])
+
+
+def test_forward_fill_lazy_wrong_channels():
+    """test that a lazy forward fill raises an error when the specified channels do not exist"""
+    t_df = df.copy()
+    t_dask_df = ddf.from_pandas(t_df, npartitions=N_PARTITIONS)
+    with pytest.raises(KeyError):
+        t_dask_df = forward_fill_lazy(t_dask_df, ["nonexistent_channel"])
+
+
+def test_forward_fill_lazy_multiple_iterations():
+    """test that a lazy forward fill works as expected with multiple iterations"""
+    t_df = df.copy()
+    t_df["energy"][5:35] = np.nan
+    t_dask_df = ddf.from_pandas(t_df, npartitions=N_PARTITIONS)
+    t_dask_df = forward_fill_lazy(t_dask_df, "energy", before="max", iterations=5)
+    t_df = t_df.ffill()
+    pd.testing.assert_frame_equal(t_df, t_dask_df.compute())
+
+
+def test_backward_fill_lazy():
+    """Test backward fill function"""
+    t_df = pd.DataFrame(
+        {
+            "A": [1, 2, np.nan, np.nan, 5, np.nan],
+            "B": [1, np.nan, 3, np.nan, 5, np.nan],
+            "C": [np.nan, np.nan, np.nan, np.nan, np.nan, 6],
+            "D": [1, 2, 3, 4, 5, 6],
+        },
+    )
+    t_dask_df = ddf.from_pandas(t_df, npartitions=2)
+    t_dask_df = backward_fill_lazy(t_dask_df, ["A", "B", "C"], after=2, iterations=2)
+    t_df = t_df.bfill().bfill()
+    pd.testing.assert_frame_equal(t_df, t_dask_df.compute())
+
+
+def test_backward_fill_lazy_no_channels():
+    """Test that an error is raised when no channels are specified"""
+    t_df = pd.DataFrame(
+        {
+            "A": [1, 2, np.nan, np.nan, 5, np.nan],
+            "B": [1, np.nan, 3, np.nan, 5, np.nan],
+            "C": [np.nan, np.nan, np.nan, np.nan, np.nan, 6],
+            "D": [1, 2, 3, 4, 5, 6],
+        },
+    )
+    t_dask_df = ddf.from_pandas(t_df, npartitions=2)
+    with pytest.raises(ValueError):
+        t_dask_df = backward_fill_lazy(t_dask_df, [], after=2, iterations=2)
+
+
+def test_backward_fill_lazy_wrong_channels():
+    """Test that an error is raised when the specified channels do not exist"""
+    t_df = pd.DataFrame(
+        {
+            "A": [1, 2, np.nan, np.nan, 5, np.nan],
+            "B": [1, np.nan, 3, np.nan, 5, np.nan],
+            "C": [np.nan, np.nan, np.nan, np.nan, np.nan, 6],
+            "D": [1, 2, 3, 4, 5, 6],
+        },
+    )
+    t_dask_df = ddf.from_pandas(t_df, npartitions=2)
+    with pytest.raises(KeyError):
+        t_dask_df = backward_fill_lazy(t_dask_df, ["nonexistent_channel"], after=2, iterations=2)
+
+
+def test_backward_fill_lazy_wrong_after():
+    """Test that an error is raised when the 'after' parameter is not an integer or 'max'"""
+    t_df = pd.DataFrame(
+        {
+            "A": [1, 2, np.nan, np.nan, 5, np.nan],
+            "B": [1, np.nan, 3, np.nan, 5, np.nan],
+            "C": [np.nan, np.nan, np.nan, np.nan, np.nan, 6],
+            "D": [1, 2, 3, 4, 5, 6],
+        },
+    )
+    t_dask_df = ddf.from_pandas(t_df, npartitions=2)
+    with pytest.raises(TypeError):
+        t_dask_df = backward_fill_lazy(
+            t_dask_df,
+            ["A", "B", "C"],
+            after="wrong_parameter",
+            iterations=2,
+        )
+
+
+def test_backward_fill_lazy_multiple_iterations():
+    """Test that the function works with multiple iterations"""
+    t_df = pd.DataFrame(
+        {
+            "A": [1, 2, np.nan, np.nan, 5, np.nan],
+            "B": [1, np.nan, 3, np.nan, 5, np.nan],
+            "C": [np.nan, np.nan, np.nan, np.nan, np.nan, 6],
+            "D": [1, 2, 3, 4, 5, 6],
+        },
+    )
+    t_dask_df = ddf.from_pandas(t_df, npartitions=2)
+    t_dask_df = backward_fill_lazy(t_dask_df, ["A", "B", "C"], after=2, iterations=2)
+    t_df = t_df.bfill().bfill().bfill().bfill()
+    pd.testing.assert_frame_equal(t_df, t_dask_df.compute())

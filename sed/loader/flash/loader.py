@@ -752,7 +752,7 @@ class FlashLoader(BaseLoader):
 
             dataframe = dfops.forward_fill_lazy(
                 df=dataframe,
-                channels=channels,
+                columns=channels,
                 before=overlap,
                 iterations=self._config["dataframe"].get("forward_fill_iterations", 2),
             )
