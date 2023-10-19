@@ -1199,37 +1199,15 @@ class SedProcessor:
                 duplicate_policy="append",
             )
 
-    def align_dld_sectors(
-        self,
-        sector_delays: Sequence[float] = None,
-        sector_id_column: str = None,
-        tof_column: str = None,
-    ):
-        """Align the 8s sectors of the HEXTOF endstation.
-
-        Intended for use with HEXTOF endstation
-
-        Args:
-            sector_delays (Sequence[float], optional): Delays of the 8s sectors in
-                picoseconds. Defaults to config["dataframe"]["sector_delays"].
-            sector_id_column (str, optional): Name of the column containing the
-                sector id. Defaults to config["dataframe"]["sector_id_column"].
-            tof_column (str, optional): Name of the column containing the
-                time-of-flight. Defaults to config["dataframe"]["tof_column"].
-        """
+    def align_dld_sectors(self, **kwargs):
+        """Align the 8s sectors of the HEXTOF endstation."""
         if self._dataframe is not None:
             print("Aligning 8s sectors of dataframe")
             # TODO assert order of execution through metadata
-            self._dataframe, metadata = energy.align_dld_sectors(
-                df=self._dataframe,
-                sector_delays=sector_delays,
-                sector_id_column=sector_id_column,
-                tof_column=tof_column,
-                config=self._config,
-            )
+            self._dataframe, metadata = self.ec.align_dld_sectors(df=self._dataframe, **kwargs)
             self._attributes.add(
                 metadata,
-                "sector_alignment",
+                "dld_sector_alignment",
                 duplicate_policy="raise",
             )
 

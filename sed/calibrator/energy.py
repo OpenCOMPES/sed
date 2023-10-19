@@ -110,6 +110,8 @@ class EnergyCalibrator:
         ) / 2 ** (self.binning - 1)
         self.tof_fermi = self._config["energy"]["tof_fermi"] / 2 ** (self.binning - 1)
         self.color_clip = self._config["energy"]["color_clip"]
+        self.sector_delays = self._config["dataframe"].get("sector_delays", None)
+        self.sector_id_column = self._config["dataframe"].get("sector_id_column", None)
 
         self.correction: Dict[Any, Any] = {}
 
@@ -1407,6 +1409,49 @@ class EnergyCalibrator:
 
         return metadata
 
+    def align_dld_sectors(
+        self,
+        df: Union[pd.DataFrame, dask.dataframe.DataFrame],
+        **kwds,
+        # sector_delays: Sequence[float] = None,
+        # sector_id_column: str = None,
+        # tof_column: str = None,
+    ) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
+        """Aligns the time-of-flight axis of the different sections of a detector.
+
+        # TODO: move inside the ec class
+
+        Args:
+            df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to use.
+
+                    Returns:
+            dask.dataframe.DataFrame: Dataframe with the new columns.
+            dict: Metadata dictionary.
+        """
+        sector_delays = kwds.pop("sector_delays", self.sector_delays)
+        sector_id_column = kwds.pop("sector_id_column", self.sector_id_column)
+
+        if sector_delays is None or sector_id_column is None:
+            raise ValueError(
+                "No value for sector_delays or sector_id_column found in config."
+                "config file is not properly configured for dld sector correction.",
+            )
+        tof_column = kwds.pop("tof_column", self.tof_column)
+
+        # align the 8s sectors
+        sector_delays_arr = dask.array.from_array(sector_delays)
+
+        def align_sector(x):
+            val = x[tof_column] - sector_delays_arr[x[sector_id_column].values.astype(int)]
+            return val.astype(np.float32)
+
+        df[tof_column] = df.map_partitions(align_sector, meta=(tof_column, np.float32))
+        metadata: Dict[str, Any] = {
+            "applied": True,
+            "sector_delays": sector_delays,
+        }
+        return df, metadata
+
 
 def extract_bias(files: List[str], bias_key: str) -> np.ndarray:
     """Read bias values from hdf5 files
@@ -2223,62 +2268,5 @@ def apply_energy_offset(
         "energy_column": energy_column,
         "column_names": columns,
         "sign": signs,
-    }
-    return df, metadata
-
-
-def align_dld_sectors(
-    df: Union[pd.DataFrame, dask.dataframe.DataFrame],
-    sector_delays: Sequence[float] = None,
-    sector_id_column: str = None,
-    tof_column: str = None,
-    config: dict = None,
-) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
-    """Aligns the time-of-flight axis of the different sections of a detector.
-
-    # TODO: move inside the ec class
-
-    Args:
-        df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to use.
-        sector_delays (Sequece[float], optional): Sector delays for the 8s time.
-            in units of step. Calibration should be done with binning along dldTimeSteps.
-            Defaults to config["dataframe"]["sector_delays"].
-        sector_id_column (str, optional): Name of the column containing the
-            sectorID. Defaults to config["dataframe"]["sector_id_column"].
-        tof_column (str, optional): Name of the column containing the
-            time-of-flight. Defaults to config["dataframe"]["tof_column"].
-        config (dict, optional): Configuration dictionary. Defaults to None.
-
-    Returns:
-        dask.dataframe.DataFrame: Dataframe with the new columns.
-        dict: Metadata dictionary.
-    """
-    if sector_delays is None:
-        if config is None:
-            raise ValueError("Either sector_delays or config must be given.")
-        sector_delays = config["dataframe"].get("sector_delays", None)
-        if sector_delays is None:
-            raise ValueError("No value for sector_delays found in config.")
-    if sector_id_column is None:
-        if config is None:
-            raise ValueError("Either sector_id_column or config must be given.")
-        sector_id_column = config["dataframe"].get("sector_id_column", None)
-        if sector_id_column is None:
-            raise ValueError("No value for sector_id_column found in config.")
-    if tof_column is None:
-        if config is None:
-            raise ValueError("Either tof_column or config must be given.")
-        tof_column = config["dataframe"]["tof_column"]
-    # align the 8s sectors
-    sector_delays_arr = dask.array.from_array(sector_delays)
-
-    def align_sector(x):
-        val = x[tof_column] - sector_delays_arr[x[sector_id_column].values.astype(int)]
-        return val.astype(np.float32)
-
-    df[tof_column] = df.map_partitions(align_sector, meta=(tof_column, np.float32))
-    metadata: Dict[str, Any] = {
-        "applied": True,
-        "sector_delays": sector_delays,
     }
     return df, metadata
