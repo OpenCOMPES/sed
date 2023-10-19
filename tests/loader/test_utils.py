@@ -1,3 +1,5 @@
+"""Module tests.loader.test_utils, tests for the sed.load.utils file
+"""
 import dask.dataframe as dd
 import numpy as np
 import pandas as pd
@@ -13,7 +15,8 @@ test_df = pd.DataFrame(
 
 
 @pytest.fixture
-def input_df():
+def input_df():  # pylint: disable=redefined-outer-name
+    """Fixture for input dataframe"""
     return pd.DataFrame(
         {
             "input_column": [0, 1, 2, 3, 4, 5, 6, 7],
@@ -22,6 +25,7 @@ def input_df():
 
 
 def test_split_channel_bitwise(input_df):
+    """Test split_channel_bitwise function"""
     output_columns = ["output1", "output2"]
     bit_mask = 2
     expected_output = pd.DataFrame(
@@ -37,6 +41,7 @@ def test_split_channel_bitwise(input_df):
 
 
 def test_split_channel_bitwise_raises():
+    """Test split_channel_bitwise function raises"""
     pytest.raises(
         KeyError,
         split_channel_bitwise,
@@ -77,7 +82,7 @@ def test_split_channel_bitwise_raises():
         False,
         [np.int8, np.int16, np.int32],
     )
-    pytest.raises(ValueError, split_channel_bitwise, test_df, "a", ["b", "c"], 3, [np.int8])
+    pytest.raises(ValueError, split_channel_bitwise, test_df, "a", ["b", "c"], 3, False, [np.int8])
     pytest.raises(
         ValueError,
         split_channel_bitwise,

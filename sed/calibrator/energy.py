@@ -2147,7 +2147,6 @@ def tof2ns(
     x: Union[List[float], np.ndarray],
     tof_binwidth: float,
     tof_binning: int,
-    dtype: type = np.float64,
 ) -> Union[List[float], np.ndarray]:
     """Converts the time-of-flight steps to time-of-flight in nanoseconds.
 
@@ -2162,8 +2161,8 @@ def tof2ns(
     Returns:
         Union[pd.DataFrame, dask.dataframe.DataFrame]: Dataframe with the new column.
     """
-    val = x.astype(dtype) * tof_binwidth * 2**tof_binning
-    return val.astype(dtype)
+    val = x * tof_binwidth * 2**tof_binning
+    return val
 
 
 def apply_energy_offset(
@@ -2201,9 +2200,9 @@ def apply_energy_offset(
         signs = [signs]
     if reductions is None:
         reductions = [None] * len(columns)
-    columns_ = []
-    reductions_ = []
-    to_roll = []
+    columns_: Sequence[str] = []
+    reductions_: Sequence[str] = []
+    to_roll: Sequence[str] = []
 
     for c, r in zip(columns, reductions):
         if r == "rolled":
