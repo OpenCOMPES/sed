@@ -9,3 +9,5 @@ updates:
     versioning-strategy: "lockfile-only"
     groups:
       dependencies:
+        patterns:
+          - "*"
