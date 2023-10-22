@@ -1417,27 +1417,24 @@ numpy = ">=1.17.3"
 
 [[package]]
 name = "hyperspy"
-version = "1.7.5"
+version = "1.7.4"
 description = "Multidimensional data analysis toolbox"
 optional = false
 python-versions = "~=3.6"
 files = [
-    {file = "hyperspy-1.7.5-cp310-cp310-macosx_11_0_x86_64.whl", hash = "sha256:191a72056c0bbc549432984cd684a527c25cf61fcceefade30cb38844693e5d7"},
-    {file = "hyperspy-1.7.5-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:8aadca559dec0ab015e2908d255f9f1bbc10804f2f6e4647a392bdbd5288b73d"},
-    {file = "hyperspy-1.7.5-cp310-cp310-win_amd64.whl", hash = "sha256:4bd0334dca5c7faa6aaca826e854aab13b392c9def595bd800a2ff5cf428cb38"},
-    {file = "hyperspy-1.7.5-cp311-cp311-macosx_10_9_universal2.whl", hash = "sha256:b2ff97d91d183308696ba7493cacb6ab9699344db8add3e2ab87a60cf702e55e"},
-    {file = "hyperspy-1.7.5-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:cb1fecb53c948f47f65b4e293fa9a765e1bee9306d3ffbe029f108ef6d04e405"},
-    {file = "hyperspy-1.7.5-cp311-cp311-win_amd64.whl", hash = "sha256:a52640594af5e8dbc56eea1ebde2db8476ae25176fd5abeae19c883552eb86bf"},
-    {file = "hyperspy-1.7.5-cp37-cp37m-macosx_10_15_x86_64.whl", hash = "sha256:5e8674df1a5edf57d3d83af372b7438940fe9b38aba2eaef1f3229cef561f9a9"},
-    {file = "hyperspy-1.7.5-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:d164d2242340aa4a69b64c74a83a6ba81a5a2d8b9672eb33ded32bf512371d98"},
-    {file = "hyperspy-1.7.5-cp37-cp37m-win_amd64.whl", hash = "sha256:0f75e168eb9205b40d1585397da8013a1ac8bf3586f7a1d64508e9866f88e50a"},
-    {file = "hyperspy-1.7.5-cp38-cp38-macosx_10_15_x86_64.whl", hash = "sha256:8516f900d8c1eacf9bf5a47ed08e49fae3614d192195c8b73367870d5acc57cc"},
-    {file = "hyperspy-1.7.5-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:fe9b65593e920e44235646a5185c6d038d9989fc20bbe5e4ed84f69c9efa0fc1"},
-    {file = "hyperspy-1.7.5-cp38-cp38-win_amd64.whl", hash = "sha256:96e774df4502b54fe3674deeb9e892a9407c065856c9fe29fc30c570374d22c8"},
-    {file = "hyperspy-1.7.5-cp39-cp39-macosx_11_0_x86_64.whl", hash = "sha256:70d5de925f8502cf50419685fe14c6fbb78c69195cbe49cb9360231a78a33b91"},
-    {file = "hyperspy-1.7.5-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:6c5501ff1a8b99bcbea20884db5b5e3e445e8fc7a4d631bf606651412a59228a"},
-    {file = "hyperspy-1.7.5-cp39-cp39-win_amd64.whl", hash = "sha256:7103293ee89c80be021c08d26c1336734688de9ef8ce1eec6e56fd9675e0919b"},
-    {file = "hyperspy-1.7.5.tar.gz", hash = "sha256:120039ac800af75d93d8f1c3d44e2cc791e9bfa650a766749b7dbfe0385958a8"},
+    {file = "hyperspy-1.7.4-cp310-cp310-macosx_11_0_x86_64.whl", hash = "sha256:99ae5af1aede89c29298fa097382b3a7ccf60392aae69773d1c5421de7274474"},
+    {file = "hyperspy-1.7.4-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_24_x86_64.whl", hash = "sha256:98d3e611dae0c66f33dada0b6751744ebf7f753e0b1f4a10e87bee02695f3208"},
+    {file = "hyperspy-1.7.4-cp310-cp310-win_amd64.whl", hash = "sha256:7b53baf37f694bcea415a535d0c82c8953a338ce21891da0dfdb7a2747017140"},
+    {file = "hyperspy-1.7.4-cp37-cp37m-macosx_10_15_x86_64.whl", hash = "sha256:c59762cf51325c667480b9f17a20c392baa45d0895b054343343cadb6ee300b6"},
+    {file = "hyperspy-1.7.4-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_24_x86_64.whl", hash = "sha256:987f98f076d71283bf4cc81f622616b80eb10f0cd3e7df9a4301142946aeb4bd"},
+    {file = "hyperspy-1.7.4-cp37-cp37m-win_amd64.whl", hash = "sha256:39749c7cbffa1bf16ed99399648951d49aca4bfe42f1ff20f67d2cf042f864c5"},
+    {file = "hyperspy-1.7.4-cp38-cp38-macosx_10_15_x86_64.whl", hash = "sha256:aacb3014ae4bd596f811392bc637cbc6d5ac497af9137166e9e152a93316249f"},
+    {file = "hyperspy-1.7.4-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_24_x86_64.whl", hash = "sha256:27bf19820c267df980e92c07f129a6065bf34fe548dc2d673a4cfae80e5742d4"},
+    {file = "hyperspy-1.7.4-cp38-cp38-win_amd64.whl", hash = "sha256:6158673c2c2d0b5b64dead0f414a3062eda58be22dff6d1bb513b5c20bd7236a"},
+    {file = "hyperspy-1.7.4-cp39-cp39-macosx_11_0_x86_64.whl", hash = "sha256:8e1a5a7e2961fda3464edb8b4e6d376cf8bf28c7b2c1d15092d0693f87413d94"},
+    {file = "hyperspy-1.7.4-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_24_x86_64.whl", hash = "sha256:c0874f5d4f3f043b92b198f1b66fd3505bf35e9bbbd74bff191de3ed6e721795"},
+    {file = "hyperspy-1.7.4-cp39-cp39-win_amd64.whl", hash = "sha256:e49c35e1bd1d5bb24b812226fcda41083a0cbf522910e894780cd9eaad92afcf"},
+    {file = "hyperspy-1.7.4.tar.gz", hash = "sha256:fb5dda43f4af612831799c89b0a953147f6325a064d06144105e6911a30baa5d"},
 ]
 
 [package.dependencies]
@@ -1445,7 +1442,7 @@ dask = {version = ">=2.11.0", extras = ["array"]}
 dill = "*"
 fsspec = "*"
 h5py = ">=2.3"
-imageio = "<2.28"
+imageio = "*"
 importlib-metadata = ">=3.6"
 ipyparallel = "*"
 ipython = "!=8.0.*"
@@ -1454,7 +1451,7 @@ matplotlib = ">=3.1.3"
 natsort = "*"
 numba = ">=0.52"
 numexpr = "*"
-numpy = ">=1.19.0"
+numpy = ">=1.17.1"
 packaging = "*"
 pint = ">=0.10"
 prettytable = "*"
@@ -1519,13 +1516,13 @@ dev = ["jupyterlab (>=3.5.2,<3.6.0)", "jupyterlab-h5web (>=6.6.1)", "twine (>=4.
 
 [[package]]
 name = "imageio"
-version = "2.27.0"
+version = "2.31.5"
 description = "Library for reading and writing a wide range of image, video, scientific, and volumetric data formats."
 optional = false
-python-versions = ">=3.7"
+python-versions = ">=3.8"
 files = [
-    {file = "imageio-2.27.0-py3-none-any.whl", hash = "sha256:24c6ad7d000e64eacc2861c402b6fb128f370cb0a6623cf796d83bca0d0d14d3"},
-    {file = "imageio-2.27.0.tar.gz", hash = "sha256:ee269c957785ef0373cc7a7323185956d83ec05e6cdf20b42a03ba7b74ac58c6"},
+    {file = "imageio-2.31.5-py3-none-any.whl", hash = "sha256:97f68e12ba676f2f4b541684ed81f7f3370dc347e8321bc68ee34d37b2dbac9f"},
+    {file = "imageio-2.31.5.tar.gz", hash = "sha256:d8e53f9cd4054880276a3dac0a28c85ba7874084856a55a0294a8ae6ed7f3a8e"},
 ]
 
 [package.dependencies]
@@ -1536,16 +1533,16 @@ pillow = ">=8.3.2"
 all-plugins = ["astropy", "av", "imageio-ffmpeg", "psutil", "tifffile"]
 all-plugins-pypy = ["av", "imageio-ffmpeg", "psutil", "tifffile"]
 build = ["wheel"]
-dev = ["black", "flake8", "fsspec[github]", "invoke", "pytest", "pytest-cov"]
+dev = ["black", "flake8", "fsspec[github]", "pytest", "pytest-cov"]
 docs = ["numpydoc", "pydata-sphinx-theme", "sphinx (<6)"]
 ffmpeg = ["imageio-ffmpeg", "psutil"]
 fits = ["astropy"]
-full = ["astropy", "av", "black", "flake8", "fsspec[github]", "gdal", "imageio-ffmpeg", "invoke", "itk", "numpydoc", "psutil", "pydata-sphinx-theme", "pytest", "pytest-cov", "sphinx (<6)", "tifffile", "wheel"]
+full = ["astropy", "av", "black", "flake8", "fsspec[github]", "gdal", "imageio-ffmpeg", "itk", "numpydoc", "psutil", "pydata-sphinx-theme", "pytest", "pytest-cov", "sphinx (<6)", "tifffile", "wheel"]
 gdal = ["gdal"]
 itk = ["itk"]
 linting = ["black", "flake8"]
 pyav = ["av"]
-test = ["fsspec[github]", "invoke", "pytest", "pytest-cov"]
+test = ["fsspec[github]", "pytest", "pytest-cov"]
 tifffile = ["tifffile"]
 
 [[package]]
