@@ -5,7 +5,7 @@ updates:
     schedule:
       interval: "weekly"
     allow:
-      - dependency-type: "direct"
+      - dependency-type: "all"
     versioning-strategy: "lockfile-only"
     groups:
       dependencies:
