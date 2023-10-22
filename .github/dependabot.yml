@@ -6,5 +6,8 @@ updates:
       interval: "weekly"
     allow:
       - dependency-type: "direct"
-    labels:
-      - "dependencies"
+    versioning-strategy: "lockfile-only"
+    groups:
+      dependencies:
+        patterns:
+          - "*"
