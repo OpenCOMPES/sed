@@ -14,29 +14,19 @@ test_df = pd.DataFrame(
 )
 
 
-@pytest.fixture
-def input_df():  # pylint: disable=redefined-outer-name
-    """Fixture for input dataframe"""
-    return pd.DataFrame(
-        {
-            "input_column": [0, 1, 2, 3, 4, 5, 6, 7],
-        },
-    )
-
-
-def test_split_channel_bitwise(input_df):
+def test_split_channel_bitwise():
     """Test split_channel_bitwise function"""
-    output_columns = ["output1", "output2"]
+    output_columns = ["b", "c"]
     bit_mask = 2
     expected_output = pd.DataFrame(
         {
-            "input_column": [0, 1, 2, 3, 4, 5, 6, 7],
-            "output1": np.array([0, 1, 2, 3, 0, 1, 2, 3], dtype=np.int8),
-            "output2": np.array([0, 0, 0, 0, 1, 1, 1, 1], dtype=np.int32),
+            "a": [0, 1, 2, 3, 4, 5, 6, 7],
+            "b": np.array([0, 1, 2, 3, 0, 1, 2, 3], dtype=np.int8),
+            "c": np.array([0, 0, 0, 0, 1, 1, 1, 1], dtype=np.int32),
         },
     )
-    df = dd.from_pandas(input_df, npartitions=2)
-    result = split_channel_bitwise(df, "input_column", output_columns, bit_mask)
+    df = dd.from_pandas(test_df, npartitions=2)
+    result = split_channel_bitwise(df, "a", output_columns, bit_mask)
     pd.testing.assert_frame_equal(result.compute(), expected_output)
 
 
@@ -82,7 +72,9 @@ def test_split_channel_bitwise_raises():
         False,
         [np.int8, np.int16, np.int32],
     )
-    pytest.raises(ValueError, split_channel_bitwise, test_df, "a", ["b", "c"], 3, False, [np.int8])
+    pytest.raises(
+        ValueError, split_channel_bitwise, test_df, "a", ["b", "c"], 3, False, [np.int8]
+    )
     pytest.raises(
         ValueError,
         split_channel_bitwise,
@@ -99,4 +91,6 @@ def test_split_channel_bitwise_raises():
             "b": [0, 1, 2, 3, 4, 5, 6, 7],
         },
     )
-    pytest.raises(KeyError, split_channel_bitwise, other_df, "a", ["b", "c"], 3, False, None)
+    pytest.raises(
+        KeyError, split_channel_bitwise, other_df, "a", ["b", "c"], 3, False, None
+    )

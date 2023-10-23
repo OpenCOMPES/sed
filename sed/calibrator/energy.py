@@ -2237,9 +2237,9 @@ def apply_energy_offset(
         signs = [signs]
     if reductions is None:
         reductions = [None] * len(columns)
-    columns_: Sequence[str] = []
-    reductions_: Sequence[str] = []
-    to_roll: Sequence[str] = []
+    columns_: List[str] = []
+    reductions_: List[str] = []
+    to_roll: List[str] = []
 
     for c, r in zip(columns, reductions):
         if r == "rolled":
