@@ -72,9 +72,7 @@ def test_split_channel_bitwise_raises():
         False,
         [np.int8, np.int16, np.int32],
     )
-    pytest.raises(
-        ValueError, split_channel_bitwise, test_df, "a", ["b", "c"], 3, False, [np.int8]
-    )
+    pytest.raises(ValueError, split_channel_bitwise, test_df, "a", ["b", "c"], 3, False, [np.int8])
     pytest.raises(
         ValueError,
         split_channel_bitwise,
@@ -91,6 +89,4 @@ def test_split_channel_bitwise_raises():
             "b": [0, 1, 2, 3, 4, 5, 6, 7],
         },
     )
-    pytest.raises(
-        KeyError, split_channel_bitwise, other_df, "a", ["b", "c"], 3, False, None
-    )
+    pytest.raises(KeyError, split_channel_bitwise, other_df, "a", ["b", "c"], 3, False, None)
