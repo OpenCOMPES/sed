@@ -1826,7 +1826,7 @@ def peakdetect1d(
     if lookahead < 1:
         raise ValueError("Lookahead must be '1' or above in value")
 
-    if not (np.isscalar(delta) and delta >= 0):
+    if not (np.ndim(delta) == 0 and delta >= 0):
         raise ValueError("delta must be a positive number")
 
     # maxima and minima candidates are temporarily stored in
