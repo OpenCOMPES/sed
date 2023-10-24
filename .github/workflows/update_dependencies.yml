@@ -1,4 +1,4 @@
-name: Generate requirements.txt for readthedocs
+name: Update depencies in poetry lockfile
 
 on:
   schedule:
@@ -26,18 +26,13 @@ jobs:
       - name: "Update poetry lock file"
         id: update
         run: |
-          update_output=$(poetry run poetry update)
-          echo "update_output=$update_output" >> $GITHUB_OUTPUT
-          status=$(git status | grep poetry.lock)
-          echo "status=$status" >> $GITHUB_OUTPUT
+          poetry run poetry update
 
       # create pull request if necessary
       - name: "Create Pull Request"
         uses: peter-evans/create-pull-request@v5
-        if: ${{ steps.update.outputs.status != '' }}
         with:
           commit-message: Update dependencies
           title: "Update dependencies"
           body: |
             - Dependency updates
-              ${{ steps.update.outputs.update_output }}
