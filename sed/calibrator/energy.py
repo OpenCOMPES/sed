@@ -1962,13 +1962,33 @@ def fit_energy_calibation(
         return model - data
 
     pars = Parameters()
-    pars.add(name="d", value=kwds.pop("d_init", 1))
+    d_pars = kwds.pop("d", {})
+    pars.add(
+        name="d",
+        value=d_pars.get("value", 1),
+        min=d_pars.get("min", -np.inf),
+        max=d_pars.get("max", np.inf),
+        vary=d_pars.get("vary", True),
+    )
+    t0_pars = kwds.pop("t0", {})
     pars.add(
         name="t0",
-        value=kwds.pop("t0_init", 1e-6),
-        max=(min(pos) - 1) * binwidth * 2**binning,
+        value=t0_pars.get("value", 1e-6),
+        min=t0_pars.get("min", -np.inf),
+        max=t0_pars.get(
+            "max",
+            (min(pos) - 1) * binwidth * 2**binning,
+        ),
+        vary=t0_pars.get("vary", True),
     )
-    pars.add(name="E0", value=kwds.pop("E0_init", min(vals)))
+    E0_pars = kwds.pop("E0", {})
+    pars.add(
+        name="E0",
+        value=E0_pars.get("value", min(vals)),
+        min=E0_pars.get("min", -np.inf),
+        max=E0_pars.get("max", np.inf),
+        vary=d_pars.get("vary", True),
+    )
     fit = Minimizer(
         residual,
         pars,
