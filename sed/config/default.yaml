@@ -11,6 +11,8 @@ dataframe:
   tof_column: "t"
   # dataframe column containing analog-to-digital data
   adc_column: "ADC"
+  # dataframe column containing bias voltage data
+  bias_column: "sampleBias"
   # dataframe column containing corrected x coordinates
   corrected_x_column: "Xm"
   # dataframe column containing corrected y coordinates
