@@ -1,0 +1,135 @@
+core:
+  loader: flash
+  beamtime_id: 11013410
+  year: 2023
+  beamline: pg2
+  instrument: hextof
+  paths:
+    data_raw_dir: "/asap3/flash/gpfs/pg2/2023/data/11019101/raw/hdf/offline/fl1user3"
+    # change this to a local directory where you want to store the parquet files
+    data_parquet_dir: "/home/agustsss/temp/sed_parquet"
+
+binning:
+  num_cores: 10
+
+dataframe:
+  ubid_offset: 5
+  daq: fl1user3
+  forward_fill_iterations: 2
+  split_sector_id_from_dld_time: True
+  sector_id_reserved_bits: 3
+  x_column: dldPosX
+  corrected_x_column: "X"
+  kx_column: "kx"
+  y_column: dldPosY
+  corrected_y_column: "Y"
+  ky_column: "ky"
+  tof_column: dldTimeSteps
+  tof_ns_column: dldTime
+  corrected_tof_column: "tm"
+  bias_column: "sampleBias"
+  tof_binwidth: 0.020576131995767355
+  tof_binning: 3 # with 3, 8 bins per step 2**3
+  sector_id_column: dldSectorID
+  sector_delays: [0., 0., 0., 0., 0., 0., 0., 0.]
+  jitter_cols: ["dldPosX", "dldPosY", "dldTimeSteps"]
+
+  units:
+    dldPosX: 'step'
+    dldPosY: 'step'
+    dldTimeSteps: 'step'
+    tof_voltage: 'V'
+    extractorVoltage: 'V'
+    extractorCurrent: 'A'
+    cryoTemperature: 'K'
+    sampleTemperature: 'K'
+    dldTime: 'ns'
+    # delay: 'ps'
+    timeStamp: 's'
+    # energy: 'eV'
+    # E: 'eV'
+    kx: '1/A'
+    ky: '1/A'
+
+  channels:
+    timeStamp:
+      format: per_train
+      group_name: "/uncategorised/FLASH.DIAG/TIMINGINFO/TIME1.BUNCH_FIRST_INDEX.1/"
+    pulseId:
+      format: per_electron
+      group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
+      slice: 2
+    dldPosX:
+      format: per_electron
+      group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
+      slice: 1
+    dldPosY:
+      format: per_electron
+      group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
+      slice: 0
+    dldTimeSteps:
+      format: per_electron
+      group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
+      slice: 3
+    dldAux:
+      format: per_pulse
+      group_name : "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
+      slice: 4
+      dldAuxChannels:
+        sampleBias: 0
+        tofVoltage: 1
+        extractorVoltage: 2
+        extractorCurrent: 3
+        cryoTemperature: 4
+        sampleTemperature: 5
+        crystalVoltage: 6
+        dldTimeBinSize: 15
+    pulserSignAdc: # ADC containing the pulser sign (1: value approx. 35000, 0: 33000)
+      format: per_pulse
+      group_name: "/FL1/Experiment/PG/SIS8300 100MHz ADC/CH6/TD/"
+      #slice: 0
+    monochromatorPhotonEnergy:
+      format: per_train
+      group_name: "/FL1/Beamlines/PG/Monochromator/monochromator photon energy/"
+    gmdBda: # The GMDs can not be read yet...
+      format: per_train
+      group_name: "/FL1/Photon Diagnostic/GMD/Average energy/energy BDA/"
+    #  slice: ":"
+    #gmdTunnel: # The GMDs can not be read yet...
+    #  format: per_pulse
+    #  group_name: "/FL1/Photon Diagnostic/GMD/Pulse resolved energy/energy tunnel/"
+    #  slice: ":"
+    bam: # Here we use the DBC2 BAM as the "normal" one is broken.
+        format: per_pulse
+        group_name: "/uncategorised/FLASH.SDIAG/BAM.DAQ/FL0.DBC2.ARRIVAL_TIME.ABSOLUTE.SA1.COMP/"
+    delayStage:
+      format: per_train
+      group_name: "/zraw/FLASH.SYNC/LASER.LOCK.EXP/F1.PG.OSC/FMC0.MD22.1.ENCODER_POSITION.RD/dGroup/"
+
+  stream_name_prefixes:
+    pbd: "GMD_DATA_gmd_data"
+    pbd2: "FL2PhotDiag_pbd2_gmd_data"
+    fl1user1: "FLASH1_USER1_stream_2"
+    fl1user2: "FLASH1_USER2_stream_2"
+    fl1user3: "FLASH1_USER3_stream_2"
+    fl2user1: "FLASH2_USER1_stream_2"
+    fl2user2: "FLASH2_USER2_stream_2"
+
+  beamtime_dir:
+    pg2: "/asap3/flash/gpfs/pg2/"
+    hextof: "/asap3/fs-flash-o/gpfs/hextof/"
+    wespe: "/asap3/fs-flash-o/gpfs/wespe/"
+
+energy:
+  calibration:
+    offset: 4150.0
+    coeffs: [-2.01882455e-05,  1.94714008e-01]
+    Tmat: [[ 1.01040e+06,  1.20000e+02],
+        [ 7.18675e+05,  8.50000e+01],
+        [ 3.82275e+05,  4.50000e+01],
+        [-3.86325e+05, -4.50000e+01]]
+    bvec: [ 3.,  2.,  1., -1.]
+    energy_scale: kinetic
+    axis: -463.3385531514501
+    E0:  -463.3385531514501
+    refid: 3
