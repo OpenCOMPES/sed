@@ -15,6 +15,7 @@ from typing import Tuple
 import dask.dataframe as ddf
 import numpy as np
 import pytest
+import xarray as xr
 
 from sed import SedProcessor
 from sed.core.config import parse_config
@@ -472,6 +473,8 @@ def test_energy_calibration_workflow(energy_scale: str, calibration_method: str)
         system_config={},
     )
     with pytest.raises(ValueError):
+        processor.load_bias_series()
+    with pytest.raises(ValueError):
         processor.load_bias_series(data_files=glob.glob(df_folder + "../mpes/*.h5"), normalize=True)
     processor.load_bias_series(
         data_files=glob.glob(df_folder + "../mpes/*.h5"),
@@ -479,8 +482,22 @@ def test_energy_calibration_workflow(energy_scale: str, calibration_method: str)
         bias_key="@KTOF:Lens:Sample:V",
     )
     assert len(processor.ec.biases) == 2
-    # load test data into class
-    processor.ec.load_data(biases=biases, traces=traces, tof=tof)
+    # load data as tuple
+    with pytest.raises(ValueError):
+        processor.load_bias_series(binned_data=(tof, traces))  # type: ignore
+    processor.load_bias_series(binned_data=(tof, biases, traces))
+    assert processor.ec.traces.shape == traces.shape
+    assert len(processor.ec.biases) == processor.ec.traces.shape[0]
+    assert len(processor.ec.tof) == processor.ec.traces.shape[1]
+    # load data as xarray
+    with pytest.raises(ValueError):
+        bias_series = xr.DataArray(data=traces, coords={"biases": biases, "tof": tof})
+        processor.load_bias_series(binned_data=bias_series)
+    bias_series = xr.DataArray(data=traces, coords={"sampleBias": biases, "t": tof})
+    processor.load_bias_series(binned_data=bias_series)
+    assert processor.ec.traces.shape == traces.shape
+    assert len(processor.ec.biases) == processor.ec.traces.shape[0]
+    assert len(processor.ec.tof) == processor.ec.traces.shape[1]
     processor.ec.normalize()
     ref_id = 5
     rng = (66100, 67000)
