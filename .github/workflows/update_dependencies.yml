@@ -1,0 +1,43 @@
+name: Generate requirements.txt for readthedocs
+
+on:
+  schedule:
+    - cron:  '0 1 * * 1'
+  push:
+  workflow_dispatch:
+
+jobs:
+  update_dependencies:
+    runs-on: ubuntu-latest
+    steps:
+      # Check out repo and set up Python
+      - uses: actions/checkout@v3
+        with:
+          lfs: true
+
+      # Use cached python and dependencies, install poetry
+      - name: "Setup Python, Poetry and Dependencies"
+        uses: packetcoders/action-setup-cache-python-poetry@main
+        with:
+          python-version: 3.8
+          poetry-version: 1.2.2
+
+      # update poetry lockfile
+      - name: "Update poetry lock file"
+        id: update
+        run: |
+          update_output=$(poetry run poetry update)
+          echo "update_output=$update_output" >> $GITHUB_OUTPUT
+          status=$(git status | grep poetry.lock)
+          echo "status=$status" >> $GITHUB_OUTPUT
+
+      # create pull request if necessary
+      - name: "Create Pull Request"
+        uses: peter-evans/create-pull-request@v5
+        if: ${{ steps.update.outputs.status != '' }}
+        with:
+          commit-message: Update dependencies
+          title: "Update dependencies"
+          body: |
+            - Dependency updates
+              ${{ steps.update.outputs.update_output }}
