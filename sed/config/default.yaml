@@ -27,7 +27,7 @@ dataframe:
   energy_column: "energy"
   # dataframe column containing delay data
   delay_column: "delay"
-  # time length of a base time-of-flight bin in ns
+  # time length of a base time-of-flight bin in s
   tof_binwidth: 4.125e-12
   # Binning factor of the tof_column-data compared to tof_binwidth (2^(tof_binning-1))
   tof_binning: 1

@@ -28,8 +28,8 @@ dataframe:
   tof_ns_column: dldTime
   corrected_tof_column: "tm"
   bias_column: "sampleBias"
-  tof_binwidth: 0.020576131995767355
-  tof_binning: 5 # with 3, 8 bins per step 2**3
+  tof_binwidth: 2.0576131995767355E-12
+  tof_binning: 7 # with 3, 8 bins per step 2**3
   sector_id_column: dldSectorID
   sector_delays: [0., 0., 0., 0., 0., 0., 0., 0.]
   jitter_cols: ["dldPosX", "dldPosY", "dldTimeSteps"]
