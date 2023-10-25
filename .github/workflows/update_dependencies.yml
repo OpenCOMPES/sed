@@ -33,21 +33,23 @@ jobs:
         id: update
         run: |
           poetry run poetry self update
-          UPDATE_OUTPUT=$(poetry run poetry update)
-          status=$(git status | grep poetry.lock)
-          echo "status=$status" >> $GITHUB_OUTPUT
+          exec 5>&1
+          UPDATE_OUTPUT=$(poetry run poetry update|tee >(cat - >&5))
           echo "UPDATE_OUTPUT<<EOF" >> $GITHUB_OUTPUT
           echo "$UPDATE_OUTPUT" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
+          STATUS=$(git status | grep poetry.lock)
+          echo "STATUS=$STATUS" >> $GITHUB_OUTPUT
+
       # create pull request if necessary
       - name: "Create Pull Request"
         uses: peter-evans/create-pull-request@v5
-        if: ${{ steps.update.outputs.status != '' }}
+        if: ${{ contains(steps.update.outputs.STATUS, 'poetry.lock') }}
         with:
           token: ${{ steps.generate-token.outputs.token }}
           commit-message: Update dependencies
           title: "Update dependencies"
           body: |
-            - Dependency updates
-            - ${{ steps.update.outputs.UPDATE_OUTPUT }}
+            Dependency updates using Poetry:
+            ${{ steps.update.outputs.UPDATE_OUTPUT }}
