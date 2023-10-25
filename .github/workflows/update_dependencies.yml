@@ -15,6 +15,12 @@ jobs:
         with:
           lfs: true
 
+      - uses: tibdex/github-app-token@v1
+        id: generate-token
+        with:
+          app_id: ${{ secrets.APP_ID }}
+          private_key: ${{ secrets.APP_PRIVATE_KEY }}
+
       # Use cached python and dependencies, install poetry
       - name: "Setup Python, Poetry and Dependencies"
         uses: packetcoders/action-setup-cache-python-poetry@main
@@ -30,6 +36,7 @@ jobs:
           poetry run poetry update
           status=$(git status | grep poetry.lock)
           echo "status=$status" >> $GITHUB_OUTPUT
+          echo $status
 
       # create pull request if necessary
       - name: "Create Pull Request"
