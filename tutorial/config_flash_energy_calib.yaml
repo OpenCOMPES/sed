@@ -79,7 +79,10 @@ dataframe:
       format: per_train
       group_name: "/zraw/FLASH.SYNC/LASER.LOCK.EXP/F1.PG.OSC/FMC0.MD22.1.ENCODER_POSITION.RD/dGroup/"
 
+
   tof_column: dldTime
+  x_column: dldPosX
+  y_column: dldPosY
   bias_column: sampleBias
   tof_binning: 3
 
