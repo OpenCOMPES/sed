@@ -33,7 +33,7 @@ jobs:
         id: update
         run: |
           poetry run poetry self update
-          UPDATE_OUTPUT = $(poetry run poetry update)
+          UPDATE_OUTPUT=$(poetry run poetry update)
           status=$(git status | grep poetry.lock)
           echo "status=$status" >> $GITHUB_OUTPUT
           echo "UPDATE_OUTPUT<<EOF" >> $GITHUB_OUTPUT
