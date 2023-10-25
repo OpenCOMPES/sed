@@ -39,8 +39,10 @@ jobs:
           echo "$UPDATE_OUTPUT" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-          STATUS=$(git status | grep poetry.lock)
-          echo "STATUS=$STATUS" >> $GITHUB_OUTPUT
+          STATUS=$(git status|tee >(cat - >&5))
+          echo "STATUS<<EOF" >> $GITHUB_OUTPUT
+          echo "$STATUS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       # create pull request if necessary
       - name: "Create Pull Request"
