@@ -1539,7 +1539,8 @@ class EnergyCalibrator:
                 raise ValueError(
                     "Cannot apply binding energy offset to columns with unknown sign.",
                 )
-            signs = [-s for s in signs]
+            else:
+                signs = [-1 * s for s in signs if s is not None]
         elif energy_scale == "kinetic":
             pass
         elif energy_scale is None:
