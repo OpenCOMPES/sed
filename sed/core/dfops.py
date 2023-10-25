@@ -359,6 +359,8 @@ def apply_offset_from_columns(
         signs = [signs]
     if len(signs) != len(offset_columns):
         raise ValueError("signs and offset_columns must have the same length!")
+    if isinstance(subtract_mean, bool):
+        subtract_mean = [subtract_mean] * len(offset_columns)
 
     for col, sign, red, submean in zip(offset_columns, signs, reductions, subtract_mean):
         assert col in df.columns, f"{col} not in dataframe!"

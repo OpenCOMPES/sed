@@ -1517,6 +1517,10 @@ class EnergyCalibrator:
                     print(msg)
         else:
             # use passed parameters
+            if columns is not None and (signs is None or subtract_mean is None):
+                raise ValueError(
+                    "If columns is passed, signs and subtract_mean must also be passed.",
+                )
             if isinstance(columns, str):
                 columns = [columns]
             if isinstance(signs, int):
@@ -1530,6 +1534,10 @@ class EnergyCalibrator:
         # flip sign for binding energy scale
         energy_scale = self.get_current_calibration().get("energy_scale", None)
         if energy_scale == "binding":
+            if None in signs:
+                raise ValueError(
+                    "Cannot apply binding energy offset to columns with unknown sign.",
+                )
             signs = [-s for s in signs]
         elif energy_scale == "kinetic":
             pass
