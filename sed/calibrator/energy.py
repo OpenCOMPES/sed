@@ -1987,7 +1987,7 @@ def fit_energy_calibation(
         value=E0_pars.get("value", min(vals)),
         min=E0_pars.get("min", -np.inf),
         max=E0_pars.get("max", np.inf),
-        vary=d_pars.get("vary", True),
+        vary=E0_pars.get("vary", True),
     )
     fit = Minimizer(
         residual,
@@ -2225,6 +2225,7 @@ def apply_energy_offset(
     df: Union[pd.DataFrame, dask.dataframe.DataFrame],
     columns: Union[str, Sequence[str]],
     signs: Union[int, Sequence[int]],
+    subtract_mean: Union[bool, Sequence[bool]] = True,
     energy_column: str = None,
     reductions: Union[str, Sequence[str]] = None,
     config: dict = None,
@@ -2255,9 +2256,12 @@ def apply_energy_offset(
         columns = [columns]
     if isinstance(signs, int):
         signs = [signs]
+    if len(signs) != len(columns):
+        raise ValueError("signs and columns must have the same length.")
+    if isinstance(subtract_mean, bool):
+        subtract_mean = [subtract_mean] * len(columns)
     if reductions is None:
         reductions = [None] * len(columns)
-
     columns_: List[str] = []
     reductions_: List[str] = []
     to_roll: List[str] = []
@@ -2280,6 +2284,7 @@ def apply_energy_offset(
         target_column=energy_column,
         offset_columns=columns_,
         signs=signs,
+        subtract_mean=subtract_mean,
         reductions=reductions_,
         inplace=True,
     )

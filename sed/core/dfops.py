@@ -331,6 +331,7 @@ def apply_offset_from_columns(
     offset_columns: Union[str, Sequence[str]],
     signs: Union[int, Sequence[int]],
     reductions: Union[str, Sequence[str]],
+    subtract_mean: Union[bool, Sequence[bool]],
     inplace: bool = True,
 ) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
     """Apply an offset to a column based on the values of other columns.
@@ -359,10 +360,12 @@ def apply_offset_from_columns(
     if len(signs) != len(offset_columns):
         raise ValueError("signs and offset_columns must have the same length!")
 
-    for col, sign, red in zip(offset_columns, signs, reductions):
+    for col, sign, red, submean in zip(offset_columns, signs, reductions, subtract_mean):
         assert col in df.columns, f"{col} not in dataframe!"
         if red is not None:
             df[target_column] = df[target_column] + sign * df[col].agg(red)
         else:
             df[target_column] = df[target_column] + sign * df[col]
+        if submean:
+            df[target_column] = df[target_column] - sign * df[col].mean()
     return df

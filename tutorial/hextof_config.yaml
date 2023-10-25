@@ -5,9 +5,9 @@ core:
   beamline: pg2
   instrument: hextof
   paths:
-    data_raw_dir: "/asap3/flash/gpfs/pg2/2023/data/11019101/raw/hdf/offline/fl1user3"
+    data_raw_dir: "/path/to/data"
     # change this to a local directory where you want to store the parquet files
-    data_parquet_dir: "/home/agustsss/temp/sed_parquet"
+    data_parquet_dir: "/path/to/parquet"
 
 binning:
   num_cores: 10
@@ -28,8 +28,8 @@ dataframe:
   tof_ns_column: dldTime
   corrected_tof_column: "tm"
   bias_column: "sampleBias"
-  tof_binwidth: 2.0576131995767355E-12
-  tof_binning: 7 # with 3, 8 bins per step 2**3
+  tof_binwidth: 2.0576131995767355E-11 # in seconds
+  tof_binning: 3
   sector_id_column: dldSectorID
   sector_delays: [0., 0., 0., 0., 0., 0., 0., 0.]
   jitter_cols: ["dldPosX", "dldPosY", "dldTimeSteps"]
@@ -122,14 +122,19 @@ dataframe:
 
 energy:
   calibration:
-    offset: 4150.0
-    coeffs: [-2.01882455e-05,  1.94714008e-01]
-    Tmat: [[ 1.01040e+06,  1.20000e+02],
-        [ 7.18675e+05,  8.50000e+01],
-        [ 3.82275e+05,  4.50000e+01],
-        [-3.86325e+05, -4.50000e+01]]
-    bvec: [ 3.,  2.,  1., -1.]
+    d: 2.7342492951998603
+    t0: 3.6049383256584405e-08
+    E0: -51.289659014865784
     energy_scale: kinetic
-    axis: -463.3385531514501
-    E0:  -463.3385531514501
-    refid: 3
+    refid: 0
+  offset:
+    constant: 2.0
+    sampleBias:
+      sign: 1
+      substract_mean: True
+    monochromatorPhotonEnergy:
+      sign: -1
+      substract_mean: True
+    tofVoltage:
+      sign: -1
+      substract_mean: True

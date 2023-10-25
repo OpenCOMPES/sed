@@ -1168,6 +1168,7 @@ class SedProcessor:
         columns: Union[str, Sequence[str]] = None,
         signs: Union[int, Sequence[int]] = None,
         reductions: Union[str, Sequence[str]] = None,
+        subtract_mean: Union[bool, Sequence[bool]] = None,
     ) -> None:
         """Shift the energy axis of the dataframe by a given amount.
 
@@ -1190,22 +1191,27 @@ class SedProcessor:
                 f"Energy column {energy_column} not found in dataframe! "
                 "Run energy calibration first",
             )
-        self._dataframe, metadata = energy.apply_energy_offset(
-            df=self._dataframe,
-            columns=columns,
-            energy_column=energy_column,
-            signs=signs,
-            reductions=reductions,
-            config=self._config,
-        )
-        self._dataframe[energy_column] += constant
-        metadata["offset"] = constant
-        self._attributes.add(
-            metadata,
-            "apply_energy_offset",
-            # TODO: allow only appending when no offset along this column(s) was applied
-            duplicate_policy="append",
-        )
+        metadata = {}
+        if columns is not None:
+            self._dataframe, metadata = energy.apply_energy_offset(
+                df=self._dataframe,
+                columns=columns,
+                energy_column=energy_column,
+                signs=signs,
+                reductions=reductions,
+                subtract_mean=subtract_mean,
+                config=self._config,
+            )
+        if constant is not None:
+            self._dataframe[energy_column] += constant
+            metadata["offset"] = constant
+        if len(metadata) > 0:
+            self._attributes.add(
+                metadata,
+                "apply_energy_offset",
+                # TODO: allow only appending when no offset along this column(s) was applied
+                duplicate_policy="append",
+            )
 
     def append_tof_ns_axis(
         self,
