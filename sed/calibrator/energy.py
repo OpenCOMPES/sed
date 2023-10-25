@@ -1981,7 +1981,7 @@ def fit_energy_calibation(
         ),
         vary=t0_pars.get("vary", True),
     )
-    E0_pars = kwds.pop("E0", {})
+    E0_pars = kwds.pop("E0", {})  # pylint: disable=invalid-name
     pars.add(
         name="E0",
         value=E0_pars.get("value", min(vals)),
@@ -2211,13 +2211,13 @@ def tof2ns(
     designed for use with dask.dataframe.DataFrame.map_partitions.
 
     Args:
-        binwidth (float): Time step size in nanoseconds.
+        binwidth (float): Time step size in seconds.
         binning (int): Binning of the time-of-flight steps.
         t (float): TOF value in bin number.
     Returns:
         float: Converted time in nanoseconds.
     """
-    val = t * binwidth * 2**binning
+    val = t * 1e9 * binwidth * 2**binning
     return val
 
 
