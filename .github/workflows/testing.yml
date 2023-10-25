@@ -29,3 +29,15 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           parallel: true
+
+  finish:
+    needs: pytest
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+    - name: Coveralls Finished
+      uses: coverallsapp/github-action@v2
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        parallel-finished: true
+        carryforward: "run-3.8,run-3.9,run-3.10"
