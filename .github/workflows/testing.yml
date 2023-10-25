@@ -19,25 +19,18 @@ jobs:
         with:
           python-version: 3.8
           poetry-version: 1.2.2
-
+      
+      - name: Install dependencies
+        run:
+          python -m pip install pytest coverage coveralls
+      
       # Run pytest with coverage report and upload results to coveralls
       - name: Run tests on python 3.8
         run: |
-          poetry run pytest --cov --full-trace --show-capture=no -sv -n auto tests/
-      - name: Coveralls
-        uses: coverallsapp/github-action@v2
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          parallel: true
-
-  finish:
-    needs: pytest
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    steps:
-    - name: Coveralls Finished
-      uses: coverallsapp/github-action@v2
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        parallel-finished: true
-        carryforward: "run-3.8,run-3.9,run-3.10"
+          coverage run -m pytest --full-trace --show-capture=no -sv tests
+      
+      - name: Submit to coveralls
+      env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+          coveralls --service=github
