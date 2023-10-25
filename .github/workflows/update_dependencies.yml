@@ -34,7 +34,7 @@ jobs:
         run: |
           poetry run poetry self update
           poetry run poetry update
-          status=$(git status)
+          status=$(git status | grep poetry.lock)
           echo "status=$status" >> $GITHUB_OUTPUT
 
       # create pull request if necessary
