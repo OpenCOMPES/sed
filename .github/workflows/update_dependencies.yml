@@ -33,9 +33,12 @@ jobs:
         id: update
         run: |
           poetry run poetry self update
-          poetry run poetry update
+          UPDATE_OUTPUT = $(poetry run poetry update)
           status=$(git status | grep poetry.lock)
           echo "status=$status" >> $GITHUB_OUTPUT
+          echo "UPDATE_OUTPUT<<EOF" >> $GITHUB_OUTPUT
+          echo "$UPDATE_OUTPUT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       # create pull request if necessary
       - name: "Create Pull Request"
@@ -47,4 +50,4 @@ jobs:
           title: "Update dependencies"
           body: |
             - Dependency updates
-            ${{ steps.update.outputs.update_output }}
+            - ${{ steps.update.outputs.UPDATE_OUTPUT }}
