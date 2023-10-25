@@ -836,7 +836,8 @@ class EnergyCalibrator:
         binwidth = kwds.pop("binwidth", self.binwidth)
         binning = kwds.pop("binning", self.binning)
 
-        calibration = self.get_current_calibration()
+        if calibration is None:
+            calibration = self.get_current_calibration()
 
         for key, value in kwds.items():
             calibration[key] = value
