@@ -20,7 +20,6 @@ import xarray as xr
 
 from sed.binning import bin_dataframe
 from sed.calibrator import DelayCalibrator
-from sed.calibrator import energy
 from sed.calibrator import EnergyCalibrator
 from sed.calibrator import MomentumCorrector
 from sed.core.config import parse_config
@@ -1182,6 +1181,8 @@ class SedProcessor:
                 of dask.dataframe.Series. For example "mean". In this case the function is applied
                 to the column to generate a single value for the whole dataset. If None, the shift
                 is applied per-dataframe-row. Defaults to None.
+            subtract_mean (bool): Whether to subtract the mean of the column before applying the
+                shift. Defaults to False.
         Raises:
             ValueError: If the energy column is not in the dataframe.
         """
@@ -1192,19 +1193,15 @@ class SedProcessor:
                 "Run energy calibration first",
             )
         metadata = {}
-        if columns is not None:
-            self._dataframe, metadata = energy.apply_energy_offset(
-                df=self._dataframe,
-                columns=columns,
-                energy_column=energy_column,
-                signs=signs,
-                reductions=reductions,
-                subtract_mean=subtract_mean,
-                config=self._config,
-            )
-        if constant is not None:
-            self._dataframe[energy_column] += constant
-            metadata["offset"] = constant
+        self._dataframe, metadata = self.ec.apply_energy_offset(
+            df=self._dataframe,
+            constant=constant,
+            columns=columns,
+            energy_column=energy_column,
+            signs=signs,
+            reductions=reductions,
+            subtract_mean=subtract_mean,
+        )
         if len(metadata) > 0:
             self._attributes.add(
                 metadata,

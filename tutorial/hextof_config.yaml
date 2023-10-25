@@ -124,17 +124,17 @@ energy:
   calibration:
     d: 2.7342492951998603
     t0: 3.6049383256584405e-08
-    E0: -51.289659014865784
+    E0: -51.289659014865784 # flip sign if switching between kinetic and binding energy
     energy_scale: kinetic
     refid: 0
   offset:
-    constant: 2.0
+    constant: 0.0
     sampleBias:
       sign: 1
-      substract_mean: True
+      subtract_mean: True
     monochromatorPhotonEnergy:
       sign: -1
-      substract_mean: True
+      subtract_mean: True
     tofVoltage:
       sign: -1
-      substract_mean: True
+      subtract_mean: True
