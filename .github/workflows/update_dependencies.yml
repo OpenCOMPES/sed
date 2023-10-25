@@ -36,7 +36,6 @@ jobs:
           poetry run poetry update
           status=$(git status)
           echo "status=$status" >> $GITHUB_OUTPUT
-          echo $status
 
       # create pull request if necessary
       - name: "Create Pull Request"
