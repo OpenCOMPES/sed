@@ -30,7 +30,7 @@ jobs:
           coverage run -m pytest --full-trace --show-capture=no -sv tests
       
       - name: Submit to coveralls
-      env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-          coveralls --service=github
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+            coveralls --service=github
