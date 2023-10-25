@@ -34,7 +34,7 @@ jobs:
         run: |
           poetry run poetry self update
           poetry run poetry update
-          status=$(git status | grep poetry.lock)
+          status=$(git status)
           echo "status=$status" >> $GITHUB_OUTPUT
           echo $status
 
@@ -43,6 +43,7 @@ jobs:
         uses: peter-evans/create-pull-request@v5
         if: ${{ steps.update.outputs.status != '' }}
         with:
+          token: ${{ steps.generate-token.outputs.token }}
           commit-message: Update dependencies
           title: "Update dependencies"
           body: |
