@@ -1535,12 +1535,7 @@ class EnergyCalibrator:
         # flip sign for binding energy scale
         energy_scale = self.get_current_calibration().get("energy_scale", None)
         if energy_scale == "binding":
-            if None in signs:
-                raise ValueError(
-                    "Cannot apply binding energy offset to columns with unknown sign.",
-                )
-            else:
-                signs = [-1 * s for s in signs if s is not None]
+            signs = [-1 * s for s in signs if s is not None]
         elif energy_scale == "kinetic":
             pass
         elif energy_scale is None:
