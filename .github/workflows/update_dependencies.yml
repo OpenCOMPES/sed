@@ -4,6 +4,7 @@ on:
   schedule:
     - cron:  '0 1 * * 1'
   workflow_dispatch:
+  push:
 
 jobs:
   update_dependencies:
@@ -31,13 +32,20 @@ jobs:
       - name: "Update poetry lock file"
         id: update
         run: |
-          poetry run poetry self update
+          poetry self update
           exec 5>&1
-          UPDATE_OUTPUT=$(poetry run poetry update|tee >(cat - >&5))
+          UPDATE_OUTPUT=$(poetry update|tee >(cat - >&5))
           echo "UPDATE_OUTPUT<<EOF" >> $GITHUB_OUTPUT
           echo "$UPDATE_OUTPUT" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
+      - name: Export requirements.txt
+        run: |
+          poetry export --without-hashes --format=requirements.txt -o docs/requirements.txt -E docs -E notebook
+
+      - name: Obtain git status
+        id: status
+        run: |
           STATUS=$(git status|tee >(cat - >&5))
           echo "STATUS<<EOF" >> $GITHUB_OUTPUT
           echo "$STATUS" >> $GITHUB_OUTPUT
@@ -46,7 +54,7 @@ jobs:
       # create pull request if necessary
       - name: "Create Pull Request"
         uses: peter-evans/create-pull-request@v5
-        if: ${{ contains(steps.update.outputs.STATUS, 'poetry.lock') }}
+        if: ${{ contains(steps.status.outputs.STATUS, 'poetry.lock') || contains(steps.status.outputs.STATUS, 'requirements.txt')}}
         with:
           token: ${{ steps.generate-token.outputs.token }}
           commit-message: Update dependencies
