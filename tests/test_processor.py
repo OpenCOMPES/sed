@@ -667,7 +667,6 @@ metadata["user0"]["name"] = "Name"
 metadata["user0"]["email"] = "email"
 # NXinstrument
 metadata["instrument"] = {}
-metadata["instrument"] = {}
 # analyzer
 metadata["instrument"]["analyzer"] = {}
 metadata["instrument"]["analyzer"]["energy_resolution"] = 110.0

@@ -1,7 +1,7 @@
-name: pytest
+name: pytest and coverage report
 
-# Triggers the workflow on push for all branches
-on: [push]
+# Triggers the workflow on push and PR for all branches
+on: [push, pull_request]
 
 jobs:
   pytest:
@@ -20,11 +20,12 @@ jobs:
           python-version: 3.8
           poetry-version: 1.2.2
   
-      # Run pytest with coverage report and upload results to coveralls
+      # Run pytest with coverage report, saving to xml
       - name: Run tests on python 3.8
         run: |
           poetry run pytest --cov --cov-report xml:cobertura.xml --full-trace --show-capture=no -sv -n auto tests/
       
+      # Take report and upload to coveralls
       - name: Coveralls
         uses: coverallsapp/github-action@v2
         with:
