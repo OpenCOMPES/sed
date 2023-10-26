@@ -45,6 +45,7 @@ jobs:
       - name: Obtain git status
         id: status
         run: |
+          exec 5>&1
           STATUS=$(git status|tee >(cat - >&5))
           echo "STATUS<<EOF" >> $GITHUB_OUTPUT
           echo "$STATUS" >> $GITHUB_OUTPUT
