@@ -43,11 +43,16 @@ sphinx-autodoc-typehints = {version = ">1.17.0", extras = ["docs"], optional = t
 notebook = ["jupyter", "ipykernel"]
 docs = ["Sphinx", "sphinx-rtd-theme", "tomlkit", "sphinx-autodoc-typehints"]
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 pytest = "^7.0.1"
 pytest-cov = "^3.0.0"
 pytest-xdist = "^2.5.0"
 pytest-clarity = "^1.0.1"
+pylint = "^3.0.1"
+mypy = "^1.6.0"
+pycodestyle = "^2.11.1"
+types-pyyaml = "^6.0.12.12"
+types-requests = "^2.31.0.9"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
