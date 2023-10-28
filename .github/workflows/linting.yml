@@ -26,7 +26,7 @@ jobs:
       - name: pylint
         if: ${{ always() }}
         run:
-          poetry run pylint --good-names=i,j,k,ex,x,y,t,k,v,ax,df,ec,mc,dc,ct --disable=fixme,too-many-branches,too-many-locals,too-many-statements,too-many-arguments,too-many-lines,too-many-public-methods,too-many-instance-attributes,too-few-public-methods sed tests
+          poetry run pylint -j 0 --good-names=i,j,k,ex,x,y,t,k,v,ax,df,ec,mc,dc,ct --disable=fixme,too-many-branches,too-many-locals,too-many-statements,too-many-arguments,too-many-lines,too-many-public-methods,too-many-instance-attributes,too-few-public-methods sed tests
       - name: mypy
         if: ${{ always() }}
         run:
