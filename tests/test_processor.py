@@ -23,12 +23,12 @@ from sed.loader.loader_interface import get_loader
 
 #  pylint: disable=duplicate-code
 package_dir = os.path.dirname(find_spec("sed").origin)
-df_folder = package_dir + "/../tests/data/loader/generic/"
-mpes_folder = package_dir + "/../tests/data/loader/mpes/"
+df_folder = package_dir + "/../tests/data/loader/mpes/"
+df_folder_generic = package_dir + "/../tests/data/loader/generic/"
 folder = package_dir + "/../tests/data/calibrator/"
-files = glob.glob(df_folder + "*.parquet")
+files = glob.glob(df_folder + "*.h5")
 runs = ["43878", "43878"]
-loader = get_loader(loader_name="generic")
+loader = get_loader(loader_name="mpes")
 source_folder = package_dir + "/../"
 dest_folder = tempfile.mkdtemp()
 gid = os.getgid()
@@ -49,10 +49,11 @@ with open(folder + "biases.csv", newline="", encoding="utf-8") as csvfile:
 
 def test_processor_from_dataframe():
     """Test generation of the processor from a dataframe object"""
-    config = {"core": {"loader": "generic"}}
-    dataframe, _, _ = loader.read_dataframe(files=files)
+    config = {"core": {"loader": "mpes"}}
+    dataframe, timed_dataframe, _ = loader.read_dataframe(files=files)
     processor = SedProcessor(
         dataframe=dataframe,
+        timed_dataframe=timed_dataframe,
         config=config,
         folder_config={},
         user_config={},
@@ -60,12 +61,16 @@ def test_processor_from_dataframe():
     )
     for column in dataframe.columns:
         assert (dataframe[column].compute() == processor.dataframe[column].compute()).all()
+    for column in timed_dataframe.columns:
+        assert (
+            timed_dataframe[column].compute() == processor.timed_dataframe[column].compute()
+        ).all()
 
 
 def test_processor_from_files():
     """Test generation of the processor from a list of files"""
-    config = {"core": {"loader": "generic"}}
-    dataframe, _, _ = loader.read_dataframe(files=files)
+    config = {"core": {"loader": "mpes"}}
+    dataframe, timed_dataframe, _ = loader.read_dataframe(files=files)
     processor = SedProcessor(
         files=files,
         config=config,
@@ -75,12 +80,16 @@ def test_processor_from_files():
     )
     for column in dataframe.columns:
         assert (dataframe[column].compute() == processor.dataframe[column].compute()).all()
+    for column in timed_dataframe.columns:
+        assert (
+            timed_dataframe[column].compute() == processor.timed_dataframe[column].compute()
+        ).all()
 
 
 def test_processor_from_folders():
     """Test generation of the processor from a folder"""
-    config = {"core": {"loader": "generic"}}
-    dataframe, _, _ = loader.read_dataframe(files=files)
+    config = {"core": {"loader": "mpes"}}
+    dataframe, timed_dataframe, _ = loader.read_dataframe(files=files)
     processor = SedProcessor(
         folder=df_folder,
         config=config,
@@ -90,6 +99,10 @@ def test_processor_from_folders():
     )
     for column in dataframe.columns:
         assert (dataframe[column].compute() == processor.dataframe[column].compute()).all()
+    for column in timed_dataframe.columns:
+        assert (
+            timed_dataframe[column].compute() == processor.timed_dataframe[column].compute()
+        ).all()
 
 
 def test_processor_from_runs():
@@ -116,7 +129,7 @@ def test_additional_parameter_to_loader():
     """
     config = {"core": {"loader": "generic"}}
     processor = SedProcessor(
-        folder=df_folder,
+        folder=df_folder_generic,
         ftype="json",
         config=config,
         folder_config={},
@@ -128,7 +141,7 @@ def test_additional_parameter_to_loader():
 
 def test_repr():
     """test the ___repr___ method"""
-    config = {"core": {"loader": "generic"}}
+    config = {"core": {"loader": "mpes"}}
     processor = SedProcessor(
         config=config,
         folder_config={},
@@ -147,7 +160,7 @@ def test_repr():
 
 def test_attributes_setters():
     """Test class attributes and setters."""
-    config = {"core": {"loader": "generic"}}
+    config = {"core": {"loader": "mpes"}}
     processor = SedProcessor(
         config=config,
         folder_config={},
@@ -170,13 +183,13 @@ def test_attributes_setters():
     assert "test" in processor_metadata.keys()
     processor.add_attribute({"key2": 5}, name="test2")
     assert processor.attributes["test2"]["key2"] == 5
-    assert processor.config["core"]["loader"] == "generic"
+    assert processor.config["core"]["loader"] == "mpes"
     assert len(processor.files) == 2
 
 
 def test_copy_tool():
     """Test the copy tool functionality in the processor"""
-    config = {"core": {"loader": "generic", "use_copy_tool": True}}
+    config = {"core": {"loader": "mpes", "use_copy_tool": True}}
     processor = SedProcessor(
         config=config,
         folder_config={},
@@ -186,7 +199,7 @@ def test_copy_tool():
     assert processor.use_copy_tool is False
     config = {
         "core": {
-            "loader": "generic",
+            "loader": "mpes",
             "use_copy_tool": True,
             "copy_tool_source": source_folder,
             "copy_tool_dest": dest_folder,
@@ -246,7 +259,7 @@ adjust_params = {
 def test_momentum_correction_workflow(features: np.ndarray):
     """Test for the momentum correction workflow"""
     config = parse_config(
-        config={"core": {"loader": "generic"}},
+        config={"core": {"loader": "mpes"}},
         folder_config={},
         user_config={},
         system_config={},
@@ -301,7 +314,7 @@ def test_momentum_correction_workflow(features: np.ndarray):
 def test_pose_adjustment():
     """Test for the pose correction and application of momentum correction workflow"""
     config = parse_config(
-        config={"core": {"loader": "generic"}},
+        config={"core": {"loader": "mpes"}},
         folder_config={},
         user_config={},
         system_config={},
@@ -351,7 +364,7 @@ k_coord_a = [k_distance * 0.3, k_distance * 0.8]
 def test_momentum_calibration_workflow():
     """Test the calibration of the momentum axes"""
     config = parse_config(
-        config={"core": {"loader": "generic"}},
+        config={"core": {"loader": "mpes"}},
         folder_config={},
         user_config={},
         system_config={},
@@ -404,7 +417,7 @@ def test_momentum_calibration_workflow():
 def test_energy_correction():
     """Test energy correction workflow."""
     config = parse_config(
-        config={"core": {"loader": "generic"}},
+        config={"core": {"loader": "mpes"}},
         folder_config={},
         user_config={},
         system_config={},
@@ -471,7 +484,7 @@ def test_energy_calibration_workflow(energy_scale: str, calibration_method: str)
         system_config={},
     )
     processor = SedProcessor(
-        folder=df_folder + "../mpes/",
+        folder=df_folder,
         config=config,
         folder_config={},
         user_config={},
@@ -480,9 +493,9 @@ def test_energy_calibration_workflow(energy_scale: str, calibration_method: str)
     with pytest.raises(ValueError):
         processor.load_bias_series()
     with pytest.raises(ValueError):
-        processor.load_bias_series(data_files=glob.glob(df_folder + "../mpes/*.h5"), normalize=True)
+        processor.load_bias_series(data_files=files, normalize=True)
     processor.load_bias_series(
-        data_files=glob.glob(df_folder + "../mpes/*.h5"),
+        data_files=files,
         normalize=True,
         bias_key="@KTOF:Lens:Sample:V",
     )
@@ -570,7 +583,7 @@ def test_delay_calibration_workflow():
         system_config={},
     )
     processor = SedProcessor(
-        folder=df_folder + "../mpes/",
+        folder=df_folder,
         config=config,
         folder_config={},
         user_config={},
@@ -593,7 +606,7 @@ def test_delay_calibration_workflow():
 def test_add_jitter():
     """Test the jittering function"""
     config = parse_config(
-        config={"core": {"loader": "generic"}},
+        config={"core": {"loader": "mpes"}},
         folder_config={},
         user_config={},
         system_config={},
@@ -620,7 +633,7 @@ def test_add_jitter():
 def test_event_histogram():
     """Test histogram plotting function"""
     config = parse_config(
-        config={"core": {"loader": "generic"}},
+        config={"core": {"loader": "mpes"}},
         folder_config={},
         user_config={},
         system_config={},
@@ -640,7 +653,7 @@ def test_event_histogram():
 def test_compute():
     """Test binning of final result"""
     config = parse_config(
-        config={"core": {"loader": "generic"}},
+        config={"core": {"loader": "mpes"}},
         folder_config={},
         user_config={},
         system_config={},
@@ -669,7 +682,7 @@ def test_compute_with_normalization():
         system_config={},
     )
     processor = SedProcessor(
-        folder=mpes_folder,
+        folder=df_folder,
         config=config,
         folder_config={},
         user_config={},
@@ -704,7 +717,7 @@ def test_get_normalization_histogram():
         system_config={},
     )
     processor = SedProcessor(
-        folder=mpes_folder,
+        folder=df_folder,
         config=config,
         folder_config={},
         user_config={},
@@ -767,7 +780,7 @@ def test_save():
         system_config={},
     )
     processor = SedProcessor(
-        folder=df_folder + "../mpes/",
+        folder=df_folder,
         config=config,
         folder_config={},
         user_config={},
