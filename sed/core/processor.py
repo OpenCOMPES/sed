@@ -650,9 +650,13 @@ class SedProcessor:
                 df=self._dataframe,
             )
             if self._timed_dataframe is not None:
-                self._timed_dataframe, _ = self.mc.apply_corrections(
-                    self._timed_dataframe,
-                )
+                if (
+                    self._config["dataframe"]["x_column"] in self._timed_dataframe.columns
+                    and self._config["dataframe"]["y_column"] in self._timed_dataframe.columns
+                ):
+                    self._timed_dataframe, _ = self.mc.apply_corrections(
+                        self._timed_dataframe,
+                    )
             # Add Metadata
             self._attributes.add(
                 metadata,
@@ -777,10 +781,14 @@ class SedProcessor:
                 calibration=calibration,
             )
             if self._timed_dataframe is not None:
-                self._timed_dataframe, _ = self.mc.append_k_axis(
-                    df=self._timed_dataframe,
-                    calibration=calibration,
-                )
+                if (
+                    self._config["dataframe"]["x_column"] in self._timed_dataframe.columns
+                    and self._config["dataframe"]["y_column"] in self._timed_dataframe.columns
+                ):
+                    self._timed_dataframe, _ = self.mc.append_k_axis(
+                        df=self._timed_dataframe,
+                        calibration=calibration,
+                    )
 
             # Add Metadata
             self._attributes.add(
@@ -900,11 +908,12 @@ class SedProcessor:
                 **kwds,
             )
             if self._timed_dataframe is not None:
-                self._timed_dataframe, _ = self.ec.apply_energy_correction(
-                    df=self._timed_dataframe,
-                    correction=correction,
-                    **kwds,
-                )
+                if self._config["dataframe"]["tof_column"] in self._timed_dataframe.columns:
+                    self._timed_dataframe, _ = self.ec.apply_energy_correction(
+                        df=self._timed_dataframe,
+                        correction=correction,
+                        **kwds,
+                    )
 
             # Add Metadata
             self._attributes.add(
@@ -1230,11 +1239,12 @@ class SedProcessor:
                 **kwds,
             )
             if self._timed_dataframe is not None:
-                self._timed_dataframe, _ = self.ec.append_energy_axis(
-                    df=self._timed_dataframe,
-                    calibration=calibration,
-                    **kwds,
-                )
+                if self._config["dataframe"]["tof_column"] in self._timed_dataframe.columns:
+                    self._timed_dataframe, _ = self.ec.append_energy_axis(
+                        df=self._timed_dataframe,
+                        calibration=calibration,
+                        **kwds,
+                    )
 
             # Add Metadata
             self._attributes.add(
@@ -1276,11 +1286,12 @@ class SedProcessor:
                     **kwds,
                 )
                 if self._timed_dataframe is not None:
-                    self._timed_dataframe, _ = self.dc.append_delay_axis(
-                        self._timed_dataframe,
-                        delay_range=delay_range,
-                        **kwds,
-                    )
+                    if self._config["dataframe"]["adc_column"] in self._timed_dataframe.columns:
+                        self._timed_dataframe, _ = self.dc.append_delay_axis(
+                            self._timed_dataframe,
+                            delay_range=delay_range,
+                            **kwds,
+                        )
             else:
                 if datafile is None:
                     try:
@@ -1298,11 +1309,12 @@ class SedProcessor:
                     **kwds,
                 )
                 if self._timed_dataframe is not None:
-                    self._timed_dataframe, _ = self.dc.append_delay_axis(
-                        self._timed_dataframe,
-                        datafile=datafile,
-                        **kwds,
-                    )
+                    if self._config["dataframe"]["adc_column"] in self._timed_dataframe.columns:
+                        self._timed_dataframe, _ = self.dc.append_delay_axis(
+                            self._timed_dataframe,
+                            datafile=datafile,
+                            **kwds,
+                        )
 
             # Add Metadata
             self._attributes.add(
@@ -1349,11 +1361,17 @@ class SedProcessor:
             **kwds,
         )
         if self._timed_dataframe is not None:
-            self._timed_dataframe = self._timed_dataframe.map_partitions(
-                apply_jitter,
-                cols=cols,
-                cols_jittered=cols,
-            )
+            cols_timed = cols.copy()
+            for col in cols:
+                if col not in self._timed_dataframe.columns:
+                    cols_timed.remove(col)
+
+            if cols_timed:
+                self._timed_dataframe = self._timed_dataframe.map_partitions(
+                    apply_jitter,
+                    cols=cols_timed,
+                    cols_jittered=cols_timed,
+                )
         metadata = []
         for col in cols:
             metadata.append(col)
