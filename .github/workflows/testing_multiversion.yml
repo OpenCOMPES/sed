@@ -1,6 +1,8 @@
 name: unit tests [Python 3.8|3.9|3.10]
 
-on: push
+on:
+  push:
+    branches: [ main ]
 
 jobs:
   pytest:
