@@ -45,8 +45,9 @@ jobs:
         run: |
           df -h
           pwd
-          chdir $GITHUB_WORKSPACE
+          cd $GITHUB_WORKSPACE
           pwd
+          df -h .
           find $GITHUB_WORKSPACE/tutorial -type f -name "*.ipynb" -exec poetry run jupyter-nbconvert --execute --to notebook --inplace {} \;
       
       - name: create docs/tutorial directory
