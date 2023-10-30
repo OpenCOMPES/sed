@@ -33,7 +33,7 @@ joblib = "^1.2.0"
 pyarrow = "^13.0.0"
 jupyter = {version = "^1.0.0", extras = ["notebook"], optional = true}
 ipykernel = {version = "^6.9.1", extras = ["notebook"], optional = true}
-jupyterlab-h5web = {version = "^7.0.0", extras = ["notebook"], optional = true}
+jupyterlab-h5web = {version = ">=7.0.0", extras = ["notebook"], optional = true}
 sphinx = {version = ">4.4.0", extras = ["docs"], optional = true}
 sphinx-rtd-theme = {version = ">1.0.0", extras = ["docs"], optional = true}
 tomlkit = {version = ">0.10.0", extras = ["docs"], optional = true}
