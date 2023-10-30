@@ -30,7 +30,7 @@ Load Data
 
     data_path = '../../' # Put in Path to a storage of at least 20 Gbyte free space.
     if not os.path.exists(data_path + "/WSe2.zip"):
-        os.system(f"curl --output {data_path}/WSe2.zip https://zenodo.org/record/6369728/files/WSe2.zip")
+        os.system(f"curl -L --output {data_path}/WSe2.zip https://zenodo.org/record/6369728/files/WSe2.zip")
     if not os.path.isdir(data_path + "/Scan049_1") or not os.path.isdir(data_path + "energycal_2019_01_08/"):
         os.system(f"unzip -d {data_path} -o {data_path}/WSe2.zip")
 
@@ -54,7 +54,7 @@ Load Data
 
 .. code:: ipython3
 
-    # Apply jittering to X, Y, t, ADC columns. 
+    # Apply jittering to X, Y, t, ADC columns.
     # Columns are defined in the config, or can be provided as list.
     sp.add_jitter()
 
@@ -103,8 +103,8 @@ distortions from the perfect n-fold rotational symmetry.
     # Manual selection: Use a GUI tool to select peaks:
     #sp.define_features(rotation_symmetry=6, include_center=True)
     #sp.generate_splinewarp(rotation_symmetry=6, include_center=True, fwhm=10, sigma=12, sigma_radius=4)
-    # Autodetect: Uses the DAOStarFinder routine to locate maxima. 
-    # Parameters are: 
+    # Autodetect: Uses the DAOStarFinder routine to locate maxima.
+    # Parameters are:
     #   fwhm: Full-width at half maximum of peaks.
     #   sigma: Number of standard deviations above the mean value of the image peaks must have.
     #   sigma_radius: number of standard deviations around a peak that peaks are fitted
@@ -290,7 +290,7 @@ other curves using a dynamic time warping algorithm.
     # sp.find_bias_peaks(ranges=rg, infer_others=False)
     # Option 2 = specify the range for one curve and infer the others
     # This will open an interactive tool to select the correct ranges for the curves.
-    # IMPORTANT: Don't choose the range too narrow about a peak, and choose a refid 
+    # IMPORTANT: Don't choose the range too narrow about a peak, and choose a refid
     # somewhere in the middle or towards larger biases!
     rg = (66100, 67000)
     sp.find_bias_peaks(ranges=rg, ref_id=5, infer_others=True, apply=True)
