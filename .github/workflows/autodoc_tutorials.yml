@@ -46,6 +46,8 @@ jobs:
           df -h
           pwd
           cd tutorial
+          mkdir temp
+          cd temp
           pwd
           df -h .
           find $GITHUB_WORKSPACE/tutorial -type f -name "*.ipynb" -exec poetry run jupyter-nbconvert --execute --to notebook --inplace {} \;
