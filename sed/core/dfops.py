@@ -112,6 +112,45 @@ def apply_filter(
     return out_df
 
 
+def add_time_stamped_data(
+    df: Union[pd.DataFrame, dask.dataframe.DataFrame],
+    time_stamps: np.ndarray,
+    data: np.ndarray,
+    dest_column: str,
+    time_stamp_column: str,
+    **kwds,
+) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
+    """Add data in form of timestamp/value pairs to the dataframe using interpolation to the
+    timestamps in the dataframe.
+
+    Args:
+        df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to use.
+        time_stamps (np.ndarray): Time stamps of the values to add
+        data (np.ndarray): Values corresponding at the time stamps in time_stamps
+        dest_column (str): destination column name
+        time_stamp_column (str): Time stamp column name
+
+    Returns:
+        Union[pd.DataFrame, dask.dataframe.DataFrame]: Dataframe with added column
+    """
+    if time_stamp_column not in df.columns:
+        raise ValueError(f"{time_stamp_column} not found in dataframe!")
+
+    if len(time_stamps) != len(data):
+        raise ValueError("time_stamps and data have to be of same length!")
+
+    def interpolate_timestamps(
+        df: Union[pd.DataFrame, dask.dataframe.DataFrame],
+    ) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
+        df_timestamps = df[time_stamp_column]
+        df[dest_column] = np.interp(df_timestamps, time_stamps, data)
+        return df
+
+    df = df.map_partitions(interpolate_timestamps, **kwds)
+
+    return df
+
+
 def map_columns_2d(
     df: Union[pd.DataFrame, dask.dataframe.DataFrame],
     map_2d: Callable,
