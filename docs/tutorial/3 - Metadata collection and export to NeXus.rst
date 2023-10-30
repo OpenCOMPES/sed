@@ -30,7 +30,7 @@ Load Data
 
     data_path = '../../' # Put in Path to a storage of at least 20 Gbyte free space.
     if not os.path.exists(data_path + "/WSe2.zip"):
-        os.system(f"curl --output {data_path}/WSe2.zip https://zenodo.org/record/6369728/files/WSe2.zip")
+        os.system(f"curl -L  --output {data_path}/WSe2.zip https://zenodo.org/record/6369728/files/WSe2.zip")
     if not os.path.isdir(data_path + "/Scan049_1") or not os.path.isdir(data_path + "energycal_2019_01_08/"):
         os.system(f"unzip -d {data_path} -o {data_path}/WSe2.zip")
 
