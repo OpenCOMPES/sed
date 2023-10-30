@@ -28,9 +28,9 @@ Load Data
 
 .. code:: ipython3
 
-    data_path = '../../' # Put in Path to a storage of at least 20 Gbyte free space.
+    data_path = '.' # Put in Path to a storage of at least 20 Gbyte free space.
     if not os.path.exists(data_path + "/WSe2.zip"):
-        os.system(f"curl -L  --output {data_path}/WSe2.zip https://zenodo.org/record/6369728/files/WSe2.zip")
+        os.system(f"curl -L --output {data_path}/WSe2.zip https://zenodo.org/record/6369728/files/WSe2.zip")
     if not os.path.isdir(data_path + "/Scan049_1") or not os.path.isdir(data_path + "energycal_2019_01_08/"):
         os.system(f"unzip -d {data_path} -o {data_path}/WSe2.zip")
 
@@ -72,7 +72,7 @@ Load Data
     metadata['instrument']['beam']['probe']['pulse_duration'] = 20.
     metadata['instrument']['beam']['probe']['frequency'] = 500.
     metadata['instrument']['beam']['probe']['incident_polarization'] = [1, 1, 0, 0] # p pol Stokes vector
-    metadata['instrument']['beam']['probe']['extent'] = [80., 80.] 
+    metadata['instrument']['beam']['probe']['extent'] = [80., 80.]
     #pump beam
     metadata['instrument']['beam']['pump']={}
     metadata['instrument']['beam']['pump']['incident_energy'] = 1.55
@@ -80,10 +80,10 @@ Load Data
     metadata['instrument']['beam']['pump']['pulse_duration'] = 35.
     metadata['instrument']['beam']['pump']['frequency'] = 500.
     metadata['instrument']['beam']['pump']['incident_polarization'] = [1, -1, 0, 0] # s pol Stokes vector
-    metadata['instrument']['beam']['pump']['incident_wavelength'] = 800. 
+    metadata['instrument']['beam']['pump']['incident_wavelength'] = 800.
     metadata['instrument']['beam']['pump']['average_power'] = 300.
     metadata['instrument']['beam']['pump']['pulse_energy'] = metadata['instrument']['beam']['pump']['average_power']/metadata['instrument']['beam']['pump']['frequency']#µJ
-    metadata['instrument']['beam']['pump']['extent'] = [230., 265.] 
+    metadata['instrument']['beam']['pump']['extent'] = [230., 265.]
     metadata['instrument']['beam']['pump']['fluence'] = 0.15
     
     #sample
@@ -122,7 +122,7 @@ Load Data
 
 .. code:: ipython3
 
-    # Apply jittering to X, Y, t, ADC columns. 
+    # Apply jittering to X, Y, t, ADC columns.
     sp.add_jitter()
 
 .. code:: ipython3
