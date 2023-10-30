@@ -18,20 +18,20 @@ jobs:
           remove-codeql: 'true'
           remove-android: 'true'
           remove-docker-images: 'true'
-          
+
       #  Check out repo and set up Python
       - name: Check out the repository
         uses: actions/checkout@v4
         with:
           lfs: true
-    
+
       # Use cached python and dependencies, install poetry
       - name: "Setup Python, Poetry and Dependencies"
         uses: packetcoders/action-setup-cache-python-poetry@main
         with:
           python-version: 3.8
           poetry-version: 1.2.2
-      
+
       - name: Install jupyter
         run: poetry install -E notebook
 
@@ -43,15 +43,8 @@ jobs:
       # Execute and convert notebooks
       - name: execute notebooks
         run: |
-          df -h
-          pwd
-          cd tutorial
-          mkdir temp
-          cd temp
-          pwd
-          df -h .
           find $GITHUB_WORKSPACE/tutorial -type f -name "*.ipynb" -exec poetry run jupyter-nbconvert --execute --to notebook --inplace {} \;
-      
+
       - name: create docs/tutorial directory
         run: mkdir -p $GITHUB_WORKSPACE/docs/tutorial
 
