@@ -43,6 +43,7 @@ jobs:
       # Execute and convert notebooks
       - name: execute notebooks
         run: |
+          cd $GITHUB_WORKSPACE/tutorial
           curl -L --output ./WSe2.zip https://zenodo.org/record/6369728/files/WSe2.zip
           unzip -d . -o ./WSe2.zip
           find $GITHUB_WORKSPACE/tutorial -type f -name "*.ipynb" -exec poetry run jupyter-nbconvert --execute --to notebook --inplace {} \;
