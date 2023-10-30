@@ -17,14 +17,14 @@ Single-Event DataFrame (SED) documentation
    sed/config
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :numbered:
    :caption: Examples
 
-   tutorial/1 - Binning fake data.rst 
-   tutorial/2 - Binning of example time-resolved ARPES data.rst
-   tutorial/3 - Conversion Pipeline for example time-resolved ARPES data.rst
-   tutorial/4 - Metadata collection and export to NeXus.rst
+   tutorial/1_Binningfakedata
+   tutorial/2_ConversionPipelineforexampletime_resolvedARPESdata
+   tutorial/3_MetadatacollectionandexporttoNeXus
+   tutorial/Flashenergycalibration
 
 .. toctree::
    :maxdepth: 2
