@@ -64,33 +64,33 @@ Generate Fake Data
       <tbody>
         <tr>
           <th>0</th>
-          <td>-1.216490</td>
-          <td>-0.040906</td>
-          <td>-0.512307</td>
+          <td>-1.690427</td>
+          <td>-0.341972</td>
+          <td>1.147157</td>
         </tr>
         <tr>
           <th>1</th>
-          <td>-0.132581</td>
-          <td>1.260236</td>
-          <td>-1.129864</td>
+          <td>-0.932979</td>
+          <td>1.526473</td>
+          <td>-0.028683</td>
         </tr>
         <tr>
           <th>2</th>
-          <td>-1.177695</td>
-          <td>-0.123248</td>
-          <td>-0.189796</td>
+          <td>0.007725</td>
+          <td>0.950098</td>
+          <td>-0.824876</td>
         </tr>
         <tr>
           <th>3</th>
-          <td>1.575686</td>
-          <td>-0.704794</td>
-          <td>-0.856684</td>
+          <td>0.652220</td>
+          <td>0.162422</td>
+          <td>-1.195199</td>
         </tr>
         <tr>
           <th>4</th>
-          <td>-0.167771</td>
-          <td>-0.729445</td>
-          <td>-1.009999</td>
+          <td>0.047637</td>
+          <td>-0.288977</td>
+          <td>-0.767723</td>
         </tr>
         <tr>
           <th>...</th>
@@ -100,33 +100,33 @@ Generate Fake Data
         </tr>
         <tr>
           <th>99995</th>
-          <td>-0.421774</td>
-          <td>-1.016722</td>
-          <td>-0.908799</td>
+          <td>1.207263</td>
+          <td>-0.679965</td>
+          <td>-0.118285</td>
         </tr>
         <tr>
           <th>99996</th>
-          <td>0.427288</td>
-          <td>-0.680485</td>
-          <td>-2.143364</td>
+          <td>0.772043</td>
+          <td>-0.059881</td>
+          <td>1.301436</td>
         </tr>
         <tr>
           <th>99997</th>
-          <td>-0.263461</td>
-          <td>1.832813</td>
-          <td>-1.033197</td>
+          <td>0.391680</td>
+          <td>-0.901248</td>
+          <td>0.002133</td>
         </tr>
         <tr>
           <th>99998</th>
-          <td>0.603668</td>
-          <td>-1.799990</td>
-          <td>-1.914276</td>
+          <td>-0.976290</td>
+          <td>-0.553660</td>
+          <td>1.858859</td>
         </tr>
         <tr>
           <th>99999</th>
-          <td>0.180072</td>
-          <td>0.689118</td>
-          <td>0.446010</td>
+          <td>0.529695</td>
+          <td>-0.918554</td>
+          <td>-0.313894</td>
         </tr>
       </tbody>
     </table>
@@ -162,8 +162,8 @@ Compute the binning along the pandas dataframe
 
 .. parsed-literal::
 
-    CPU times: user 1.23 s, sys: 48.2 ms, total: 1.28 s
-    Wall time: 1.28 s
+    CPU times: user 1.07 s, sys: 23.9 ms, total: 1.1 s
+    Wall time: 1.1 s
 
 
 .. code:: ipython3
@@ -286,8 +286,8 @@ multiple for demonstration purpouses.
 
 .. parsed-literal::
 
-    CPU times: user 744 ms, sys: 427 ms, total: 1.17 s
-    Wall time: 1.06 s
+    CPU times: user 549 ms, sys: 307 ms, total: 856 ms
+    Wall time: 777 ms
 
 
 .. code:: ipython3
