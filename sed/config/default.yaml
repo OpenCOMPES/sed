@@ -9,6 +9,8 @@ dataframe:
   y_column: "Y"
   # dataframe column containing time-of-flight data
   tof_column: "t"
+  # dataframe column containing time-of-flight data in nanoseconds
+  tof_ns_column: "t_ns"
   # dataframe column containing analog-to-digital data
   adc_column: "ADC"
   # dataframe column containing bias voltage data

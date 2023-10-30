@@ -265,66 +265,6 @@ def backward_fill_lazy(
     return df
 
 
-def rolling_average_on_acquisition_time(
-    df: Union[pd.DataFrame, dask.dataframe.DataFrame],
-    rolling_group_channel: str = None,
-    columns: Union[str, Sequence[str]] = None,
-    window: float = None,
-    sigma: float = 2,
-    config: dict = None,
-) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
-    """Perform a rolling average with a gaussian weighted window.
-
-    The rolling average is performed on the acquisition time instead of the index.
-    This can be a time-stamp or similar, such as the trainID at FLASH.
-    This is necessary first when considering the recorded electrons do not come at a regular time
-    interval, but even more importantly when loading multiple datasets with gaps in the acquisition.
-
-
-    In order to preserve the number of points, the first and last "window"
-    number of points are substituted with the original signal.
-    # TODO: this is currently very slow, and could do with a remake.
-
-    Args:
-        df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to use.
-        group_channel: (str): Name of the column on which to group the data
-        cols (str): Name of the column on which to perform the rolling average
-        window (float): Size of the rolling average window
-        sigma (float): number of standard deviations for the gaussian weighting of the window.
-            a value of 2 corresponds to a gaussian with sigma equal to half the window size.
-            Smaller values reduce the weighting in the window frame.
-
-    Returns:
-        Union[pd.DataFrame, dask.dataframe.DataFrame]: Dataframe with the new columns.
-    """
-    if rolling_group_channel is None:
-        if config is None:
-            raise ValueError("Either group_channel or config must be given.")
-        rolling_group_channel = config["dataframe"]["rolling_group_channel"]
-    if isinstance(columns, str):
-        columns = [columns]
-    s = f"rolling average over {rolling_group_channel} on "
-    for c in columns:
-        s += f"{c}, "
-    print(s)
-    with ProgressBar():
-        df_ = df.groupby(rolling_group_channel).agg({c: "mean" for c in columns}).compute()
-        df_["dt"] = pd.to_datetime(df_.index, unit="s")
-        df_["ts"] = df_.index
-        for c in columns:
-            df_[c + "_rolled"] = (
-                df_[c]
-                .interpolate(method="nearest")
-                .rolling(window, center=True, win_type="gaussian")
-                .mean(std=window / sigma)
-                .fillna(df_[c])
-            )
-            df_ = df_.drop(c, axis=1)
-            if c + "_rolled" in df.columns:
-                df = df.drop(c + "_rolled", axis=1)
-    return df.merge(df_, left_on="timeStamp", right_on="ts").drop(["ts", "dt"], axis=1)
-
-
 def apply_offset_from_columns(
     df: Union[pd.DataFrame, dask.dataframe.DataFrame],
     target_column: str,
@@ -342,7 +282,9 @@ def apply_offset_from_columns(
         offset_columns (str): Name of the column(s) to use for the offset.
         signs (int): Sign of the offset. Defaults to 1.
         reductions (str): Reduction function to use for the offset. Defaults to "mean".
-
+        subtract_mean (bool): Whether to subtract the mean of the offset column. Defaults to False.
+            If a list is given, it must have the same length as offset_columns. Otherwise the value
+            passed is used for all columns.
     Returns:
         Union[pd.DataFrame, dask.dataframe.DataFrame]: Dataframe with the new column.
     """
@@ -351,8 +293,7 @@ def apply_offset_from_columns(
     if not inplace:
         df[target_column + "_offset"] = df[target_column]
         target_column = target_column + "_offset"
-    if reductions is None:
-        reductions = "mean"
+
     if isinstance(reductions, str):
         reductions = [reductions] * len(offset_columns)
     if isinstance(signs, int):
@@ -363,11 +304,17 @@ def apply_offset_from_columns(
         subtract_mean = [subtract_mean] * len(offset_columns)
 
     for col, sign, red, submean in zip(offset_columns, signs, reductions, subtract_mean):
-        assert col in df.columns, f"{col} not in dataframe!"
+        if col not in df.columns:
+            raise KeyError(f"{col} not in dataframe!")
         if red is not None:
             df[target_column] = df[target_column] + sign * df[col].agg(red)
         else:
             df[target_column] = df[target_column] + sign * df[col]
         if submean:
             df[target_column] = df[target_column] - sign * df[col].mean()
+        s = "+" if sign > 0 else "-"
+        msg = f"Shifting {target_column} by {s} {col}"
+        if submean[-1]:
+            msg += " and subtracting mean"
+        print(msg)
     return df

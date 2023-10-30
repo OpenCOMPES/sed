@@ -6,7 +6,6 @@ from typing import Any
 from typing import cast
 from typing import Dict
 from typing import List
-from typing import Literal
 from typing import Sequence
 from typing import Tuple
 from typing import Union
@@ -25,7 +24,6 @@ from sed.calibrator import MomentumCorrector
 from sed.core.config import parse_config
 from sed.core.config import save_config
 from sed.core.dfops import apply_jitter
-from sed.core.dfops import rolling_average_on_acquisition_time
 from sed.core.metadata import MetaHandler
 from sed.diagnostics import grid_histogram
 from sed.io import to_h5
@@ -1190,9 +1188,8 @@ class SedProcessor:
         if energy_column not in self._dataframe.columns:
             raise ValueError(
                 f"Energy column {energy_column} not found in dataframe! "
-                "Run energy calibration first",
+                "Run `append energy axis` first.",
             )
-        metadata = {}
         self._dataframe, metadata = self.ec.apply_energy_offset(
             df=self._dataframe,
             constant=constant,
@@ -1237,12 +1234,21 @@ class SedProcessor:
                 duplicate_policy="append",
             )
 
-    def align_dld_sectors(self, **kwargs):
-        """Align the 8s sectors of the HEXTOF endstation."""
+    def align_dld_sectors(self, sector_delays: np.ndarray = None, **kwargs):
+        """Align the 8s sectors of the HEXTOF endstation.
+
+        Args:
+            sector_delays (np.ndarray, optional): Array containing the sector delays. Defaults to
+                config["dataframe"]["sector_delays"].
+        """
         if self._dataframe is not None:
             print("Aligning 8s sectors of dataframe")
             # TODO assert order of execution through metadata
-            self._dataframe, metadata = self.ec.align_dld_sectors(df=self._dataframe, **kwargs)
+            self._dataframe, metadata = self.ec.align_dld_sectors(
+                df=self._dataframe,
+                sector_delays=sector_delays,
+                **kwargs,
+            )
             self._attributes.add(
                 metadata,
                 "dld_sector_alignment",
@@ -1342,43 +1348,6 @@ class SedProcessor:
         for col in cols:
             metadata.append(col)
         self._attributes.add(metadata, "jittering", duplicate_policy="append")
-
-    def smooth_columns(
-        self,
-        columns: Union[str, Sequence[str]] = None,
-        method: Literal["rolling"] = "rolling",
-        **kwargs,
-    ) -> None:
-        """Apply a filter along one or more columns of the dataframe.
-
-        Currently only supports rolling average on acquisition time.
-
-        Args:
-            columns (Union[str,Sequence[str]]): The colums onto which to apply the filter.
-            method (Literal['rolling'], optional): The filter method. Defaults to 'rolling'.
-            **kwargs: Keyword arguments passed to the filter method.
-        """
-        if isinstance(columns, str):
-            columns = [columns]
-        for column in columns:
-            if column not in self._dataframe.columns:
-                raise ValueError(f"Cannot smooth {column}. Column not in dataframe!")
-        kwargs = {**self._config["smooth"], **kwargs}
-        if method == "rolling":
-            self._dataframe = rolling_average_on_acquisition_time(
-                df=self._dataframe,
-                rolling_group_channel=kwargs.get("rolling_group_channel", None),
-                columns=columns or kwargs.get("columns", None),
-                window=kwargs.get("window", None),
-                sigma=kwargs.get("sigma", None),
-            )
-        else:
-            raise ValueError(f"Method {method} not supported!")
-        self._attributes.add(
-            columns,
-            "smooth",
-            duplicate_policy="append",
-        )
 
     def pre_binning(
         self,

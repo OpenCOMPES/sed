@@ -36,22 +36,19 @@ dataframe:
   # dataframe column containing kx coordinates
   kx_column: "kx"
   # dataframe column containing y coordinates
-
   y_column: dldPosY
   # dataframe column containing corrected y coordinates
   corrected_y_column: "Y"
   # dataframe column containing kx coordinates
   ky_column: "ky"
   # dataframe column containing time-of-flight data
-
   tof_column: dldTimeSteps
   # dataframe column containing time-of-flight data in ns
   tof_ns_column: dldTime
   # dataframe column containing corrected time-of-flight data
   corrected_tof_column: "tm"
-
-  # time length of a base time-of-flight bin in ns
-  tof_binwidth: 0.020576131995767355 # 0.16460905596613884
+  # time length of a base time-of-flight bin in seconds
+  tof_binwidth: 2.0576131995767355E-11
   # binning parameter for time-of-flight data. 2**tof_binning bins per base bin
   tof_binning: 3  # power of 2, 3 means 8 bins per step
   # dataframe column containing sector ID. obtained from dldTimeSteps column

@@ -11,10 +11,10 @@ core:
   paths:
     data_raw_dir: "tests/data/loader/flash/"
     data_parquet_dir: "tests/data/loader/flash/parquet"
-    
+
   # These can be replaced by beamtime_id and year to automatically
   # find the folders on the desy cluster
-  
+
   # beamtime_id: xxxxxxxx
   # year: 20xx
 
@@ -24,8 +24,8 @@ dataframe:
   # The offset correction to the pulseId
   ubid_offset: 5
 
-  # the number of iterations to fill the pulseId forward. 
-  forward_fill_iterations: 2 
+  # the number of iterations to fill the pulseId forward.
+  forward_fill_iterations: 2
   # if true, removes the 3 bits reserved for dldSectorID from the dldTimeandSector column
   unravel_8s_detector_time_channel: True
 
@@ -50,8 +50,8 @@ dataframe:
   # dataframe column containing corrected time-of-flight data
   corrected_tof_column: "tm"
 
-  # time length of a base time-of-flight bin in ns
-  tof_binwidth: 0.020576131995767355 # 0.16460905596613884
+  # time length of a base time-of-flight bin in seconds
+  tof_binwidth: 2.0576131995767355E-11
   # binning parameter for time-of-flight data. 2**tof_binning bins per base bin
   tof_binning: 3  # power of 2, 4 means 8 bins per step
   # dataframe column containing sector ID. obtained from dldTimeSteps column
@@ -88,17 +88,17 @@ dataframe:
       format: per_electron
       group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
       slice: 1
-      
+
     dldPosY:
       format: per_electron
       group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
       slice: 0
-      
+
     dldTimeSteps:
       format: per_electron
       group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
       slice: 3
-      
+
     # The auxillary channel has a special structure where the group further contains
     # a multidim structure so further aliases are defined below
     dldAux:
@@ -113,7 +113,7 @@ dataframe:
         cryoTemperature: 4
         sampleTemperature: 5
         dldTimeBinSize: 15
-        
+
   # The prefixes of the stream names for different DAQ systems for parsing filenames
   # (Not to be changed by user)
   stream_name_prefixes:
