@@ -113,13 +113,13 @@ def apply_filter(
 
 
 def add_time_stamped_data(
-    df: Union[pd.DataFrame, dask.dataframe.DataFrame],
+    df: dask.dataframe.DataFrame,
     time_stamps: np.ndarray,
     data: np.ndarray,
     dest_column: str,
     time_stamp_column: str,
     **kwds,
-) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
+) -> dask.dataframe.DataFrame:
     """Add data in form of timestamp/value pairs to the dataframe using interpolation to the
     timestamps in the dataframe.
 
@@ -140,11 +140,14 @@ def add_time_stamped_data(
         raise ValueError("time_stamps and data have to be of same length!")
 
     def interpolate_timestamps(
-        df: Union[pd.DataFrame, dask.dataframe.DataFrame],
-    ) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
+        df: dask.dataframe.DataFrame,
+    ) -> dask.dataframe.DataFrame:
         df_timestamps = df[time_stamp_column]
         df[dest_column] = np.interp(df_timestamps, time_stamps, data)
         return df
+
+    if not isinstance(df, dask.dataframe.DataFrame):
+        raise ValueError("This function only works for Dask Dataframes!")
 
     df = df.map_partitions(interpolate_timestamps, **kwds)
 
