@@ -271,6 +271,36 @@ def test_append_energy_axis_raises():
         )
 
 
+def test_append_tof_ns_axis():
+    """Function to test if the tof_ns calibration is correctly applied.
+    TODO: add further tests once the discussion about units is done.
+    """
+    cfg = {
+        "dataframe": {
+            "tof_column": "t",
+            "tof_ns_column": "t_ns",
+            "tof_binning": 1,
+            "tof_binwidth": 1e-9,
+        },
+    }
+    config = parse_config(config=cfg, folder_config={}, user_config={}, system_config={})
+    loader = get_loader(loader_name="mpes", config=config)
+
+    # from kwds
+    df, _ = loader.read_dataframe(folders=df_folder, collect_metadata=False)
+    ec = EnergyCalibrator(config=config, loader=loader)
+    df, _ = ec.append_tof_ns_axis(df, binwidth=2e-9, binning=1)
+    assert config["dataframe"]["tof_ns_column"] in df.columns
+    np.testing.assert_allclose(df[ec.tof_column], df[ec.tof_ns_column] / 4)
+
+    # from config
+    df, _ = loader.read_dataframe(folders=df_folder, collect_metadata=False)
+    ec = EnergyCalibrator(config=config, loader=loader)
+    df, _ = ec.append_tof_ns_axis(df)
+    assert config["dataframe"]["tof_ns_column"] in df.columns
+    np.testing.assert_allclose(df[ec.tof_column], df[ec.tof_ns_column] / 2)
+
+
 amplitude = 2.5  # pylint: disable=invalid-name
 center = (730, 730)
 sample = np.array(

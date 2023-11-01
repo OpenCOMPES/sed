@@ -903,8 +903,6 @@ class EnergyCalibrator:
     ) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
         """Converts the time-of-flight time from steps to time in ns.
 
-        # TODO: needs tests
-
         Args:
             df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to convert.
             tof_column (str, optional): Name of the column containing the
