@@ -216,6 +216,8 @@ histogram:
   ranges: [[0, 1800], [0, 1800], [128000, 138000], [0, 32000]]
 
 metadata:
+  # URL of the epics archiver request engine
+  archiver_url: "http://aa0.fhi-berlin.mpg.de:17668/retrieval/data/getData.json?pv="
   # EPICS channels to collect from EPICS archiver
   epics_pvs: ["KTOF:Lens:Extr:I", "trARPES:Carving:TEMP_RBV", "trARPES:XGS600:PressureAC:P_RD", "KTOF:Lens:UDLD:V", "KTOF:Lens:Sample:V", "KTOF:Apertures:m1.RBV", "KTOF:Apertures:m2.RBV", "KTOF:Apertures:m3.RBV", "trARPES:Carving:TRX.RBV", "trARPES:Carving:TRY.RBV", "trARPES:Carving:TRZ.RBV", "trARPES:Carving:THT.RBV", "trARPES:Carving:PHI.RBV", "trARPES:Carving:OMG.RBV"]
   # hdf5 attribute containing the field aperture "in" motor position

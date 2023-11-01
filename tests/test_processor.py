@@ -726,6 +726,33 @@ def test_add_jitter():
     np.testing.assert_allclose(res1a, res2a)
 
 
+def test_add_time_stamped_data():
+    """Test the function to add time-stamped data"""
+    processor = SedProcessor(
+        folder=df_folder + "../mpes/",
+        config=package_dir + "/config/mpes_example_config.yaml",
+        folder_config={},
+        user_config={},
+        system_config={},
+        time_stamps=True,
+    )
+    df_ts = processor.dataframe.timeStamps.compute().values
+    data = np.linspace(0, 1, 20)
+    time_stamps = np.linspace(df_ts[0], df_ts[-1], 20)
+    processor.add_time_stamped_data(
+        time_stamps=time_stamps,
+        data=data,
+        dest_column="time_stamped_data",
+    )
+    assert "time_stamped_data" in processor.dataframe
+    res = processor.dataframe["time_stamped_data"].compute().values
+    assert res[0] == 0
+    assert res[-1] == 1
+    assert processor.attributes["time_stamped_data"][0] == "time_stamped_data"
+    np.testing.assert_array_equal(processor.attributes["time_stamped_data"][1], time_stamps)
+    np.testing.assert_array_equal(processor.attributes["time_stamped_data"][2], data)
+
+
 def test_event_histogram():
     """Test histogram plotting function"""
     config = parse_config(

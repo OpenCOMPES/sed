@@ -26,6 +26,7 @@ from sed.calibrator import MomentumCorrector
 from sed.core.config import parse_config
 from sed.core.config import save_config
 from sed.core.dfops import apply_filter
+from sed.core.dfops import add_time_stamped_data
 from sed.core.dfops import apply_jitter
 from sed.core.metadata import MetaHandler
 from sed.diagnostics import grid_histogram
@@ -34,6 +35,8 @@ from sed.io import to_nexus
 from sed.io import to_tiff
 from sed.loader import CopyTool
 from sed.loader import get_loader
+from sed.loader.mpes.loader import get_archiver_data
+from sed.loader.mpes.loader import MpesLoader
 
 N_CPU = psutil.cpu_count()
 
@@ -1714,6 +1717,65 @@ class SedProcessor:
         for col in cols:
             metadata.append(col)
         self._attributes.add(metadata, "jittering", duplicate_policy="append")
+
+    def add_time_stamped_data(
+        self,
+        dest_column: str,
+        time_stamps: np.ndarray = None,
+        data: np.ndarray = None,
+        archiver_channel: str = None,
+        **kwds,
+    ):
+        """Add data in form of timestamp/value pairs to the dataframe using interpolation to the
+        timestamps in the dataframe. The time-stamped data can either be provided, or fetched from
+        an EPICS archiver instance.
+
+        Args:
+            dest_column (str): destination column name
+            time_stamps (np.ndarray, optional): Time stamps of the values to add. If omitted,
+                time stamps are retrieved from the epics archiver
+            data (np.ndarray, optional): Values corresponding at the time stamps in time_stamps.
+                If omitted, data are retrieved from the epics archiver.
+            archiver_channel (str, optional): EPICS archiver channel from which to retrieve data.
+                Either this or data and time_stamps have to be present.
+            **kwds: additional keyword arguments passed to add_time_stamped_data
+        """
+        time_stamp_column = kwds.pop(
+            "time_stamp_column",
+            self._config["dataframe"].get("time_stamp_alias", ""),
+        )
+
+        if time_stamps is None and data is None:
+            if archiver_channel is None:
+                raise ValueError(
+                    "Either archiver_channel or both time_stamps and data have to be present!",
+                )
+            if self.loader.__name__ != "mpes":
+                raise NotImplementedError(
+                    "This function is currently only implemented for the mpes loader!",
+                )
+            ts_from, ts_to = cast(MpesLoader, self.loader).get_start_and_end_time()
+            # get channel data with +-5 seconds safety margin
+            time_stamps, data = get_archiver_data(
+                archiver_url=self._config["metadata"].get("archiver_url", ""),
+                archiver_channel=archiver_channel,
+                ts_from=ts_from - 5,
+                ts_to=ts_to + 5,
+            )
+
+        self._dataframe = add_time_stamped_data(
+            self._dataframe,
+            time_stamps=time_stamps,
+            data=data,
+            dest_column=dest_column,
+            time_stamp_column=time_stamp_column,
+            **kwds,
+        )
+        metadata: List[Any] = []
+        metadata.append(dest_column)
+        metadata.append(time_stamps)
+        metadata.append(data)
+        self._attributes.add(metadata, "time_stamped_data", duplicate_policy="append")
 
     def pre_binning(
         self,
