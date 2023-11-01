@@ -126,15 +126,15 @@ energy:
     t0: 3.6049383256584405e-08
     E0: -51.289659014865784 # flip sign if switching between kinetic and binding energy
     energy_scale: kinetic
-    refid: 0
+    refid: 3
   offset:
-    constant: 0.0
+    constant: 2.0
     sampleBias:
       sign: 1
-      subtract_mean: True
+      preserve_mean: True
     monochromatorPhotonEnergy:
       sign: -1
-      subtract_mean: True
+      preserve_mean: True
     tofVoltage:
       sign: -1
-      subtract_mean: True
+      preserve_mean: True

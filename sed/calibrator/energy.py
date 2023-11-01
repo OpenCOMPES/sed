@@ -1468,15 +1468,15 @@ class EnergyCalibrator:
         }
         return df, metadata
 
-    def apply_energy_offset(
+    def add_offsets(
         self,
         df: Union[pd.DataFrame, dask.dataframe.DataFrame] = None,
         constant: float = None,
         columns: Union[str, Sequence[str]] = None,
         signs: Union[int, Sequence[int]] = None,
-        subtract_mean: Union[bool, Sequence[bool]] = None,
-        energy_column: str = None,
+        preserve_mean: Union[bool, Sequence[bool]] = False,
         reductions: Union[str, Sequence[str]] = None,
+        energy_column: str = None,
     ) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
         """Apply an offset to the energy column by the values of the provided columns.
 
@@ -1492,81 +1492,87 @@ class EnergyCalibrator:
             columns (Union[str, Sequence[str]]): Name of the column(s) to apply the shift from.
             signs (Union[int, Sequence[int]]): Sign of the shift to apply. (+1 or -1) A positive
                 sign shifts the energy axis to higher kinetic energies. Defaults to +1.
-            energy_column (str, optional): Name of the column containing the energy values.
+            preserve_mean (bool): Whether to subtract the mean of the column before applying the
+                shift. Defaults to False.
             reductions (str): The reduction to apply to the column. Should be an available method
                 of dask.dataframe.Series. For example "mean". In this case the function is applied
                 to the column to generate a single value for the whole dataset. If None, the shift
-                is applied per-dataframe-row. Defaults to None.
-            subtract_mean (bool): Whether to subtract the mean of the column before applying the
-                shift. Defaults to False.
+                is applied per-dataframe-row. Defaults to None. Currently only "mean" is supported.
+            energy_column (str, optional): Name of the column containing the energy values.
+
+        Returns:
+            dask.dataframe.DataFrame: Dataframe with the new columns.
+            dict: Metadata dictionary.
         """
         if energy_column is None:
             energy_column = self.energy_column
-        if columns is None:
+
+        # if no parameters are passed, use config
+        if columns is None and constant is None:
             # load from config
             columns = []
             signs = []
-            subtract_mean = []
+            preserve_mean = []
             reductions = []
             for k, v in self.offset.items():
                 if k == "constant":
                     constant = v
-                    print(f"Applying constant offset of {constant} to energy axis.")
                 else:
-                    if k not in df.columns:
-                        raise KeyError(f"Column {k} not found in dataframe.")
                     columns.append(k)
-                    signs.append(v.get("sign", 1))
-                    subtract_mean.append(v.get("subtract_mean", False))
+                    try:
+                        signs.append(v["sign"])
+                    except KeyError:
+                        raise KeyError(f"Missing sign for offset column {k} in config.")
+                    preserve_mean.append(v.get("preserve_mean", False))
                     reductions.append(v.get("reduction", None))
-        else:
-            # use passed parameters
-            if columns is not None and (signs is None or subtract_mean is None):
-                raise ValueError(
-                    "If columns is passed, signs and subtract_mean must also be passed.",
-                )
-            if isinstance(columns, str):
-                columns = [columns]
-            if isinstance(signs, int):
-                signs = [signs]
-            if len(signs) != len(columns):
-                raise ValueError("signs and columns must have the same length.")
-            if isinstance(subtract_mean, bool):
-                subtract_mean = [subtract_mean] * len(columns)
-            if reductions is None:
-                reductions = [None] * len(columns)
+
         # flip sign for binding energy scale
         energy_scale = self.get_current_calibration().get("energy_scale", None)
-        if energy_scale == "binding":
-            signs = [-1 * s for s in signs if s is not None]
-        elif energy_scale == "kinetic":
-            pass
-        elif energy_scale is None:
-            raise ValueError("Energy scale not set. I don't know how to interpret the sign.")
-
-        # apply offset
-        df = dfops.apply_offset_from_columns(
-            df=df,
-            target_column=energy_column,
-            offset_columns=columns,
-            signs=signs,
-            subtract_mean=subtract_mean,
-            reductions=reductions,
-            inplace=True,
-        )
-        # apply constant
-        if constant is not None:
-            df[energy_column] += constant
-
+        if energy_scale is None:
+            raise ValueError("Energy scale not set. Cannot interpret the sign of the offset.")
+        if energy_scale not in ["binding", "kinetic"]:
+            raise ValueError(f"Invalid energy scale: {energy_scale}")
+        scale_sign = -1 if energy_scale == "binding" else 1
+        # initialize metadata container
         metadata: Dict[str, Any] = {
             "applied": True,
-            "constant": constant,
-            "energy_column": energy_column,
-            "column_names": columns,
-            "signs": signs,
-            "subtract_mean": subtract_mean,
-            "reductions": reductions,
         }
+        # apply offset
+        if columns is not None:
+            # use passed parameters
+            if isinstance(signs, int):
+                signs = [signs]
+            elif not isinstance(signs, Sequence):
+                raise TypeError(f"Invalid type for signs: {type(signs)}")
+            # flip signs if binding energy scale
+            signs = [s * scale_sign for s in signs]
+
+            df = dfops.offset_by_other_columns(
+                df=df,
+                target_column=energy_column,
+                offset_columns=columns,
+                signs=signs,
+                preserve_mean=preserve_mean,
+                reductions=reductions,
+                inplace=True,
+            )
+            metadata["energy_column"] = energy_column
+            metadata["columns"] = columns
+            metadata["signs"] = signs
+            metadata["preserve_mean"] = preserve_mean
+            metadata["reductions"] = reductions
+
+        # apply constant
+        if isinstance(constant, (int, float)):
+            df[energy_column] = df.map_partitions(
+                # flip sign if binding energy scale
+                lambda x: x[energy_column] + constant * scale_sign,
+                meta=(energy_column, np.float64),
+            )
+            metadata["constant"] = constant
+        elif constant is not None:
+            raise TypeError(f"Invalid type for constant: {type(constant)}")
+
         return df, metadata
 
 

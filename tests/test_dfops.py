@@ -11,6 +11,7 @@ from sed.core.dfops import backward_fill_lazy
 from sed.core.dfops import drop_column
 from sed.core.dfops import forward_fill_lazy
 from sed.core.dfops import map_columns_2d
+from sed.core.dfops import offset_by_other_columns
 
 
 N_PTS = 100
@@ -245,3 +246,130 @@ def test_backward_fill_lazy_multiple_iterations():
     t_dask_df = backward_fill_lazy(t_dask_df, ["A", "B", "C"], after=2, iterations=2)
     t_df = t_df.bfill().bfill().bfill().bfill()
     pd.testing.assert_frame_equal(t_df, t_dask_df.compute())
+
+
+def test_offset_by_other_columns_functionality():
+    """test that the offset_by_other_columns function works as expected"""
+    df = pd.DataFrame(
+        {
+            "target": [10, 20, 30, 40, 50, 60],
+            "off1": [1, 2, 3, 4, 5, 6],
+            "off2": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+            "off3": [9.75, 9.85, 9.95, 10.05, 10.15, 10.25],
+        },
+    )
+    t_df = ddf.from_pandas(df, npartitions=2)
+    res = offset_by_other_columns(
+        df=t_df.copy(),
+        target_column="target",
+        offset_columns=["off1"],
+        signs=[1],
+    )
+    expected = [11, 22, 33, 44, 55, 66]
+    np.testing.assert_allclose(res["target"].values, expected)
+
+    res = offset_by_other_columns(
+        df=t_df.copy(),
+        target_column="target",
+        offset_columns=["off1", "off2"],
+        signs=[1, -1],
+    )
+    expected = [10.9, 21.8, 32.7, 43.6, 54.5, 65.4]
+    np.testing.assert_allclose(res["target"].values, expected)
+
+    res = offset_by_other_columns(
+        df=t_df.copy(),
+        target_column="target",
+        offset_columns=["off3"],
+        signs=[1],
+        preserve_mean=True,
+    )
+    expected = [9.75, 19.85, 29.95, 40.05, 50.15, 60.25]
+    np.testing.assert_allclose(res["target"].values, expected)
+
+    res = offset_by_other_columns(
+        df=t_df.copy(),
+        target_column="target",
+        offset_columns=["off3"],  # has mean of 10
+        signs=[1],
+        reductions="mean",
+    )
+    expected = [20, 30, 40, 50, 60, 70]
+    np.testing.assert_allclose(res["target"].values, expected)
+
+
+def test_offset_by_other_columns_pandas_not_working():
+    df = pd.DataFrame(
+        {
+            "target": [10, 20, 30, 40, 50, 60],
+            "off1": [1, 2, 3, 4, 5, 6],
+            "off2": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+            "off3": [9.75, 9.85, 9.95, 10.05, 10.15, 10.25],
+        },
+    )
+    with pytest.raises(NotImplementedError):
+        res = offset_by_other_columns(
+            df=df.copy(),
+            target_column="target",
+            offset_columns=["off1"],
+            signs=[1],
+        )
+        expected = [11, 22, 33, 44, 55, 66]
+        np.testing.assert_allclose(res["target"].values, expected)
+
+
+def test_offset_by_other_columns_rises():
+    """Test that the offset_by_other_columns function raises an error when
+    the specified columns do not exist
+    """
+    df = pd.DataFrame(
+        {
+            "target": [10, 20, 30, 40, 50, 60],
+            "off1": [1, 2, 3, 4, 5, 6],
+            "off2": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+            "off3": [10.1, 10.2, 10.3, 10.4, 10.5, 10.6],
+        },
+    )
+    t_df = ddf.from_pandas(df, npartitions=2)
+    pytest.raises(
+        KeyError,
+        offset_by_other_columns,
+        df=t_df.copy(),
+        target_column="nonexistent_column",
+        offset_columns=["off1"],
+        signs=[1],
+    )
+    pytest.raises(
+        KeyError,
+        offset_by_other_columns,
+        df=t_df.copy(),
+        target_column="target",
+        offset_columns=["off1", "nonexistent_column"],
+        signs=[1, 1],
+    )
+    pytest.raises(
+        NotImplementedError,
+        offset_by_other_columns,
+        df=t_df.copy(),
+        target_column="target",
+        offset_columns=["off1"],
+        signs=[1],
+        reductions="not_mean",
+    )
+    pytest.raises(
+        ValueError,
+        offset_by_other_columns,
+        df=t_df.copy(),
+        target_column="target",
+        offset_columns=["off1"],
+        signs=[1, 1],
+    )
+    pytest.raises(
+        ValueError,
+        offset_by_other_columns,
+        df=t_df.copy(),
+        target_column="target",
+        offset_columns=["off1"],
+        signs=[1],
+        preserve_mean="asd",
+    )

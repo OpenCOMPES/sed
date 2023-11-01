@@ -265,56 +265,128 @@ def backward_fill_lazy(
     return df
 
 
-def apply_offset_from_columns(
-    df: Union[pd.DataFrame, dask.dataframe.DataFrame],
+def offset_by_other_columns(
+    df: dask.dataframe.DataFrame,
     target_column: str,
     offset_columns: Union[str, Sequence[str]],
     signs: Union[int, Sequence[int]],
-    reductions: Union[str, Sequence[str]],
-    subtract_mean: Union[bool, Sequence[bool]],
+    reductions: Union[str, Sequence[str]] = None,
+    preserve_mean: Union[bool, Sequence[bool]] = False,
     inplace: bool = True,
-) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
+    rename: str = None,
+) -> dask.dataframe.DataFrame:
     """Apply an offset to a column based on the values of other columns.
 
     Args:
-        df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to use.
+        df (dask.dataframe.DataFrame): Dataframe to use. Currently supports only dask dataframes.
         target_column (str): Name of the column to apply the offset to.
         offset_columns (str): Name of the column(s) to use for the offset.
         signs (int): Sign of the offset. Defaults to 1.
-        reductions (str): Reduction function to use for the offset. Defaults to "mean".
-        subtract_mean (bool): Whether to subtract the mean of the offset column. Defaults to False.
-            If a list is given, it must have the same length as offset_columns. Otherwise the value
-            passed is used for all columns.
+        reductions (str, optional): Reduction function to use for the offset. Defaults to "mean".
+            Currently, only mean is supported.
+        preserve_mean (bool, optional): Whether to subtract the mean of the offset column.
+            Defaults to False. If a list is given, it must have the same length as
+            offset_columns. Otherwise the value passed is used for all columns.
+        inplace (bool, optional): Whether to apply the offset inplace.
+            If false, the new column will have the name provided by rename, or has the same name as
+            target_column with the suffix _offset if that is None. Defaults to True.
+        rename (str, optional): Name of the new column if inplace is False. Defaults to None.
     Returns:
-        Union[pd.DataFrame, dask.dataframe.DataFrame]: Dataframe with the new column.
+        dask.dataframe.DataFrame: Dataframe with the new column.
     """
+    if target_column not in df.columns:
+        raise KeyError(f"{target_column} not in dataframe!")
+
     if isinstance(offset_columns, str):
         offset_columns = [offset_columns]
-    if not inplace:
-        df[target_column + "_offset"] = df[target_column]
-        target_column = target_column + "_offset"
+    elif not isinstance(offset_columns, Sequence):
+        raise TypeError(f"Invalid type for columns: {type(offset_columns)}")
+    if any([c not in df.columns for c in offset_columns]):
+        raise KeyError(f"{offset_columns} not in dataframe!")
 
-    if isinstance(reductions, str):
-        reductions = [reductions] * len(offset_columns)
     if isinstance(signs, int):
         signs = [signs]
+    elif not isinstance(signs, Sequence):
+        raise TypeError(f"Invalid type for signs: {type(signs)}")
     if len(signs) != len(offset_columns):
         raise ValueError("signs and offset_columns must have the same length!")
-    if isinstance(subtract_mean, bool):
-        subtract_mean = [subtract_mean] * len(offset_columns)
+    signs_dict = {c: s for c, s in zip(offset_columns, signs)}
 
-    for col, sign, red, submean in zip(offset_columns, signs, reductions, subtract_mean):
-        if col not in df.columns:
-            raise KeyError(f"{col} not in dataframe!")
-        if red is not None:
-            df[target_column] = df[target_column] + sign * df[col].agg(red)
-        else:
-            df[target_column] = df[target_column] + sign * df[col]
-        if submean:
-            df[target_column] = df[target_column] - sign * df[col].mean()
-        s = "+" if sign > 0 else "-"
-        msg = f"Shifting {target_column} by {s} {col}"
-        if submean[-1]:
-            msg += " and subtracting mean"
-        print(msg)
+    if isinstance(reductions, str) or reductions is None:
+        reductions = [reductions] * len(offset_columns)
+    elif not isinstance(reductions, Sequence):
+        raise ValueError(f"reductions must be a string or list of strings! not {type(reductions)}")
+    if any([r not in ["mean", None] for r in reductions]):
+        raise NotImplementedError("Only reductions currently supported is 'mean'!")
+
+    if isinstance(preserve_mean, bool):
+        preserve_mean = [preserve_mean] * len(offset_columns)
+    elif not isinstance(preserve_mean, Sequence):
+        raise TypeError(f"Invalid type for preserve_mean: {type(preserve_mean)}")
+    elif any([not isinstance(p, bool) for p in preserve_mean]):
+        raise TypeError(f"Invalid type for preserve_mean: {type(preserve_mean)}")
+    if len(preserve_mean) != len(offset_columns):
+        raise ValueError("preserve_mean and offset_columns must have the same length!")
+
+    if not inplace:
+        if rename is None:
+            rename = target_column + "_offset"
+        df[rename] = df[target_column]
+        target_column = rename
+
+    if isinstance(df, pd.DataFrame):
+        raise NotImplementedError(
+            "Offsetting by other columns is currently not supported for pandas dataframes! "
+            "Please open a request on GitHub if this feature is required.",
+        )
+
+    # calculate the mean of the columns to reduce
+    means = {
+        col: dask.delayed(df[col].mean())
+        for col, red, pm in zip(offset_columns, reductions, preserve_mean)
+        if red or pm
+    }
+
+    # define the functions to apply the offsets
+    def shift_by_mean(x, cols, signs, means, flip_signs=False):
+        """Shift the target column by the mean of the offset columns."""
+        for col in cols:
+            s = -signs[col] if flip_signs else signs[col]
+            x[target_column] = x[target_column] + s * means[col]
+        return x[target_column]
+
+    def shift_by_row(x, cols, signs):
+        """Apply the offsets to the target column."""
+        for col in cols:
+            x[target_column] = x[target_column] + signs[col] * x[col]
+        return x[target_column]
+
+    # apply offset from the reduced columns
+    df[target_column] = df.map_partitions(
+        shift_by_mean,
+        cols=[col for col, red in zip(offset_columns, reductions) if red],
+        signs=signs_dict,
+        means=means,
+        meta=df[target_column].dtype,
+    )
+
+    # apply offset from the offset columns
+    df[target_column] = df.map_partitions(
+        shift_by_row,
+        cols=[col for col, red in zip(offset_columns, reductions) if not red],
+        signs=signs_dict,
+        meta=df[target_column].dtype,
+    )
+
+    # compensate shift from the preserved mean columns
+    if any(preserve_mean):
+        df[target_column] = df.map_partitions(
+            shift_by_mean,
+            cols=[col for col, pmean in zip(offset_columns, preserve_mean) if pmean],
+            signs=signs_dict,
+            means=means,
+            flip_signs=True,
+            meta=df[target_column].dtype,
+        )
+
     return df
