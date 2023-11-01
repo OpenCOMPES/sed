@@ -1521,8 +1521,8 @@ class EnergyCalibrator:
                     columns.append(k)
                     try:
                         signs.append(v["sign"])
-                    except KeyError:
-                        raise KeyError(f"Missing sign for offset column {k} in config.")
+                    except KeyError as exc:
+                        raise KeyError(f"Missing sign for offset column {k} in config.") from exc
                     preserve_mean.append(v.get("preserve_mean", False))
                     reductions.append(v.get("reduction", None))
 

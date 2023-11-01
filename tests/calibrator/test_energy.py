@@ -542,6 +542,7 @@ def test_apply_energy_correction_raises(
 
 
 def test_add_offsets_functionality():
+    """test the add_offsets function"""
     config = parse_config(
         config={
             "energy": {
@@ -600,8 +601,7 @@ def test_add_offsets_functionality():
     )
     exp_meta.pop("applied")
     t_df = dask.dataframe.from_pandas(df.copy(), npartitions=2)
-
-    res, meta = ec.add_offsets(t_df, **exp_meta)
+    res, meta = ec.add_offsets(t_df, **exp_meta)  # pylint disable=unexpected-keyword-arg
     np.testing.assert_allclose(res["energy"].values, exp_vals.values)
     exp_meta["applied"] = True
     assert meta == exp_meta
@@ -610,4 +610,5 @@ def test_add_offsets_functionality():
 
 
 def test_add_offset_raises():
+    """test if add_offset raises the correct errors"""
     pass

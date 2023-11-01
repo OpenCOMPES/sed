@@ -250,7 +250,7 @@ def test_backward_fill_lazy_multiple_iterations():
 
 def test_offset_by_other_columns_functionality():
     """test that the offset_by_other_columns function works as expected"""
-    df = pd.DataFrame(
+    pd_df = pd.DataFrame(
         {
             "target": [10, 20, 30, 40, 50, 60],
             "off1": [1, 2, 3, 4, 5, 6],
@@ -258,7 +258,7 @@ def test_offset_by_other_columns_functionality():
             "off3": [9.75, 9.85, 9.95, 10.05, 10.15, 10.25],
         },
     )
-    t_df = ddf.from_pandas(df, npartitions=2)
+    t_df = ddf.from_pandas(pd_df, npartitions=2)
     res = offset_by_other_columns(
         df=t_df.copy(),
         target_column="target",
@@ -299,6 +299,9 @@ def test_offset_by_other_columns_functionality():
 
 
 def test_offset_by_other_columns_pandas_not_working():
+    """test that the offset_by_other_columns function raises an error when
+    used with pandas
+    """
     df = pd.DataFrame(
         {
             "target": [10, 20, 30, 40, 50, 60],
@@ -365,7 +368,7 @@ def test_offset_by_other_columns_rises():
         signs=[1, 1],
     )
     pytest.raises(
-        ValueError,
+        TypeError,
         offset_by_other_columns,
         df=t_df.copy(),
         target_column="target",

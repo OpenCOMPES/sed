@@ -301,7 +301,7 @@ def offset_by_other_columns(
         offset_columns = [offset_columns]
     elif not isinstance(offset_columns, Sequence):
         raise TypeError(f"Invalid type for columns: {type(offset_columns)}")
-    if any([c not in df.columns for c in offset_columns]):
+    if any(c not in df.columns for c in offset_columns):
         raise KeyError(f"{offset_columns} not in dataframe!")
 
     if isinstance(signs, int):
@@ -310,20 +310,20 @@ def offset_by_other_columns(
         raise TypeError(f"Invalid type for signs: {type(signs)}")
     if len(signs) != len(offset_columns):
         raise ValueError("signs and offset_columns must have the same length!")
-    signs_dict = {c: s for c, s in zip(offset_columns, signs)}
+    signs_dict = dict(zip(offset_columns, signs))
 
     if isinstance(reductions, str) or reductions is None:
         reductions = [reductions] * len(offset_columns)
     elif not isinstance(reductions, Sequence):
         raise ValueError(f"reductions must be a string or list of strings! not {type(reductions)}")
-    if any([r not in ["mean", None] for r in reductions]):
+    if any(r not in ["mean", None] for r in reductions):
         raise NotImplementedError("Only reductions currently supported is 'mean'!")
 
     if isinstance(preserve_mean, bool):
         preserve_mean = [preserve_mean] * len(offset_columns)
     elif not isinstance(preserve_mean, Sequence):
         raise TypeError(f"Invalid type for preserve_mean: {type(preserve_mean)}")
-    elif any([not isinstance(p, bool) for p in preserve_mean]):
+    elif any(not isinstance(p, bool) for p in preserve_mean):
         raise TypeError(f"Invalid type for preserve_mean: {type(preserve_mean)}")
     if len(preserve_mean) != len(offset_columns):
         raise ValueError("preserve_mean and offset_columns must have the same length!")
