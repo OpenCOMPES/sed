@@ -706,6 +706,7 @@ def test_add_offset_raises():
 
 
 def test_align_dld_sectors():
+    """test functionality and error handling of align_dld_sectors"""
     cfg_dict = {
         "dataframe": {
             "tof_column": "dldTimeSteps",
