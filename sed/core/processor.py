@@ -1117,7 +1117,13 @@ class SedProcessor:
                 "Energy calibration parameters not found, need to generate parameters first!",
             ) from exc
 
-        config = {"energy": {"calibration": calibration}}
+        config = {
+            "energy": {
+                "calibration": calibration,
+            },
+        }
+        if isinstance(self.ec.offset, dict):
+            config["energy"]["offset"] = self.ec.offset
         save_config(config, filename, overwrite)
 
     # 4. Apply energy calibration to the dataframe
@@ -1204,7 +1210,8 @@ class SedProcessor:
                 metadata,
                 "add_energy_offset",
                 # TODO: allow only appending when no offset along this column(s) was applied
-                duplicate_policy="raise",
+                # TODO: clear memory of modifications if the energy axis is recalculated
+                duplicate_policy="append",
             )
             self._dataframe = df
         else:
