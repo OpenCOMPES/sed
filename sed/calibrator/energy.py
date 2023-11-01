@@ -1544,6 +1544,8 @@ class EnergyCalibrator:
                 signs = [signs]
             elif not isinstance(signs, Sequence):
                 raise TypeError(f"Invalid type for signs: {type(signs)}")
+            if not all(isinstance(s, int) for s in signs):
+                raise TypeError(f"Invalid type for signs: {type(signs)}")
             # flip signs if binding energy scale
             signs = [s * scale_sign for s in signs]
 

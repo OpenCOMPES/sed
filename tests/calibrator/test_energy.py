@@ -4,6 +4,7 @@ import csv
 import glob
 import itertools
 import os
+from copy import deepcopy
 from importlib.util import find_spec
 from typing import Any
 from typing import Dict
@@ -564,7 +565,14 @@ def test_add_offsets_functionality():
         user_config={},
         system_config={},
     )
-
+    params = {
+        "constant": 1,
+        "energy_column": "energy",
+        "columns": ["off1", "off2", "off3"],
+        "signs": [1, -1, 1],
+        "preserve_mean": [True, False, False],
+        "reductions": [None, None, "mean"],
+    }
     df = pd.DataFrame(
         {
             "energy": [10, 20, 30, 40, 50, 60],
@@ -584,31 +592,84 @@ def test_add_offsets_functionality():
     exp_vals -= df["off2"]
     exp_vals += df["off3"].mean()
     np.testing.assert_allclose(res["energy"].values, exp_vals.values)
-    exp_meta = {
-        "applied": True,
-        "constant": 1,
-        "energy_column": "energy",
-        "columns": ["off1", "off2", "off3"],
-        "signs": [1, -1, 1],
-        "preserve_mean": [True, False, False],
-        "reductions": [None, None, "mean"],
-    }
+    exp_meta = params.copy()
+    exp_meta["applied"] = True
     assert meta == exp_meta
     # test with explicit params
     ec = EnergyCalibrator(
         config=config,
         loader=get_loader("flash", config=config),
     )
-    exp_meta.pop("applied")
     t_df = dask.dataframe.from_pandas(df.copy(), npartitions=2)
-    res, meta = ec.add_offsets(t_df, **exp_meta)  # pylint disable=unexpected-keyword-arg
+    res, meta = ec.add_offsets(t_df, **params)  # pylint disable=unexpected-keyword-arg
     np.testing.assert_allclose(res["energy"].values, exp_vals.values)
-    exp_meta["applied"] = True
-    assert meta == exp_meta
+    params["applied"] = True
+    assert meta == params
 
     # test with different energy scale
 
 
 def test_add_offset_raises():
     """test if add_offset raises the correct errors"""
-    pass
+    cfg_dict = {
+        "energy": {
+            "calibration": {
+                "energy_scale": "kinetic",
+            },
+            "offset": {
+                "constant": 1,
+                "off1": {"sign": -1, "preserve_mean": True},
+                "off2": {"sign": -1, "preserve_mean": False},
+                "off3": {"sign": 1, "preserve_mean": False, "reduction": "mean"},
+            },
+        },
+    }
+
+    df = pd.DataFrame(
+        {
+            "energy": [10, 20, 30, 40, 50, 60],
+            "off1": [1, 2, 3, 4, 5, 6],
+            "off2": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+            "off3": [10.1, 10.2, 10.3, 10.4, 10.5, 10.6],
+        },
+    )
+    t_df = dask.dataframe.from_pandas(df.copy(), npartitions=2)
+    # no sign in config
+    with pytest.raises(KeyError):
+        cfg = deepcopy(cfg_dict)
+        cfg["energy"]["offset"]["off1"].pop("sign")
+        config = parse_config(config=cfg, folder_config={}, user_config={}, system_config={})
+        ec = EnergyCalibrator(config=cfg, loader=get_loader("flash", config=config))
+        _ = ec.add_offsets(t_df)
+
+    # no energy scale
+    with pytest.raises(ValueError):
+        cfg = deepcopy(cfg_dict)
+        cfg["energy"]["calibration"].pop("energy_scale")
+        config = parse_config(config=cfg, folder_config={}, user_config={}, system_config={})
+        ec = EnergyCalibrator(config=cfg, loader=get_loader("flash", config=config))
+        _ = ec.add_offsets(t_df)
+
+    # invalid energy scale
+    with pytest.raises(ValueError):
+        cfg = deepcopy(cfg_dict)
+        cfg["energy"]["calibration"]["energy_scale"] = "wrong_value"
+        config = parse_config(config=cfg, folder_config={}, user_config={}, system_config={})
+        ec = EnergyCalibrator(config=cfg, loader=get_loader("flash", config=config))
+        _ = ec.add_offsets(t_df)
+
+    # invalid sign
+    with pytest.raises(TypeError):
+        cfg = deepcopy(cfg_dict)
+        cfg["energy"]["offset"]["off1"]["sign"] = "wrong_type"
+        config = parse_config(config=cfg, folder_config={}, user_config={}, system_config={})
+        ec = EnergyCalibrator(config=cfg, loader=get_loader("flash", config=config))
+        _ = ec.add_offsets(t_df)
+
+        # invalid constant
+    with pytest.raises(TypeError):
+        cfg = deepcopy(cfg_dict)
+        cfg["energy"]["offset"]["constant"] = "wrong_type"
+        config = parse_config(config=cfg, folder_config={}, user_config={}, system_config={})
+        ec = EnergyCalibrator(config=cfg, loader=get_loader("flash", config=config))
+        _ = ec.add_offsets(t_df)

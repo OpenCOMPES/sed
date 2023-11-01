@@ -290,7 +290,7 @@ def test_offset_by_other_columns_functionality():
     res = offset_by_other_columns(
         df=t_df.copy(),
         target_column="target",
-        offset_columns=["off3"],  # has mean of 10
+        offset_columns=["off3"],  # off3 has mean of 10
         signs=[1],
         reductions="mean",
     )
@@ -302,7 +302,7 @@ def test_offset_by_other_columns_pandas_not_working():
     """test that the offset_by_other_columns function raises an error when
     used with pandas
     """
-    df = pd.DataFrame(
+    pd_df = pd.DataFrame(
         {
             "target": [10, 20, 30, 40, 50, 60],
             "off1": [1, 2, 3, 4, 5, 6],
@@ -311,29 +311,29 @@ def test_offset_by_other_columns_pandas_not_working():
         },
     )
     with pytest.raises(NotImplementedError):
-        res = offset_by_other_columns(
-            df=df.copy(),
+        _ = offset_by_other_columns(
+            df=pd_df,
             target_column="target",
             offset_columns=["off1"],
             signs=[1],
         )
-        expected = [11, 22, 33, 44, 55, 66]
-        np.testing.assert_allclose(res["target"].values, expected)
 
 
 def test_offset_by_other_columns_rises():
     """Test that the offset_by_other_columns function raises an error when
     the specified columns do not exist
     """
-    df = pd.DataFrame(
-        {
-            "target": [10, 20, 30, 40, 50, 60],
-            "off1": [1, 2, 3, 4, 5, 6],
-            "off2": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
-            "off3": [10.1, 10.2, 10.3, 10.4, 10.5, 10.6],
-        },
+    t_df = ddf.from_pandas(
+        pd.DataFrame(
+            {
+                "target": [10, 20, 30, 40, 50, 60],
+                "off1": [1, 2, 3, 4, 5, 6],
+                "off2": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+                "off3": [10.1, 10.2, 10.3, 10.4, 10.5, 10.6],
+            },
+        ),
+        npartitions=2,
     )
-    t_df = ddf.from_pandas(df, npartitions=2)
     pytest.raises(
         KeyError,
         offset_by_other_columns,
