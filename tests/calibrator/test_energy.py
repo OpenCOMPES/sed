@@ -703,3 +703,53 @@ def test_add_offset_raises():
         config = parse_config(config=cfg, folder_config={}, user_config={}, system_config={})
         ec = EnergyCalibrator(config=cfg, loader=get_loader("flash", config=config))
         _ = ec.add_offsets(t_df)
+
+
+def test_align_dld_sectors():
+    cfg_dict = {
+        "dataframe": {
+            "tof_column": "dldTimeSteps",
+            "sector_id_column": "dldSectorId",
+            "sector_delays": [-0.35, -0.25, -0.15, -0.05, 0.05, 0.15, 0.25, 0.35],
+        },
+    }
+    df = pd.DataFrame(
+        {
+            "dldTimeSteps": [1, 2, 3, 4, 5, 6, 7, 8],
+            "dldSectorId": [0, 1, 2, 3, 4, 5, 6, 7],
+        },
+    )
+    # from config
+    config = parse_config(config=cfg_dict, folder_config={}, user_config={}, system_config={})
+    ec = EnergyCalibrator(config=config, loader=get_loader("flash", config=config))
+    t_df = dask.dataframe.from_pandas(df.copy(), npartitions=2)
+    res, meta = ec.align_dld_sectors(t_df)
+    assert meta["applied"] is True
+    assert meta["sector_delays"] == cfg_dict["dataframe"]["sector_delays"]
+    np.testing.assert_allclose(
+        res["dldTimeSteps"].values,
+        np.array([1, 2, 3, 4, 5, 6, 7, 8]) - np.array(cfg_dict["dataframe"]["sector_delays"]),
+    )
+
+    # from kwds
+    config = parse_config(config={}, folder_config={}, user_config={}, system_config={})
+    ec = EnergyCalibrator(config=cfg_dict, loader=get_loader("flash", config=config))
+    t_df = dask.dataframe.from_pandas(df.copy(), npartitions=2)
+    res, meta = ec.align_dld_sectors(
+        t_df,
+        sector_delays=cfg_dict["dataframe"]["sector_delays"],
+        sector_id_column="dldSectorId",
+    )
+    assert meta["applied"] is True
+    assert meta["sector_delays"] == cfg_dict["dataframe"]["sector_delays"]
+    np.testing.assert_allclose(
+        res["dldTimeSteps"].values,
+        np.array([1, 2, 3, 4, 5, 6, 7, 8]) - np.array(cfg_dict["dataframe"]["sector_delays"]),
+    )
+    with pytest.raises(ValueError):
+        cfg = deepcopy(cfg_dict)
+        cfg["dataframe"].pop("sector_delays")
+        config = parse_config(config=cfg, folder_config={}, user_config={}, system_config={})
+        ec = EnergyCalibrator(config=config, loader=get_loader("flash", config=config))
+        t_df = dask.dataframe.from_pandas(df.copy(), npartitions=2)
+        res, meta = ec.align_dld_sectors(t_df)
