@@ -281,7 +281,7 @@ def offset_by_other_columns(
         df (dask.dataframe.DataFrame): Dataframe to use. Currently supports only dask dataframes.
         target_column (str): Name of the column to apply the offset to.
         offset_columns (str): Name of the column(s) to use for the offset.
-        signs (int): Sign of the offset. Defaults to 1.
+        signs (int): Sign of the offset.
         reductions (str, optional): Reduction function to use for the offset. Defaults to "mean".
             Currently, only mean is supported.
         preserve_mean (bool, optional): Whether to subtract the mean of the offset column.

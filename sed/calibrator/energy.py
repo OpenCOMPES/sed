@@ -910,9 +910,9 @@ class EnergyCalibrator:
             tof_ns_column (str, optional): Name of the column to store the
                 time-of-flight in nanoseconds. Defaults to config["dataframe"]["tof_ns_column"].
             binwidth (float, optional): Time-of-flight binwidth in ns.
-                Defaults to config["energy"]["binwidth"].
+                Defaults to config["energy"]["tof_binwidth"].
             binning (int, optional): Time-of-flight binning factor.
-                Defaults to config["energy"]["binning"].
+                Defaults to config["energy"]["tof_binning"].
 
         Returns:
             dask.dataframe.DataFrame: Dataframe with the new columns.
@@ -1422,11 +1422,11 @@ class EnergyCalibrator:
 
     def align_dld_sectors(
         self,
-        df: Union[pd.DataFrame, dask.dataframe.DataFrame],
+        df: dask.dataframe.DataFrame,
         tof_column: str = None,
         sector_id_column: str = None,
         sector_delays: np.ndarray = None,
-    ) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
+    ) -> Tuple[dask.dataframe.DataFrame, dict]:
         """Aligns the time-of-flight axis of the different sections of a detector.
 
         Args:
@@ -1563,7 +1563,7 @@ class EnergyCalibrator:
             metadata["reductions"] = reductions
 
         # apply constant
-        if isinstance(constant, (int, float)):
+        if isinstance(constant, (int, float, np.integer, np.floating)):
             df[energy_column] = df.map_partitions(
                 # flip sign if binding energy scale
                 lambda x: x[energy_column] + constant * scale_sign,
