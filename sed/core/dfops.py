@@ -8,9 +8,9 @@ from typing import Sequence
 from typing import Union
 
 import dask.dataframe
-from dask.diagnostics import ProgressBar
 import numpy as np
 import pandas as pd
+from dask.diagnostics import ProgressBar
 
 
 def apply_jitter(
@@ -144,11 +144,11 @@ def map_columns_2d(
 
 
 def forward_fill_lazy(
-        df: dask.dataframe.DataFrame,
-        channels: Sequence[str],
-        before: Union[str, int] = 'max',
-        compute_lengths: bool = False,
-        iterations: int = 2,
+    df: dask.dataframe.DataFrame,
+    columns: Sequence[str] = None,
+    before: Union[str, int] = "max",
+    compute_lengths: bool = False,
+    iterations: int = 2,
 ) -> dask.dataframe.DataFrame:
     """Forward fill the specified columns multiple times in a dask dataframe.
 
@@ -160,25 +160,33 @@ def forward_fill_lazy(
 
     Args:
         df (dask.dataframe.DataFrame): The dataframe to forward fill.
-        channels (list): The columns to forward fill.
+        columns (list): The columns to forward fill. If None, fills all columns
         before (int, str, optional): The number of rows to include before the current partition.
             if 'max' it takes as much as possible from the previous partition, which is
             the size of the smallest partition in the dataframe. Defaults to 'max'.
-        after (int, optional): The number of rows to include after the current partition.
-            Defaults to 'part'.
         compute_lengths (bool, optional): Whether to compute the length of each partition
         iterations (int, optional): The number of times to forward fill the dataframe.
 
     Returns:
         dask.dataframe.DataFrame: The dataframe with the specified columns forward filled.
     """
+    if columns is None:
+        columns = df.columns
+    elif isinstance(columns, str):
+        columns = [columns]
+    elif len(columns) == 0:
+        raise ValueError("columns must be a non-empty list of strings!")
+    for c in columns:
+        if c not in df.columns:
+            raise KeyError(f"{c} not in dataframe!")
+
     # Define a custom function to forward fill specified columns
     def forward_fill_partition(df):
-        df[channels] = df[channels].ffill()
+        df[columns] = df[columns].ffill()
         return df
 
     # calculate the number of rows in each partition and choose least
-    if before == 'max':
+    if before == "max":
         nrows = df.map_partitions(len)
         if compute_lengths:
             with ProgressBar():
@@ -194,4 +202,191 @@ def forward_fill_lazy(
             before=before,
             after=0,
         )
+    return df
+
+
+def backward_fill_lazy(
+    df: dask.dataframe.DataFrame,
+    columns: Sequence[str] = None,
+    after: Union[str, int] = "max",
+    compute_lengths: bool = False,
+    iterations: int = 1,
+) -> dask.dataframe.DataFrame:
+    """Forward fill the specified columns multiple times in a dask dataframe.
+
+    Allows backward filling between partitions. Similar to forward fill, but backwards.
+    This helps to fill the initial values of a dataframe, which are often NaNs.
+    Use with care as the assumption of the values being the same in the past is often not true.
+
+    Args:
+        df (dask.dataframe.DataFrame): The dataframe to forward fill.
+        columns (list): The columns to forward fill. If None, fills all columns
+        after (int, str, optional): The number of rows to include after the current partition.
+            if 'max' it takes as much as possible from the previous partition, which is
+            the size of the smallest partition in the dataframe. Defaults to 'max'.
+        compute_lengths (bool, optional): Whether to compute the length of each partition
+        iterations (int, optional): The number of times to backward fill the dataframe.
+
+    Returns:
+        dask.dataframe.DataFrame: The dataframe with the specified columns backward filled.
+    """
+    if columns is None:
+        columns = df.columns
+    elif isinstance(columns, str):
+        columns = [columns]
+    elif len(columns) == 0:
+        raise ValueError("columns must be a non-empty list of strings!")
+    for c in columns:
+        if c not in df.columns:
+            raise KeyError(f"{c} not in dataframe!")
+
+    # Define a custom function to forward fill specified columns
+    def backward_fill_partition(df):
+        df[columns] = df[columns].bfill()
+        return df
+
+    # calculate the number of rows in each partition and choose least
+    if after == "max":
+        nrows = df.map_partitions(len)
+        if compute_lengths:
+            with ProgressBar():
+                print("Computing dataframe shape...")
+                nrows = nrows.compute()
+        after = min(nrows)
+    elif not isinstance(after, int):
+        raise TypeError('before must be an integer or "max"')
+    # Use map_overlap to apply forward_fill_partition
+    for _ in range(iterations):
+        df = df.map_overlap(
+            backward_fill_partition,
+            before=0,
+            after=after,
+        )
+    return df
+
+
+def offset_by_other_columns(
+    df: dask.dataframe.DataFrame,
+    target_column: str,
+    offset_columns: Union[str, Sequence[str]],
+    signs: Union[int, Sequence[int]],
+    reductions: Union[str, Sequence[str]] = None,
+    preserve_mean: Union[bool, Sequence[bool]] = False,
+    inplace: bool = True,
+    rename: str = None,
+) -> dask.dataframe.DataFrame:
+    """Apply an offset to a column based on the values of other columns.
+
+    Args:
+        df (dask.dataframe.DataFrame): Dataframe to use. Currently supports only dask dataframes.
+        target_column (str): Name of the column to apply the offset to.
+        offset_columns (str): Name of the column(s) to use for the offset.
+        signs (int): Sign of the offset.
+        reductions (str, optional): Reduction function to use for the offset. Defaults to "mean".
+            Currently, only mean is supported.
+        preserve_mean (bool, optional): Whether to subtract the mean of the offset column.
+            Defaults to False. If a list is given, it must have the same length as
+            offset_columns. Otherwise the value passed is used for all columns.
+        inplace (bool, optional): Whether to apply the offset inplace.
+            If false, the new column will have the name provided by rename, or has the same name as
+            target_column with the suffix _offset if that is None. Defaults to True.
+        rename (str, optional): Name of the new column if inplace is False. Defaults to None.
+    Returns:
+        dask.dataframe.DataFrame: Dataframe with the new column.
+    """
+    if target_column not in df.columns:
+        raise KeyError(f"{target_column} not in dataframe!")
+
+    if isinstance(offset_columns, str):
+        offset_columns = [offset_columns]
+    elif not isinstance(offset_columns, Sequence):
+        raise TypeError(f"Invalid type for columns: {type(offset_columns)}")
+    if any(c not in df.columns for c in offset_columns):
+        raise KeyError(f"{offset_columns} not in dataframe!")
+
+    if isinstance(signs, int):
+        signs = [signs]
+    elif not isinstance(signs, Sequence):
+        raise TypeError(f"Invalid type for signs: {type(signs)}")
+    if len(signs) != len(offset_columns):
+        raise ValueError("signs and offset_columns must have the same length!")
+    signs_dict = dict(zip(offset_columns, signs))
+
+    if isinstance(reductions, str) or reductions is None:
+        reductions = [reductions] * len(offset_columns)
+    elif not isinstance(reductions, Sequence):
+        raise ValueError(f"reductions must be a string or list of strings! not {type(reductions)}")
+    if any(r not in ["mean", None] for r in reductions):
+        raise NotImplementedError("Only reductions currently supported is 'mean'!")
+
+    if isinstance(preserve_mean, bool):
+        preserve_mean = [preserve_mean] * len(offset_columns)
+    elif not isinstance(preserve_mean, Sequence):
+        raise TypeError(f"Invalid type for preserve_mean: {type(preserve_mean)}")
+    elif any(not isinstance(p, bool) for p in preserve_mean):
+        raise TypeError(f"Invalid type for preserve_mean: {type(preserve_mean)}")
+    if len(preserve_mean) != len(offset_columns):
+        raise ValueError("preserve_mean and offset_columns must have the same length!")
+
+    if not inplace:
+        if rename is None:
+            rename = target_column + "_offset"
+        df[rename] = df[target_column]
+        target_column = rename
+
+    if isinstance(df, pd.DataFrame):
+        raise NotImplementedError(
+            "Offsetting by other columns is currently not supported for pandas dataframes! "
+            "Please open a request on GitHub if this feature is required.",
+        )
+
+    # calculate the mean of the columns to reduce
+    means = {
+        col: dask.delayed(df[col].mean())
+        for col, red, pm in zip(offset_columns, reductions, preserve_mean)
+        if red or pm
+    }
+
+    # define the functions to apply the offsets
+    def shift_by_mean(x, cols, signs, means, flip_signs=False):
+        """Shift the target column by the mean of the offset columns."""
+        for col in cols:
+            s = -signs[col] if flip_signs else signs[col]
+            x[target_column] = x[target_column] + s * means[col]
+        return x[target_column]
+
+    def shift_by_row(x, cols, signs):
+        """Apply the offsets to the target column."""
+        for col in cols:
+            x[target_column] = x[target_column] + signs[col] * x[col]
+        return x[target_column]
+
+    # apply offset from the reduced columns
+    df[target_column] = df.map_partitions(
+        shift_by_mean,
+        cols=[col for col, red in zip(offset_columns, reductions) if red],
+        signs=signs_dict,
+        means=means,
+        meta=df[target_column].dtype,
+    )
+
+    # apply offset from the offset columns
+    df[target_column] = df.map_partitions(
+        shift_by_row,
+        cols=[col for col, red in zip(offset_columns, reductions) if not red],
+        signs=signs_dict,
+        meta=df[target_column].dtype,
+    )
+
+    # compensate shift from the preserved mean columns
+    if any(preserve_mean):
+        df[target_column] = df.map_partitions(
+            shift_by_mean,
+            cols=[col for col, pmean in zip(offset_columns, preserve_mean) if pmean],
+            signs=signs_dict,
+            means=means,
+            flip_signs=True,
+            meta=df[target_column].dtype,
+        )
+
     return df

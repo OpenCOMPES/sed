@@ -1117,7 +1117,13 @@ class SedProcessor:
                 "Energy calibration parameters not found, need to generate parameters first!",
             ) from exc
 
-        config = {"energy": {"calibration": calibration}}
+        config = {
+            "energy": {
+                "calibration": calibration,
+            },
+        }
+        if isinstance(self.ec.offset, dict):
+            config["energy"]["offset"] = self.ec.offset
         save_config(config, filename, overwrite)
 
     # 4. Apply energy calibration to the dataframe
@@ -1158,6 +1164,106 @@ class SedProcessor:
                 print(self._dataframe.head(10))
             else:
                 print(self._dataframe)
+
+    def add_energy_offset(
+        self,
+        constant: float = None,
+        columns: Union[str, Sequence[str]] = None,
+        signs: Union[int, Sequence[int]] = None,
+        reductions: Union[str, Sequence[str]] = None,
+        preserve_mean: Union[bool, Sequence[bool]] = None,
+    ) -> None:
+        """Shift the energy axis of the dataframe by a given amount.
+
+        Args:
+            constant (float, optional): The constant to shift the energy axis by.
+            columns (Union[str, Sequence[str]]): Name of the column(s) to apply the shift from.
+            signs (Union[int, Sequence[int]]): Sign of the shift to apply. (+1 or -1) A positive
+                sign shifts the energy axis to higher kinetic energies. Defaults to +1.
+            preserve_mean (bool): Whether to subtract the mean of the column before applying the
+                shift. Defaults to False.
+            reductions (str): The reduction to apply to the column. Should be an available method
+                of dask.dataframe.Series. For example "mean". In this case the function is applied
+                to the column to generate a single value for the whole dataset. If None, the shift
+                is applied per-dataframe-row. Defaults to None. Currently only "mean" is supported.
+
+        Raises:
+            ValueError: If the energy column is not in the dataframe.
+        """
+        energy_column = self._config["dataframe"]["energy_column"]
+        if energy_column not in self._dataframe.columns:
+            raise ValueError(
+                f"Energy column {energy_column} not found in dataframe! "
+                "Run `append energy axis` first.",
+            )
+        if self.dataframe is not None:
+            df, metadata = self.ec.add_offsets(
+                df=self._dataframe,
+                constant=constant,
+                columns=columns,
+                energy_column=energy_column,
+                signs=signs,
+                reductions=reductions,
+                preserve_mean=preserve_mean,
+            )
+            self._attributes.add(
+                metadata,
+                "add_energy_offset",
+                # TODO: allow only appending when no offset along this column(s) was applied
+                # TODO: clear memory of modifications if the energy axis is recalculated
+                duplicate_policy="append",
+            )
+            self._dataframe = df
+        else:
+            raise ValueError("No dataframe loaded!")
+
+    def append_tof_ns_axis(
+        self,
+        **kwargs,
+    ):
+        """Convert time-of-flight channel steps to nanoseconds.
+
+        Args:
+            tof_ns_column (str, optional): Name of the generated column containing the
+                time-of-flight in nanosecond.
+                Defaults to config["dataframe"]["tof_ns_column"].
+            kwargs: additional arguments are passed to ``energy.tof_step_to_ns``.
+
+        """
+        if self._dataframe is not None:
+            print("Adding time-of-flight column in nanoseconds to dataframe:")
+            # TODO assert order of execution through metadata
+
+            self._dataframe, metadata = self.ec.append_tof_ns_axis(
+                df=self._dataframe,
+                **kwargs,
+            )
+            self._attributes.add(
+                metadata,
+                "tof_ns_conversion",
+                duplicate_policy="append",
+            )
+
+    def align_dld_sectors(self, sector_delays: np.ndarray = None, **kwargs):
+        """Align the 8s sectors of the HEXTOF endstation.
+
+        Args:
+            sector_delays (np.ndarray, optional): Array containing the sector delays. Defaults to
+                config["dataframe"]["sector_delays"].
+        """
+        if self._dataframe is not None:
+            print("Aligning 8s sectors of dataframe")
+            # TODO assert order of execution through metadata
+            self._dataframe, metadata = self.ec.align_dld_sectors(
+                df=self._dataframe,
+                sector_delays=sector_delays,
+                **kwargs,
+            )
+            self._attributes.add(
+                metadata,
+                "dld_sector_alignment",
+                duplicate_policy="raise",
+            )
 
     # Delay calibration function
     def calibrate_delay_axis(
