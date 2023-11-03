@@ -1,4 +1,4 @@
-name: pytest multiversion
+name: unit tests [Python 3.8|3.9|3.10]
 
 on:
   push:
@@ -27,4 +27,4 @@ jobs:
       # Use cached python and dependencies, install poetry
       - name: Run tests on python ${{matrix.python-version}}
         run: |
-          poetry run pytest--full-trace --show-capture=no -sv -n auto tests/
+          poetry run pytest --full-trace --show-capture=no -sv -n auto tests/

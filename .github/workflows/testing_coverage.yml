@@ -1,7 +1,13 @@
 name: pytest and coverage report
 
-# Triggers the workflow on push and PR for all branches
-on: [push, pull_request]
+# Triggers the workflow on push for all branches and PR only for main
+on:
+  push:
+    branches:
+      - '*'
+  pull_request:
+    branches:
+      - main
 
 jobs:
   pytest:

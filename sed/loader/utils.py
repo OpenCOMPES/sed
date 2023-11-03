@@ -3,7 +3,10 @@
 from glob import glob
 from typing import cast
 from typing import List
+from typing import Sequence
 
+import dask.dataframe
+import numpy as np
 from h5py import File
 from h5py import Group
 from natsort import natsorted
@@ -89,3 +92,50 @@ def parse_h5_keys(h5_file: File, prefix: str = "") -> List[str]:
 
     # Return the list of channels
     return file_channel_list
+
+
+def split_channel_bitwise(
+    df: dask.dataframe.DataFrame,
+    input_column: str,
+    output_columns: Sequence[str],
+    bit_mask: int,
+    overwrite: bool = False,
+    types: Sequence[type] = None,
+) -> dask.dataframe.DataFrame:
+    """Splits a channel into two channels bitwise.
+
+    This function splits a channel into two channels by separating the first n bits from
+    the remaining bits. The first n bits are stored in the first output column, the
+    remaining bits are stored in the second output column.
+
+    Args:
+        df (dask.dataframe.DataFrame): Dataframe to use.
+        input_column (str): Name of the column to split.
+        output_columns (Sequence[str]): Names of the columns to create.
+        bit_mask (int): Bit mask to use for splitting.
+        overwrite (bool, optional): Whether to overwrite existing columns.
+            Defaults to False.
+        types (Sequence[type], optional): Types of the new columns.
+
+    Returns:
+        dask.dataframe.DataFrame: Dataframe with the new columns.
+    """
+    if len(output_columns) != 2:
+        raise ValueError("Exactly two output columns must be given.")
+    if input_column not in df.columns:
+        raise KeyError(f"Column {input_column} not in dataframe.")
+    if output_columns[0] in df.columns and not overwrite:
+        raise KeyError(f"Column {output_columns[0]} already in dataframe.")
+    if output_columns[1] in df.columns and not overwrite:
+        raise KeyError(f"Column {output_columns[1]} already in dataframe.")
+    if bit_mask < 0 or not isinstance(bit_mask, int):
+        raise ValueError("bit_mask must be a positive. integer")
+    if types is None:
+        types = [np.int8 if bit_mask < 8 else np.int16, np.int32]
+    elif len(types) != 2:
+        raise ValueError("Exactly two types must be given.")
+    elif not all(isinstance(t, type) for t in types):
+        raise ValueError("types must be a sequence of types.")
+    df[output_columns[0]] = (df[input_column] % 2**bit_mask).astype(types[0])
+    df[output_columns[1]] = (df[input_column] // 2**bit_mask).astype(types[1])
+    return df
