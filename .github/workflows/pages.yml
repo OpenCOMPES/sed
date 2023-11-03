@@ -46,7 +46,7 @@ jobs:
         run: poetry install -E notebook -E docs
 
       - name: build Sphinx docs
-        run: sphinx-build -b html $GITHUB_WORKSPACE/docs $GITHUB_WORKSPACE/_build
+        run: poetry run sphinx-build -b html $GITHUB_WORKSPACE/docs $GITHUB_WORKSPACE/_build
 
       - name: Setup Pages
         uses: actions/configure-pages@v3
@@ -56,7 +56,7 @@ jobs:
         with:
           # Upload entire repository
           path: '_build'
-          
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v2
