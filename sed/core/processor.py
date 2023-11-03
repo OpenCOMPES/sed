@@ -1208,11 +1208,7 @@ class SedProcessor:
                 "Energy calibration parameters not found, need to generate parameters first!",
             ) from exc
 
-        config = {
-            "energy": {
-                "calibration": calibration,
-            },
-        }
+        config = {"energy": {"calibration": calibration}}
         if isinstance(self.ec.offset, dict):
             config["energy"]["offset"] = self.ec.offset
         save_config(config, filename, overwrite)
@@ -1289,12 +1285,12 @@ class SedProcessor:
             ValueError: If the energy column is not in the dataframe.
         """
         energy_column = self._config["dataframe"]["energy_column"]
-        if energy_column not in self._dataframe.columns:
-            raise ValueError(
-                f"Energy column {energy_column} not found in dataframe! "
-                "Run `append energy axis` first.",
-            )
         if self.dataframe is not None:
+            if energy_column not in self._dataframe.columns:
+                raise ValueError(
+                    f"Energy column {energy_column} not found in dataframe! "
+                    "Run `append energy axis` first.",
+                )
             df, metadata = self.ec.add_offsets(
                 df=self._dataframe,
                 constant=constant,
@@ -1304,6 +1300,17 @@ class SedProcessor:
                 reductions=reductions,
                 preserve_mean=preserve_mean,
             )
+            if self._timed_dataframe is not None:
+                if energy_column in self._timed_dataframe.columns:
+                    self._timed_dataframe, _ = self.ec.add_offsets(
+                        df=self._timed_dataframe,
+                        constant=constant,
+                        columns=columns,
+                        energy_column=energy_column,
+                        signs=signs,
+                        reductions=reductions,
+                        preserve_mean=preserve_mean,
+                    )
             self._attributes.add(
                 metadata,
                 "add_energy_offset",
@@ -1336,6 +1343,12 @@ class SedProcessor:
                 df=self._dataframe,
                 **kwargs,
             )
+            if self._timed_dataframe is not None:
+                if self._config["dataframe"]["tof_column"] in self._timed_dataframe.columns:
+                    self._timed_dataframe, _ = self.ec.append_tof_ns_axis(
+                        df=self._timed_dataframe,
+                        **kwargs,
+                    )
             self._attributes.add(
                 metadata,
                 "tof_ns_conversion",
@@ -1357,6 +1370,13 @@ class SedProcessor:
                 sector_delays=sector_delays,
                 **kwargs,
             )
+            if self._timed_dataframe is not None:
+                if self._config["dataframe"]["tof_column"] in self._timed_dataframe.columns:
+                    self._timed_dataframe, _ = self.ec.align_dld_sectors(
+                        df=self._timed_dataframe,
+                        sector_delays=sector_delays,
+                        **kwargs,
+                    )
             self._attributes.add(
                 metadata,
                 "dld_sector_alignment",
