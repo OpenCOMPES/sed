@@ -56,7 +56,7 @@ jobs:
       - name: copy tutorial files to docs
         run: |
           cp -r $GITHUB_WORKSPACE/tutorial $GITHUB_WORKSPACE/docs/
-          cp -r $GITHUB_WORKSPACE/sed/config $GITHUB_WORKSPACE/docs/tutorial/
+          cp -r $GITHUB_WORKSPACE/sed/config $GITHUB_WORKSPACE/docs/sed
 
       - name: download WSe2 data
         run: |
