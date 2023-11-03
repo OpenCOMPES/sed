@@ -53,12 +53,14 @@ jobs:
           sudo wget https://github.com/jgm/pandoc/releases/download/3.1.8/pandoc-3.1.8-1-amd64.deb
           sudo dpkg -i pandoc-3.1.8-1-amd64.deb
 
+      - name: copy tutorial files to docs
+        run: cp -r $GITHUB_WORKSPACE/tutorial $GITHUB_WORKSPACE/docs/
+
       - name: download WSe2 data
         run: |
-          cd $GITHUB_WORKSPACE
+          cd $GITHUB_WORKSPACE/docs/tutorial
           curl -L --output ./WSe2.zip https://zenodo.org/record/6369728/files/WSe2.zip
           unzip -o ./WSe2.zip -d .
-          rm ./WSe2.zip
 
       - name: build Sphinx docs
         run: poetry run sphinx-build -b html $GITHUB_WORKSPACE/docs $GITHUB_WORKSPACE/_build
