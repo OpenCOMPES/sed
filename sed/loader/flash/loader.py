@@ -662,8 +662,9 @@ class FlashLoader(BaseLoader):
 
         # check if available_channels are same as schema
         available_channels_set = set(self.available_channels)
-        for i in len(schema):
-            schema_set = set(schema[i])
+
+        for i in range(len(schema)):
+            schema_set = set(schema[i].names)
             # Check if available_channels are the same as schema including pulseId
             if not force_recreate and schema_set != available_channels_set.union({"pulseId"}):
                 raise ValueError(
@@ -757,7 +758,7 @@ class FlashLoader(BaseLoader):
         else:
             # Obtain the parquet filenames, metadata and schema from the method
             # which handles buffer file creation/reading
-            filenames, metadata, schema = self.buffer_file_handler(
+            filenames, metadata, _ = self.buffer_file_handler(
                 data_parquet_dir,
                 detector,
                 force_recreate,
