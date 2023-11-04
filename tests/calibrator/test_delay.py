@@ -3,6 +3,9 @@
 import os
 from importlib.util import find_spec
 
+import dask.dataframe
+import numpy as np
+import pandas as pd
 import pytest
 
 from sed.calibrator.delay import DelayCalibrator
@@ -114,3 +117,71 @@ def test_delay_parameters_from_delay_range_mm():
     assert "adc_range" in metadata["calibration"]
     assert "time0" in metadata["calibration"]
     assert "delay_range_mm" in metadata["calibration"]
+
+
+def test_loader_selection():
+    """test that the correct calibration method is used based on the loader in the config"""
+    config = parse_config(
+        config={
+            "core": {"loader": "mpes"},
+            "delay": {
+                "p1_key": "@trARPES:DelayStage:p1",
+                "p2_key": "@trARPES:DelayStage:p2",
+                "t0_key": "@trARPES:DelayStage:t0",
+            },
+        },
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+    df, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
+        files=[file],
+        collect_metadata=False,
+    )
+    dc = DelayCalibrator(config=config)
+    assert dc.loader == "mpes"
+    # assert dc.append_delay_axis.__doc__ == dc.append_delay_axis_mpes.__doc__
+    assert getattr(dc, f"append_delay_axis_{dc.loader}") == dc.append_delay_axis_mpes
+
+    config = parse_config(
+        config={
+            "core": {"loader": "hextof"},
+            "delay": {"time0": 1},
+        },
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+    _ = dask.dataframe.from_pandas(
+        pd.DataFrame({"delayStage": np.linspace(0, 1, 100)}),
+        npartitions=2,
+    )
+    dc = DelayCalibrator(config=config)
+    assert dc.loader == "hextof"
+    # assert dc.append_delay_axis.__doc__ == dc.append_delay_axis_hextof.__doc__
+    assert getattr(dc, f"append_delay_axis_{dc.loader}") == dc.append_delay_axis_hextof
+
+
+def test_hextof_append_delay():
+    """test functionality of the hextof delay calibration method"""
+    config = parse_config(
+        config={
+            "core": {"loader": "hextof"},
+            "dataframe": {"delay_column": "delay", "delay_stage_column": "delayStage"},
+            "delay": {"time0": 1},
+        },
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+    df = dask.dataframe.from_pandas(
+        pd.DataFrame({"dldPosX": np.linspace(0, 1, 100), "delayStage": np.linspace(0, 1, 100)}),
+        npartitions=2,
+    )
+    dc = DelayCalibrator(config=config)
+    df, metadata = dc.append_delay_axis(df)
+    assert "delay" in df.columns
+    assert "time0" in metadata["calibration"]
+    assert metadata["calibration"]["time0"] == 1
+    assert metadata["calibration"]["flip_time_axis"] is False
+    np.testing.assert_allclose(df["delay"], np.linspace(0, 1, 100) - 1)

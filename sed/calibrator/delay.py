@@ -25,22 +25,92 @@ class DelayCalibrator:
     def __init__(
         self,
         config: dict = None,
-    ):
+    ) -> None:
         """Initialization of the DelayCalibrator class passes the config.
 
         Args:
             config (dict, optional): Config dictionary. Defaults to None.
         """
-        if config is None:
-            config = {}
+        self._config: dict = config or {}
 
-        self._config = config
+        self.loader: str = self._config["core"]["loader"]
+        if self.loader == "hextof":
+            self._append_delay_axis_docstring: str = self.append_delay_axis_hextof.__doc__
+        elif self.loader == "mpes":
+            self._append_delay_axis_docstring: str = self.append_delay_axis_mpes.__doc__
+        else:
+            raise NotImplementedError(f"Loader '{self.loader}' not implemented.")
 
-        self.adc_column = self._config["dataframe"]["adc_column"]
-        self.delay_column = self._config["dataframe"]["delay_column"]
-        self.calibration: Dict[Any, Any] = {}
+        self.adc_column: str = self._config["dataframe"].get("adc_column", None)
+        self.delay_stage_column: str = self._config["dataframe"].get("delay_stage_column", None)
+        if self.delay_stage_column is None and self.adc_column is None:
+            raise ValueError("No delay stage column specified.")
+        self.delay_column: str = self._config["dataframe"]["delay_column"]
+        self.calibration: Dict[str, Any] = {}
 
     def append_delay_axis(
+        self,
+        df: Union[pd.DataFrame, dask.dataframe.DataFrame],
+        *args,
+        **kwargs,
+    ) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
+        """TODO: docstring"""
+        method = getattr(self, f"append_delay_axis_{self.loader}")
+        return method(df, *args, **kwargs)
+
+    def append_delay_axis_hextof(
+        self,
+        df: Union[pd.DataFrame, dask.dataframe.DataFrame],
+        time0: float = None,
+        flip_time_axis: bool = None,
+        delay_stage_column: str = None,
+        delay_column: str = None,
+    ) -> Tuple[dask.dataframe.DataFrame, dict]:
+        """Calculate and append the delay axis to the events dataframe.
+
+        Args:
+            df (Union[pd.DataFrame, dask.dataframe.DataFrame]): The dataframe where
+                to apply the delay calibration to.
+            time0 (float, optional): Pump-Probe overlap value of the delay coordinate.
+                If omitted, it is searched for in the data files.
+            flip_time_axis (bool, optional): Invert the time axis.
+            delay_stage_column (str, optional): Source column for delay calibration.
+                Defaults to config["dataframe"]["delay_stage_column"].
+            delay_column (str, optional): Destination column for delay calibration.
+                Defaults to config["dataframe"]["delay_column"].
+
+        Returns:
+            Union[pd.DataFrame, dask.dataframe.DataFrame]: dataframe with added column
+            and delay calibration metdata dictionary.
+        """
+        assert self.loader == "hextof", "Invalid loader for this method."
+        # pylint: disable=duplicate-code
+        delay_stage_column = delay_stage_column or self.delay_stage_column
+        delay_column = delay_column or self.delay_column
+
+        time0 = time0 or self._config["delay"].get("time0", 0)
+        flip_time_axis = flip_time_axis or self._config["delay"].get("flip_time_axis", False)
+
+        def calibrate_time(x, time0, flip_time_axis) -> Any:
+            return (x[delay_stage_column] - time0) * (-1 if flip_time_axis else 1)
+
+        df[delay_column] = df.map_partitions(
+            calibrate_time,
+            time0,
+            flip_time_axis,
+            meta=(delay_column, np.float64),
+        )
+
+        metadata: Dict[str, Any] = {
+            "applied": True,
+            "calibration": {
+                "time0": time0,
+                "flip_time_axis": flip_time_axis,
+            },
+        }
+        return df, metadata
+
+    def append_delay_axis_mpes(
         self,
         df: Union[pd.DataFrame, dask.dataframe.DataFrame],
         adc_column: str = None,
@@ -93,6 +163,8 @@ class DelayCalibrator:
             Union[pd.DataFrame, dask.dataframe.DataFrame]: dataframe with added column
             and delay calibration metdata dictionary.
         """
+        assert self.loader == "mpes", "Invalid loader for this method."
+
         # pylint: disable=duplicate-code
         if calibration is None:
             if self.calibration:
