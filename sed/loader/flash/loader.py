@@ -657,14 +657,14 @@ class FlashLoader(BaseLoader):
             raise ValueError("No data available. Probably failed reading all h5 files")
 
         # read parquet metadata and schema
-        metadata = [pq.read_metadata(file) for file in existing_parquet_filenames]
-        schema = [pq.read_schema(file) for file in existing_parquet_filenames]
+        metadatas = [pq.read_metadata(file) for file in existing_parquet_filenames]
+        schemas = [pq.read_schema(file) for file in existing_parquet_filenames]
 
         # check if available_channels are same as schema
         available_channels_set = set(self.available_channels)
 
-        for i in range(len(schema)):
-            schema_set = set(schema[i].names)
+        for i, schema in enumerate(schemas):
+            schema_set = set(schema.names)
             # Check if available_channels are the same as schema including pulseId
             if not force_recreate and schema_set != available_channels_set.union({"pulseId"}):
                 raise ValueError(
@@ -703,7 +703,7 @@ class FlashLoader(BaseLoader):
 
         print("All files converted successfully!")
 
-        return parquet_filenames, metadata, schema
+        return parquet_filenames, metadatas, schemas
 
     def parquet_handler(
         self,
