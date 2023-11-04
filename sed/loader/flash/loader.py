@@ -634,8 +634,8 @@ class FlashLoader(BaseLoader):
             detector (str): Detector name.
 
         Returns:
-            Tuple[List[Path], List[Path]]: Two lists, one for h5 file paths and one for
-            corresponding parquet file paths.
+            Tuple[List[Path], List[pa.parquet.FileMetaData]]: Two lists, one for
+            parquet file paths and one for parquet metadata.
 
         Raises:
             FileNotFoundError: If the conversion fails for any files or no data is available.
@@ -685,7 +685,9 @@ class FlashLoader(BaseLoader):
 
         print("All files converted successfully!")
 
-        return h5_filenames, parquet_filenames
+        parquet_metadata = [pa.parquet.read_metadata(file) for file in parquet_filenames]
+
+        return parquet_filenames, parquet_metadata
 
     def parquet_handler(
         self,
@@ -738,7 +740,7 @@ class FlashLoader(BaseLoader):
 
         else:
             # Obtain the filenames from the method which handles buffer file creation/reading
-            _, parquet_filenames = self.buffer_file_handler(
+            parquet_filenames, parquet_metadata = self.buffer_file_handler(
                 data_parquet_dir,
                 detector,
             )
@@ -748,7 +750,7 @@ class FlashLoader(BaseLoader):
             print("Filling nan values...")
             channels: List[str] = self.get_channels_by_format(["per_pulse", "per_train"])
 
-            overlap = min(pa.parquet.read_metadata(prq).num_rows for prq in parquet_filenames)
+            overlap = min(file.num_rows for file in parquet_metadata)
 
             dataframe = dfops.forward_fill_lazy(
                 df=dataframe,
