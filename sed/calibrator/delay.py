@@ -35,14 +35,7 @@ class DelayCalibrator:
             config (dict, optional): Config dictionary. Defaults to None.
         """
         self._config: dict = config or {}
-
         self.loader: str = self._config["core"]["loader"]
-        if self.loader == "hextof":
-            self._append_delay_axis_docstring: str = self.append_delay_axis_hextof.__doc__
-        elif self.loader == "mpes":
-            self._append_delay_axis_docstring = self.append_delay_axis_mpes.__doc__
-        else:
-            raise NotImplementedError(f"Loader '{self.loader}' not implemented.")
 
         self.adc_column: str = self._config["dataframe"].get("adc_column", None)
         self.delay_stage_column: str = self._config["dataframe"].get("delay_stage_column", None)
@@ -59,6 +52,10 @@ class DelayCalibrator:
         **kwargs,
     ) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
         """TODO: docstring"""
+        if self.loader not in ["mpes", "hextof"]:
+            raise NotImplementedError(
+                f"Delay calibration is implemented for 'mpes' and 'hextof', not {self.loader}.",
+            )
         method = getattr(self, f"append_delay_axis_{self.loader}")
         return method(df, *args, **kwargs)
 
