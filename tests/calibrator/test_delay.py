@@ -185,3 +185,49 @@ def test_hextof_append_delay():
     assert metadata["calibration"]["time0"] == 1
     assert metadata["calibration"]["flip_time_axis"] is False
     np.testing.assert_allclose(df["delay"], np.linspace(0, 1, 100) - 1)
+
+
+def test_correct_timing_fluctuation():
+    """test that the timing fluctuation is corrected for correctly"""
+    cfg = {
+        "core": {"loader": "hextof"},
+        "dataframe": {"delay_column": "delay", "delay_stage_column": "delayStage"},
+        "delay": {
+            "time0": 1,
+            "fluctuations": {
+                "bam": {
+                    "sign": 1,
+                    "preserve_mean": False,
+                },
+            },
+        },
+    }
+    config = parse_config(
+        config=cfg,
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+    df = dask.dataframe.from_pandas(
+        pd.DataFrame({"bam": np.random.normal(100) + 5, "delayStage": np.linspace(0, 1, 100)}),
+        npartitions=2,
+    )
+    dc = DelayCalibrator(config=config)
+    df, _ = dc.append_delay_axis(df)
+    assert "delay" in df.columns
+    df, meta = dc.correct_timing_fluctuation(df)
+    expected = df["delayStage"] + df["bam"] - 1
+    np.testing.assert_allclose(df["delay"], expected)
+
+    cfg["delay"]["fluctuations"]["bam"]["preserve_mean"] = True
+    config = parse_config(
+        config=cfg,
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+    dc = DelayCalibrator(config=config)
+    df, _ = dc.append_delay_axis(df)
+    assert "delay" in df.columns
+    df, meta = dc.correct_timing_fluctuation(df)
+    expected = df["delayStage"] - 1 + df["bam"] - 5

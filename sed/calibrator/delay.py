@@ -4,6 +4,7 @@ from copy import deepcopy
 from typing import Any
 from typing import Dict
 from typing import List
+from typing import Sequence
 from typing import Tuple
 from typing import Union
 
@@ -11,6 +12,8 @@ import dask.dataframe
 import h5py
 import numpy as np
 import pandas as pd
+
+from sed.core import dfops
 
 
 class DelayCalibrator:
@@ -37,7 +40,7 @@ class DelayCalibrator:
         if self.loader == "hextof":
             self._append_delay_axis_docstring: str = self.append_delay_axis_hextof.__doc__
         elif self.loader == "mpes":
-            self._append_delay_axis_docstring: str = self.append_delay_axis_mpes.__doc__
+            self._append_delay_axis_docstring = self.append_delay_axis_mpes.__doc__
         else:
             raise NotImplementedError(f"Loader '{self.loader}' not implemented.")
 
@@ -47,6 +50,7 @@ class DelayCalibrator:
             raise ValueError("No delay stage column specified.")
         self.delay_column: str = self._config["dataframe"]["delay_column"]
         self.calibration: Dict[str, Any] = {}
+        self.fluctuations: Dict[str, Any] = self._config["delay"].get("fluctuations", {})
 
     def append_delay_axis(
         self,
@@ -244,6 +248,78 @@ class DelayCalibrator:
 
         metadata = {"calibration": calibration}
 
+        return df, metadata
+
+    def correct_timing_fluctuation(
+        self,
+        df: Union[pd.DataFrame, dask.dataframe.DataFrame],
+        delay_column: str = None,
+        columns: Union[str, Sequence[str]] = None,
+        signs: Union[int, Sequence[int]] = None,
+        preserve_mean: Union[bool, Sequence[bool]] = None,
+        reductions: Union[str, Sequence[str]] = None,
+        inplace: bool = True,
+        rename: str = None,
+    ) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
+        """Corrects fluctuations on the delay axis based on other monitored parameters.
+
+        An example application is the correction of the SASE jitter based on the
+        values of the Beam Arrival Monitor (BAM) at FLASH, or the correction of the
+        long term drifts using the "Streak Camera".
+
+        Args:
+            df (Union[pd.DataFrame, dask.dataframe.DataFrame]): The dataframe where
+                to apply the delay calibration to.
+            delay_column (str, optional): Destination column for delay calibration.
+                Defaults to config["dataframe"]["delay_column"].
+            fluctuation_column (str, optional): Source column for fluctuation correction.
+            sign (int, optional): Sign of the jitter correction. Defaults to 1.
+            preserve_mean (bool, optional): Subtract mean value of fluctuation column.
+                Using this ensures the average time of the delay axis is not changed.
+            reductions (str, optional): Reduction to apply to the fluctuation column.
+            inplace (bool, optional): Apply the correction inplace. If False, a new column will be
+                generated. The name will depend on the rename argument.
+            rename (str, optional): New name for the column generated not in place.
+
+        Returns:
+            Union[pd.DataFrame, dask.dataframe.DataFrame]: dataframe with corrected
+                delay axis.
+        """
+        delay_column = delay_column or self.delay_column
+
+        if columns is None:
+            # load from config
+            columns = []
+            signs = []
+            preserve_mean = []
+            reductions = []
+            for k, v in self.fluctuations.items():
+                columns.append(k)
+                try:
+                    signs.append(v["sign"])
+                except KeyError as exc:
+                    raise KeyError(f"Missing sign for fluctuation column {k} in config.") from exc
+                preserve_mean.append(v.get("preserve_mean", False))
+                reductions.append(v.get("reduction", None))
+
+        df = dfops.offset_by_other_columns(
+            df=df,
+            target_column=delay_column,
+            offset_columns=columns,
+            signs=signs,
+            reductions=reductions,
+            preserve_mean=preserve_mean,
+            inplace=inplace,
+            rename=rename,
+        )
+
+        metadata: Dict[str, Any] = {
+            "fluctuations": {
+                "columns": columns,
+                "preserve_mean": preserve_mean,
+                "signs": signs,
+            },
+        }
         return df, metadata
 
 
