@@ -287,14 +287,14 @@ def test_append_tof_ns_axis():
     loader = get_loader(loader_name="mpes", config=config)
 
     # from kwds
-    df, _ = loader.read_dataframe(folders=df_folder, collect_metadata=False)
+    df, _, _ = loader.read_dataframe(folders=df_folder, collect_metadata=False)
     ec = EnergyCalibrator(config=config, loader=loader)
     df, _ = ec.append_tof_ns_axis(df, binwidth=2e-9, binning=1)
     assert config["dataframe"]["tof_ns_column"] in df.columns
     np.testing.assert_allclose(df[ec.tof_column], df[ec.tof_ns_column] / 4)
 
     # from config
-    df, _ = loader.read_dataframe(folders=df_folder, collect_metadata=False)
+    df, _, _ = loader.read_dataframe(folders=df_folder, collect_metadata=False)
     ec = EnergyCalibrator(config=config, loader=loader)
     df, _ = ec.append_tof_ns_axis(df)
     assert config["dataframe"]["tof_ns_column"] in df.columns

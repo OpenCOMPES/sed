@@ -27,7 +27,8 @@ df_folder = package_dir + "/../tests/data/loader/mpes/"
 df_folder_generic = package_dir + "/../tests/data/loader/generic/"
 folder = package_dir + "/../tests/data/calibrator/"
 files = glob.glob(df_folder + "*.h5")
-runs = ["43878", "43878"]
+runs = ["30", "50"]
+runs_flash = ["43878", "43878"]
 loader = get_loader(loader_name="mpes")
 source_folder = package_dir + "/../"
 dest_folder = tempfile.mkdtemp()
@@ -107,20 +108,23 @@ def test_processor_from_folders():
 
 def test_processor_from_runs():
     """Test generation of the processor from runs"""
-    config = df_folder + "../flash/config.yaml"
+    config = {"core": {"loader": "mpes"}}
+    dataframe, timed_dataframe, _ = loader.read_dataframe(files=files)
     processor = SedProcessor(
-        folder=df_folder + "../flash/",
+        folder=df_folder,
         config=config,
         runs=runs,
         folder_config={},
         user_config={},
         system_config={},
     )
-    assert "dldPosX" in processor.dataframe.columns
-    # cleanup flash inermediaries
-    _, parquet_data_dir = processor.loader.initialize_paths()
-    for file in os.listdir(Path(parquet_data_dir, "buffer")):
-        os.remove(Path(parquet_data_dir, "buffer", file))
+    assert processor.loader.runs == runs
+    for column in dataframe.columns:
+        assert (dataframe[column].compute() == processor.dataframe[column].compute()).all()
+    for column in timed_dataframe.columns:
+        assert (
+            timed_dataframe[column].compute() == processor.timed_dataframe[column].compute()
+        ).all()
 
 
 def test_additional_parameter_to_loader():
@@ -568,10 +572,77 @@ def test_energy_calibration_workflow(energy_scale: str, calibration_method: str)
         user_config={},
         system_config={},
     )
+    with pytest.raises(ValueError):
+        processor.add_energy_offset(constant=1)
     processor.append_energy_axis(preview=True)
     assert "energy" in processor.dataframe.columns
     assert processor.attributes["energy_calibration"]["calibration"]["energy_scale"] == energy_scale
     os.remove(f"sed_config_energy_calibration_{energy_scale}-{calibration_method}.yaml")
+
+    energy1 = processor.dataframe["energy"].compute().values
+    processor.add_energy_offset(constant=1)
+    energy2 = processor.dataframe["energy"].compute().values
+    np.testing.assert_allclose(energy1, energy2 + (1 if energy_scale == "binding" else -1))
+
+
+def test_align_dld_sectors():
+    """Test alignment of DLD sectors for flash detector"""
+    config = df_folder + "../flash/config.yaml"
+    processor = SedProcessor(
+        folder=df_folder + "../flash/",
+        config=config,
+        runs=runs_flash,
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+    assert "dldTimeSteps" in processor.dataframe.columns
+    assert "dldSectorID" in processor.dataframe.columns
+
+    sector_delays = np.asarray([10, -10, 20, -20, 30, -30, 40, -40])
+
+    tof_ref = []
+    for i in range(len(sector_delays)):
+        tof_ref.append(
+            processor.dataframe[processor.dataframe["dldSectorID"] == i]["dldTimeSteps"]
+            .compute()
+            .values.astype("float"),
+        )
+    tof_ref_array = np.zeros([len(tof_ref), len(max(tof_ref, key=len))])
+    tof_ref_array[:] = np.nan
+    for i, val in enumerate(tof_ref):
+        tof_ref_array[i][0 : len(val)] = val
+    processor.align_dld_sectors(sector_delays=sector_delays)
+    tof_aligned = []
+    for i in range(len(sector_delays)):
+        tof_aligned.append(
+            processor.dataframe[processor.dataframe["dldSectorID"] == i]["dldTimeSteps"]
+            .compute()
+            .values,
+        )
+    tof_aligned_array = np.zeros([len(tof_aligned), len(max(tof_aligned, key=len))])
+    tof_aligned_array[:] = np.nan
+    for i, val in enumerate(tof_aligned):
+        tof_aligned_array[i][0 : len(val)] = val
+    np.testing.assert_allclose(tof_ref_array, tof_aligned_array + sector_delays[:, np.newaxis])
+
+    # cleanup flash inermediaries
+    _, parquet_data_dir = processor.loader.initialize_paths()
+    for file in os.listdir(Path(parquet_data_dir, "buffer")):
+        os.remove(Path(parquet_data_dir, "buffer", file))
+
+
+def test_append_tof_ns_axis():
+    """Test the append_tof_ns_axis function"""
+    processor = SedProcessor(
+        folder=df_folder,
+        config={"core": {"loader": "mpes"}},
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+    processor.append_tof_ns_axis()
+    assert processor.config["dataframe"]["tof_ns_column"] in processor.dataframe
 
 
 def test_delay_calibration_workflow():

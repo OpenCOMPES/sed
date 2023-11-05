@@ -1442,8 +1442,10 @@ class EnergyCalibrator:
             dask.dataframe.DataFrame: Dataframe with the new columns.
             dict: Metadata dictionary.
         """
-        sector_delays = sector_delays or self.sector_delays
-        sector_id_column = sector_id_column or self.sector_id_column
+        if sector_delays is None:
+            sector_delays = self.sector_delays
+        if sector_id_column is None:
+            sector_id_column = self.sector_id_column
 
         if sector_delays is None or sector_id_column is None:
             raise ValueError(
