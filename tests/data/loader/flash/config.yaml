@@ -114,6 +114,10 @@ dataframe:
         sampleTemperature: 5
         dldTimeBinSize: 15
 
+    timeStamp:
+      format: per_train
+      group_name: "/uncategorised/FLASH.DIAG/TIMINGINFO/TIME1.BUNCH_FIRST_INDEX.1/"
+
   # The prefixes of the stream names for different DAQ systems for parsing filenames
   # (Not to be changed by user)
   stream_name_prefixes:

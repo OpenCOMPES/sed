@@ -37,10 +37,11 @@ sphinx = {version = ">4.4.0", extras = ["docs"], optional = true}
 sphinx-rtd-theme = {version = ">1.0.0", extras = ["docs"], optional = true}
 tomlkit = {version = ">0.10.0", extras = ["docs"], optional = true}
 sphinx-autodoc-typehints = {version = ">1.17.0", extras = ["docs"], optional = true}
+jupyterlab-h5web = {version = "^11.0.0", extras = ["notebook"], optional = true}
 
 
 [tool.poetry.extras]
-notebook = ["jupyter", "ipykernel"]
+notebook = ["jupyter", "ipykernel", "jupyterlab-h5web"]
 docs = ["Sphinx", "sphinx-rtd-theme", "tomlkit", "sphinx-autodoc-typehints"]
 
 [tool.poetry.group.dev.dependencies]
@@ -53,6 +54,7 @@ mypy = "^1.6.0"
 pycodestyle = "^2.11.1"
 types-pyyaml = "^6.0.12.12"
 types-requests = "^2.31.0.9"
+pyfakefs = "^5.3.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
