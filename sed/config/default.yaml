@@ -39,6 +39,8 @@ dataframe:
   jitter_cols: ["@x_column", "@y_column", "@tof_column"]
   # Jitter amplitude or list of jitter amplitudes. Should equal half the digitial step size of each jitter_column
   jitter_amps: 0.5
+  # Time stepping in seconds of the succesive events in the timed dataframe
+  timed_dataframe_unit_time: 0.001
 
 energy:
   # Number of bins to use for energy calibration traces

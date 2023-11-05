@@ -28,7 +28,7 @@ def test_delay_parameters_from_file():
         user_config={},
         system_config={},
     )
-    df, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
+    df, _, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
         files=[file],
         collect_metadata=False,
     )
@@ -51,7 +51,7 @@ def test_delay_parameters_from_delay_range():
         user_config={},
         system_config={},
     )
-    df, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
+    df, _, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
         files=[file],
         collect_metadata=False,
     )
@@ -62,7 +62,7 @@ def test_delay_parameters_from_delay_range():
     assert "adc_range" in metadata["calibration"]
 
     # from calibration
-    df, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
+    df, _, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
         files=[file],
         collect_metadata=False,
     )
@@ -84,7 +84,7 @@ def test_delay_parameters_from_delay_range_mm():
         user_config={},
         system_config={},
     )
-    df, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
+    df, _, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
         files=[file],
         collect_metadata=False,
     )
@@ -99,7 +99,7 @@ def test_delay_parameters_from_delay_range_mm():
     assert "delay_range_mm" in metadata["calibration"]
 
     # from dict
-    df, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
+    df, _, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
         files=[file],
         collect_metadata=False,
     )
