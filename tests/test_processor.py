@@ -90,7 +90,7 @@ def test_processor_from_files():
 def test_processor_from_folders():
     """Test generation of the processor from a folder"""
     config = {"core": {"loader": "mpes"}}
-    dataframe, timed_dataframe, _ = loader.read_dataframe(files=files)
+    dataframe, timed_dataframe, _ = loader.read_dataframe(folders=df_folder)
     processor = SedProcessor(
         folder=df_folder,
         config=config,
@@ -109,7 +109,7 @@ def test_processor_from_folders():
 def test_processor_from_runs():
     """Test generation of the processor from runs"""
     config = {"core": {"loader": "mpes"}}
-    dataframe, timed_dataframe, _ = loader.read_dataframe(files=files)
+    dataframe, timed_dataframe, _ = loader.read_dataframe(folders=df_folder, runs=runs)
     processor = SedProcessor(
         folder=df_folder,
         config=config,
