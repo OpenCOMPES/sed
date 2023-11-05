@@ -369,7 +369,7 @@ def hdf5_to_timed_array(
             # need to correct for the time it took to write the file
             start_time -= len(ms_marker) / 1000
 
-        time_stamp_data = start_time + ms_marker / 1000
+        time_stamp_data = start_time + np.arange(len(ms_marker)) / 1000
 
         data_list.append(time_stamp_data)
 
