@@ -1771,6 +1771,16 @@ class SedProcessor:
             time_stamp_column=time_stamp_column,
             **kwds,
         )
+        if self._timed_dataframe is not None:
+            if time_stamp_column in self._timed_dataframe:
+                self._timed_dataframe = add_time_stamped_data(
+                    self._timed_dataframe,
+                    time_stamps=time_stamps,
+                    data=data,
+                    dest_column=dest_column,
+                    time_stamp_column=time_stamp_column,
+                    **kwds,
+                )
         metadata: List[Any] = []
         metadata.append(dest_column)
         metadata.append(time_stamps)
