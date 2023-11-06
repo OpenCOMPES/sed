@@ -86,7 +86,7 @@ class DelayCalibrator:
             and delay calibration metdata dictionary.
         """
         if len(kwargs) > 0:
-            print(f"WARNING: arguments {kwargs.keys()} are not used in mpes delay calibration.")
+            print(f"WARNING: arguments {kwargs.keys()} are not used in flash delay calibration.")
         assert self.loader == "flash", "Invalid loader for this method."
         # pylint: disable=duplicate-code
         if delay_stage_column is None:

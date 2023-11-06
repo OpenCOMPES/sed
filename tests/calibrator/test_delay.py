@@ -256,5 +256,5 @@ def test_correct_timing_fluctuation():
     dc = DelayCalibrator(config=config)
     df, _ = dc.append_delay_axis(df)
     assert "delay" in df.columns
-    df, meta = dc.correct_delay_fluctuations(df)
+    df, _ = dc.correct_delay_fluctuations(df)
     expected = df["delayStage"] - 1 + df["bam"] - 5
