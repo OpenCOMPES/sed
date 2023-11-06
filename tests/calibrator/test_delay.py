@@ -140,9 +140,9 @@ def test_loader_selection():
     )
     dc = DelayCalibrator(config=config)
     assert dc.loader == "mpes"
-    # assert dc.append_delay_axis.__doc__ == dc.append_delay_axis_mpes.__doc__
-    # pylint disable-next=comparison-with-callable
-    assert getattr(dc, f"append_delay_axis_{dc.loader}") == dc.append_delay_axis_mpes
+    m1 = getattr(dc, f"append_delay_axis_{dc.loader}")
+    m2 = getattr(dc, "append_delay_axis_mpes")
+    assert m1.__name__ == m2.__name__
 
     config = parse_config(
         config={
@@ -159,9 +159,9 @@ def test_loader_selection():
     )
     dc = DelayCalibrator(config=config)
     assert dc.loader == "flash"
-    # assert dc.append_delay_axis.__doc__ == dc.append_delay_axis_flash.__doc__
-    # pylint disable-next=comparison-with-callable
-    assert getattr(dc, f"append_delay_axis_{dc.loader}") == dc.append_delay_axis_flash
+    m1 = getattr(dc, f"append_delay_axis_{dc.loader}")
+    m2 = getattr(dc, "append_delay_axis_flash")
+    assert m1.__name__ == m2.__name__
 
 
 def test_flash_append_delay():
@@ -190,6 +190,7 @@ def test_flash_append_delay():
 
 
 def test_flash_append_delay_flip():
+    """test functionality of the flash delay calibration method with flip"""
     config = parse_config(
         config={
             "core": {"loader": "flash"},
@@ -241,7 +242,7 @@ def test_correct_timing_fluctuation():
     dc = DelayCalibrator(config=config)
     _ = dc.append_delay_axis(df)
     assert "delay" in df.columns
-    df, meta = dc.correct_delay_fluctuations(df)
+    df, _ = dc.correct_delay_fluctuations(df)
     expected = df["delayStage"] + df["bam"] - 1
     np.testing.assert_allclose(df["delay"], expected)
 
