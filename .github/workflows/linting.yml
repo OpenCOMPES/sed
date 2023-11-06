@@ -1,0 +1,33 @@
+name: linting
+
+# Triggers the workflow on push for all branches
+on: [push]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      # Check out repo and set up Python
+      - uses: actions/checkout@v3
+        with:
+          lfs: true
+
+      # Use cached python and dependencies, install poetry
+      - name: "Setup Python, Poetry and Dependencies"
+        uses: packetcoders/action-setup-cache-python-poetry@main
+        with:
+          python-version: 3.8
+          poetry-version: 1.2.2
+
+      # Linting steps, excute all linters even if one fails
+      - name: pycodestyle
+        run:
+          poetry run pycodestyle --ignore=E203,E501,W503 sed tests
+      - name: pylint
+        if: ${{ always() }}
+        run:
+          poetry run pylint -j 0 --good-names=i,j,k,ex,x,y,t,k,v,ax,df,ec,mc,dc,ct --disable=fixme,too-many-branches,too-many-locals,too-many-statements,too-many-arguments,too-many-lines,too-many-public-methods,too-many-instance-attributes,too-few-public-methods sed tests
+      - name: mypy
+        if: ${{ always() }}
+        run:
+          poetry run mypy --ignore-missing-imports --follow-imports=silent --no-strict-optional sed tests
