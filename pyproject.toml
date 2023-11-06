@@ -38,11 +38,12 @@ sphinx = {version = ">4.4.0", extras = ["docs"], optional = true}
 sphinx-rtd-theme = {version = ">1.0.0", extras = ["docs"], optional = true}
 tomlkit = {version = ">0.10.0", extras = ["docs"], optional = true}
 sphinx-autodoc-typehints = {version = ">1.17.0", extras = ["docs"], optional = true}
+nbsphinx = {version = "^0.9.3", extras = ["docs"], optional = true}
 
 
 [tool.poetry.extras]
 notebook = ["jupyter", "ipykernel", "jupyterlab-h5web"]
-docs = ["Sphinx", "sphinx-rtd-theme", "tomlkit", "sphinx-autodoc-typehints"]
+docs = ["Sphinx", "sphinx-rtd-theme", "tomlkit", "sphinx-autodoc-typehints", "nbsphinx"]
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.0.1"
