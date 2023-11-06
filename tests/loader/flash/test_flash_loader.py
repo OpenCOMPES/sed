@@ -1,6 +1,7 @@
 import os
 from importlib.util import find_spec
 from pathlib import Path
+from typing import Literal
 
 import pytest
 
@@ -16,7 +17,7 @@ def config_file():
     return parse_config(config_path)
 
 
-def test_get_channels_by_format(config_file):
+def test_get_channels_by_format(config_file: dict):
 
     fl = FlashLoader(config_file)
     electron_channels = ["dldPosX", "dldPosY", "dldTimeSteps"]
@@ -28,15 +29,19 @@ def test_get_channels_by_format(config_file):
         "cryoTemperature",
         "sampleTemperature",
         "dldTimeBinSize",
+        "delayStage",
     ]
+    train_channels = ["timeStamp"]
 
     # Call get_channels_by_format method
     format_electron = fl.get_channels_by_format(["per_electron"])
     format_pulse = fl.get_channels_by_format(["per_pulse"])
+    format_train = fl.get_channels_by_format(["per_train"])
     format_both = fl.get_channels_by_format(["per_pulse", "per_electron"])
 
     assert set(electron_channels) == set(format_electron)
     assert set(pulse_channels) == set(format_pulse)
+    assert set(train_channels) == set(format_train)
     assert set(electron_channels + pulse_channels) == set(format_both)
 
 
@@ -44,7 +49,11 @@ def test_get_channels_by_format(config_file):
     "sub_dir",
     ["online-0/fl1user3/", "express-0/fl1user3/", "FL1USER3/"],
 )
-def test_initialize_paths(config_file, fs, sub_dir):
+def test_initialize_paths(
+    config_file: dict,
+    fs,
+    sub_dir: Literal["online-0/fl1user3/", "express-0/fl1user3/", "FL1USER3/"],
+):
     config = config_file
     del config["core"]["paths"]
     config["core"]["beamtime_id"] = "12345678"
@@ -69,3 +78,52 @@ def test_initialize_paths(config_file, fs, sub_dir):
     print(data_raw_dir)
     assert expected_raw_path == data_raw_dir[0]
     assert expected_processed_path == data_parquet_dir
+
+
+def test_initialize_paths_filenotfound(config_file: dict):
+    # test the FileNotFoundError
+    config = config_file
+    del config["core"]["paths"]
+    config["core"]["beamtime_id"] = "11111111"
+    config["core"]["year"] = "2000"
+
+    # instance of class with correct config and call initialize_paths
+    fl = FlashLoader(config=config)
+    with pytest.raises(FileNotFoundError):
+        data_raw_dir, data_parquet_dir = fl.initialize_paths()
+
+
+def test_invalid_channel_format(config_file: dict):
+    config = config_file
+    config["dataframe"]["channels"]["dldPosX"]["format"] = "foo"
+
+    fl = FlashLoader(config=config)
+
+    with pytest.raises(ValueError):
+        fl.read_dataframe()
+
+
+def test_group_name_not_in_h5(config_file: dict):
+    config = config_file
+    config["dataframe"]["channels"]["dldPosX"]["group_name"] = "foo"
+    h5_path = "FLASH1_USER3_stream_2_run43878_file1_20230130T153807.1.h5"
+    fl = FlashLoader(config=config)
+
+    with pytest.raises(ValueError) as e:
+        fl.create_dataframe_per_file(config["core"]["paths"]["data_raw_dir"] + h5_path)
+        print(e)
+    assert str(e.value.args[0]) == "The group_name for channel dldPosX does not exist."
+
+
+# def test_buffer_schema_mismatch(config_file: dict):
+#     fl = FlashLoader(config=config_file)
+
+#     fl.read_dataframe(runs=[43878])
+
+#     config = config_file
+#     config["dataframe"]["channels"]["dldPosX2"] = {
+#         "group_name": "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"}
+
+#     fl = FlashLoader(config=config)
+#     with pytest.raises(ValueError):
+#         fl.read_dataframe(runs=[43878])
