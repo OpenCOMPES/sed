@@ -42,7 +42,7 @@ class DelayCalibrator:
         if self.delay_stage_column is None and self.adc_column is None:
             raise ValueError("No delay stage column specified.")
         self.delay_column: str = self._config["dataframe"]["delay_column"]
-        self.calibration: Dict[str, Any] = {}
+        self.calibration: Dict[str, Any] = self._config["delay"].get("calibration", {})
         self.fluctuations: Dict[str, Any] = self._config["delay"].get("fluctuations", {})
 
     def append_delay_axis(
@@ -94,8 +94,17 @@ class DelayCalibrator:
         if delay_column is None:
             delay_column = self.delay_column
 
-        time0 = time0 or self._config["delay"].get("time0", 0)
-        flip_time_axis = flip_time_axis or self._config["delay"].get("flip_time_axis", False)
+        if time0 is None:
+            time0 = self.calibration["time0"]
+        else:
+            self.calibration["time0"] = time0
+        if time0 is None:
+            raise ValueError("No time0 value specified.")
+
+        if flip_time_axis is None:
+            flip_time_axis = self.calibration.get("flip_time_axis", False)
+        else:
+            self.calibration["flip_time_axis"] = flip_time_axis
 
         def calibrate_time(x, time0, flip_time_axis) -> Any:
             return (x[delay_stage_column] - time0) * (-1 if flip_time_axis else 1)
@@ -109,10 +118,7 @@ class DelayCalibrator:
 
         metadata: Dict[str, Any] = {
             "applied": True,
-            "calibration": {
-                "time0": time0,
-                "flip_time_axis": flip_time_axis,
-            },
+            "calibration": self.calibration,
         }
         return df, metadata
 
@@ -289,7 +295,8 @@ class DelayCalibrator:
             Union[pd.DataFrame, dask.dataframe.DataFrame]: dataframe with corrected
                 delay axis.
         """
-        delay_column = delay_column or self.delay_column
+        if delay_column is None:
+            delay_column = self.delay_column
 
         if columns is None:
             # load from config
@@ -316,7 +323,20 @@ class DelayCalibrator:
             inplace=inplace,
             rename=rename,
         )
-
+        if columns is not None:
+            if not isinstance(signs, Sequence):
+                signs = [signs]
+            if not isinstance(preserve_mean, Sequence):
+                preserve_mean = [preserve_mean]
+            if not isinstance(reductions, Sequence):
+                reductions = [reductions]
+            for col, sign, pm, red in zip(columns, signs, preserve_mean, reductions):
+                if col not in self.fluctuations.keys():
+                    self.fluctuations[col] = {
+                        "sign": sign,
+                        "preserve_mean": pm,
+                        "reduction": red,
+                    }
         metadata: Dict[str, Any] = {
             "fluctuations": {
                 "columns": columns,

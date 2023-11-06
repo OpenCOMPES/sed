@@ -170,7 +170,7 @@ def test_flash_append_delay():
         config={
             "core": {"loader": "flash"},
             "dataframe": {"delay_column": "delay", "delay_stage_column": "delayStage"},
-            "delay": {"time0": 1},
+            "delay": {"calibration": {"time0": 1, "flip_time_axis": False}},
         },
         folder_config={},
         user_config={},
@@ -195,7 +195,7 @@ def test_flash_append_delay_flip():
         config={
             "core": {"loader": "flash"},
             "dataframe": {"delay_column": "delay", "delay_stage_column": "delayStage"},
-            "delay": {"time0": 1, "flip_time_axis": True},
+            "delay": {"calibration": {"time0": 1, "flip_time_axis": True}},
         },
         folder_config={},
         user_config={},
@@ -220,7 +220,9 @@ def test_correct_timing_fluctuation():
         "core": {"loader": "flash"},
         "dataframe": {"delay_column": "delay", "delay_stage_column": "delayStage"},
         "delay": {
-            "time0": 1,
+            "calibration": {
+                "time0": 1,
+            },
             "fluctuations": {
                 "bam": {
                     "sign": 1,
@@ -235,15 +237,26 @@ def test_correct_timing_fluctuation():
         user_config={},
         system_config={},
     )
+    bam_vals = np.random.normal(size=100) + 5
+    delay_stage_vals = np.linspace(0, 99, 100)
     df = dask.dataframe.from_pandas(
-        pd.DataFrame({"bam": np.random.normal(100) + 5, "delayStage": np.linspace(0, 1, 100)}),
+        pd.DataFrame(
+            {
+                "bam": bam_vals.copy(),
+                "delayStage": delay_stage_vals.copy(),
+            },
+        ),
         npartitions=2,
     )
     dc = DelayCalibrator(config=config)
-    _ = dc.append_delay_axis(df)
+    df, _ = dc.append_delay_axis(df)
     assert "delay" in df.columns
+    assert "bam" in dc.fluctuations.keys()
+    np.testing.assert_allclose(df["delay"], df["delayStage"] - 1)
+    np.testing.assert_allclose(np.linspace(0, 99, 100), df["delayStage"])
+
     df, _ = dc.correct_delay_fluctuations(df)
-    expected = df["delayStage"] + df["bam"] - 1
+    expected = delay_stage_vals + bam_vals - 1
     np.testing.assert_allclose(df["delay"], expected)
 
     cfg["delay"]["fluctuations"]["bam"]["preserve_mean"] = True
@@ -256,5 +269,7 @@ def test_correct_timing_fluctuation():
     dc = DelayCalibrator(config=config)
     df, _ = dc.append_delay_axis(df)
     assert "delay" in df.columns
+    assert "bam" in dc.fluctuations.keys()
     df, _ = dc.correct_delay_fluctuations(df)
-    expected = df["delayStage"] - 1 + df["bam"] - 5
+    expected = expected - np.mean(bam_vals)
+    np.testing.assert_allclose(df["delay"], expected)

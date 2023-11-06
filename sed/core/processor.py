@@ -1376,6 +1376,41 @@ class SedProcessor:
                 duplicate_policy="raise",
             )
 
+    def save_delay_calibration(
+        self,
+        filename: str = None,
+        overwrite: bool = False,
+    ) -> None:
+        """Save the generated delay calibration parameters to the folder config file.
+
+        Args:
+            filename (str, optional): Filename of the config dictionary to save to.
+                Defaults to "sed_config.yaml" in the current folder.
+            overwrite (bool, optional): Option to overwrite the present dictionary.
+                Defaults to False.
+        """
+        if filename is None:
+            filename = "sed_config.yaml"
+        # calibration: Dict[str, Any] = {}
+        # try:
+        #     for key, val in self.dc.calibration.items():
+        #         if key == "delay_range":
+        #             calibration[key] = [float(i) for i in val]
+        #         else:
+        #             calibration[key] = float(val)
+        # except AttributeError as exc:
+        #     raise AttributeError(
+        #         "Delay calibration parameters not found, need to generate parameters first!",
+        #     ) from exc
+
+        config = {
+            "delay": {
+                "calibration": self.dc.calibration,
+                "fluctuations": self.dc.fluctuations,
+            },
+        }
+        save_config(config, filename, overwrite)
+
     def add_jitter(
         self,
         cols: List[str] = None,
