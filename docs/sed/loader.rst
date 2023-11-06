@@ -35,6 +35,10 @@ FlashLoader
    :members:
    :undoc-members:
 
+.. automodule:: sed.loader.flash.utils
+   :members:
+   :undoc-members:
+
 Utilities
 ###################################################
 .. automodule:: sed.loader.utils
