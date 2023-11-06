@@ -29,6 +29,7 @@ from pandas import Series
 from sed.core import dfops
 from sed.loader.base.loader import BaseLoader
 from sed.loader.flash.metadata import MetadataRetriever
+from sed.loader.flash.utils import split_dld_time_from_sector_id
 from sed.loader.utils import parse_h5_keys
 
 
@@ -591,9 +592,14 @@ class FlashLoader(BaseLoader):
         # Loads h5 file and creates a dataframe
         with h5py.File(file_path, "r") as h5_file:
             self.reset_multi_index()  # Reset MultiIndexes for next file
-            return self.concatenate_channels(h5_file)
+            df = self.concatenate_channels(h5_file)
+            df = df.dropna(subset=self._config["dataframe"].get("tof_column", "dldTimeSteps"))
+            # correct the 3 bit shift which encodes the detector ID in the 8s time
+            if self._config["dataframe"].get("split_sector_id_from_dld_time", False):
+                df = split_dld_time_from_sector_id(df, config=self._config)
+            return df
 
-    def create_buffer_file(self, h5_path: Path, parquet_path: Path) -> None:
+    def create_buffer_file(self, h5_path: Path, parquet_path: Path) -> Union[bool, Exception]:
         """
         Converts an HDF5 file to Parquet format to create a buffer file.
 
@@ -614,10 +620,10 @@ class FlashLoader(BaseLoader):
                 .reset_index(level=self.multi_index)
                 .to_parquet(parquet_path, index=False)
             )
-        except ValueError as failed_string_error:
-            self.failed_files_error.append(
-                f"{parquet_path}: {failed_string_error}",
-            )
+        except Exception as exc:  # pylint: disable=broad-except
+            self.failed_files_error.append(f"{parquet_path}: {type(exc)} {exc}")
+            return exc
+        return None
 
     def buffer_file_handler(self, data_parquet_dir: Path, detector: str):
         """
@@ -663,12 +669,15 @@ class FlashLoader(BaseLoader):
 
         # Convert the remaining h5 files to parquet in parallel if there are any
         if len(files_to_read) > 0:
-            Parallel(n_jobs=len(files_to_read), verbose=10)(
+            error = Parallel(n_jobs=len(files_to_read), verbose=10)(
                 delayed(self.create_buffer_file)(h5_path, parquet_path)
                 for h5_path, parquet_path in files_to_read
             )
+            if any(error):
+                raise RuntimeError(f"Conversion failed for some files. {error}")
 
         # Raise an error if the conversion failed for any files
+        # TODO: merge this and the previous error trackings
         if self.failed_files_error:
             raise FileNotFoundError(
                 "Conversion failed for the following files:\n" + "\n".join(self.failed_files_error),
@@ -701,7 +710,9 @@ class FlashLoader(BaseLoader):
             save_parquet (bool, optional): Saves the entire dataframe into a parquet.
 
         Returns:
-            dataframe: Dataframe containing the loaded or processed data.
+            tuple: A tuple containing two dataframes:
+            - dataframe_electron: Dataframe containing the loaded/augmented electron data.
+            - dataframe_pulse: Dataframe containing the loaded/augmented timed data.
 
         Raises:
             FileNotFoundError: If the requested parquet file is not found.
@@ -743,20 +754,27 @@ class FlashLoader(BaseLoader):
 
             dataframe = dfops.forward_fill_lazy(
                 df=dataframe,
-                channels=channels,
+                columns=channels,
                 before=overlap,
                 iterations=self._config["dataframe"].get("forward_fill_iterations", 2),
             )
             # Remove the NaNs from per_electron channels
-            dataframe = dataframe.dropna(
+            dataframe_electron = dataframe.dropna(
                 subset=self.get_channels_by_format(["per_electron"]),
             )
+            dataframe_pulse = dataframe[
+                self.multi_index + self.get_channels_by_format(["per_pulse", "per_train"])
+            ]
+            dataframe_pulse = dataframe_pulse[
+                (dataframe_pulse["electronId"] == 0) | (np.isnan(dataframe_pulse["electronId"]))
+            ]
+
         # Save the dataframe as parquet if requested
         if save_parquet:
-            dataframe.compute().reset_index(drop=True).to_parquet(parquet_path)
+            dataframe_electron.compute().reset_index(drop=True).to_parquet(parquet_path)
             print("Combined parquet file saved.")
 
-        return dataframe
+        return dataframe_electron, dataframe_pulse
 
     def parse_metadata(self) -> dict:
         """Uses the MetadataRetriever class to fetch metadata from scicat for each run.
@@ -792,7 +810,7 @@ class FlashLoader(BaseLoader):
         metadata: dict = None,
         collect_metadata: bool = False,
         **kwds,
-    ) -> Tuple[dd.DataFrame, dict]:
+    ) -> Tuple[dd.DataFrame, dd.DataFrame, dict]:
         """
         Read express data from the DAQ, generating a parquet in between.
 
@@ -845,12 +863,12 @@ class FlashLoader(BaseLoader):
                 metadata=metadata,
             )
 
-        dataframe = self.parquet_handler(data_parquet_dir, **kwds)
+        df, df_timed = self.parquet_handler(data_parquet_dir, **kwds)
 
         metadata = self.parse_metadata() if collect_metadata else {}
         print(f"loading complete  in {time.time() - t0:.2f} s")
 
-        return dataframe, metadata
+        return df, df_timed, metadata
 
 
 LOADER = FlashLoader

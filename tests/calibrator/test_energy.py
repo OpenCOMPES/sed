@@ -4,10 +4,12 @@ import csv
 import glob
 import itertools
 import os
+from copy import deepcopy
 from importlib.util import find_spec
 from typing import Any
 from typing import Dict
 
+import dask.dataframe
 import numpy as np
 import pandas as pd
 import pytest
@@ -183,7 +185,7 @@ def test_calibrate_append(energy_scale: str, calibration_method: str):
         system_config={},
     )
     loader = get_loader(loader_name="mpes", config=config)
-    df, _ = loader.read_dataframe(folders=df_folder, collect_metadata=False)
+    df, _, _ = loader.read_dataframe(folders=df_folder, collect_metadata=False)
     ec = EnergyCalibrator(config=config, loader=loader)
     ec.load_data(biases=biases, traces=traces, tof=tof)
     ec.normalize()
@@ -234,7 +236,7 @@ def test_append_energy_axis_from_dict_kwds(calib_type: str, calib_dict: dict):
     config = parse_config(config={}, folder_config={}, user_config={}, system_config={})
     loader = get_loader(loader_name="mpes", config=config)
     # from dict
-    df, _ = loader.read_dataframe(folders=df_folder, collect_metadata=False)
+    df, _, _ = loader.read_dataframe(folders=df_folder, collect_metadata=False)
     ec = EnergyCalibrator(config=config, loader=loader)
     df, metadata = ec.append_energy_axis(df, calibration=calib_dict)
     assert config["dataframe"]["energy_column"] in df.columns
@@ -244,7 +246,7 @@ def test_append_energy_axis_from_dict_kwds(calib_type: str, calib_dict: dict):
     assert metadata["calibration"]["calib_type"] == calib_type
 
     # from kwds
-    df, _ = loader.read_dataframe(folders=df_folder, collect_metadata=False)
+    df, _, _ = loader.read_dataframe(folders=df_folder, collect_metadata=False)
     ec = EnergyCalibrator(config=config, loader=loader)
     df, metadata = ec.append_energy_axis(df, **calib_dict)
     assert config["dataframe"]["energy_column"] in df.columns
@@ -258,7 +260,7 @@ def test_append_energy_axis_raises():
     """Test if apply_correction raises the correct errors"""
     config = parse_config(config={}, folder_config={}, user_config={}, system_config={})
     loader = get_loader(loader_name="mpes", config=config)
-    df, _ = loader.read_dataframe(folders=df_folder, collect_metadata=False)
+    df, _, _ = loader.read_dataframe(folders=df_folder, collect_metadata=False)
     ec = EnergyCalibrator(config=config, loader=loader)
     with pytest.raises(ValueError):
         df, _ = ec.append_energy_axis(df, calibration={"d": 1, "t0": 0})
@@ -267,6 +269,36 @@ def test_append_energy_axis_raises():
             df,
             calibration={"d": 1, "t0": 0, "E0": 0, "calib_type": "invalid"},
         )
+
+
+def test_append_tof_ns_axis():
+    """Function to test if the tof_ns calibration is correctly applied.
+    TODO: add further tests once the discussion about units is done.
+    """
+    cfg = {
+        "dataframe": {
+            "tof_column": "t",
+            "tof_ns_column": "t_ns",
+            "tof_binning": 1,
+            "tof_binwidth": 1e-9,
+        },
+    }
+    config = parse_config(config=cfg, folder_config={}, user_config={}, system_config={})
+    loader = get_loader(loader_name="mpes", config=config)
+
+    # from kwds
+    df, _, _ = loader.read_dataframe(folders=df_folder, collect_metadata=False)
+    ec = EnergyCalibrator(config=config, loader=loader)
+    df, _ = ec.append_tof_ns_axis(df, binwidth=2e-9, binning=1)
+    assert config["dataframe"]["tof_ns_column"] in df.columns
+    np.testing.assert_allclose(df[ec.tof_column], df[ec.tof_ns_column] / 4)
+
+    # from config
+    df, _, _ = loader.read_dataframe(folders=df_folder, collect_metadata=False)
+    ec = EnergyCalibrator(config=config, loader=loader)
+    df, _ = ec.append_tof_ns_axis(df)
+    assert config["dataframe"]["tof_ns_column"] in df.columns
+    np.testing.assert_allclose(df[ec.tof_column], df[ec.tof_ns_column] / 2)
 
 
 amplitude = 2.5  # pylint: disable=invalid-name
@@ -538,3 +570,187 @@ def test_apply_energy_correction_raises(
             correction=correction_dict,
         )
         assert config["dataframe"]["corrected_tof_column"] in df.columns
+
+
+def test_add_offsets_functionality():
+    """test the add_offsets function"""
+    config = parse_config(
+        config={
+            "energy": {
+                "calibration": {
+                    "energy_scale": "kinetic",
+                },
+                "offset": {
+                    "constant": 1,
+                    "off1": {
+                        "sign": 1,
+                        "preserve_mean": True,
+                    },
+                    "off2": {"sign": -1, "preserve_mean": False},
+                    "off3": {"sign": 1, "preserve_mean": False, "reduction": "mean"},
+                },
+            },
+        },
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+    params = {
+        "constant": 1,
+        "energy_column": "energy",
+        "columns": ["off1", "off2", "off3"],
+        "signs": [1, -1, 1],
+        "preserve_mean": [True, False, False],
+        "reductions": [None, None, "mean"],
+    }
+    df = pd.DataFrame(
+        {
+            "energy": [10, 20, 30, 40, 50, 60],
+            "off1": [1, 2, 3, 4, 5, 6],
+            "off2": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+            "off3": [10.1, 10.2, 10.3, 10.4, 10.5, 10.6],
+        },
+    )
+    t_df = dask.dataframe.from_pandas(df.copy(), npartitions=2)
+    ec = EnergyCalibrator(
+        config=config,
+        loader=get_loader("flash", config=config),
+    )
+    res, meta = ec.add_offsets(t_df)
+    exp_vals = df["energy"].copy() + 1
+    exp_vals += df["off1"] - df["off1"].mean()
+    exp_vals -= df["off2"]
+    exp_vals += df["off3"].mean()
+    np.testing.assert_allclose(res["energy"].values, exp_vals.values)
+    exp_meta = params.copy()
+    exp_meta["applied"] = True
+    assert meta == exp_meta
+    # test with explicit params
+    ec = EnergyCalibrator(
+        config=config,
+        loader=get_loader("flash", config=config),
+    )
+    t_df = dask.dataframe.from_pandas(df.copy(), npartitions=2)
+    res, meta = ec.add_offsets(t_df, **params)  # pylint disable=unexpected-keyword-arg
+    np.testing.assert_allclose(res["energy"].values, exp_vals.values)
+    params["applied"] = True
+    assert meta == params
+
+    # test with different energy scale
+
+
+def test_add_offset_raises():
+    """test if add_offset raises the correct errors"""
+    cfg_dict = {
+        "energy": {
+            "calibration": {
+                "energy_scale": "kinetic",
+            },
+            "offset": {
+                "constant": 1,
+                "off1": {"sign": -1, "preserve_mean": True},
+                "off2": {"sign": -1, "preserve_mean": False},
+                "off3": {"sign": 1, "preserve_mean": False, "reduction": "mean"},
+            },
+        },
+    }
+
+    df = pd.DataFrame(
+        {
+            "energy": [10, 20, 30, 40, 50, 60],
+            "off1": [1, 2, 3, 4, 5, 6],
+            "off2": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+            "off3": [10.1, 10.2, 10.3, 10.4, 10.5, 10.6],
+        },
+    )
+    t_df = dask.dataframe.from_pandas(df.copy(), npartitions=2)
+    # no sign in config
+    with pytest.raises(KeyError):
+        cfg = deepcopy(cfg_dict)
+        cfg["energy"]["offset"]["off1"].pop("sign")
+        config = parse_config(config=cfg, folder_config={}, user_config={}, system_config={})
+        ec = EnergyCalibrator(config=cfg, loader=get_loader("flash", config=config))
+        _ = ec.add_offsets(t_df)
+
+    # no energy scale
+    with pytest.raises(ValueError):
+        cfg = deepcopy(cfg_dict)
+        cfg["energy"]["calibration"].pop("energy_scale")
+        config = parse_config(config=cfg, folder_config={}, user_config={}, system_config={})
+        ec = EnergyCalibrator(config=cfg, loader=get_loader("flash", config=config))
+        _ = ec.add_offsets(t_df)
+
+    # invalid energy scale
+    with pytest.raises(ValueError):
+        cfg = deepcopy(cfg_dict)
+        cfg["energy"]["calibration"]["energy_scale"] = "wrong_value"
+        config = parse_config(config=cfg, folder_config={}, user_config={}, system_config={})
+        ec = EnergyCalibrator(config=cfg, loader=get_loader("flash", config=config))
+        _ = ec.add_offsets(t_df)
+
+    # invalid sign
+    with pytest.raises(TypeError):
+        cfg = deepcopy(cfg_dict)
+        cfg["energy"]["offset"]["off1"]["sign"] = "wrong_type"
+        config = parse_config(config=cfg, folder_config={}, user_config={}, system_config={})
+        ec = EnergyCalibrator(config=cfg, loader=get_loader("flash", config=config))
+        _ = ec.add_offsets(t_df)
+
+        # invalid constant
+    with pytest.raises(TypeError):
+        cfg = deepcopy(cfg_dict)
+        cfg["energy"]["offset"]["constant"] = "wrong_type"
+        config = parse_config(config=cfg, folder_config={}, user_config={}, system_config={})
+        ec = EnergyCalibrator(config=cfg, loader=get_loader("flash", config=config))
+        _ = ec.add_offsets(t_df)
+
+
+def test_align_dld_sectors():
+    """test functionality and error handling of align_dld_sectors"""
+    cfg_dict = {
+        "dataframe": {
+            "tof_column": "dldTimeSteps",
+            "sector_id_column": "dldSectorId",
+            "sector_delays": [-0.35, -0.25, -0.15, -0.05, 0.05, 0.15, 0.25, 0.35],
+        },
+    }
+    df = pd.DataFrame(
+        {
+            "dldTimeSteps": [1, 2, 3, 4, 5, 6, 7, 8],
+            "dldSectorId": [0, 1, 2, 3, 4, 5, 6, 7],
+        },
+    )
+    # from config
+    config = parse_config(config=cfg_dict, folder_config={}, user_config={}, system_config={})
+    ec = EnergyCalibrator(config=config, loader=get_loader("flash", config=config))
+    t_df = dask.dataframe.from_pandas(df.copy(), npartitions=2)
+    res, meta = ec.align_dld_sectors(t_df)
+    assert meta["applied"] is True
+    assert meta["sector_delays"] == cfg_dict["dataframe"]["sector_delays"]
+    np.testing.assert_allclose(
+        res["dldTimeSteps"].values,
+        np.array([1, 2, 3, 4, 5, 6, 7, 8]) - np.array(cfg_dict["dataframe"]["sector_delays"]),
+    )
+
+    # from kwds
+    config = parse_config(config={}, folder_config={}, user_config={}, system_config={})
+    ec = EnergyCalibrator(config=cfg_dict, loader=get_loader("flash", config=config))
+    t_df = dask.dataframe.from_pandas(df.copy(), npartitions=2)
+    res, meta = ec.align_dld_sectors(
+        t_df,
+        sector_delays=cfg_dict["dataframe"]["sector_delays"],
+        sector_id_column="dldSectorId",
+    )
+    assert meta["applied"] is True
+    assert meta["sector_delays"] == cfg_dict["dataframe"]["sector_delays"]
+    np.testing.assert_allclose(
+        res["dldTimeSteps"].values,
+        np.array([1, 2, 3, 4, 5, 6, 7, 8]) - np.array(cfg_dict["dataframe"]["sector_delays"]),
+    )
+    with pytest.raises(ValueError):
+        cfg = deepcopy(cfg_dict)
+        cfg["dataframe"].pop("sector_delays")
+        config = parse_config(config=cfg, folder_config={}, user_config={}, system_config={})
+        ec = EnergyCalibrator(config=config, loader=get_loader("flash", config=config))
+        t_df = dask.dataframe.from_pandas(df.copy(), npartitions=2)
+        res, meta = ec.align_dld_sectors(t_df)

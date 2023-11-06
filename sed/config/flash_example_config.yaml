@@ -11,20 +11,69 @@ core:
   paths:
     data_raw_dir: "tests/data/loader/flash/"
     data_parquet_dir: "tests/data/loader/flash/parquet"
-    
+
   # These can be replaced by beamtime_id and year to automatically
   # find the folders on the desy cluster
-  
+
   # beamtime_id: xxxxxxxx
   # year: 20xx
 
 dataframe:
-  # The offset correction to the pulseId
-  ubid_offset: 5
-  # the number of iterations to fill the pulseId forward. 
-  forward_fill_iterations: 2 
   # The name of the DAQ system to use. Necessary to resolve the filenames/paths.
   daq: fl1user3
+  # The offset correction to the pulseId
+  ubid_offset: 5
+
+  # the number of iterations to fill the pulseId forward.
+  forward_fill_iterations: 2
+  # if true, removes the 3 bits reserved for dldSectorID from the dldTimeSteps column
+  split_sector_id_from_dld_time: True
+  sector_id_reserved_bits: 3
+  # dataframe column containing x coordinates
+  x_column: dldPosX
+  # dataframe column containing corrected x coordinates
+  corrected_x_column: "X"
+  # dataframe column containing kx coordinates
+  kx_column: "kx"
+  # dataframe column containing y coordinates
+  y_column: dldPosY
+  # dataframe column containing corrected y coordinates
+  corrected_y_column: "Y"
+  # dataframe column containing kx coordinates
+  ky_column: "ky"
+  # dataframe column containing time-of-flight data
+  tof_column: dldTimeSteps
+  # dataframe column containing time-of-flight data in ns
+  tof_ns_column: dldTime
+  # dataframe column containing corrected time-of-flight data
+  corrected_tof_column: "tm"
+  # time length of a base time-of-flight bin in seconds
+  tof_binwidth: 2.0576131995767355E-11
+  # binning parameter for time-of-flight data. 2**tof_binning bins per base bin
+  tof_binning: 3  # power of 2, 3 means 8 bins per step
+  # dataframe column containing sector ID. obtained from dldTimeSteps column
+  sector_id_column: dldSectorID
+
+  sector_delays: [0., 0., 0., 0., 0., 0., 0., 0.]
+
+  jitter_cols: ["dldPosX", "dldPosY", "dldTimeSteps"]
+
+  units:
+    dldPosX: 'step'
+    dldPosY: 'step'
+    dldTimeSteps: 'step'
+    tof_voltage: 'V'
+    extractorVoltage: 'V'
+    extractorCurrent: 'A'
+    cryoTemperature: 'K'
+    sampleTemperature: 'K'
+    dldTime: 'ns'
+    # delay: 'ps'
+    timeStamp: 's'
+    # energy: 'eV'
+    # E: 'eV'
+    kx: '1/A'
+    ky: '1/A'
 
   # The channels to load.
   # channels have the following structure:
@@ -32,7 +81,7 @@ dataframe:
   #   format: per_pulse/per_electron/per_train
   #   group_name: the hdf5 group path
   #   slice: if the group contains multidim data, where to slice
-  
+
   channels:
     # pulse ID is a necessary channel for using the loader.
     pulseId:
@@ -44,17 +93,18 @@ dataframe:
       format: per_electron
       group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
       slice: 1
-      
+
     dldPosY:
       format: per_electron
       group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
       slice: 0
-      
-    dldTime:
+    # This channel will actually create dldTimeSteps and dldSectorID,
+    # if unravel_8s_detector_time_channel is set to True
+    dldTimeSteps:
       format: per_electron
       group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
       slice: 3
-      
+
     # The auxillary channel has a special structure where the group further contains
     # a multidim structure so further aliases are defined below
     dldAux:
@@ -69,7 +119,7 @@ dataframe:
         cryoTemperature: 4
         sampleTemperature: 5
         dldTimeBinSize: 15
-        
+
   # The prefixes of the stream names for different DAQ systems for parsing filenames
   # (Not to be changed by user)
   stream_name_prefixes:

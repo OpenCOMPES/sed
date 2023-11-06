@@ -35,6 +35,7 @@ from scipy.signal import savgol_filter
 from scipy.sparse.linalg import lsqr
 
 from sed.binning import bin_dataframe
+from sed.core import dfops
 from sed.loader.base.loader import BaseLoader
 
 
@@ -95,6 +96,7 @@ class EnergyCalibrator:
         self.calibration: Dict[Any, Any] = {}
 
         self.tof_column = self._config["dataframe"]["tof_column"]
+        self.tof_ns_column = self._config["dataframe"].get("tof_ns_column", None)
         self.corrected_tof_column = self._config["dataframe"]["corrected_tof_column"]
         self.energy_column = self._config["dataframe"]["energy_column"]
         self.x_column = self._config["dataframe"]["x_column"]
@@ -108,7 +110,9 @@ class EnergyCalibrator:
         ) / 2 ** (self.binning - 1)
         self.tof_fermi = self._config["energy"]["tof_fermi"] / 2 ** (self.binning - 1)
         self.color_clip = self._config["energy"]["color_clip"]
-
+        self.sector_delays = self._config["dataframe"].get("sector_delays", None)
+        self.sector_id_column = self._config["dataframe"].get("sector_id_column", None)
+        self.offset: Dict[str, Any] = self._config["energy"].get("offset", {})
         self.correction: Dict[Any, Any] = {}
 
     @property
@@ -232,7 +236,7 @@ class EnergyCalibrator:
                         "Either Bias Values or a valid bias_key has to be present!",
                     ) from exc
 
-        dataframe, _ = self.loader.read_dataframe(
+        dataframe, _, _ = self.loader.read_dataframe(
             files=data_files,
             collect_metadata=False,
         )
@@ -769,6 +773,26 @@ class EnergyCalibrator:
 
             pbk.show(fig)
 
+    def get_current_calibration(self) -> dict:
+        """Return the current calibration dictionary.
+
+         if none is present, return the one from the config. If none is present there,
+        return an empty dictionary.
+
+         Returns:
+             dict: Calibration dictionary.
+        """
+        if self.calibration:
+            calibration = deepcopy(self.calibration)
+        else:
+            calibration = deepcopy(
+                self._config["energy"].get(
+                    "calibration",
+                    {},
+                ),
+            )
+        return calibration
+
     def append_energy_axis(
         self,
         df: Union[pd.DataFrame, dask.dataframe.DataFrame],
@@ -812,17 +836,8 @@ class EnergyCalibrator:
         binwidth = kwds.pop("binwidth", self.binwidth)
         binning = kwds.pop("binning", self.binning)
 
-        # pylint: disable=duplicate-code
         if calibration is None:
-            if self.calibration:
-                calibration = deepcopy(self.calibration)
-            else:
-                calibration = deepcopy(
-                    self._config["energy"].get(
-                        "calibration",
-                        {},
-                    ),
-                )
+            calibration = self.get_current_calibration()
 
         for key, value in kwds.items():
             calibration[key] = value
@@ -877,6 +892,53 @@ class EnergyCalibrator:
 
         metadata = self.gather_calibration_metadata(calibration)
 
+        return df, metadata
+
+    def append_tof_ns_axis(
+        self,
+        df: Union[pd.DataFrame, dask.dataframe.DataFrame],
+        tof_column: str = None,
+        tof_ns_column: str = None,
+        **kwds,
+    ) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
+        """Converts the time-of-flight time from steps to time in ns.
+
+        Args:
+            df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to convert.
+            tof_column (str, optional): Name of the column containing the
+                time-of-flight steps. Defaults to config["dataframe"]["tof_column"].
+            tof_ns_column (str, optional): Name of the column to store the
+                time-of-flight in nanoseconds. Defaults to config["dataframe"]["tof_ns_column"].
+            binwidth (float, optional): Time-of-flight binwidth in ns.
+                Defaults to config["energy"]["tof_binwidth"].
+            binning (int, optional): Time-of-flight binning factor.
+                Defaults to config["energy"]["tof_binning"].
+
+        Returns:
+            dask.dataframe.DataFrame: Dataframe with the new columns.
+            dict: Metadata dictionary.
+        """
+        binwidth = kwds.pop("binwidth", self.binwidth)
+        binning = kwds.pop("binning", self.binning)
+        if tof_column is None:
+            if self.corrected_tof_column in df.columns:
+                tof_column = self.corrected_tof_column
+            else:
+                tof_column = self.tof_column
+
+        if tof_ns_column is None:
+            tof_ns_column = self.tof_ns_column
+
+        df[tof_ns_column] = tof2ns(
+            binwidth,
+            binning,
+            df[tof_column].astype("float64"),
+        )
+        metadata: Dict[str, Any] = {
+            "applied": True,
+            "binwidth": binwidth,
+            "binning": binning,
+        }
         return df, metadata
 
     def gather_calibration_metadata(self, calibration: dict = None) -> dict:
@@ -1358,6 +1420,163 @@ class EnergyCalibrator:
 
         return metadata
 
+    def align_dld_sectors(
+        self,
+        df: dask.dataframe.DataFrame,
+        tof_column: str = None,
+        sector_id_column: str = None,
+        sector_delays: np.ndarray = None,
+    ) -> Tuple[dask.dataframe.DataFrame, dict]:
+        """Aligns the time-of-flight axis of the different sections of a detector.
+
+        Args:
+            df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to use.
+            tof_column (str, optional): Name of the column containing the time-of-flight values.
+                Defaults to config["dataframe"]["tof_column"].
+            sector_id_column (str, optional): Name of the column containing the sector id values.
+                Defaults to config["dataframe"]["sector_id_column"].
+            sector_delays (np.ndarray, optional): Array containing the sector delays. Defaults to
+                config["dataframe"]["sector_delays"].
+
+        Returns:
+            dask.dataframe.DataFrame: Dataframe with the new columns.
+            dict: Metadata dictionary.
+        """
+        if sector_delays is None:
+            sector_delays = self.sector_delays
+        if sector_id_column is None:
+            sector_id_column = self.sector_id_column
+
+        if sector_delays is None or sector_id_column is None:
+            raise ValueError(
+                "No value for sector_delays or sector_id_column found in config."
+                "Config file is not properly configured for dld sector correction.",
+            )
+        tof_column = tof_column or self.tof_column
+
+        # align the 8s sectors
+        sector_delays_arr = dask.array.from_array(sector_delays)
+
+        def align_sector(x):
+            val = x[tof_column] - sector_delays_arr[x[sector_id_column].values.astype(int)]
+            return val.astype(np.float32)
+
+        df[tof_column] = df.map_partitions(align_sector, meta=(tof_column, np.float32))
+        metadata: Dict[str, Any] = {
+            "applied": True,
+            "sector_delays": sector_delays,
+        }
+        return df, metadata
+
+    def add_offsets(
+        self,
+        df: Union[pd.DataFrame, dask.dataframe.DataFrame] = None,
+        constant: float = None,
+        columns: Union[str, Sequence[str]] = None,
+        signs: Union[int, Sequence[int]] = None,
+        preserve_mean: Union[bool, Sequence[bool]] = False,
+        reductions: Union[str, Sequence[str]] = None,
+        energy_column: str = None,
+    ) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
+        """Apply an offset to the energy column by the values of the provided columns.
+
+        If no parameter is passed to this function, the offset is applied as defined in the
+        config file. If parameters are passed, they are used to generate a new offset dictionary
+        and the offset is applied using the ``dfops.apply_offset_from_columns()`` function.
+
+        # TODO: This funcion can still be improved and needs testsing
+
+        Args:
+            df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to use.
+            constant (float, optional): The constant to shift the energy axis by.
+            columns (Union[str, Sequence[str]]): Name of the column(s) to apply the shift from.
+            signs (Union[int, Sequence[int]]): Sign of the shift to apply. (+1 or -1) A positive
+                sign shifts the energy axis to higher kinetic energies. Defaults to +1.
+            preserve_mean (bool): Whether to subtract the mean of the column before applying the
+                shift. Defaults to False.
+            reductions (str): The reduction to apply to the column. Should be an available method
+                of dask.dataframe.Series. For example "mean". In this case the function is applied
+                to the column to generate a single value for the whole dataset. If None, the shift
+                is applied per-dataframe-row. Defaults to None. Currently only "mean" is supported.
+            energy_column (str, optional): Name of the column containing the energy values.
+
+        Returns:
+            dask.dataframe.DataFrame: Dataframe with the new columns.
+            dict: Metadata dictionary.
+        """
+        if energy_column is None:
+            energy_column = self.energy_column
+
+        # if no parameters are passed, use config
+        if columns is None and constant is None:
+            # load from config
+            columns = []
+            signs = []
+            preserve_mean = []
+            reductions = []
+            for k, v in self.offset.items():
+                if k == "constant":
+                    constant = v
+                else:
+                    columns.append(k)
+                    try:
+                        signs.append(v["sign"])
+                    except KeyError as exc:
+                        raise KeyError(f"Missing sign for offset column {k} in config.") from exc
+                    preserve_mean.append(v.get("preserve_mean", False))
+                    reductions.append(v.get("reduction", None))
+
+        # flip sign for binding energy scale
+        energy_scale = self.get_current_calibration().get("energy_scale", None)
+        if energy_scale is None:
+            raise ValueError("Energy scale not set. Cannot interpret the sign of the offset.")
+        if energy_scale not in ["binding", "kinetic"]:
+            raise ValueError(f"Invalid energy scale: {energy_scale}")
+        scale_sign = -1 if energy_scale == "binding" else 1
+        # initialize metadata container
+        metadata: Dict[str, Any] = {
+            "applied": True,
+        }
+        # apply offset
+        if columns is not None:
+            # use passed parameters
+            if isinstance(signs, int):
+                signs = [signs]
+            elif not isinstance(signs, Sequence):
+                raise TypeError(f"Invalid type for signs: {type(signs)}")
+            if not all(isinstance(s, int) for s in signs):
+                raise TypeError(f"Invalid type for signs: {type(signs)}")
+            # flip signs if binding energy scale
+            signs = [s * scale_sign for s in signs]
+
+            df = dfops.offset_by_other_columns(
+                df=df,
+                target_column=energy_column,
+                offset_columns=columns,
+                signs=signs,
+                preserve_mean=preserve_mean,
+                reductions=reductions,
+                inplace=True,
+            )
+            metadata["energy_column"] = energy_column
+            metadata["columns"] = columns
+            metadata["signs"] = signs
+            metadata["preserve_mean"] = preserve_mean
+            metadata["reductions"] = reductions
+
+        # apply constant
+        if isinstance(constant, (int, float, np.integer, np.floating)):
+            df[energy_column] = df.map_partitions(
+                # flip sign if binding energy scale
+                lambda x: x[energy_column] + constant * scale_sign,
+                meta=(energy_column, np.float64),
+            )
+            metadata["constant"] = constant
+        elif constant is not None:
+            raise TypeError(f"Invalid type for constant: {type(constant)}")
+
+        return df, metadata
+
 
 def extract_bias(files: List[str], bias_key: str) -> np.ndarray:
     """Read bias values from hdf5 files
@@ -1836,6 +2055,12 @@ def fit_energy_calibation(
 
             - **'kinetic'**: increasing energy with decreasing TOF.
             - **'binding'**: increasing energy with increasing TOF.
+        t0 (float, optional): constrains and initial values for the fit parameter t0, corresponding
+            to the time of flight offset. Defaults to 1e-6.
+        E0 (float, optional): constrains and initial values for the fit parameter E0, corresponding
+            to the energy offset. Defaults to min(vals).
+        d (float, optional): constrains and initial values for the fit parameter d, corresponding
+            to the drift distance. Defaults to 1.
 
     Returns:
         dict: A dictionary of fitting parameters including the following,
@@ -1868,13 +2093,33 @@ def fit_energy_calibation(
         return model - data
 
     pars = Parameters()
-    pars.add(name="d", value=kwds.pop("d_init", 1))
+    d_pars = kwds.pop("d", {})
+    pars.add(
+        name="d",
+        value=d_pars.get("value", 1),
+        min=d_pars.get("min", -np.inf),
+        max=d_pars.get("max", np.inf),
+        vary=d_pars.get("vary", True),
+    )
+    t0_pars = kwds.pop("t0", {})
     pars.add(
         name="t0",
-        value=kwds.pop("t0_init", 1e-6),
-        max=(min(pos) - 1) * binwidth * 2**binning,
+        value=t0_pars.get("value", 1e-6),
+        min=t0_pars.get("min", -np.inf),
+        max=t0_pars.get(
+            "max",
+            (min(pos) - 1) * binwidth * 2**binning,
+        ),
+        vary=t0_pars.get("vary", True),
     )
-    pars.add(name="E0", value=kwds.pop("E0_init", min(vals)))
+    E0_pars = kwds.pop("E0", {})  # pylint: disable=invalid-name
+    pars.add(
+        name="E0",
+        value=E0_pars.get("value", min(vals)),
+        min=E0_pars.get("min", -np.inf),
+        max=E0_pars.get("max", np.inf),
+        vary=E0_pars.get("vary", True),
+    )
     fit = Minimizer(
         residual,
         pars,
@@ -2085,3 +2330,23 @@ def tof2evpoly(
     energy += energy_offset
 
     return energy
+
+
+def tof2ns(
+    binwidth: float,
+    binning: int,
+    t: float,
+) -> float:
+    """Converts the time-of-flight steps to time-of-flight in nanoseconds.
+
+    designed for use with dask.dataframe.DataFrame.map_partitions.
+
+    Args:
+        binwidth (float): Time step size in seconds.
+        binning (int): Binning of the time-of-flight steps.
+        t (float): TOF value in bin number.
+    Returns:
+        float: Converted time in nanoseconds.
+    """
+    val = t * 1e9 * binwidth * 2.0**binning
+    return val

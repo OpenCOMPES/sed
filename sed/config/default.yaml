@@ -9,6 +9,8 @@ dataframe:
   y_column: "Y"
   # dataframe column containing time-of-flight data
   tof_column: "t"
+  # dataframe column containing time-of-flight data in nanoseconds
+  tof_ns_column: "t_ns"
   # dataframe column containing analog-to-digital data
   adc_column: "ADC"
   # dataframe column containing bias voltage data
@@ -27,7 +29,7 @@ dataframe:
   energy_column: "energy"
   # dataframe column containing delay data
   delay_column: "delay"
-  # time length of a base time-of-flight bin in ns
+  # time length of a base time-of-flight bin in s
   tof_binwidth: 4.125e-12
   # Binning factor of the tof_column-data compared to tof_binwidth (2^(tof_binning-1))
   tof_binning: 1
@@ -37,6 +39,8 @@ dataframe:
   jitter_cols: ["@x_column", "@y_column", "@tof_column"]
   # Jitter amplitude or list of jitter amplitudes. Should equal half the digitial step size of each jitter_column
   jitter_amps: 0.5
+  # Time stepping in seconds of the succesive events in the timed dataframe
+  timed_dataframe_unit_time: 0.001
 
 energy:
   # Number of bins to use for energy calibration traces
