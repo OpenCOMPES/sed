@@ -134,18 +134,19 @@ def test_loader_selection():
         user_config={},
         system_config={},
     )
-    df, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
+    _ = get_loader(loader_name="mpes", config=config).read_dataframe(
         files=[file],
         collect_metadata=False,
     )
     dc = DelayCalibrator(config=config)
     assert dc.loader == "mpes"
     # assert dc.append_delay_axis.__doc__ == dc.append_delay_axis_mpes.__doc__
+    # pylint disable-next=comparison-with-callable
     assert getattr(dc, f"append_delay_axis_{dc.loader}") == dc.append_delay_axis_mpes
 
     config = parse_config(
         config={
-            "core": {"loader": "hextof"},
+            "core": {"loader": "flash"},
             "delay": {"time0": 1},
         },
         folder_config={},
@@ -157,16 +158,17 @@ def test_loader_selection():
         npartitions=2,
     )
     dc = DelayCalibrator(config=config)
-    assert dc.loader == "hextof"
-    # assert dc.append_delay_axis.__doc__ == dc.append_delay_axis_hextof.__doc__
-    assert getattr(dc, f"append_delay_axis_{dc.loader}") == dc.append_delay_axis_hextof
+    assert dc.loader == "flash"
+    # assert dc.append_delay_axis.__doc__ == dc.append_delay_axis_flash.__doc__
+    # pylint disable-next=comparison-with-callable
+    assert getattr(dc, f"append_delay_axis_{dc.loader}") == dc.append_delay_axis_flash
 
 
-def test_hextof_append_delay():
-    """test functionality of the hextof delay calibration method"""
+def test_flash_append_delay():
+    """test functionality of the flash delay calibration method"""
     config = parse_config(
         config={
-            "core": {"loader": "hextof"},
+            "core": {"loader": "flash"},
             "dataframe": {"delay_column": "delay", "delay_stage_column": "delayStage"},
             "delay": {"time0": 1},
         },
@@ -187,10 +189,34 @@ def test_hextof_append_delay():
     np.testing.assert_allclose(df["delay"], np.linspace(0, 1, 100) - 1)
 
 
+def test_flash_append_delay_flip():
+    config = parse_config(
+        config={
+            "core": {"loader": "flash"},
+            "dataframe": {"delay_column": "delay", "delay_stage_column": "delayStage"},
+            "delay": {"time0": 1, "flip_time_axis": True},
+        },
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+    df = dask.dataframe.from_pandas(
+        pd.DataFrame({"bam": np.linspace(0, 1, 100), "delayStage": np.linspace(0, 1, 100)}),
+        npartitions=2,
+    )
+    dc = DelayCalibrator(config=config)
+    df, metadata = dc.append_delay_axis(df)
+    assert "delay" in df.columns
+    assert "time0" in metadata["calibration"]
+    assert metadata["calibration"]["time0"] == 1
+    assert metadata["calibration"]["flip_time_axis"] is True
+    np.testing.assert_allclose(df["delay"], -np.linspace(0, 1, 100) + 1)
+
+
 def test_correct_timing_fluctuation():
     """test that the timing fluctuation is corrected for correctly"""
     cfg = {
-        "core": {"loader": "hextof"},
+        "core": {"loader": "flash"},
         "dataframe": {"delay_column": "delay", "delay_stage_column": "delayStage"},
         "delay": {
             "time0": 1,
@@ -213,9 +239,9 @@ def test_correct_timing_fluctuation():
         npartitions=2,
     )
     dc = DelayCalibrator(config=config)
-    df, _ = dc.append_delay_axis(df)
+    _ = dc.append_delay_axis(df)
     assert "delay" in df.columns
-    df, meta = dc.correct_timing_fluctuation(df)
+    df, meta = dc.correct_delay_fluctuations(df)
     expected = df["delayStage"] + df["bam"] - 1
     np.testing.assert_allclose(df["delay"], expected)
 
@@ -229,5 +255,5 @@ def test_correct_timing_fluctuation():
     dc = DelayCalibrator(config=config)
     df, _ = dc.append_delay_axis(df)
     assert "delay" in df.columns
-    df, meta = dc.correct_timing_fluctuation(df)
+    df, meta = dc.correct_delay_fluctuations(df)
     expected = df["delayStage"] - 1 + df["bam"] - 5

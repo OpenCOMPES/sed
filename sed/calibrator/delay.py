@@ -52,20 +52,21 @@ class DelayCalibrator:
         **kwargs,
     ) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
         """TODO: docstring"""
-        if self.loader not in ["mpes", "hextof"]:
+        if self.loader not in ["mpes", "flash"]:
             raise NotImplementedError(
-                f"Delay calibration is implemented for 'mpes' and 'hextof', not {self.loader}.",
+                f"Delay calibration is implemented for 'mpes' and 'flash', not {self.loader}.",
             )
         method = getattr(self, f"append_delay_axis_{self.loader}")
         return method(df, *args, **kwargs)
 
-    def append_delay_axis_hextof(
+    def append_delay_axis_flash(
         self,
         df: Union[pd.DataFrame, dask.dataframe.DataFrame],
         time0: float = None,
         flip_time_axis: bool = None,
         delay_stage_column: str = None,
         delay_column: str = None,
+        **kwargs,
     ) -> Tuple[dask.dataframe.DataFrame, dict]:
         """Calculate and append the delay axis to the events dataframe.
 
@@ -84,10 +85,14 @@ class DelayCalibrator:
             Union[pd.DataFrame, dask.dataframe.DataFrame]: dataframe with added column
             and delay calibration metdata dictionary.
         """
-        assert self.loader == "hextof", "Invalid loader for this method."
+        if len(kwargs) > 0:
+            print(f"WARNING: arguments {kwargs.keys()} are not used in mpes delay calibration.")
+        assert self.loader == "flash", "Invalid loader for this method."
         # pylint: disable=duplicate-code
-        delay_stage_column = delay_stage_column or self.delay_stage_column
-        delay_column = delay_column or self.delay_column
+        if delay_stage_column is None:
+            delay_stage_column = self.delay_stage_column
+        if delay_column is None:
+            delay_column = self.delay_column
 
         time0 = time0 or self._config["delay"].get("time0", 0)
         flip_time_axis = flip_time_axis or self._config["delay"].get("flip_time_axis", False)
@@ -125,6 +130,7 @@ class DelayCalibrator:
         p1_key: str = None,
         p2_key: str = None,
         t0_key: str = None,
+        **kwargs,
     ) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
         """Calculate and append the delay axis to the events dataframe, by converting
         values from an analog-digital-converter (ADC).
@@ -165,7 +171,8 @@ class DelayCalibrator:
             and delay calibration metdata dictionary.
         """
         assert self.loader == "mpes", "Invalid loader for this method."
-
+        if len(kwargs) > 0:
+            print(f"WARNING: arguments {kwargs.keys()} are not used in mpes delay calibration.")
         # pylint: disable=duplicate-code
         if calibration is None:
             if self.calibration:
@@ -247,7 +254,7 @@ class DelayCalibrator:
 
         return df, metadata
 
-    def correct_timing_fluctuation(
+    def correct_delay_fluctuations(
         self,
         df: Union[pd.DataFrame, dask.dataframe.DataFrame],
         delay_column: str = None,

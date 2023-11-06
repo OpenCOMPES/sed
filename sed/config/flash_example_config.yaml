@@ -28,6 +28,7 @@ dataframe:
   forward_fill_iterations: 2
   # if true, removes the 3 bits reserved for dldSectorID from the dldTimeSteps column
   split_sector_id_from_dld_time: True
+
   sector_id_reserved_bits: 3
   # dataframe column containing x coordinates
   x_column: dldPosX
@@ -55,6 +56,10 @@ dataframe:
   sector_id_column: dldSectorID
 
   sector_delays: [0., 0., 0., 0., 0., 0., 0., 0.]
+  # the corrected pump-probe time axis
+  delay_column: delay
+  # the delay stage column
+  delay_stage_column: delayStage
 
   jitter_cols: ["dldPosX", "dldPosY", "dldTimeSteps"]
 

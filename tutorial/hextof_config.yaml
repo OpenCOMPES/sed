@@ -33,6 +33,8 @@ dataframe:
   sector_id_column: dldSectorID
   sector_delays: [0., 0., 0., 0., 0., 0., 0., 0.]
   jitter_cols: ["dldPosX", "dldPosY", "dldTimeSteps"]
+  delay_column: delay
+  delay_stage_column: delayStage
 
   units:
     dldPosX: 'step'
@@ -44,10 +46,9 @@ dataframe:
     cryoTemperature: 'K'
     sampleTemperature: 'K'
     dldTime: 'ns'
-    # delay: 'ps'
+    delay: 'ps'
     timeStamp: 's'
-    # energy: 'eV'
-    # E: 'eV'
+    energy: 'eV'
     kx: '1/A'
     ky: '1/A'
 
