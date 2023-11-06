@@ -24,7 +24,6 @@ Single-Event DataFrame (SED) documentation
    tutorial/1_binning_fake_data.ipynb
    tutorial/2_conversion_pipeline_for_example_time-resolved_ARPES_data.ipynb
    tutorial/3_metadata_collection_and_export_to_NeXus.ipynb
-   tutorial/4_hextof_workflow.ipynb
 
 .. toctree::
    :maxdepth: 2
