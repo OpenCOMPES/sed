@@ -2,7 +2,7 @@ name: build and deploy docs to pages
 on:
   # Triggers the workflow on push but only for the main branch
   push:
-    branches: [ test-pages-with-all ]
+    branches: [ auto-doc-generation ]
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
@@ -58,7 +58,16 @@ jobs:
           cp -r $GITHUB_WORKSPACE/tutorial $GITHUB_WORKSPACE/docs/
           cp -r $GITHUB_WORKSPACE/sed/config $GITHUB_WORKSPACE/docs/sed
 
+      # To be included later
+      # - name: Cache docs build
+      #   id: cache-docs
+      #   uses: actions/cache@v3
+      #   with:
+      #     path: $GITHUB_WORKSPACE/_build
+      #     key: ${{ runner.os }}-docs
+
       - name: download WSe2 data
+        # if: steps.cache-primes.outputs.cache-hit != 'true'
         run: |
           cd $GITHUB_WORKSPACE/docs/tutorial
           curl -L --output ./WSe2.zip https://zenodo.org/record/6369728/files/WSe2.zip
@@ -74,7 +83,7 @@ jobs:
         uses: actions/upload-pages-artifact@v2
         with:
           path: '_build'
-  
+
   # Deployment job
   deploy:
     environment:
@@ -86,4 +95,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v2
-

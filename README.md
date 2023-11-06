@@ -1,5 +1,5 @@
 # sed
-[![Documentation Status](https://readthedocs.org/projects/sed/badge/?version=latest)](https://sed.readthedocs.io/en/latest/?badge=latest)
+[![Documentation Status](https://github.com/OpenCOMPES/sed/actions/workflows/build_deploy_docs.yml/badge.svg)](https://opencompes.github.io/sed/)
 ![](https://github.com/OpenCOMPES/sed/actions/workflows/linting.yml/badge.svg?branch=main)
 ![](https://github.com/OpenCOMPES/sed/actions/workflows/testing_multiversion.yml/badge.svg?branch=main)
 ![](https://img.shields.io/pypi/pyversions/sedprocessor)
