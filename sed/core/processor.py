@@ -65,6 +65,7 @@ class SedProcessor:
         folder: str = None,
         runs: Sequence[str] = None,
         collect_metadata: bool = False,
+        verbose: bool = False,
         **kwds,
     ):
         """Processor class of sed. Contains wrapper functions defining a work flow
@@ -96,6 +97,8 @@ class SedProcessor:
         if num_cores >= N_CPU:
             num_cores = N_CPU - 1
         self._config["binning"]["num_cores"] = num_cores
+
+        self.verbose = verbose
 
         self._dataframe: Union[pd.DataFrame, ddf.DataFrame] = None
         self._timed_dataframe: Union[pd.DataFrame, ddf.DataFrame] = None
@@ -666,7 +669,8 @@ class SedProcessor:
             if preview:
                 print(self._dataframe.head(10))
             else:
-                print(self._dataframe)
+                if self.verbose:
+                    print(self._dataframe)
 
     # Momentum calibration work flow
     # 1. Calculate momentum calibration
@@ -799,7 +803,8 @@ class SedProcessor:
             if preview:
                 print(self._dataframe.head(10))
             else:
-                print(self._dataframe)
+                if self.verbose:
+                    print(self._dataframe)
 
     # Energy correction workflow
     # 1. Adjust the energy correction parameters
@@ -923,7 +928,8 @@ class SedProcessor:
             if preview:
                 print(self._dataframe.head(10))
             else:
-                print(self._dataframe)
+                if self.verbose:
+                    print(self._dataframe)
 
     # Energy calibrator workflow
     # 1. Load and normalize data
@@ -1257,7 +1263,8 @@ class SedProcessor:
             if preview:
                 print(self._dataframe.head(10))
             else:
-                print(self._dataframe)
+                if self.verbose:
+                    print(self._dataframe)
 
     def add_energy_offset(
         self,
@@ -1451,7 +1458,8 @@ class SedProcessor:
             if preview:
                 print(self._dataframe.head(10))
             else:
-                print(self._dataframe)
+                if self.verbose:
+                    print(self._dataframe)
 
     def add_jitter(
         self,
