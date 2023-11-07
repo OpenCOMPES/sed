@@ -177,6 +177,19 @@ class FlashLoader(BaseLoader):
         available_channels.remove("pulseId")
         return available_channels
 
+    @property
+    def schema_from_config(self) -> set:
+        schema = {"electronId", "trainId", "pulseId"}
+        if self._config["dataframe"]["split_sector_id_from_dld_time"]:
+            schema.add(self._config["dataframe"]["sector_id_column"])
+        for channel in self.available_channels:
+            if channel == "dldAux":
+                for key in self._config["dataframe"]["channels"][channel]["dldAuxChannels"].keys():
+                    schema.add(key)
+            else:
+                schema.add(channel)
+        return schema
+
     def get_channels_by_format(self, formats: List[str]) -> List:
         """
         Returns a list of channels with the specified format.
@@ -658,17 +671,30 @@ class FlashLoader(BaseLoader):
 
         if not force_recreate:
             # Check if the available channels match the schema of the existing parquet files
-            schemas = [pq.read_schema(file) for file in existing_parquet_filenames]
-            available_channels_set = set(self.available_channels)
+            parquet_schemas = [pq.read_schema(file) for file in existing_parquet_filenames]
+            config_schema = self.schema_from_config
 
-            for i, schema in enumerate(schemas):
+            for i, schema in enumerate(parquet_schemas):
                 schema_set = set(schema.names)
                 # Check if available_channels are the same as schema including pulseId
-                if schema_set != available_channels_set.union({"pulseId"}):
+                if schema_set != config_schema:
+                    missing_in_parquet = config_schema - schema_set
+                    if len(missing_in_parquet) > 0:
+                        missing_in_parquet_str = f"\nMissing in parquet: {missing_in_parquet}\n"
+                    else:
+                        missing_in_parquet_str = ""
+                    missing_in_config = schema_set - config_schema
+                    if len(missing_in_config) > 0:
+                        missing_in_config_str = f"\nMissing in config: {missing_in_config}\n"
+                    else:
+                        missing_in_config_str = ""
+
                     raise ValueError(
                         "The available channels do not match the schema of file "
-                        f"{existing_parquet_filenames[i]}"
-                        "Please check the configuration file or set force_recreate to True.",
+                        f"{existing_parquet_filenames[i]} "
+                        + missing_in_parquet_str
+                        + missing_in_config_str
+                        + "Please check the configuration file or set force_recreate to True.",
                     )
 
         # Choose files to read
