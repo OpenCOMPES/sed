@@ -45,6 +45,13 @@ jobs:
           python-version: 3.8
           poetry-version: 1.2.2
 
+      - name: Cache _build
+        id: cache-build-docs
+        uses: actions/cache@v3
+        with:
+          path: $GITHUB_WORKSPACE/_build
+          key: tutorials-${{hashFiles('$GITHUB_WORKSPACE/tutorial') }}
+
       - name: Install docs and notebook dependencies
         run: poetry install -E notebook -E docs
 
@@ -59,13 +66,6 @@ jobs:
           cp -r $GITHUB_WORKSPACE/tutorial $GITHUB_WORKSPACE/docs/
           cp -r $GITHUB_WORKSPACE/sed/config $GITHUB_WORKSPACE/docs/sed
           rm $GITHUB_WORKSPACE/docs/tutorial/4_hextof_workflow.ipynb
-
-      - name: Cache _build
-        id: cache-build-docs
-        uses: actions/cache@v3
-        with:
-          path: $GITHUB_WORKSPACE/_build
-          key: tutorials-${{ hashFiles('$GITHUB_WORKSPACE/tutorial/*.ipynb') }}
 
       - name: download WSe2 data
         if: steps.cache-build-docs.outputs.cache-hit != 'true'
