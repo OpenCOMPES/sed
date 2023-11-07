@@ -22,15 +22,23 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Maximize build space
-        uses: easimon/maximize-build-space@master
+      - name: Cache _build
+        id: cache-build-docs
+        uses: actions/cache@v3
         with:
-          root-reserve-mb: 512
-          swap-size-mb: 1024
-          remove-dotnet: 'true'
-          remove-codeql: 'true'
-          remove-android: 'true'
-          remove-docker-images: 'true'
+          path: _build
+          key: ${{ runner.os }}-tutorials-${{hashFiles('tutorial/*') }}
+
+      # - name: Maximize build space
+      #   uses: easimon/maximize-build-space@master
+      #   if: steps.cache-build-docs.outputs.cache-hit != 'true'
+      #   with:
+      #     root-reserve-mb: 512
+      #     swap-size-mb: 1024
+      #     remove-dotnet: 'true'
+      #     remove-codeql: 'true'
+      #     remove-android: 'true'
+      #     remove-docker-images: 'true'
 
       #  Check out repo and set up Python
       - name: Check out the repository
@@ -42,15 +50,8 @@ jobs:
       - name: "Setup Python, Poetry and Dependencies"
         uses: packetcoders/action-setup-cache-python-poetry@main
         with:
-          python-version: 3.8
+          python-version: 3.9
           poetry-version: 1.2.2
-
-      - name: Cache _build
-        id: cache-build-docs
-        uses: actions/cache@v3
-        with:
-          path: $GITHUB_WORKSPACE/_build
-          key: ${{ runner.os }}-tutorials-${{hashFiles('tutorial/*') }}
 
       - name: Install docs and notebook dependencies
         run: poetry install -E notebook -E docs
@@ -67,15 +68,15 @@ jobs:
           cp -r $GITHUB_WORKSPACE/sed/config $GITHUB_WORKSPACE/docs/sed
           rm $GITHUB_WORKSPACE/docs/tutorial/4_hextof_workflow.ipynb
 
-      - name: download WSe2 data
-        if: steps.cache-build-docs.outputs.cache-hit != 'true'
-        run: |
-          cd $GITHUB_WORKSPACE/docs/tutorial
-          curl -L --output ./WSe2.zip https://zenodo.org/record/6369728/files/WSe2.zip
-          unzip -o ./WSe2.zip -d .
+      # - name: download WSe2 data
+      #   if: steps.cache-build-docs.outputs.cache-hit != 'true'
+      #   run: |
+      #     cd $GITHUB_WORKSPACE/docs/tutorial
+      #     curl -L --output ./WSe2.zip https://zenodo.org/record/6369728/files/WSe2.zip
+      #     unzip -o ./WSe2.zip -d .
 
       - name: build Sphinx docs
-        run: poetry run sphinx-build -b html $GITHUB_WORKSPACE/docs $GITHUB_WORKSPACE/_build -j2
+        run: poetry run sphinx-build -b html $GITHUB_WORKSPACE/docs $GITHUB_WORKSPACE/_build -j auto
 
       - name: Setup Pages
         uses: actions/configure-pages@v3
@@ -85,14 +86,14 @@ jobs:
         with:
           path: '_build'
 
-  # Deployment job
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v2
+  # # Deployment job
+  # deploy:
+  #   environment:
+  #     name: github-pages
+  #     url: ${{ steps.deployment.outputs.page_url }}
+  #   runs-on: ubuntu-latest
+  #   needs: build
+  #   steps:
+  #     - name: Deploy to GitHub Pages
+  #       id: deployment
+  #       uses: actions/deploy-pages@v2
