@@ -731,7 +731,9 @@ class FlashLoader(BaseLoader):
             save_parquet (bool, optional): Saves the entire dataframe into a parquet.
             force_recreate (bool, optional): Forces recreation of buffer file.
         Returns:
-            dataframe: Dataframe containing the loaded or processed data.
+            tuple: A tuple containing two dataframes:
+            - dataframe_electron: Dataframe containing the loaded/augmented electron data.
+            - dataframe_pulse: Dataframe containing the loaded/augmented timed data.
 
         Raises:
             FileNotFoundError: If the requested parquet file is not found.
@@ -782,15 +784,22 @@ class FlashLoader(BaseLoader):
                 iterations=self._config["dataframe"].get("forward_fill_iterations", 2),
             )
             # Remove the NaNs from per_electron channels
-            dataframe = dataframe.dropna(
+            dataframe_electron = dataframe.dropna(
                 subset=self.get_channels_by_format(["per_electron"]),
             )
+            dataframe_pulse = dataframe[
+                self.multi_index + self.get_channels_by_format(["per_pulse", "per_train"])
+            ]
+            dataframe_pulse = dataframe_pulse[
+                (dataframe_pulse["electronId"] == 0) | (np.isnan(dataframe_pulse["electronId"]))
+            ]
+
         # Save the dataframe as parquet if requested
         if save_parquet:
-            dataframe.compute().reset_index(drop=True).to_parquet(parquet_path)
+            dataframe_electron.compute().reset_index(drop=True).to_parquet(parquet_path)
             print("Combined parquet file saved.")
 
-        return dataframe
+        return dataframe_electron, dataframe_pulse
 
     def parse_metadata(self) -> dict:
         """Uses the MetadataRetriever class to fetch metadata from scicat for each run.
@@ -826,7 +835,7 @@ class FlashLoader(BaseLoader):
         metadata: dict = None,
         collect_metadata: bool = False,
         **kwds,
-    ) -> Tuple[dd.DataFrame, dict]:
+    ) -> Tuple[dd.DataFrame, dd.DataFrame, dict]:
         """
         Read express data from the DAQ, generating a parquet in between.
 
@@ -879,12 +888,12 @@ class FlashLoader(BaseLoader):
                 metadata=metadata,
             )
 
-        dataframe = self.parquet_handler(data_parquet_dir, **kwds)
+        df, df_timed = self.parquet_handler(data_parquet_dir, **kwds)
 
         metadata = self.parse_metadata() if collect_metadata else {}
         print(f"loading complete in {time.time() - t0: .2f} s")
 
-        return dataframe, metadata
+        return df, df_timed, metadata
 
 
 LOADER = FlashLoader

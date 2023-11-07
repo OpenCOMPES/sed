@@ -36,7 +36,7 @@ class GenericLoader(BaseLoader):
         metadata: dict = None,
         collect_metadata: bool = False,
         **kwds,
-    ) -> Tuple[ddf.DataFrame, dict]:
+    ) -> Tuple[ddf.DataFrame, ddf.DataFrame, dict]:
         """Read stored files from a folder into a dataframe.
 
         Args:
@@ -64,8 +64,8 @@ class GenericLoader(BaseLoader):
             ValueError: Raised if the file type is not supported.
 
         Returns:
-            Tuple[ddf.DataFrame, dict]: Dask dataframe and metadata read from specified
-            files.
+            Tuple[ddf.DataFrame, dict]: Dask dataframe, timed dataframe and metadata
+            read from specified files.
         """
         # pylint: disable=duplicate-code
         super().read_dataframe(
@@ -84,16 +84,16 @@ class GenericLoader(BaseLoader):
             self.metadata = self.metadata
 
         if ftype == "parquet":
-            return (ddf.read_parquet(self.files, **kwds), self.metadata)
+            return (ddf.read_parquet(self.files, **kwds), None, self.metadata)
 
         if ftype == "json":
-            return (ddf.read_json(self.files, **kwds), self.metadata)
+            return (ddf.read_json(self.files, **kwds), None, self.metadata)
 
         if ftype == "csv":
-            return (ddf.read_csv(self.files, **kwds), self.metadata)
+            return (ddf.read_csv(self.files, **kwds), None, self.metadata)
 
         try:
-            return (ddf.read_table(self.files, **kwds), self.metadata)
+            return (ddf.read_table(self.files, **kwds), None, self.metadata)
         except (TypeError, ValueError, NotImplementedError) as exc:
             raise ValueError(
                 "The file format cannot be understood!",
