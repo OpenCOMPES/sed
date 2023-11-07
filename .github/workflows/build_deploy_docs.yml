@@ -19,32 +19,43 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
+  prepare:
     runs-on: ubuntu-latest
+    outputs:
+      cache-hit: ${{ steps.cache-build.outputs.cache-hit }}
     steps:
-      #  Check out repo and set up Python
       - name: Check out the repository
         uses: actions/checkout@v4
         with:
           lfs: true
 
       - name: Cache _build
-        id: cache-build-docs
-        uses: actions/cache@v3
+        id: cache-build
+        uses: actions/cache@v2
         with:
           path: _build
-          key: ${{ runner.os }}-tutorials-${{hashFiles('tutorial/*') }}
+          key: tutorials-${{hashFiles('tutorial/*')}}
 
-      # - name: Maximize build space
-      #   uses: easimon/maximize-build-space@master
-      #   if: steps.cache-build-docs.outputs.cache-hit != 'true'
-      #   with:
-      #     root-reserve-mb: 512
-      #     swap-size-mb: 1024
-      #     remove-dotnet: 'true'
-      #     remove-codeql: 'true'
-      #     remove-android: 'true'
-      #     remove-docker-images: 'true'
+  build:
+    needs: prepare
+    if: needs.prepare.outputs.cache-hit != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Maximize build space
+        uses: easimon/maximize-build-space@master
+        with:
+          root-reserve-mb: 512
+          swap-size-mb: 1024
+          remove-dotnet: 'true'
+          remove-codeql: 'true'
+          remove-android: 'true'
+          remove-docker-images: 'true'
+      
+      #  Check out repo and set up Python
+      - name: Check out the repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
 
       # Use cached python and dependencies, install poetry
       - name: "Setup Python, Poetry and Dependencies"
@@ -68,12 +79,11 @@ jobs:
           cp -r $GITHUB_WORKSPACE/sed/config $GITHUB_WORKSPACE/docs/sed
           rm $GITHUB_WORKSPACE/docs/tutorial/4_hextof_workflow.ipynb
 
-      # - name: download WSe2 data
-      #   if: steps.cache-build-docs.outputs.cache-hit != 'true'
-      #   run: |
-      #     cd $GITHUB_WORKSPACE/docs/tutorial
-      #     curl -L --output ./WSe2.zip https://zenodo.org/record/6369728/files/WSe2.zip
-      #     unzip -o ./WSe2.zip -d .
+      - name: download WSe2 data
+        run: |
+          cd $GITHUB_WORKSPACE/docs/tutorial
+          curl -L --output ./WSe2.zip https://zenodo.org/record/6369728/files/WSe2.zip
+          unzip -o ./WSe2.zip -d .
 
       - name: build Sphinx docs
         run: poetry run sphinx-build -b html $GITHUB_WORKSPACE/docs $GITHUB_WORKSPACE/_build -j auto
@@ -86,6 +96,56 @@ jobs:
         with:
           path: '_build'
 
+  build-cached:
+    needs: prepare
+    if: needs.prepare.outputs.cache-hit == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      #  Check out repo and set up Python
+      - name: Check out the repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Cache _build
+        id: cache-build-docs
+        uses: actions/cache@v3
+        with:
+          path: _build
+          key: tutorials-${{hashFiles('tutorial/*') }}
+
+      # Use cached python and dependencies, install poetry
+      - name: "Setup Python, Poetry and Dependencies"
+        uses: packetcoders/action-setup-cache-python-poetry@main
+        with:
+          python-version: 3.8
+          poetry-version: 1.2.2
+
+      - name: Install docs and notebook dependencies
+        run: poetry install -E notebook -E docs
+
+      - name: Install pandoc
+        run: |
+          sudo wget https://github.com/jgm/pandoc/releases/download/3.1.8/pandoc-3.1.8-1-amd64.deb > /dev/null 2>&1
+          sudo dpkg -i pandoc-3.1.8-1-amd64.deb > /dev/null 2>&1
+
+      # rm because hextof_workflow notebook can not run outside maxwell
+      - name: copy tutorial files to docs
+        run: |
+          cp -r $GITHUB_WORKSPACE/tutorial $GITHUB_WORKSPACE/docs/
+          cp -r $GITHUB_WORKSPACE/sed/config $GITHUB_WORKSPACE/docs/sed
+          rm $GITHUB_WORKSPACE/docs/tutorial/4_hextof_workflow.ipynb
+
+      - name: build Sphinx docs
+        run: poetry run sphinx-build -b html $GITHUB_WORKSPACE/docs $GITHUB_WORKSPACE/_build -j auto
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v3
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v2
+        with:
+          path: '_build'
   # # Deployment job
   # deploy:
   #   environment:
