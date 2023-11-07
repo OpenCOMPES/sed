@@ -179,6 +179,11 @@ class FlashLoader(BaseLoader):
 
     @property
     def schema_from_config(self) -> set:
+        """Returns the set of all channels of the dataframe based on the config file
+
+        This is the complete list of channels which will be in the dataframe after creation.
+        """
+
         schema = {"electronId", "trainId", "pulseId"}
         if self._config["dataframe"]["split_sector_id_from_dld_time"]:
             schema.add(self._config["dataframe"]["sector_id_column"])
