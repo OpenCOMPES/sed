@@ -102,7 +102,8 @@ class DelayCalibrator:
             raise ValueError("No time0 value specified.")
 
         if flip_time_axis is None:
-            flip_time_axis = self.calibration.get("flip_time_axis", False)
+            fta_str: str = str(self.calibration.get("flip_time_axis", False))
+            flip_time_axis = fta_str.lower() in ["true", "1", "yes"]
         else:
             self.calibration["flip_time_axis"] = flip_time_axis
 
