@@ -90,7 +90,7 @@ def test_initialize_paths_filenotfound(config_file: dict):
     # instance of class with correct config and call initialize_paths
     fl = FlashLoader(config=config)
     with pytest.raises(FileNotFoundError):
-        data_raw_dir, data_parquet_dir = fl.initialize_paths()
+        _, _ = fl.initialize_paths()
 
 
 def test_invalid_channel_format(config_file: dict):
@@ -118,7 +118,7 @@ def test_group_name_not_in_h5(config_file: dict):
 def test_buffer_schema_mismatch(config_file: dict):
     fl = FlashLoader(config=config_file)
 
-    fl.read_dataframe(runs=[43878])
+    fl.read_dataframe(runs=["43878"])
 
     config = config_file
     config["dataframe"]["channels"]["gmdTunnel2"] = {
@@ -127,10 +127,10 @@ def test_buffer_schema_mismatch(config_file: dict):
     }
 
     with pytest.raises(ValueError) as e:
-        fl.read_dataframe(runs=[43878])
+        fl.read_dataframe(runs=["43878"])
     expected_error = e.value.args
     assert "The available channels do not match the schema of file" in expected_error[0]
     assert expected_error[2] == "Missing in parquet: {'gmdTunnel2'}"
     assert expected_error[4] == "Please check the configuration file or set force_recreate to True."
 
-    fl.read_dataframe(runs=[43878], force_recreate=True)
+    fl.read_dataframe(runs=["43878"], force_recreate=True)
