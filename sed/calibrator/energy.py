@@ -1525,13 +1525,13 @@ class EnergyCalibrator:
                     except KeyError as exc:
                         raise KeyError(f"Missing sign for offset column {k} in config.") from exc
                     pm = v.get("preserve_mean", False)
-                    if pm == "false":
+                    if str(pm).lower() in ["false", "0", "no"]:
                         pm = False
-                    elif pm == "true":
+                    elif str(pm).lower() in ["true", "1", "yes"]:
                         pm = True
                     preserve_mean.append(pm)
                     rd = v.get("reduction", None)
-                    if rd == "none":
+                    if str(rd).lower() == "none":
                         rd = None
                     reductions.append(rd)
 
