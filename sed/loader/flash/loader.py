@@ -681,25 +681,23 @@ class FlashLoader(BaseLoader):
 
             for i, schema in enumerate(parquet_schemas):
                 schema_set = set(schema.names)
-                # Check if available_channels are the same as schema including pulseId
                 if schema_set != config_schema:
                     missing_in_parquet = config_schema - schema_set
-                    if len(missing_in_parquet) > 0:
-                        missing_in_parquet_str = f"\nMissing in parquet: {missing_in_parquet}\n"
-                    else:
-                        missing_in_parquet_str = ""
                     missing_in_config = schema_set - config_schema
-                    if len(missing_in_config) > 0:
-                        missing_in_config_str = f"\nMissing in config: {missing_in_config}\n"
-                    else:
-                        missing_in_config_str = ""
+
+                    missing_in_parquet_str = (
+                        f"Missing in parquet: {missing_in_parquet}" if missing_in_parquet else ""
+                    )
+                    missing_in_config_str = (
+                        f"Missing in config: {missing_in_config}" if missing_in_config else ""
+                    )
 
                     raise ValueError(
-                        "The available channels do not match the schema of file "
-                        f"{existing_parquet_filenames[i]} "
-                        + missing_in_parquet_str
-                        + missing_in_config_str
-                        + "Please check the configuration file or set force_recreate to True.",
+                        "The available channels do not match the schema of file",
+                        f"{existing_parquet_filenames[i]}",
+                        f"{missing_in_parquet_str}",
+                        f"{missing_in_config_str}",
+                        "Please check the configuration file or set force_recreate to True.",
                     )
 
         # Choose files to read

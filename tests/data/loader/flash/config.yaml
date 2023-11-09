@@ -119,8 +119,12 @@ dataframe:
       group_name: "/uncategorised/FLASH.DIAG/TIMINGINFO/TIME1.BUNCH_FIRST_INDEX.1/"
 
     delayStage:
+      format: per_train
+      group_name: "/zraw/FLASH.SYNC/LASER.LOCK.EXP/F1.PG.OSC/FMC0.MD22.1.ENCODER_POSITION.RD/dGroup/"
+
+    gmdTunnel:
       format: per_pulse
-      group_name: "/zraw/FLASH.SYNC/LASER.LOCK.EXP/F1.PG.OSC/FMC0.MD22.1.ENCODER_POSITION.RD/dGroup"
+      group_name: "/FL1/Photon Diagnostic/GMD/Pulse resolved energy/energy tunnel/"
 
   # The prefixes of the stream names for different DAQ systems for parsing filenames
   # (Not to be changed by user)
