@@ -4192,6 +4192,17 @@ gui = ["PyQt5"]
 opencl = ["pyopencl"]
 
 [[package]]
+name = "pyfakefs"
+version = "5.3.0"
+description = "pyfakefs implements a fake file system that mocks the Python file system modules."
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "pyfakefs-5.3.0-py3-none-any.whl", hash = "sha256:33c1f891078c727beec465e75cb314120635e2298456493cc2cc0539e2130cbb"},
+    {file = "pyfakefs-5.3.0.tar.gz", hash = "sha256:e3e35f65ce55ee8ecc5e243d55cfdbb5d0aa24938f6e04e19f0fab062f255020"},
+]
+
+[[package]]
 name = "pygments"
 version = "2.16.1"
 description = "Pygments is a syntax highlighting package written in Python."
@@ -6057,4 +6068,4 @@ notebook = ["ipykernel", "jupyter", "jupyterlab-h5web"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8,<3.11"
-content-hash = "7459ff0a476900f9668c8ca30e4ea444d603878f179ba92262cd46dfe9da2790"
+content-hash = "10a18aa12d733655eb7581612b98c5c0ed22191ddb3bfe7f0a4f8e66b0e5e6e4"
