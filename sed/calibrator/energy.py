@@ -9,6 +9,7 @@ from typing import Any
 from typing import cast
 from typing import Dict
 from typing import List
+from typing import Literal
 from typing import Sequence
 from typing import Tuple
 from typing import Union
@@ -1523,8 +1524,16 @@ class EnergyCalibrator:
                         signs.append(v["sign"])
                     except KeyError as exc:
                         raise KeyError(f"Missing sign for offset column {k} in config.") from exc
-                    preserve_mean.append(v.get("preserve_mean", False))
-                    reductions.append(v.get("reduction", None))
+                    pm = v.get("preserve_mean", False)
+                    if pm == "false":
+                        pm = False
+                    elif pm == "true":
+                        pm = True
+                    preserve_mean.append(pm)
+                    rd = v.get("reduction", None)
+                    if rd == "none":
+                        rd = None
+                    reductions.append(rd)
 
         # flip sign for binding energy scale
         energy_scale = self.get_current_calibration().get("energy_scale", None)
@@ -1532,7 +1541,7 @@ class EnergyCalibrator:
             raise ValueError("Energy scale not set. Cannot interpret the sign of the offset.")
         if energy_scale not in ["binding", "kinetic"]:
             raise ValueError(f"Invalid energy scale: {energy_scale}")
-        scale_sign = -1 if energy_scale == "binding" else 1
+        scale_sign: Literal[-1, 1] = -1 if energy_scale == "binding" else 1
         # initialize metadata container
         metadata: Dict[str, Any] = {
             "applied": True,
@@ -1564,6 +1573,25 @@ class EnergyCalibrator:
             metadata["preserve_mean"] = preserve_mean
             metadata["reductions"] = reductions
 
+            # overwrite the current offset dictionary with the parameters used
+            if not isinstance(columns, Sequence):
+                columns = [columns]
+            if not isinstance(signs, Sequence):
+                signs = [signs]
+            if isinstance(preserve_mean, bool):
+                preserve_mean = [preserve_mean] * len(columns)
+            if not isinstance(reductions, Sequence):
+                reductions = [reductions]
+            if len(reductions) == 1:
+                reductions = [reductions[0]] * len(columns)
+
+            for col, sign, pmean, red in zip(columns, signs, preserve_mean, reductions):
+                self.offset[col] = {
+                    "sign": sign,
+                    "preserve_mean": pmean,
+                    "reduction": red,
+                }
+
         # apply constant
         if isinstance(constant, (int, float, np.integer, np.floating)):
             df[energy_column] = df.map_partitions(
@@ -1572,6 +1600,7 @@ class EnergyCalibrator:
                 meta=(energy_column, np.float64),
             )
             metadata["constant"] = constant
+            self.offset["constant"] = constant
         elif constant is not None:
             raise TypeError(f"Invalid type for constant: {type(constant)}")
 

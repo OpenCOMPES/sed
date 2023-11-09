@@ -761,6 +761,7 @@ class SedProcessor:
 
         config = {"momentum": {"calibration": calibration}}
         save_config(config, filename, overwrite)
+        print(f"Saved momentum calibration parameters to {filename}")
 
     # 2. Apply correction and calibration to the dataframe
     def apply_momentum_calibration(
@@ -884,6 +885,7 @@ class SedProcessor:
 
         config = {"energy": {"correction": correction}}
         save_config(config, filename, overwrite)
+        print(f"Saved energy correction parameters to {filename}")
 
     # 2. Apply energy correction to dataframe
     def apply_energy_correction(
@@ -1215,9 +1217,8 @@ class SedProcessor:
             ) from exc
 
         config = {"energy": {"calibration": calibration}}
-        if isinstance(self.ec.offset, dict):
-            config["energy"]["offset"] = self.ec.offset
         save_config(config, filename, overwrite)
+        print(f'Saved energy calibration parameters to "{filename}".')
 
     # 4. Apply energy calibration to the dataframe
     def append_energy_axis(
@@ -1328,6 +1329,27 @@ class SedProcessor:
             self._dataframe = df
         else:
             raise ValueError("No dataframe loaded!")
+
+    def save_energy_offset(
+        self,
+        filename: str = None,
+        overwrite: bool = False,
+    ):
+        """Save the generated energy calibration parameters to the folder config file.
+
+        Args:
+            filename (str, optional): Filename of the config dictionary to save to.
+                Defaults to "sed_config.yaml" in the current folder.
+            overwrite (bool, optional): Option to overwrite the present dictionary.
+                Defaults to False.
+        """
+        if filename is None:
+            filename = "sed_config.yaml"
+        if len(self.ec.offset) == 0:
+            raise ValueError("No energy offset parameters to save!")
+        config = {"energy": {"offset": self.ec.offset}}
+        save_config(config, filename, overwrite)
+        print(f'Saved energy offset parameters to "{filename}".')
 
     def append_tof_ns_axis(
         self,
@@ -1460,6 +1482,31 @@ class SedProcessor:
             else:
                 if self.verbose:
                     print(self._dataframe)
+
+    def save_workflow_params(
+        self,
+        filename: str = None,
+        overwrite: bool = False,
+    ) -> None:
+        """run all save calibration parameter methods
+
+        Args:
+            filename (str, optional): Filename of the config dictionary to save to.
+                Defaults to "sed_config.yaml" in the current folder.
+            overwrite (bool, optional): Option to overwrite the present dictionary.
+                Defaults to False.
+        """
+        for method in [
+            self.save_momentum_calibration,
+            self.save_energy_correction,
+            self.save_energy_calibration,
+            self.save_energy_offset,
+            # self.save_delay_calibration,  # TODO: uncomment once implemented
+        ]:
+            try:
+                method(filename, overwrite)
+            except (ValueError, AttributeError, KeyError):
+                pass
 
     def add_jitter(
         self,
