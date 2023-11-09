@@ -29,9 +29,9 @@ def test_get_channels_by_format(config_file: dict):
         "cryoTemperature",
         "sampleTemperature",
         "dldTimeBinSize",
-        "delayStage",
+        "gmdTunnel",
     ]
-    train_channels = ["timeStamp"]
+    train_channels = ["timeStamp", "delayStage"]
 
     # Call get_channels_by_format method
     format_electron = fl.get_channels_by_format(["per_electron"])
@@ -75,7 +75,7 @@ def test_initialize_paths(
     # instance of class with correct config and call initialize_paths
     fl = FlashLoader(config=config)
     data_raw_dir, data_parquet_dir = fl.initialize_paths()
-    print(data_raw_dir)
+
     assert expected_raw_path == data_raw_dir[0]
     assert expected_processed_path == data_parquet_dir
 
@@ -111,19 +111,26 @@ def test_group_name_not_in_h5(config_file: dict):
 
     with pytest.raises(ValueError) as e:
         fl.create_dataframe_per_file(config["core"]["paths"]["data_raw_dir"] + h5_path)
-        print(e)
+
     assert str(e.value.args[0]) == "The group_name for channel dldPosX does not exist."
 
 
-# def test_buffer_schema_mismatch(config_file: dict):
-#     fl = FlashLoader(config=config_file)
+def test_buffer_schema_mismatch(config_file: dict):
+    fl = FlashLoader(config=config_file)
 
-#     fl.read_dataframe(runs=[43878])
+    fl.read_dataframe(runs=[43878])
 
-#     config = config_file
-#     config["dataframe"]["channels"]["dldPosX2"] = {
-#         "group_name": "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"}
+    config = config_file
+    config["dataframe"]["channels"]["gmdTunnel2"] = {
+        "group_name": "/FL1/Photon Diagnostic/GMD/Pulse resolved energy/energy tunnel/",
+        "format": "per_pulse",
+    }
 
-#     fl = FlashLoader(config=config)
-#     with pytest.raises(ValueError):
-#         fl.read_dataframe(runs=[43878])
+    with pytest.raises(ValueError) as e:
+        fl.read_dataframe(runs=[43878])
+    expected_error = e.value.args
+    assert "The available channels do not match the schema of file" in expected_error[0]
+    assert expected_error[2] == "Missing in parquet: {'gmdTunnel2'}"
+    assert expected_error[4] == "Please check the configuration file or set force_recreate to True."
+
+    fl.read_dataframe(runs=[43878], force_recreate=True)
