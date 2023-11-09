@@ -55,6 +55,7 @@ mypy = "^1.6.0"
 pycodestyle = "^2.11.1"
 types-pyyaml = "^6.0.12.12"
 types-requests = "^2.31.0.9"
+pyfakefs = "^5.3.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
