@@ -189,6 +189,7 @@ class DelayCalibrator:
         self,
         df: dask.dataframe.DataFrame,
         constant: float = None,
+        flip_time_axis: bool = None,
         columns: Union[str, Sequence[str]] = None,
         weights: Union[int, Sequence[int]] = None,
         preserve_mean: Union[bool, Sequence[bool]] = None,
@@ -218,7 +219,7 @@ class DelayCalibrator:
         """
         if delay_column is None:
             delay_column = self.delay_column
-        if columns is None and constant is None:
+        if columns is None and constant is None and flip_time_axis is None:
             # load from config
             columns = []
             weights = []
@@ -227,12 +228,14 @@ class DelayCalibrator:
             for k, v in self.offsets.items():
                 if k == "constant":
                     constant = v
+                elif k == "flip_time_axis":
+                    flip_time_axis = v
                 else:
                     columns.append(k)
                     try:
-                        weights.append(v["weigth"])
+                        weights.append(v["weight"])
                     except KeyError as exc:
-                        raise KeyError(f"Missing sign for offset column {k} in config.") from exc
+                        raise KeyError(f"Missing weight for offset column {k} in config.") from exc
                     preserve_mean.append(v.get("preserve_mean", False))
                     reductions.append(v.get("reduction", None))
         metadata: Dict[str, Any] = {
@@ -259,16 +262,32 @@ class DelayCalibrator:
                 signs=weights,
                 preserve_mean=preserve_mean,
                 reductions=reductions,
-                inplace=inplace,
-                rename=rename,
             )
             metadata["delay_column"] = delay_column
             if not inplace:
                 metadata["corrected_delay_column"] = rename
             metadata["columns"] = columns
-            metadata["signs"] = weights
+            metadata["weights"] = weights
             metadata["preserve_mean"] = preserve_mean
             metadata["reductions"] = reductions
+
+            if not isinstance(columns, Sequence):
+                columns = [columns]
+            if not isinstance(weights, Sequence):
+                weights = [weights]
+            if isinstance(preserve_mean, bool):
+                preserve_mean = [preserve_mean] * len(columns)
+            if not isinstance(reductions, Sequence):
+                reductions = [reductions]
+            if len(reductions) == 1:
+                reductions = [reductions[0]] * len(columns)
+
+            for col, weight, pmean, red in zip(columns, weights, preserve_mean, reductions):
+                self.offsets[col] = {
+                    "weight": weight,
+                    "preserve_mean": pmean,
+                    "reduction": red,
+                }
 
         # apply constant
         if isinstance(constant, (int, float, np.integer, np.floating)):
@@ -278,31 +297,40 @@ class DelayCalibrator:
                 meta=(delay_column, np.float64),
             )
             metadata["constant"] = constant
+            self.offsets["constant"] = constant
         elif constant is not None:
             raise TypeError(f"Invalid type for constant: {type(constant)}")
+        # flip the time direction
+
+        if flip_time_axis is not None:
+            if flip_time_axis:
+                df[delay_column] = -df[delay_column]
+            metadata["flip_time_axis"] = flip_time_axis
+            self.offsets["flip_time_axis"] = constant
 
         return df, metadata
 
-    def flip_time_axis(
-        self,
-        df: dask.dataframe.DataFrame,
-        delay_column: str = None,
-        inplace: bool = True,
-        rename: str = None,
-    ) -> Tuple[dask.dataframe.DataFrame, dict]:
-        """flip the direction of the delay axis"""
-        if delay_column is None:
-            delay_column = self.delay_column
-        metadata = {
-            "delay_column": delay_column,
-            "applied": True,
-        }
-        if inplace:
-            df[delay_column] = -df[delay_column]
-        else:
-            df = df.assign(**{rename: -df[delay_column]})
-            metadata["corrected_delay_column"] = rename
-        return df, metadata
+    # def flip_time_axis(
+    #     self,
+    #     df: dask.dataframe.DataFrame,
+    #     delay_column: str = None,
+    #     inplace: bool = True,
+    #     rename: str = None,
+    # ) -> Tuple[dask.dataframe.DataFrame, dict]:
+    #     """flip the direction of the delay axis"""
+    #     if delay_column is None:
+    #         delay_column = self.delay_column
+    #     metadata = {
+    #         "delay_column": delay_column,
+    #         "applied": True,
+    #     }
+    #     self.flip_time_axis = True
+    #     if inplace:
+    #         df[delay_column] = -df[delay_column]
+    #     else:
+    #         df = df.assign(**{rename: -df[delay_column]})
+    #         metadata["corrected_delay_column"] = rename
+    #     return df, metadata
 
 
 def extract_delay_stage_parameters(

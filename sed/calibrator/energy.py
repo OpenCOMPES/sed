@@ -1586,7 +1586,7 @@ class EnergyCalibrator:
                 reductions = [reductions[0]] * len(columns)
 
             for col, sign, pmean, red in zip(columns, signs, preserve_mean, reductions):
-                self.offset[col] = {
+                self.offsets[col] = {
                     "sign": sign,
                     "preserve_mean": pmean,
                     "reduction": red,
@@ -1600,7 +1600,7 @@ class EnergyCalibrator:
                 meta=(energy_column, np.float64),
             )
             metadata["constant"] = constant
-            self.offset["constant"] = constant
+            self.offsets["constant"] = constant
         elif constant is not None:
             raise TypeError(f"Invalid type for constant: {type(constant)}")
 

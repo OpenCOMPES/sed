@@ -1488,31 +1488,6 @@ class SedProcessor:
                 if self.verbose:
                     print(self._dataframe)
 
-    def save_workflow_params(
-        self,
-        filename: str = None,
-        overwrite: bool = False,
-    ) -> None:
-        """run all save calibration parameter methods
-
-        Args:
-            filename (str, optional): Filename of the config dictionary to save to.
-                Defaults to "sed_config.yaml" in the current folder.
-            overwrite (bool, optional): Option to overwrite the present dictionary.
-                Defaults to False.
-        """
-        for method in [
-            self.save_momentum_calibration,
-            self.save_energy_correction,
-            self.save_energy_calibration,
-            self.save_energy_offset,
-            # self.save_delay_calibration,  # TODO: uncomment once implemented
-        ]:
-            try:
-                method(filename, overwrite)
-            except (ValueError, AttributeError, KeyError):
-                pass
-
     def save_delay_calibration(
         self,
         filename: str = None,
@@ -1539,6 +1514,7 @@ class SedProcessor:
     def add_delay_offset(
         self,
         constant: float = None,
+        flip_time_axis: bool = None,
         columns: Union[str, Sequence[str]] = None,
         signs: Union[int, Sequence[int]] = None,
         reductions: Union[str, Sequence[str]] = None,
@@ -1574,6 +1550,7 @@ class SedProcessor:
         if self.dataframe is not None:
             df, metadata = self.dc.add_offsets(
                 df=self._dataframe,
+                flip_time_axis=flip_time_axis,
                 constant=constant,
                 columns=columns,
                 delay_column=delay_column,
@@ -1662,6 +1639,61 @@ class SedProcessor:
                 metadata,
                 "correct_delay_fluctuations",
                 duplicate_policy="raise",
+            )
+
+    def save_workflow_params(
+        self,
+        filename: str = None,
+        overwrite: bool = False,
+    ) -> None:
+        """run all save calibration parameter methods
+
+        Args:
+            filename (str, optional): Filename of the config dictionary to save to.
+                Defaults to "sed_config.yaml" in the current folder.
+            overwrite (bool, optional): Option to overwrite the present dictionary.
+                Defaults to False.
+        """
+        for method in [
+            self.save_momentum_calibration,
+            self.save_energy_correction,
+            self.save_energy_calibration,
+            self.save_energy_offset,
+            # self.save_delay_calibration,  # TODO: uncomment once implemented
+        ]:
+            try:
+                method(filename, overwrite)
+            except (ValueError, AttributeError, KeyError):
+                pass
+
+    def flip_delay_axis(
+        self,
+        delay_column: str = None,
+    ) -> None:
+        """Flip the delay axis of the dataframe.
+
+        Args:
+            delay_column (str): Name of the column containing the delay values.
+
+        Raises:
+            ValueError: If the delay column is not in the dataframe.
+        """
+        if delay_column is None:
+            delay_column = self._config["dataframe"]["delay_column"]
+        if delay_column not in self._dataframe.columns:
+            raise ValueError(
+                f"Delay column {delay_column} not found in dataframe! "
+                "Run `append delay axis` first.",
+            )
+        if self.dataframe is not None:
+            self._dataframe, metadata = self.dc.flip_delay_axis(
+                df=self._dataframe,
+                delay_column=delay_column,
+            )
+            self._attributes.add(
+                metadata,
+                "flip_delay_axis",
+                duplicate_policy="append",
             )
 
     def add_jitter(
