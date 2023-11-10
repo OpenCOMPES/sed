@@ -56,11 +56,10 @@ dataframe:
   sector_id_column: dldSectorID
 
   sector_delays: [0., 0., 0., 0., 0., 0., 0., 0.]
-  # the corrected pump-probe time axis
-  delay_column: delay
   # the delay stage column
-  delay_stage_column: delayStage
-
+  delay_column: delayStage
+  # the corrected pump-probe time axis
+  corrected_delay_column: pumpProbeTime
   jitter_cols: ["dldPosX", "dldPosY", "dldTimeSteps"]
 
   units:

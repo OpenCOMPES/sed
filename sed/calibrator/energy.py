@@ -112,7 +112,7 @@ class EnergyCalibrator:
         self.color_clip = self._config["energy"]["color_clip"]
         self.sector_delays = self._config["dataframe"].get("sector_delays", None)
         self.sector_id_column = self._config["dataframe"].get("sector_id_column", None)
-        self.offset: Dict[str, Any] = self._config["energy"].get("offset", {})
+        self.offsets: Dict[str, Any] = self._config["energy"].get("offset", {})
         self.correction: Dict[Any, Any] = {}
 
     @property
@@ -1512,7 +1512,7 @@ class EnergyCalibrator:
             signs = []
             preserve_mean = []
             reductions = []
-            for k, v in self.offset.items():
+            for k, v in self.offsets.items():
                 if k == "constant":
                     constant = v
                 else:

@@ -34,96 +34,21 @@ class DelayCalibrator:
         Args:
             config (dict, optional): Config dictionary. Defaults to None.
         """
-        self._config: dict = config or {}
-        self.loader: str = self._config["core"]["loader"]
+        if config is not None:
+            self._config = config
+        else:
+            self._config = {}
 
         self.adc_column: str = self._config["dataframe"].get("adc_column", None)
-        self.delay_stage_column: str = self._config["dataframe"].get("delay_stage_column", None)
-        if self.delay_stage_column is None and self.adc_column is None:
-            raise ValueError("No delay stage column specified.")
         self.delay_column: str = self._config["dataframe"]["delay_column"]
+        self.corrected_delay_column = self._config["dataframe"].get(
+            "corrected_delay_column",
+            self.delay_column,
+        )
         self.calibration: Dict[str, Any] = self._config["delay"].get("calibration", {})
-        self.fluctuations: Dict[str, Any] = self._config["delay"].get("fluctuations", {})
+        self.offsets: Dict[str, Any] = self._config["delay"].get("offsets", {})
 
     def append_delay_axis(
-        self,
-        df: Union[pd.DataFrame, dask.dataframe.DataFrame],
-        *args,
-        **kwargs,
-    ) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
-        """TODO: docstring"""
-        if self.loader not in ["mpes", "flash"]:
-            raise NotImplementedError(
-                f"Delay calibration is implemented for 'mpes' and 'flash', not {self.loader}.",
-            )
-        method = getattr(self, f"append_delay_axis_{self.loader}")
-        return method(df, *args, **kwargs)
-
-    def append_delay_axis_flash(
-        self,
-        df: Union[pd.DataFrame, dask.dataframe.DataFrame],
-        time0: float = None,
-        flip_time_axis: bool = None,
-        delay_stage_column: str = None,
-        delay_column: str = None,
-        **kwargs,
-    ) -> Tuple[dask.dataframe.DataFrame, dict]:
-        """Calculate and append the delay axis to the events dataframe.
-
-        Args:
-            df (Union[pd.DataFrame, dask.dataframe.DataFrame]): The dataframe where
-                to apply the delay calibration to.
-            time0 (float, optional): Pump-Probe overlap value of the delay coordinate.
-                If omitted, it is searched for in the data files.
-            flip_time_axis (bool, optional): Invert the time axis.
-            delay_stage_column (str, optional): Source column for delay calibration.
-                Defaults to config["dataframe"]["delay_stage_column"].
-            delay_column (str, optional): Destination column for delay calibration.
-                Defaults to config["dataframe"]["delay_column"].
-
-        Returns:
-            Union[pd.DataFrame, dask.dataframe.DataFrame]: dataframe with added column
-            and delay calibration metdata dictionary.
-        """
-        if len(kwargs) > 0:
-            print(f"WARNING: arguments {kwargs.keys()} are not used in flash delay calibration.")
-        assert self.loader == "flash", "Invalid loader for this method."
-        # pylint: disable=duplicate-code
-        if delay_stage_column is None:
-            delay_stage_column = self.delay_stage_column
-        if delay_column is None:
-            delay_column = self.delay_column
-
-        if time0 is None:
-            time0 = self.calibration["time0"]
-        else:
-            self.calibration["time0"] = time0
-        if time0 is None:
-            raise ValueError("No time0 value specified.")
-
-        if flip_time_axis is None:
-            fta_str: str = str(self.calibration.get("flip_time_axis", False))
-            flip_time_axis = fta_str.lower() in ["true", "1", "yes"]
-        else:
-            self.calibration["flip_time_axis"] = flip_time_axis
-
-        def calibrate_time(x, time0, flip_time_axis) -> Any:
-            return (x[delay_stage_column] - time0) * (-1 if flip_time_axis else 1)
-
-        df[delay_column] = df.map_partitions(
-            calibrate_time,
-            time0,
-            flip_time_axis,
-            meta=(delay_column, np.float64),
-        )
-
-        metadata: Dict[str, Any] = {
-            "applied": True,
-            "calibration": self.calibration,
-        }
-        return df, metadata
-
-    def append_delay_axis_mpes(
         self,
         df: Union[pd.DataFrame, dask.dataframe.DataFrame],
         adc_column: str = None,
@@ -177,7 +102,6 @@ class DelayCalibrator:
             Union[pd.DataFrame, dask.dataframe.DataFrame]: dataframe with added column
             and delay calibration metdata dictionary.
         """
-        assert self.loader == "mpes", "Invalid loader for this method."
         if len(kwargs) > 0:
             print(f"WARNING: arguments {kwargs.keys()} are not used in mpes delay calibration.")
         # pylint: disable=duplicate-code
@@ -261,90 +185,123 @@ class DelayCalibrator:
 
         return df, metadata
 
-    def correct_delay_fluctuations(
+    def add_offsets(
         self,
-        df: Union[pd.DataFrame, dask.dataframe.DataFrame],
-        delay_column: str = None,
+        df: dask.dataframe.DataFrame,
+        constant: float = None,
         columns: Union[str, Sequence[str]] = None,
-        signs: Union[int, Sequence[int]] = None,
+        weights: Union[int, Sequence[int]] = None,
         preserve_mean: Union[bool, Sequence[bool]] = None,
         reductions: Union[str, Sequence[str]] = None,
+        delay_column: str = None,
         inplace: bool = True,
         rename: str = None,
-    ) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
-        """Corrects fluctuations on the delay axis based on other monitored parameters.
-
-        An example application is the correction of the SASE jitter based on the
-        values of the Beam Arrival Monitor (BAM) at FLASH, or the correction of the
-        long term drifts using the "Streak Camera".
+    ) -> Tuple[dask.dataframe.DataFrame, dict]:
+        """Apply an offset to the delay column based on a constant or other columns.
 
         Args:
-            df (Union[pd.DataFrame, dask.dataframe.DataFrame]): The dataframe where
-                to apply the delay calibration to.
-            delay_column (str, optional): Destination column for delay calibration.
-                Defaults to config["dataframe"]["delay_column"].
-            fluctuation_column (str, optional): Source column for fluctuation correction.
-            sign (int, optional): Sign of the jitter correction. Defaults to 1.
-            preserve_mean (bool, optional): Subtract mean value of fluctuation column.
-                Using this ensures the average time of the delay axis is not changed.
-            reductions (str, optional): Reduction to apply to the fluctuation column.
-            inplace (bool, optional): Apply the correction inplace. If False, a new column will be
-                generated. The name will depend on the rename argument.
-            rename (str, optional): New name for the column generated not in place.
+            df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to use.
+            constant (float, optional): The constant to shift the delay axis by.
+            columns (Union[str, Sequence[str]]): Name of the column(s) to apply the shift from.
+            weights (Union[int, Sequence[int]]): weights to apply to the columns.
+                Can also be used to flip the sign (e.g. -1). Defaults to 1.
+            preserve_mean (bool): Whether to subtract the mean of the column before applying the
+                shift. Defaults to False.
+            reductions (str): The reduction to apply to the column. Should be an available method
+                of dask.dataframe.Series. For example "mean". In this case the function is applied
+                to the column to generate a single value for the whole dataset. If None, the shift
+                is applied per-dataframe-row. Defaults to None. Currently only "mean" is supported.
 
         Returns:
-            Union[pd.DataFrame, dask.dataframe.DataFrame]: dataframe with corrected
-                delay axis.
+            dask.dataframe.DataFrame: Dataframe with the shifted delay axis.
+            dict: Metadata dictionary.
         """
         if delay_column is None:
             delay_column = self.delay_column
-
-        if columns is None:
+        if columns is None and constant is None:
             # load from config
             columns = []
-            signs = []
+            weights = []
             preserve_mean = []
             reductions = []
-            for k, v in self.fluctuations.items():
-                columns.append(k)
-                try:
-                    signs.append(v["sign"])
-                except KeyError as exc:
-                    raise KeyError(f"Missing sign for fluctuation column {k} in config.") from exc
-                preserve_mean.append(v.get("preserve_mean", False))
-                reductions.append(v.get("reduction", None))
-
-        df = dfops.offset_by_other_columns(
-            df=df,
-            target_column=delay_column,
-            offset_columns=columns,
-            signs=signs,
-            reductions=reductions,
-            preserve_mean=preserve_mean,
-            inplace=inplace,
-            rename=rename,
-        )
-        if columns is not None:
-            if not isinstance(signs, Sequence):
-                signs = [signs]
-            if not isinstance(preserve_mean, Sequence):
-                preserve_mean = [preserve_mean]
-            if not isinstance(reductions, Sequence):
-                reductions = [reductions]
-            for col, sign, pm, red in zip(columns, signs, preserve_mean, reductions):
-                if col not in self.fluctuations.keys():
-                    self.fluctuations[col] = {
-                        "sign": sign,
-                        "preserve_mean": pm,
-                        "reduction": red,
-                    }
+            for k, v in self.offsets.items():
+                if k == "constant":
+                    constant = v
+                else:
+                    columns.append(k)
+                    try:
+                        weights.append(v["weigth"])
+                    except KeyError as exc:
+                        raise KeyError(f"Missing sign for offset column {k} in config.") from exc
+                    preserve_mean.append(v.get("preserve_mean", False))
+                    reductions.append(v.get("reduction", None))
         metadata: Dict[str, Any] = {
-            "fluctuations": {
-                "columns": columns,
-                "preserve_mean": preserve_mean,
-                "signs": signs,
-            },
+            "applied": True,
         }
+        # apply offset
+        if columns is not None:
+            # use passed parameters
+            if isinstance(weights, (int, float, np.integer, np.floating)):
+                weights = [weights]
+            elif not isinstance(weights, Sequence):
+                raise TypeError(
+                    f"Invalid type for weights: {type(weights)}. Must be a number or sequence",
+                )
+            if not all(isinstance(s, (int, float, np.integer, np.floating)) for s in weights):
+                raise TypeError(
+                    f"Invalid type for weights: {type(weights)}. Must be a number or sequence",
+                )
+
+            df = dfops.offset_by_other_columns(
+                df=df,
+                target_column=delay_column,
+                offset_columns=columns,
+                signs=weights,
+                preserve_mean=preserve_mean,
+                reductions=reductions,
+                inplace=inplace,
+                rename=rename,
+            )
+            metadata["delay_column"] = delay_column
+            if not inplace:
+                metadata["corrected_delay_column"] = rename
+            metadata["columns"] = columns
+            metadata["signs"] = weights
+            metadata["preserve_mean"] = preserve_mean
+            metadata["reductions"] = reductions
+
+        # apply constant
+        if isinstance(constant, (int, float, np.integer, np.floating)):
+            df[delay_column] = df.map_partitions(
+                # flip sign if binding energy scale
+                lambda x: x[delay_column] + constant,
+                meta=(delay_column, np.float64),
+            )
+            metadata["constant"] = constant
+        elif constant is not None:
+            raise TypeError(f"Invalid type for constant: {type(constant)}")
+
+        return df, metadata
+
+    def flip_time_axis(
+        self,
+        df: dask.dataframe.DataFrame,
+        delay_column: str = None,
+        inplace: bool = True,
+        rename: str = None,
+    ) -> Tuple[dask.dataframe.DataFrame, dict]:
+        """flip the direction of the delay axis"""
+        if delay_column is None:
+            delay_column = self.delay_column
+        metadata = {
+            "delay_column": delay_column,
+            "applied": True,
+        }
+        if inplace:
+            df[delay_column] = -df[delay_column]
+        else:
+            df = df.assign(**{rename: -df[delay_column]})
+            metadata["corrected_delay_column"] = rename
         return df, metadata
 
 

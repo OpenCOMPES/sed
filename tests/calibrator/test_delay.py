@@ -119,49 +119,49 @@ def test_delay_parameters_from_delay_range_mm():
     assert "delay_range_mm" in metadata["calibration"]
 
 
-def test_loader_selection():
-    """test that the correct calibration method is used based on the loader in the config"""
-    config = parse_config(
-        config={
-            "core": {"loader": "mpes"},
-            "delay": {
-                "p1_key": "@trARPES:DelayStage:p1",
-                "p2_key": "@trARPES:DelayStage:p2",
-                "t0_key": "@trARPES:DelayStage:t0",
-            },
-        },
-        folder_config={},
-        user_config={},
-        system_config={},
-    )
-    _ = get_loader(loader_name="mpes", config=config).read_dataframe(
-        files=[file],
-        collect_metadata=False,
-    )
-    dc = DelayCalibrator(config=config)
-    assert dc.loader == "mpes"
-    m1 = getattr(dc, f"append_delay_axis_{dc.loader}")
-    m2 = getattr(dc, "append_delay_axis_mpes")
-    assert m1.__name__ == m2.__name__
+# def test_loader_selection():
+#     """test that the correct calibration method is used based on the loader in the config"""
+#     config = parse_config(
+#         config={
+#             "core": {"loader": "mpes"},
+#             "delay": {
+#                 "p1_key": "@trARPES:DelayStage:p1",
+#                 "p2_key": "@trARPES:DelayStage:p2",
+#                 "t0_key": "@trARPES:DelayStage:t0",
+#             },
+#         },
+#         folder_config={},
+#         user_config={},
+#         system_config={},
+#     )
+#     _ = get_loader(loader_name="mpes", config=config).read_dataframe(
+#         files=[file],
+#         collect_metadata=False,
+#     )
+#     dc = DelayCalibrator(config=config)
+#     assert dc.loader == "mpes"
+#     m1 = getattr(dc, f"append_delay_axis_{dc.loader}")
+#     m2 = getattr(dc, "append_delay_axis_mpes")
+#     assert m1.__name__ == m2.__name__
 
-    config = parse_config(
-        config={
-            "core": {"loader": "flash"},
-            "delay": {"time0": 1},
-        },
-        folder_config={},
-        user_config={},
-        system_config={},
-    )
-    _ = dask.dataframe.from_pandas(
-        pd.DataFrame({"delayStage": np.linspace(0, 1, 100)}),
-        npartitions=2,
-    )
-    dc = DelayCalibrator(config=config)
-    assert dc.loader == "flash"
-    m1 = getattr(dc, f"append_delay_axis_{dc.loader}")
-    m2 = getattr(dc, "append_delay_axis_flash")
-    assert m1.__name__ == m2.__name__
+#     config = parse_config(
+#         config={
+#             "core": {"loader": "flash"},
+#             "delay": {"time0": 1},
+#         },
+#         folder_config={},
+#         user_config={},
+#         system_config={},
+#     )
+#     _ = dask.dataframe.from_pandas(
+#         pd.DataFrame({"delayStage": np.linspace(0, 1, 100)}),
+#         npartitions=2,
+#     )
+#     dc = DelayCalibrator(config=config)
+#     assert dc.loader == "flash"
+#     m1 = getattr(dc, f"append_delay_axis_{dc.loader}")
+#     m2 = getattr(dc, "append_delay_axis_flash")
+#     assert m1.__name__ == m2.__name__
 
 
 def test_flash_append_delay():

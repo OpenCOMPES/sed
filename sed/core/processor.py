@@ -1122,8 +1122,8 @@ class SedProcessor:
                 "calibration": calibration,
             },
         }
-        if isinstance(self.ec.offset, dict):
-            config["energy"]["offset"] = self.ec.offset
+        if isinstance(self.ec.offsets, dict):
+            config["energy"]["offset"] = self.ec.offsets
         save_config(config, filename, overwrite)
 
     # 4. Apply energy calibration to the dataframe
@@ -1327,6 +1327,108 @@ class SedProcessor:
             else:
                 print(self._dataframe)
 
+    def save_delay_calibration(
+        self,
+        filename: str = None,
+        overwrite: bool = False,
+    ) -> None:
+        """Save the generated delay calibration parameters to the folder config file.
+
+        Args:
+            filename (str, optional): Filename of the config dictionary to save to.
+                Defaults to "sed_config.yaml" in the current folder.
+            overwrite (bool, optional): Option to overwrite the present dictionary.
+                Defaults to False.
+        """
+        if filename is None:
+            filename = "sed_config.yaml"
+
+        config = {
+            "delay": {
+                "calibration": self.dc.calibration,
+            },
+        }
+        save_config(config, filename, overwrite)
+
+    def add_delay_offset(
+        self,
+        constant: float = None,
+        columns: Union[str, Sequence[str]] = None,
+        signs: Union[int, Sequence[int]] = None,
+        reductions: Union[str, Sequence[str]] = None,
+        preserve_mean: Union[bool, Sequence[bool]] = None,
+        inplace: bool = False,
+        rename: str = None,
+    ) -> None:
+        """Shift the delay axis of the dataframe by a constant or other columns.
+
+        Args:
+            constant (float, optional): The constant to shift the delay axis by.
+            columns (Union[str, Sequence[str]]): Name of the column(s) to apply the shift from.
+            signs (Union[int, Sequence[int]]): Sign of the shift to apply. (+1 or -1) A positive
+                sign shifts the delay axis to higher values. Defaults to +1.
+            preserve_mean (bool): Whether to subtract the mean of the column before applying the
+                shift. Defaults to False.
+            reductions (str): The reduction to apply to the column. Should be an available method
+                of dask.dataframe.Series. For example "mean". In this case the function is applied
+                to the column to generate a single value for the whole dataset. If None, the shift
+                is applied per-dataframe-row. Defaults to None. Currently only "mean" is supported.
+            inplace: Whether to apply the shift inplace or generate a new column.
+            rename: Whether to rename the column to "delay" after the shift.
+
+        Returns:
+            None
+        """
+        delay_column = self._config["dataframe"]["delay_column"]
+        if delay_column not in self._dataframe.columns:
+            raise ValueError(
+                f"Energy column {delay_column} not found in dataframe! "
+                "Run `append energy axis` first.",
+            )
+        if self.dataframe is not None:
+            df, metadata = self.dc.add_offsets(
+                df=self._dataframe,
+                constant=constant,
+                columns=columns,
+                delay_column=delay_column,
+                weights=signs,
+                reductions=reductions,
+                preserve_mean=preserve_mean,
+                inplace=inplace,
+                rename=rename,
+            )
+            self._attributes.add(
+                metadata,
+                "add_delay_offset",
+                duplicate_policy="append",
+            )
+            self._dataframe = df
+        else:
+            raise ValueError("No dataframe loaded!")
+
+    def save_delay_offsets(
+        self,
+        filename: str = None,
+        overwrite: bool = False,
+    ) -> None:
+        """Save the generated delay calibration parameters to the folder config file.
+
+        Args:
+            filename (str, optional): Filename of the config dictionary to save to.
+                Defaults to "sed_config.yaml" in the current folder.
+            overwrite (bool, optional): Option to overwrite the present dictionary.
+                Defaults to False.
+        """
+        if filename is None:
+            filename = "sed_config.yaml"
+
+        config = {
+            "delay": {
+                "offsets": self.dc.offsets,
+            },
+        }
+        save_config(config, filename, overwrite)
+
     def correct_delay_fluctuations(
         self,
         delay_column: str = None,
@@ -1375,41 +1477,6 @@ class SedProcessor:
                 "correct_delay_fluctuations",
                 duplicate_policy="raise",
             )
-
-    def save_delay_calibration(
-        self,
-        filename: str = None,
-        overwrite: bool = False,
-    ) -> None:
-        """Save the generated delay calibration parameters to the folder config file.
-
-        Args:
-            filename (str, optional): Filename of the config dictionary to save to.
-                Defaults to "sed_config.yaml" in the current folder.
-            overwrite (bool, optional): Option to overwrite the present dictionary.
-                Defaults to False.
-        """
-        if filename is None:
-            filename = "sed_config.yaml"
-        # calibration: Dict[str, Any] = {}
-        # try:
-        #     for key, val in self.dc.calibration.items():
-        #         if key == "delay_range":
-        #             calibration[key] = [float(i) for i in val]
-        #         else:
-        #             calibration[key] = float(val)
-        # except AttributeError as exc:
-        #     raise AttributeError(
-        #         "Delay calibration parameters not found, need to generate parameters first!",
-        #     ) from exc
-
-        config = {
-            "delay": {
-                "calibration": self.dc.calibration,
-                "fluctuations": self.dc.fluctuations,
-            },
-        }
-        save_config(config, filename, overwrite)
 
     def add_jitter(
         self,
