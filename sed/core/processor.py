@@ -125,7 +125,7 @@ class SedProcessor:
             loader=get_loader(
                 loader_name=loader_name,
                 config=self._config,
-                ),
+            ),
             config=self._config,
         )
 
