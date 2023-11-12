@@ -122,7 +122,10 @@ class SedProcessor:
         )
 
         self.ec = EnergyCalibrator(
-            loader=self.loader,
+            loader=get_loader(
+                loader_name=loader_name,
+                config=self._config,
+                ),
             config=self._config,
         )
 

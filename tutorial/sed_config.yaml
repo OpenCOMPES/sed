@@ -13,12 +13,13 @@ energy:
     diameter: 3000.0
     gamma: 920.0
     sigma: 700.0
+  offset: {}
 momentum:
   calibration:
     cstart: -256.0
     cstep: 3.9921875
-    kx_scale: 0.012389400615413859
-    ky_scale: 0.012389400615413859
+    kx_scale: 0.010729535670610963
+    ky_scale: 0.010729535670610963
     rstart: -256.0
     rstep: 3.9921875
     x_center: 256.0
