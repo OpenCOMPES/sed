@@ -1548,6 +1548,9 @@ class SedProcessor:
                 "Run `append energy axis` first.",
             )
         meta_flip = None
+        if flip_time_axis is None:
+            flip_time_axis = self._config.get("delay", {}).get("flip_time_axis", False)
+
         if self.dataframe is not None:
             df, metadata = self.dc.add_offsets(
                 df=self._dataframe,
