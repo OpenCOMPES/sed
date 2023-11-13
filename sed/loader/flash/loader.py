@@ -641,7 +641,12 @@ class FlashLoader(BaseLoader):
             return exc
         return None
 
-    def buffer_file_handler(self, data_parquet_dir: Path, detector: str, force_recreate: bool):
+    def buffer_file_handler(
+        self,
+        data_parquet_dir: Path,
+        detector: str,
+        force_recreate: bool,
+    ) -> Tuple[List[Path], List, List]:
         """
         Handles the conversion of buffer files (h5 to parquet) and returns the filenames.
 
@@ -678,7 +683,7 @@ class FlashLoader(BaseLoader):
             parquet_schemas = [pq.read_schema(file) for file in existing_parquet_filenames]
             config_schema = set(self.get_channels(formats="all", index=True))
             if self._config["dataframe"]["split_sector_id_from_dld_time"]:
-                config_schema.add(self._config["dataframe"]["sector_id_column"])
+                config_schema.add(self._config["dataframe"].get(["sector_id_column"], False))
 
             for i, schema in enumerate(parquet_schemas):
                 schema_set = set(schema.names)
