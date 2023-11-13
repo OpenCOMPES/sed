@@ -119,147 +119,59 @@ def test_delay_parameters_from_delay_range_mm():
     assert "delay_range_mm" in metadata["calibration"]
 
 
-# def test_loader_selection():
-#     """test that the correct calibration method is used based on the loader in the config"""
-#     config = parse_config(
-#         config={
-#             "core": {"loader": "mpes"},
-#             "delay": {
-#                 "p1_key": "@trARPES:DelayStage:p1",
-#                 "p2_key": "@trARPES:DelayStage:p2",
-#                 "t0_key": "@trARPES:DelayStage:t0",
-#             },
-#         },
-#         folder_config={},
-#         user_config={},
-#         system_config={},
-#     )
-#     _ = get_loader(loader_name="mpes", config=config).read_dataframe(
-#         files=[file],
-#         collect_metadata=False,
-#     )
-#     dc = DelayCalibrator(config=config)
-#     assert dc.loader == "mpes"
-#     m1 = getattr(dc, f"append_delay_axis_{dc.loader}")
-#     m2 = getattr(dc, "append_delay_axis_mpes")
-#     assert m1.__name__ == m2.__name__
-
-#     config = parse_config(
-#         config={
-#             "core": {"loader": "flash"},
-#             "delay": {"time0": 1},
-#         },
-#         folder_config={},
-#         user_config={},
-#         system_config={},
-#     )
-#     _ = dask.dataframe.from_pandas(
-#         pd.DataFrame({"delayStage": np.linspace(0, 1, 100)}),
-#         npartitions=2,
-#     )
-#     dc = DelayCalibrator(config=config)
-#     assert dc.loader == "flash"
-#     m1 = getattr(dc, f"append_delay_axis_{dc.loader}")
-#     m2 = getattr(dc, "append_delay_axis_flash")
-#     assert m1.__name__ == m2.__name__
-
-
-def test_flash_append_delay():
-    """test functionality of the flash delay calibration method"""
-    config = parse_config(
-        config={
-            "core": {"loader": "flash"},
-            "dataframe": {"delay_column": "delay", "delay_stage_column": "delayStage"},
-            "delay": {"calibration": {"time0": 1, "flip_time_axis": False}},
-        },
-        folder_config={},
-        user_config={},
-        system_config={},
-    )
-    df = dask.dataframe.from_pandas(
-        pd.DataFrame({"dldPosX": np.linspace(0, 1, 100), "delayStage": np.linspace(0, 1, 100)}),
-        npartitions=2,
-    )
-    dc = DelayCalibrator(config=config)
-    df, metadata = dc.append_delay_axis(df)
-    assert "delay" in df.columns
-    assert "time0" in metadata["calibration"]
-    assert metadata["calibration"]["time0"] == 1
-    assert metadata["calibration"]["flip_time_axis"] is False
-    np.testing.assert_allclose(df["delay"], np.linspace(0, 1, 100) - 1)
-
-
-def test_flash_append_delay_flip():
-    """test functionality of the flash delay calibration method with flip"""
-    config = parse_config(
-        config={
-            "core": {"loader": "flash"},
-            "dataframe": {"delay_column": "delay", "delay_stage_column": "delayStage"},
-            "delay": {"calibration": {"time0": 1, "flip_time_axis": True}},
-        },
-        folder_config={},
-        user_config={},
-        system_config={},
-    )
-    df = dask.dataframe.from_pandas(
-        pd.DataFrame({"bam": np.linspace(0, 1, 100), "delayStage": np.linspace(0, 1, 100)}),
-        npartitions=2,
-    )
-    dc = DelayCalibrator(config=config)
-    df, metadata = dc.append_delay_axis(df)
-    assert "delay" in df.columns
-    assert "time0" in metadata["calibration"]
-    assert metadata["calibration"]["time0"] == 1
-    assert metadata["calibration"]["flip_time_axis"] is True
-    np.testing.assert_allclose(df["delay"], -np.linspace(0, 1, 100) + 1)
-
-
-def test_correct_timing_fluctuation():
-    """test that the timing fluctuation is corrected for correctly"""
-    cfg = {
-        "core": {"loader": "flash"},
-        "dataframe": {"delay_column": "delay", "delay_stage_column": "delayStage"},
-        "delay": {
-            "calibration": {
-                "time0": 1,
+bam_vals = 1000 * (np.random.normal(size=100) + 5)
+delay_stage_vals = np.linspace(0, 99, 100)
+cfg = {
+    "core": {"loader": "flash"},
+    "dataframe": {"delay_column": "delay"},
+    "delay": {
+        "offsets": {
+            "constant": 1,
+            "bam": {
+                "weight": 0.001,
+                "preserve_mean": False,
             },
-            "fluctuations": {
-                "bam": {
-                    "sign": 1,
-                    "preserve_mean": False,
-                },
-            },
+            "flip_time_axis": True,
         },
-    }
+    },
+}
+df = dask.dataframe.from_pandas(
+    pd.DataFrame(
+        {
+            "bam": bam_vals.copy(),
+            "delay": delay_stage_vals.copy(),
+        },
+    ),
+    npartitions=2,
+)
+
+
+def test_add_offset_from_config(df=df) -> None:
+    """test that the timing offset is corrected for correctly from config"""
     config = parse_config(
         config=cfg,
         folder_config={},
         user_config={},
         system_config={},
     )
-    bam_vals = np.random.normal(size=100) + 5
-    delay_stage_vals = np.linspace(0, 99, 100)
-    df = dask.dataframe.from_pandas(
-        pd.DataFrame(
-            {
-                "bam": bam_vals.copy(),
-                "delayStage": delay_stage_vals.copy(),
-            },
-        ),
-        npartitions=2,
+
+    expected = (
+        delay_stage_vals
+        + bam_vals * cfg["delay"]["offsets"]["bam"]["weight"]
+        + cfg["delay"]["offsets"]["constant"]
     )
+
     dc = DelayCalibrator(config=config)
-    df, _ = dc.append_delay_axis(df)
+    df, _ = dc.add_offsets(df.copy())
     assert "delay" in df.columns
-    assert "bam" in dc.fluctuations.keys()
-    np.testing.assert_allclose(df["delay"], df["delayStage"] - 1)
-    np.testing.assert_allclose(np.linspace(0, 99, 100), df["delayStage"])
+    assert "bam" in dc.offsets.keys()
+    np.testing.assert_allclose(expected, df["delay"])
 
-    df, _ = dc.correct_delay_fluctuations(df)
-    expected = delay_stage_vals + bam_vals - 1
-    np.testing.assert_allclose(df["delay"], expected)
 
-    cfg["delay"]["fluctuations"]["bam"]["preserve_mean"] = True
+def test_add_offset_from_args(df=df) -> None:
+    """test that the timing offset applied with arguments works"""
+    cfg_ = cfg.copy()
+    cfg_.pop("delay")
     config = parse_config(
         config=cfg,
         folder_config={},
@@ -267,9 +179,29 @@ def test_correct_timing_fluctuation():
         system_config={},
     )
     dc = DelayCalibrator(config=config)
-    df, _ = dc.append_delay_axis(df)
+    df, _ = dc.add_offsets(df.copy(), columns="bam", weights=0.001, constant=1)
     assert "delay" in df.columns
-    assert "bam" in dc.fluctuations.keys()
-    df, _ = dc.correct_delay_fluctuations(df)
-    expected = expected - np.mean(bam_vals)
-    np.testing.assert_allclose(df["delay"], expected)
+    assert "bam" in dc.offsets.keys()
+    expected = (
+        delay_stage_vals
+        + bam_vals * cfg["delay"]["offsets"]["bam"]["weight"]
+        + cfg["delay"]["offsets"]["constant"]
+    )
+    np.testing.assert_allclose(expected, df["delay"])
+
+
+def test_flip_delay_axis(df=df) -> None:
+    """test that the timing offset applied with arguments works"""
+    cfg_ = cfg.copy()
+    cfg_.pop("delay")
+    cfg_["delay"] = {"flip_delay_axis": True}
+    config = parse_config(
+        config=cfg,
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+    dc = DelayCalibrator(config=config)
+    df, _ = dc.flip_delay_axis(df.copy())
+    assert "delay" in df.columns
+    np.testing.assert_allclose(df["delay"], -delay_stage_vals)

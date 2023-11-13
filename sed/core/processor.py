@@ -1547,10 +1547,10 @@ class SedProcessor:
                 f"Energy column {delay_column} not found in dataframe! "
                 "Run `append energy axis` first.",
             )
+        meta_flip = None
         if self.dataframe is not None:
             df, metadata = self.dc.add_offsets(
                 df=self._dataframe,
-                flip_time_axis=flip_time_axis,
                 constant=constant,
                 columns=columns,
                 delay_column=delay_column,
@@ -1560,12 +1560,38 @@ class SedProcessor:
                 inplace=inplace,
                 rename=rename,
             )
+            if flip_time_axis:
+                df, meta_flip = self.dc.flip_delay_axis(self.dataframe)
+        if self._timed_dataframe is not None:
+            if delay_column in self._timed_dataframe.columns:
+                tdf, _ = self.dc.add_offsets(
+                    df=self._timed_dataframe,
+                    constant=constant,
+                    columns=columns,
+                    delay_column=delay_column,
+                    weights=signs,
+                    reductions=reductions,
+                    preserve_mean=preserve_mean,
+                    inplace=inplace,
+                    rename=rename,
+                )
+                if flip_time_axis:
+                    tdf, _ = self.dc.flip_delay_axis(self._timed_dataframe)
+
             self._attributes.add(
                 metadata,
                 "add_delay_offset",
                 duplicate_policy="append",
             )
+            if meta_flip is not None:
+                self._attributes.add(
+                    meta_flip,
+                    "flip_delay_axis",
+                    duplicate_policy="append",
+                )
             self._dataframe = df
+            if self._timed_dataframe is not None:
+                self._timed_dataframe = tdf
         else:
             raise ValueError("No dataframe loaded!")
 
@@ -1592,55 +1618,6 @@ class SedProcessor:
         }
         save_config(config, filename, overwrite)
 
-    def correct_delay_fluctuations(
-        self,
-        delay_column: str = None,
-        columns: Union[str, Sequence[str]] = None,
-        signs: Union[int, Sequence[int]] = None,
-        reductions: Union[str, Sequence[str]] = None,
-        preserve_mean: Union[bool, Sequence[bool]] = None,
-        **kwargs,
-    ) -> None:
-        """Apply a correction to the delay axis of the dataframe.
-
-        Args:
-            delay_column (str): Name of the column containing the delay values.
-            columns (Union[str, Sequence[str]]): Name of the column(s) to apply the correction to.
-            signs (Union[int, Sequence[int]]): Sign of the correction to apply. (+1 or -1)
-                A positive sign shifts the delay axis to higher delays. Defaults to +1.
-            preserve_mean (bool): Whether to subtract the mean of the column before applying the
-                correction. Defaults to False.
-            reductions (str): The reduction to apply to the column. Should be an available method
-                of dask.dataframe.Series. For example "mean". In this case the function is applied
-                to the column to generate a single value for the whole dataset. If None, the shift
-                is applied per-dataframe-row. Defaults to None. Currently only "mean" is supported.
-
-        Raises:
-            ValueError: If the delay column is not in the dataframe.
-        """
-        if delay_column is None:
-            delay_column = self._config["dataframe"]["delay_column"]
-        if delay_column not in self._dataframe.columns:
-            raise ValueError(
-                f"Delay column {delay_column} not found in dataframe! "
-                "Run `append delay axis` first.",
-            )
-        if self.dataframe is not None:
-            self._dataframe, metadata = self.dc.correct_delay_fluctuations(
-                df=self._dataframe,
-                delay_column=delay_column,
-                columns=columns,
-                signs=signs,
-                reductions=reductions,
-                preserve_mean=preserve_mean,
-                **kwargs,
-            )
-            self._attributes.add(
-                metadata,
-                "correct_delay_fluctuations",
-                duplicate_policy="raise",
-            )
-
     def save_workflow_params(
         self,
         filename: str = None,
@@ -1659,7 +1636,8 @@ class SedProcessor:
             self.save_energy_correction,
             self.save_energy_calibration,
             self.save_energy_offset,
-            # self.save_delay_calibration,  # TODO: uncomment once implemented
+            self.save_delay_calibration,
+            self.save_delay_offsets,
         ]:
             try:
                 method(filename, overwrite)
