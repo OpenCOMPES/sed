@@ -682,7 +682,7 @@ class FlashLoader(BaseLoader):
             # Check if the available channels match the schema of the existing parquet files
             parquet_schemas = [pq.read_schema(file) for file in existing_parquet_filenames]
             config_schema = set(self.get_channels(formats="all", index=True))
-            if self._config["dataframe"]["split_sector_id_from_dld_time"]:
+            if self._config["dataframe"].get(["split_sector_id_from_dld_time"], False):
                 config_schema.add(self._config["dataframe"].get(["sector_id_column"], False))
 
             for i, schema in enumerate(parquet_schemas):
