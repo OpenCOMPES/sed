@@ -751,7 +751,7 @@ class FlashLoader(BaseLoader):
         load_parquet: bool = False,
         save_parquet: bool = False,
         force_recreate: bool = False,
-    ):
+    ) -> Tuple[dd.DataFrame, dd.DataFrame]:
         """
         Handles loading and saving of parquet files based on the provided parameters.
 
