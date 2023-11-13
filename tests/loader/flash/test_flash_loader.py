@@ -1,7 +1,7 @@
+"""Tests for FlashLoader functionality"""
 import os
 from importlib.util import find_spec
 from pathlib import Path
-from typing import Literal
 
 import pytest
 
@@ -12,22 +12,20 @@ package_dir = os.path.dirname(find_spec("sed").origin)
 config_path = os.path.join(package_dir, "../tests/data/loader/flash/config.yaml")
 
 
-@pytest.fixture
-def config_file():
+@pytest.fixture(name="config_file")
+def fixture_config_file():
+    """Fixture providing a configuration file for FlashLoader tests.
+
+    Returns:
+        dict: The parsed configuration file.
+    """
     return parse_config(config_path)
 
 
-def test_get_channels_by_format(config_file: dict):
+def test_get_channels_by_format(config_file):
     """
     Test function to verify the 'get_channels' method in FlashLoader class for
     retrieving channels based on formats and index inclusion.
-
-    Args:
-    config_file (dict): Configuration file or settings required for initializing the FlashLoader
-    instance.
-
-    Returns:
-    None: This function performs assertions to validate the 'get_channels' method's functionality.
     """
     # Initialize the FlashLoader instance with the given config_file.
     fl = FlashLoader(config_file)
@@ -87,20 +85,16 @@ def test_get_channels_by_format(config_file: dict):
     ["online-0/fl1user3/", "express-0/fl1user3/", "FL1USER3/"],
 )
 def test_initialize_paths(
-    config_file: dict,
+    config_file,
     fs,
-    sub_dir: Literal["online-0/fl1user3/", "express-0/fl1user3/", "FL1USER3/"],
+    sub_dir,
 ):
     """
     Test the initialization of paths based on the configuration and directory structures.
 
     Args:
-    config_file (dict): The configuration file.
     fs: A fixture for a fake file system.
     sub_dir (Literal["online-0/fl1user3/", "express-0/fl1user3/", "FL1USER3/"]): Sub-directory.
-
-    Returns:
-    None
     """
     config = config_file
     del config["core"]["paths"]
@@ -128,15 +122,9 @@ def test_initialize_paths(
     assert expected_processed_path == data_parquet_dir
 
 
-def test_initialize_paths_filenotfound(config_file: dict):
+def test_initialize_paths_filenotfound(config_file):
     """
     Test FileNotFoundError during the initialization of paths.
-
-    Args:
-    config_file (dict): The configuration file.
-
-    Returns:
-    None
     """
     # Test the FileNotFoundError
     config = config_file
@@ -150,15 +138,9 @@ def test_initialize_paths_filenotfound(config_file: dict):
         _, _ = fl.initialize_paths()
 
 
-def test_invalid_channel_format(config_file: dict):
+def test_invalid_channel_format(config_file):
     """
     Test ValueError for an invalid channel format.
-
-    Args:
-    config_file (dict): The configuration file.
-
-    Returns:
-    None
     """
     config = config_file
     config["dataframe"]["channels"]["dldPosX"]["format"] = "foo"
@@ -169,15 +151,9 @@ def test_invalid_channel_format(config_file: dict):
         fl.read_dataframe()
 
 
-def test_group_name_not_in_h5(config_file: dict):
+def test_group_name_not_in_h5(config_file):
     """
     Test ValueError when the group_name for a channel does not exist in the H5 file.
-
-    Args:
-    config_file (dict): The configuration file.
-
-    Returns:
-    None
     """
     config = config_file
     config["dataframe"]["channels"]["dldPosX"]["group_name"] = "foo"
@@ -190,18 +166,12 @@ def test_group_name_not_in_h5(config_file: dict):
     assert str(e.value.args[0]) == "The group_name for channel dldPosX does not exist."
 
 
-def test_buffer_schema_mismatch(config_file: dict):
+def test_buffer_schema_mismatch(config_file):
     """
     Test function to verify schema mismatch handling in the FlashLoader's 'read_dataframe' method.
 
     The test validates the error handling mechanism when the available channels do not match the
     schema of the existing parquet files.
-
-    Args:
-    config_file (dict): Configuration file required for initializing the FlashLoader instance.
-
-    Returns:
-    None: The function performs assertions to validate error handling for schema mismatch scenarios.
 
     Test Steps:
     - Attempt to read a dataframe after adding a new channel 'gmdTunnel2' to the configuration.
