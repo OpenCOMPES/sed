@@ -1,5 +1,5 @@
 core:
-  loader: flash
+  loader: sxp
   beamtime_id: 11013410
   year: 2023
   beamline: pg2
@@ -13,7 +13,7 @@ binning:
   num_cores: 10
 
 dataframe:
-  ubid_offset: 5
+  ubid_offset: 0
   daq: DA03
   forward_fill_iterations: 2
   x_column: dldPosX

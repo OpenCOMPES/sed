@@ -1,5 +1,5 @@
 """
-This module implements the flash data loader.
+This module implements the SXP data loader.
 This loader currently supports hextof, wespe and instruments with similar structure.
 The raw hdf5 data is combined and saved into buffer files and loaded as a dask dataframe.
 The dataframe is a amalgamation of all h5 files for a combination of runs, where the NaNs are
@@ -28,19 +28,19 @@ from pandas import Series
 
 from sed.core import dfops
 from sed.loader.base.loader import BaseLoader
-from sed.loader.flash.metadata import MetadataRetriever
-from sed.loader.flash.utils import split_dld_time_from_sector_id
+from sed.loader.sxp.metadata import MetadataRetriever
+from sed.loader.sxp.utils import split_dld_time_from_sector_id
 from sed.loader.utils import parse_h5_keys
 
 
-class FlashLoader(BaseLoader):
+class SXPLoader(BaseLoader):
     """
-    The class generates multiindexed multidimensional pandas dataframes from the new FLASH
+    The class generates multiindexed multidimensional pandas dataframes from the new SXP
     dataformat resolved by both macro and microbunches alongside electrons.
     Only the read_dataframe (inherited and implemented) method is accessed by other modules.
     """
 
-    __name__ = "flash"
+    __name__ = "sxp"
 
     supported_file_types = ["h5"]
 
@@ -359,10 +359,12 @@ class FlashLoader(BaseLoader):
             is set, and the NaN values are dropped, alongside the pulseId = 0 (meaningless).
 
         """
+        np_array = np_array.astype("float")
+        np_array[np_array == 0] = np.nan
         return (
             Series((np_array[i] for i in train_id.index), name=channel)
             .explode()
-            .dropna()
+            # .dropna()
             .to_frame()
             .set_index(self.index_per_electron)
             .drop(
@@ -874,4 +876,4 @@ class FlashLoader(BaseLoader):
         return df, df_timed, metadata
 
 
-LOADER = FlashLoader
+LOADER = SXPLoader
