@@ -177,7 +177,7 @@ class FlashLoader(BaseLoader):
         available_channels.remove("pulseId")
         return available_channels
 
-    def get_channels(self, formats: Union[str, List[str]] = [], index: bool = False) -> List[str]:
+    def get_channels(self, formats: Union[str, List[str]] = None, index: bool = False) -> List[str]:
         """
         Returns a list of channels associated with the specified format(s).
 
