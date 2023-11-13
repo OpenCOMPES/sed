@@ -139,6 +139,7 @@ class FlashLoader(BaseLoader):
         """
         # Define the stream name prefixes based on the data acquisition identifier
         stream_name_prefixes = self._config["dataframe"]["stream_name_prefixes"]
+        stream_name_postfixes = self._config["dataframe"].get("stream_name_postfixes", {})
 
         if folders is None:
             folders = self._config["core"]["base_folder"]
@@ -148,8 +149,9 @@ class FlashLoader(BaseLoader):
 
         daq = kwds.pop("daq", self._config.get("dataframe", {}).get("daq"))
 
+        stream_name_postfix = stream_name_postfixes.get(daq, "")
         # Generate the file patterns to search for in the directory
-        file_pattern = f"{stream_name_prefixes[daq]}_run{run_id}_*." + extension
+        file_pattern = f"{stream_name_prefixes[daq]}{run_id}{stream_name_postfix}*." + extension
 
         files: List[Path] = []
         # Use pathlib to search for matching files in each directory
@@ -233,7 +235,7 @@ class FlashLoader(BaseLoader):
         # microbunches as values
         macrobunches = (
             Series(
-                (np_array[i] for i in train_id.index),
+                (np.arange(len(np_array[i])) for i in train_id.index),
                 name="pulseId",
                 index=train_id,
             )
@@ -310,17 +312,20 @@ class FlashLoader(BaseLoader):
 
         """
         # Get the data from the necessary h5 file and channel
-        group = h5_file[self._config["dataframe"]["channels"][channel]["group_name"]]
+        dataset = h5_file[self._config["dataframe"]["channels"][channel]["dataset_key"]]
+        index = h5_file[self._config["dataframe"]["channels"][channel]["index_key"]]
 
         channel_dict = self._config["dataframe"]["channels"][channel]  # channel parameters
 
-        train_id = Series(group["index"], name="trainId")  # macrobunch
+        train_id = Series(index, name="trainId")  # macrobunch
 
         # unpacks the timeStamp or value
-        if channel == "timeStamp":
-            np_array = group["time"][()]
-        else:
-            np_array = group["value"][()]
+        np_array = dataset[()]
+        if len(np_array.shape) == 2 and self._config["dataframe"]["channels"][channel].get(
+            "cut",
+            0,
+        ):
+            np_array = np_array[:, : self._config["dataframe"]["channels"][channel]["cut"]]
 
         # Use predefined axis and slice from the json file
         # to choose correct dimension for necessary channel
@@ -550,12 +555,8 @@ class FlashLoader(BaseLoader):
 
         # Check for if the provided group_name actually exists in the file
         for channel in self._config["dataframe"]["channels"]:
-            if channel == "timeStamp":
-                group_name = self._config["dataframe"]["channels"][channel]["group_name"] + "time"
-            else:
-                group_name = self._config["dataframe"]["channels"][channel]["group_name"] + "value"
-
-            if group_name not in all_keys:
+            dataset_key = self._config["dataframe"]["channels"][channel]["dataset_key"]
+            if dataset_key not in all_keys:
                 raise ValueError(
                     f"The group_name for channel {channel} does not exist.",
                 )
@@ -675,6 +676,8 @@ class FlashLoader(BaseLoader):
             )
             if any(error):
                 raise RuntimeError(f"Conversion failed for some files. {error}")
+        # for h5_path, parquet_path in files_to_read:
+        #     self.create_buffer_file(h5_path, parquet_path)
 
         # Raise an error if the conversion failed for any files
         # TODO: merge this and the previous error trackings
