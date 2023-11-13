@@ -177,47 +177,46 @@ class FlashLoader(BaseLoader):
         available_channels.remove("pulseId")
         return available_channels
 
-    @property
-    def schema_from_config(self) -> set:
-        """Returns the set of all channels of the dataframe based on the config file
-
-        This is the complete list of channels which will be in the dataframe after creation.
+    def get_channels(self, formats: Union[str, List[str]] = [], index: bool = False) -> List[str]:
         """
-
-        schema = {"electronId", "trainId", "pulseId"}
-        if self._config["dataframe"]["split_sector_id_from_dld_time"]:
-            schema.add(self._config["dataframe"]["sector_id_column"])
-        for channel in self.available_channels:
-            if channel == "dldAux":
-                for key in self._config["dataframe"]["channels"][channel]["dldAuxChannels"].keys():
-                    schema.add(key)
-            else:
-                schema.add(channel)
-        return schema
-
-    def get_channels_by_format(self, formats: List[str]) -> List:
-        """
-        Returns a list of channels with the specified format.
+        Returns a list of channels associated with the specified format(s).
 
         Args:
-            formats (List[str]): The desired formats ('per_pulse', 'per_electron',
-                or 'per_train').
+            formats (Union[str, List[str]]): The desired format(s)
+                                ('per_pulse', 'per_electron', 'per_train', 'all').
+            index (bool): If True, includes channels from the multi_index.
 
         Returns:
-            List: A list of channels with the specified format(s).
+            List[str]: A list of channels with the specified format(s).
         """
+        # If 'formats' is a single string, convert it to a list for uniform processing.
+        if isinstance(formats, str):
+            formats = [formats]
+
+        # If 'formats' is a string "all", gather all possible formats.
+        if formats == ["all"]:
+            channels = self.get_channels(["per_pulse", "per_train", "per_electron"], index)
+            return channels
+
         channels = []
         for format_ in formats:
-            for key in self.available_channels:
-                channel_format = self._config["dataframe"]["channels"][key]["format"]
-                if channel_format == format_:
-                    if key == "dldAux":
-                        aux_channels = self._config["dataframe"]["channels"][key][
-                            "dldAuxChannels"
-                        ].keys()
-                        channels.extend(aux_channels)
-                    else:
-                        channels.append(key)
+            # Gather channels based on the specified format(s).
+            channels.extend(
+                key
+                for key in self.available_channels
+                if self._config["dataframe"]["channels"][key]["format"] == format_
+                and key != "dldAux"
+            )
+            # Include 'dldAuxChannels' if the format is 'per_pulse'.
+            if format_ == "per_pulse":
+                channels.extend(
+                    self._config["dataframe"]["channels"]["dldAux"]["dldAuxChannels"].keys(),
+                )
+
+        # Include channels from multi_index if 'index' is True.
+        if index:
+            channels.extend(self.multi_index)
+
         return channels
 
     def reset_multi_index(self) -> None:
@@ -677,7 +676,9 @@ class FlashLoader(BaseLoader):
         if not force_recreate:
             # Check if the available channels match the schema of the existing parquet files
             parquet_schemas = [pq.read_schema(file) for file in existing_parquet_filenames]
-            config_schema = self.schema_from_config
+            config_schema = set(self.get_channels(formats="all", index=True))
+            if self._config["dataframe"]["split_sector_id_from_dld_time"]:
+                config_schema.add(self._config["dataframe"]["sector_id_column"])
 
             for i, schema in enumerate(parquet_schemas):
                 schema_set = set(schema.names)
@@ -801,7 +802,7 @@ class FlashLoader(BaseLoader):
             dataframe = dd.read_parquet(filenames, calculate_divisions=True)
 
             # Channels to fill NaN values
-            channels: List[str] = self.get_channels_by_format(["per_pulse", "per_train"])
+            channels: List[str] = self.get_channels(["per_pulse", "per_train"])
 
             overlap = min(file.num_rows for file in metadata)
 
@@ -814,10 +815,10 @@ class FlashLoader(BaseLoader):
             )
             # Remove the NaNs from per_electron channels
             dataframe_electron = dataframe.dropna(
-                subset=self.get_channels_by_format(["per_electron"]),
+                subset=self.get_channels(["per_electron"]),
             )
             dataframe_pulse = dataframe[
-                self.multi_index + self.get_channels_by_format(["per_pulse", "per_train"])
+                self.multi_index + self.get_channels(["per_pulse", "per_train"])
             ]
             dataframe_pulse = dataframe_pulse[
                 (dataframe_pulse["electronId"] == 0) | (np.isnan(dataframe_pulse["electronId"]))
