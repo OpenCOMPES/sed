@@ -263,7 +263,7 @@ def test_offset_by_other_columns_functionality():
         df=t_df.copy(),
         target_column="target",
         offset_columns=["off1"],
-        signs=[1],
+        weights=[1],
     )
     expected = [11, 22, 33, 44, 55, 66]
     np.testing.assert_allclose(res["target"].values, expected)
@@ -272,7 +272,7 @@ def test_offset_by_other_columns_functionality():
         df=t_df.copy(),
         target_column="target",
         offset_columns=["off1", "off2"],
-        signs=[1, -1],
+        weights=[1, -1],
     )
     expected = [10.9, 21.8, 32.7, 43.6, 54.5, 65.4]
     np.testing.assert_allclose(res["target"].values, expected)
@@ -281,7 +281,7 @@ def test_offset_by_other_columns_functionality():
         df=t_df.copy(),
         target_column="target",
         offset_columns=["off3"],
-        signs=[1],
+        weights=[1],
         preserve_mean=True,
     )
     expected = [9.75, 19.85, 29.95, 40.05, 50.15, 60.25]
@@ -291,7 +291,7 @@ def test_offset_by_other_columns_functionality():
         df=t_df.copy(),
         target_column="target",
         offset_columns=["off3"],  # off3 has mean of 10
-        signs=[1],
+        weights=[1],
         reductions="mean",
     )
     expected = [20, 30, 40, 50, 60, 70]
@@ -315,7 +315,7 @@ def test_offset_by_other_columns_pandas_not_working():
             df=pd_df,
             target_column="target",
             offset_columns=["off1"],
-            signs=[1],
+            weights=[1],
         )
 
 

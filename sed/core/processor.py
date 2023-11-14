@@ -1270,7 +1270,7 @@ class SedProcessor:
         self,
         constant: float = None,
         columns: Union[str, Sequence[str]] = None,
-        signs: Union[int, Sequence[int]] = None,
+        weights: Union[float, Sequence[float]] = None,
         reductions: Union[str, Sequence[str]] = None,
         preserve_mean: Union[bool, Sequence[bool]] = None,
     ) -> None:
@@ -1279,7 +1279,7 @@ class SedProcessor:
         Args:
             constant (float, optional): The constant to shift the energy axis by.
             columns (Union[str, Sequence[str]]): Name of the column(s) to apply the shift from.
-            signs (Union[int, Sequence[int]]): Sign of the shift to apply. (+1 or -1) A positive
+            weights (Union[int, Sequence[int]]): Sign of the shift to apply. (+1 or -1) A positive
                 sign shifts the energy axis to higher kinetic energies. Defaults to +1.
             preserve_mean (bool): Whether to subtract the mean of the column before applying the
                 shift. Defaults to False.
@@ -1304,7 +1304,7 @@ class SedProcessor:
                 constant=constant,
                 columns=columns,
                 energy_column=energy_column,
-                signs=signs,
+                weights=weights,
                 reductions=reductions,
                 preserve_mean=preserve_mean,
             )
@@ -1315,7 +1315,7 @@ class SedProcessor:
                         constant=constant,
                         columns=columns,
                         energy_column=energy_column,
-                        signs=signs,
+                        weights=weights,
                         reductions=reductions,
                         preserve_mean=preserve_mean,
                     )
@@ -1517,7 +1517,7 @@ class SedProcessor:
         constant: float = None,
         flip_delay_axis: bool = None,
         columns: Union[str, Sequence[str]] = None,
-        signs: Union[int, Sequence[int]] = None,
+        weights: Union[float, Sequence[float]] = None,
         reductions: Union[str, Sequence[str]] = None,
         preserve_mean: Union[bool, Sequence[bool]] = None,
         inplace: bool = False,
@@ -1528,7 +1528,7 @@ class SedProcessor:
         Args:
             constant (float, optional): The constant to shift the delay axis by.
             columns (Union[str, Sequence[str]]): Name of the column(s) to apply the shift from.
-            signs (Union[int, Sequence[int]]): Sign of the shift to apply. (+1 or -1) A positive
+            weights (Union[float, Sequence[float]]): Weight of the shift to apply. A positive
                 sign shifts the delay axis to higher values. Defaults to +1.
             preserve_mean (bool): Whether to subtract the mean of the column before applying the
                 shift. Defaults to False.
@@ -1557,7 +1557,7 @@ class SedProcessor:
                 flip_delay_axis=flip_delay_axis,
                 columns=columns,
                 delay_column=delay_column,
-                weights=signs,
+                weights=weights,
                 reductions=reductions,
                 preserve_mean=preserve_mean,
                 inplace=inplace,
@@ -1571,7 +1571,7 @@ class SedProcessor:
                     flip_delay_axis=flip_delay_axis,
                     columns=columns,
                     delay_column=delay_column,
-                    weights=signs,
+                    weights=weights,
                     reductions=reductions,
                     preserve_mean=preserve_mean,
                     inplace=inplace,

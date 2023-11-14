@@ -271,7 +271,7 @@ class DelayCalibrator:
                 df=df,
                 target_column=delay_column,
                 offset_columns=columns,
-                signs=weights,
+                weights=weights,
                 preserve_mean=preserve_mean,
                 reductions=reductions,
             )

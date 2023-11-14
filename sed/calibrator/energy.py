@@ -1474,7 +1474,7 @@ class EnergyCalibrator:
         df: Union[pd.DataFrame, dask.dataframe.DataFrame] = None,
         constant: float = None,
         columns: Union[str, Sequence[str]] = None,
-        signs: Union[int, Sequence[int]] = None,
+        weights: Union[int, Sequence[int]] = None,
         preserve_mean: Union[bool, Sequence[bool]] = False,
         reductions: Union[str, Sequence[str]] = None,
         energy_column: str = None,
@@ -1491,8 +1491,8 @@ class EnergyCalibrator:
             df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to use.
             constant (float, optional): The constant to shift the energy axis by.
             columns (Union[str, Sequence[str]]): Name of the column(s) to apply the shift from.
-            signs (Union[int, Sequence[int]]): Sign of the shift to apply. (+1 or -1) A positive
-                sign shifts the energy axis to higher kinetic energies. Defaults to +1.
+            weights (Union[int, Sequence[int]]): weight of the shift to apply. (+1 or -1) A positive
+                weight shifts the energy axis to higher kinetic energies. Defaults to +1.
             preserve_mean (bool): Whether to subtract the mean of the column before applying the
                 shift. Defaults to False.
             reductions (str): The reduction to apply to the column. Should be an available method
@@ -1512,7 +1512,7 @@ class EnergyCalibrator:
         if columns is None and constant is None:
             # load from config
             columns = []
-            signs = []
+            weights = []
             preserve_mean = []
             reductions = []
             for k, v in self.offsets.items():
@@ -1521,9 +1521,9 @@ class EnergyCalibrator:
                 else:
                     columns.append(k)
                     try:
-                        signs.append(v["sign"])
+                        weights.append(v["weight"])
                     except KeyError as exc:
-                        raise KeyError(f"Missing sign for offset column {k} in config.") from exc
+                        raise KeyError(f"Missing weight for offset column {k} in config.") from exc
                     pm = v.get("preserve_mean", False)
                     if str(pm).lower() in ["false", "0", "no"]:
                         pm = False
@@ -1549,35 +1549,35 @@ class EnergyCalibrator:
         # apply offset
         if columns is not None:
             # use passed parameters
-            if isinstance(signs, int):
-                signs = [signs]
-            elif not isinstance(signs, Sequence):
-                raise TypeError(f"Invalid type for signs: {type(signs)}")
-            if not all(isinstance(s, int) for s in signs):
-                raise TypeError(f"Invalid type for signs: {type(signs)}")
-            # flip signs if binding energy scale
-            signs = [s * scale_sign for s in signs]
+            if isinstance(weights, int):
+                weights = [weights]
+            elif not isinstance(weights, Sequence):
+                raise TypeError(f"Invalid type for weights: {type(weights)}")
+            if not all(isinstance(s, int) for s in weights):
+                raise TypeError(f"Invalid type for weights: {type(weights)}")
+            # flip weights if binding energy scale
+            weights = [s * scale_sign for s in weights]
 
             df = dfops.offset_by_other_columns(
                 df=df,
                 target_column=energy_column,
                 offset_columns=columns,
-                signs=signs,
+                weights=weights,
                 preserve_mean=preserve_mean,
                 reductions=reductions,
                 inplace=True,
             )
             metadata["energy_column"] = energy_column
             metadata["columns"] = columns
-            metadata["signs"] = signs
+            metadata["weights"] = weights
             metadata["preserve_mean"] = preserve_mean
             metadata["reductions"] = reductions
 
             # overwrite the current offset dictionary with the parameters used
             if not isinstance(columns, Sequence):
                 columns = [columns]
-            if not isinstance(signs, Sequence):
-                signs = [signs]
+            if not isinstance(weights, Sequence):
+                weights = [weights]
             if isinstance(preserve_mean, bool):
                 preserve_mean = [preserve_mean] * len(columns)
             if not isinstance(reductions, Sequence):
@@ -1585,9 +1585,9 @@ class EnergyCalibrator:
             if len(reductions) == 1:
                 reductions = [reductions[0]] * len(columns)
 
-            for col, sign, pmean, red in zip(columns, signs, preserve_mean, reductions):
+            for col, weight, pmean, red in zip(columns, weights, preserve_mean, reductions):
                 self.offsets[col] = {
-                    "sign": sign,
+                    "weight": weight,
                     "preserve_mean": pmean,
                     "reduction": red,
                 }

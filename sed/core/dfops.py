@@ -269,7 +269,7 @@ def offset_by_other_columns(
     df: dask.dataframe.DataFrame,
     target_column: str,
     offset_columns: Union[str, Sequence[str]],
-    signs: Union[int, Sequence[int]],
+    weights: Union[float, Sequence[float]],
     reductions: Union[str, Sequence[str]] = None,
     preserve_mean: Union[bool, Sequence[bool]] = False,
     inplace: bool = True,
@@ -281,7 +281,7 @@ def offset_by_other_columns(
         df (dask.dataframe.DataFrame): Dataframe to use. Currently supports only dask dataframes.
         target_column (str): Name of the column to apply the offset to.
         offset_columns (str): Name of the column(s) to use for the offset.
-        signs (int): Sign of the offset.
+        weights (int): weights to apply on each column before adding. Used also for changing sign.
         reductions (str, optional): Reduction function to use for the offset. Defaults to "mean".
             Currently, only mean is supported.
         preserve_mean (bool, optional): Whether to subtract the mean of the offset column.
@@ -304,13 +304,13 @@ def offset_by_other_columns(
     if any(c not in df.columns for c in offset_columns):
         raise KeyError(f"{offset_columns} not in dataframe!")
 
-    if isinstance(signs, int):
-        signs = [signs]
-    elif not isinstance(signs, Sequence):
-        raise TypeError(f"Invalid type for signs: {type(signs)}")
-    if len(signs) != len(offset_columns):
+    if isinstance(weights, int):
+        weights = [weights]
+    elif not isinstance(weights, Sequence):
+        raise TypeError(f"Invalid type for signs: {type(weights)}")
+    if len(weights) != len(offset_columns):
         raise ValueError("signs and offset_columns must have the same length!")
-    signs_dict = dict(zip(offset_columns, signs))
+    signs_dict = dict(zip(offset_columns, weights))
 
     if isinstance(reductions, str) or reductions is None:
         reductions = [reductions] * len(offset_columns)
