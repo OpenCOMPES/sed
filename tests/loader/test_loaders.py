@@ -89,7 +89,7 @@ def test_has_correct_read_dataframe_func(loader: BaseLoader, read_type: str):
     assert callable(loader.read_dataframe)
 
     # Fix for race condition during parallel testing
-    if loader.__name__ == "flash" or loader.__name__ == "sxp":
+    if loader.__name__ in {"flash", "sxp"}:
         config = deepcopy(loader._config)  # pylint: disable=protected-access
         config["core"]["paths"]["data_parquet_dir"] = (
             config["core"]["paths"]["data_parquet_dir"] + f"_{read_type}"
@@ -161,7 +161,7 @@ def test_has_correct_read_dataframe_func(loader: BaseLoader, read_type: str):
             assert loaded_dataframe.npartitions == expected_size
             assert isinstance(loaded_metadata, dict)
 
-    if loader.__name__ == "flash" or loader.__name__ == "sxp":
+    if loader.__name__ in {"flash", "sxp"}:
         loader = cast(FlashLoader, loader)
         _, parquet_data_dir = loader.initialize_paths()
         for file in os.listdir(Path(parquet_data_dir, "buffer")):
@@ -200,7 +200,7 @@ def test_get_count_rate(loader: BaseLoader):
     """
 
     # Fix for race condition during parallel testing
-    if loader.__name__ == "flash" or loader.__name__ == "sxp":
+    if loader.__name__ in {"flash", "sxp"}:
         config = deepcopy(loader._config)  # pylint: disable=protected-access
         config["core"]["paths"]["data_parquet_dir"] = (
             config["core"]["paths"]["data_parquet_dir"] + "_count_rate"
@@ -218,7 +218,7 @@ def test_get_count_rate(loader: BaseLoader):
             )
             loaded_time, loaded_countrate = loader.get_count_rate()
             if loaded_time is None and loaded_countrate is None:
-                if loader.__name__ == "flash" or loader.__name__ == "sxp":
+                if loader.__name__ in {"flash", "sxp"}:
                     loader = cast(FlashLoader, loader)
                     _, parquet_data_dir = loader.initialize_paths()
                     for file in os.listdir(Path(parquet_data_dir, "buffer")):
@@ -229,7 +229,7 @@ def test_get_count_rate(loader: BaseLoader):
             assert len(loaded_time2) == len(loaded_countrate2)
             assert len(loaded_time2) < len(loaded_time)
 
-    if loader.__name__ == "flash" or loader.__name__ == "sxp":
+    if loader.__name__ in {"flash", "sxp"}:
         loader = cast(FlashLoader, loader)
         _, parquet_data_dir = loader.initialize_paths()
         for file in os.listdir(Path(parquet_data_dir, "buffer")):
@@ -245,7 +245,7 @@ def test_get_elapsed_time(loader: BaseLoader):
     """
 
     # Fix for race condition during parallel testing
-    if loader.__name__ == "flash" or loader.__name__ == "sxp":
+    if loader.__name__ in {"flash", "sxp"}:
         config = deepcopy(loader._config)  # pylint: disable=protected-access
         config["core"]["paths"]["data_parquet_dir"] = (
             config["core"]["paths"]["data_parquet_dir"] + "_elapsed_time"
@@ -263,7 +263,7 @@ def test_get_elapsed_time(loader: BaseLoader):
             )
             elapsed_time = loader.get_elapsed_time()
             if elapsed_time is None:
-                if loader.__name__ == "flash" or loader.__name__ == "sxp":
+                if loader.__name__ in {"flash", "sxp"}:
                     loader = cast(FlashLoader, loader)
                     _, parquet_data_dir = loader.initialize_paths()
                     for file in os.listdir(Path(parquet_data_dir, "buffer")):
@@ -274,7 +274,7 @@ def test_get_elapsed_time(loader: BaseLoader):
             assert elapsed_time2 > 0
             assert elapsed_time > elapsed_time2
 
-    if loader.__name__ == "flash" or loader.__name__ == "sxp":
+    if loader.__name__ in {"flash", "sxp"}:
         loader = cast(FlashLoader, loader)
         _, parquet_data_dir = loader.initialize_paths()
         for file in os.listdir(Path(parquet_data_dir, "buffer")):
