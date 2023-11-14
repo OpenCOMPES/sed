@@ -332,10 +332,10 @@ class SXPLoader(BaseLoader):
         # unpacks the data into np.ndarray
         np_array = dataset[()]
         if len(np_array.shape) == 2 and self._config["dataframe"]["channels"][channel].get(
-            "maxhits",
+            "max_hits",
             0,
         ):
-            np_array = np_array[:, : self._config["dataframe"]["channels"][channel]["maxhits"]]
+            np_array = np_array[:, : self._config["dataframe"]["channels"][channel]["max_hits"]]
 
         # Use predefined axis and slice from the json file
         # to choose correct dimension for necessary channel
