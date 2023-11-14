@@ -189,6 +189,7 @@ class DelayCalibrator:
         self,
         df: dask.dataframe.DataFrame,
         constant: float = None,
+        flip_delay_axis: bool = None,
         columns: Union[str, Sequence[str]] = None,
         weights: Union[int, Sequence[int]] = None,
         preserve_mean: Union[bool, Sequence[bool]] = False,
@@ -202,6 +203,7 @@ class DelayCalibrator:
         Args:
             df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to use.
             constant (float, optional): The constant to shift the delay axis by.
+            flip_delay_axis (bool, optional): Whether to flip the time axis. Defaults to False.
             columns (Union[str, Sequence[str]]): Name of the column(s) to apply the shift from.
             weights (Union[int, Sequence[int]]): weights to apply to the columns.
                 Can also be used to flip the sign (e.g. -1). Defaults to 1.
@@ -231,8 +233,12 @@ class DelayCalibrator:
             for k, v in self.offsets.items():
                 if k == "constant":
                     constant = v
-                elif k == "flip_time_axis":
-                    pass  # not handled in this function. see flip_time_axis
+                elif k == "flip_delay_axis":
+                    flip_delay_axis = str(v)
+                    if flip_delay_axis.lower() in ["true", "1"]:
+                        flip_delay_axis = True
+                    else:
+                        flip_delay_axis = False
                 else:
                     columns.append(k)
                     try:
@@ -302,24 +308,10 @@ class DelayCalibrator:
         elif constant is not None:
             raise TypeError(f"Invalid type for constant: {type(constant)}")
         # flip the time direction
-
-        return df, metadata
-
-    def flip_delay_axis(
-        self,
-        df: dask.dataframe.DataFrame,
-        delay_column: str = None,
-    ) -> Tuple[dask.dataframe.DataFrame, dict]:
-        """flip the direction of the delay axis"""
-        if delay_column is None:
-            delay_column = self.delay_column
-
-        self.offsets["flip_time_axis"] = True
-        df[delay_column] = -df[delay_column]
-        metadata: Dict[str, Any] = {
-            "delay_column": delay_column,
-            "applied": True,
-        }
+        if flip_delay_axis:
+            df[delay_column] = -df[delay_column]
+            metadata["flip_delay_axis"] = True
+            self.offsets["flip_delay_axis"] = True
         return df, metadata
 
 

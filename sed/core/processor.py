@@ -1291,6 +1291,7 @@ class SedProcessor:
         Raises:
             ValueError: If the energy column is not in the dataframe.
         """
+        print("Adding energy offset to dataframe:")
         energy_column = self._config["dataframe"]["energy_column"]
         if self.dataframe is not None:
             if energy_column not in self._dataframe.columns:
@@ -1415,7 +1416,7 @@ class SedProcessor:
     def calibrate_delay_axis(
         self,
         time0: float = None,
-        flip_time_axis: bool = False,
+        flip_delay_axis: bool = False,
         delay_range: Tuple[float, float] = None,
         datafile: str = None,
         preview: bool = False,
@@ -1426,7 +1427,7 @@ class SedProcessor:
 
         Args:
             time0 (float, optional): The pump-probe time overlap in picoseconds.
-            flip_time_axis (bool, optional): Whether to flip the time axis direction.
+            flip_delay_axis (bool, optional): Whether to flip the time axis direction.
             delay_range (Tuple[float, float], optional): The scanned delay range in
                 picoseconds. Defaults to None.
             datafile (str, optional): The file from which to read the delay ranges.
@@ -1464,7 +1465,7 @@ class SedProcessor:
                 self._dataframe, metadata = self.dc.append_delay_axis(
                     self._dataframe,
                     time0=time0,
-                    flip_time_axis=flip_time_axis,
+                    flip_delay_axis=flip_delay_axis,
                     datafile=datafile,
                     **kwds,
                 )
@@ -1514,7 +1515,7 @@ class SedProcessor:
     def add_delay_offset(
         self,
         constant: float = None,
-        flip_time_axis: bool = None,
+        flip_delay_axis: bool = None,
         columns: Union[str, Sequence[str]] = None,
         signs: Union[int, Sequence[int]] = None,
         reductions: Union[str, Sequence[str]] = None,
@@ -1541,20 +1542,19 @@ class SedProcessor:
         Returns:
             None
         """
+        print("Adding delay offset to dataframe:")
         delay_column = self._config["dataframe"]["delay_column"]
         if delay_column not in self._dataframe.columns:
             raise ValueError(
                 f"Energy column {delay_column} not found in dataframe! "
                 "Run `append energy axis` first.",
             )
-        meta_flip = None
-        if flip_time_axis is None:
-            flip_time_axis = self._config.get("delay", {}).get("flip_time_axis", False)
 
         if self.dataframe is not None:
             df, metadata = self.dc.add_offsets(
                 df=self._dataframe,
                 constant=constant,
+                flip_delay_axis=flip_delay_axis,
                 columns=columns,
                 delay_column=delay_column,
                 weights=signs,
@@ -1563,13 +1563,12 @@ class SedProcessor:
                 inplace=inplace,
                 rename=rename,
             )
-            if flip_time_axis:
-                df, meta_flip = self.dc.flip_delay_axis(self.dataframe)
         if self._timed_dataframe is not None:
             if delay_column in self._timed_dataframe.columns:
                 tdf, _ = self.dc.add_offsets(
                     df=self._timed_dataframe,
                     constant=constant,
+                    flip_delay_axis=flip_delay_axis,
                     columns=columns,
                     delay_column=delay_column,
                     weights=signs,
@@ -1578,20 +1577,11 @@ class SedProcessor:
                     inplace=inplace,
                     rename=rename,
                 )
-                if flip_time_axis:
-                    tdf, _ = self.dc.flip_delay_axis(self._timed_dataframe)
-
             self._attributes.add(
                 metadata,
                 "add_delay_offset",
                 duplicate_policy="append",
             )
-            if meta_flip is not None:
-                self._attributes.add(
-                    meta_flip,
-                    "flip_delay_axis",
-                    duplicate_policy="append",
-                )
             self._dataframe = df
             if self._timed_dataframe is not None:
                 self._timed_dataframe = tdf
@@ -1620,6 +1610,7 @@ class SedProcessor:
             },
         }
         save_config(config, filename, overwrite)
+        print(f'Saved delay offset parameters to "{filename}".')
 
     def save_workflow_params(
         self,
@@ -1646,36 +1637,6 @@ class SedProcessor:
                 method(filename, overwrite)
             except (ValueError, AttributeError, KeyError):
                 pass
-
-    def flip_delay_axis(
-        self,
-        delay_column: str = None,
-    ) -> None:
-        """Flip the delay axis of the dataframe.
-
-        Args:
-            delay_column (str): Name of the column containing the delay values.
-
-        Raises:
-            ValueError: If the delay column is not in the dataframe.
-        """
-        if delay_column is None:
-            delay_column = self._config["dataframe"]["delay_column"]
-        if delay_column not in self._dataframe.columns:
-            raise ValueError(
-                f"Delay column {delay_column} not found in dataframe! "
-                "Run `append delay axis` first.",
-            )
-        if self.dataframe is not None:
-            self._dataframe, metadata = self.dc.flip_delay_axis(
-                df=self._dataframe,
-                delay_column=delay_column,
-            )
-            self._attributes.add(
-                metadata,
-                "flip_delay_axis",
-                duplicate_policy="append",
-            )
 
     def add_jitter(
         self,
