@@ -226,16 +226,26 @@ class SXPLoader(BaseLoader):
         """
 
         # Macrobunch IDs obtained from the pulseId channel
-        [train_id, np_array] = self.create_numpy_array_per_channel(
+        train_id, np_array = self.create_numpy_array_per_channel(
             h5_file,
             "pulseId",
         )
+        # change trailing zeros to nan
+        nhits = (
+            np_array.shape[1]
+            - np.argmax((np.diff(np_array.astype(np.int32)) < 0)[:, ::-1], axis=1)
+            - 1
+        )
+        nhits[nhits == np_array.shape[1] - 1] = 0
+        np_array = np_array.astype("float")
+        for i in range(np_array.shape[0]):
+            np_array[i, nhits[i] :] = np.nan
 
         # Create a series with the macrobunches as index and
         # microbunches as values
         macrobunches = (
             Series(
-                (np.arange(len(np_array[i])) for i in train_id.index),
+                (np_array[i] for i in train_id.index),
                 name="pulseId",
                 index=train_id,
             )
@@ -319,13 +329,13 @@ class SXPLoader(BaseLoader):
 
         train_id = Series(index, name="trainId")  # macrobunch
 
-        # unpacks the timeStamp or value
+        # unpacks the data into np.ndarray
         np_array = dataset[()]
         if len(np_array.shape) == 2 and self._config["dataframe"]["channels"][channel].get(
-            "cut",
+            "maxhits",
             0,
         ):
-            np_array = np_array[:, : self._config["dataframe"]["channels"][channel]["cut"]]
+            np_array = np_array[:, : self._config["dataframe"]["channels"][channel]["maxhits"]]
 
         # Use predefined axis and slice from the json file
         # to choose correct dimension for necessary channel
@@ -359,12 +369,19 @@ class SXPLoader(BaseLoader):
             is set, and the NaN values are dropped, alongside the pulseId = 0 (meaningless).
 
         """
+        nhits = (
+            np_array.shape[1]
+            - np.argmax((np.diff(np_array.astype(np.int32)) != 0)[:, ::-1], axis=1)
+            - 1
+        )
+        nhits[nhits == np_array.shape[1] - 1] = 0
         np_array = np_array.astype("float")
-        np_array[np_array == 0] = np.nan
+        for i in range(np_array.shape[0]):
+            np_array[i, nhits[i] :] = np.nan
         return (
             Series((np_array[i] for i in train_id.index), name=channel)
             .explode()
-            # .dropna()
+            .dropna()
             .to_frame()
             .set_index(self.index_per_electron)
             .drop(
