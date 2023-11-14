@@ -191,7 +191,7 @@ class DelayCalibrator:
         constant: float = None,
         flip_delay_axis: bool = None,
         columns: Union[str, Sequence[str]] = None,
-        weights: Union[int, Sequence[int]] = None,
+        weights: Union[float, Sequence[float]] = None,
         preserve_mean: Union[bool, Sequence[bool]] = False,
         reductions: Union[str, Sequence[str]] = None,
         delay_column: str = None,
@@ -226,6 +226,7 @@ class DelayCalibrator:
 
         if columns is None and constant is None:
             # load from config
+            # pylint: disable=duplicate-code
             columns = []
             weights = []
             preserve_mean = []
@@ -234,11 +235,15 @@ class DelayCalibrator:
                 if k == "constant":
                     constant = v
                 elif k == "flip_delay_axis":
-                    flip_delay_axis = str(v)
-                    if flip_delay_axis.lower() in ["true", "1"]:
+                    fda = str(v)
+                    if fda.lower() in ["true", "1"]:
                         flip_delay_axis = True
-                    else:
+                    elif fda.lower() in ["false", "0"]:
                         flip_delay_axis = False
+                    else:
+                        raise ValueError(
+                            f"Invalid value for flip_delay_axis in config: {flip_delay_axis}.",
+                        )
                 else:
                     columns.append(k)
                     try:
@@ -277,7 +282,7 @@ class DelayCalibrator:
             metadata["weights"] = weights
             metadata["preserve_mean"] = preserve_mean
             metadata["reductions"] = reductions
-
+            # pylint: disable=duplicate-code
             if not isinstance(columns, Sequence):
                 columns = [columns]
             if not isinstance(weights, Sequence):

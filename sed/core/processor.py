@@ -1345,9 +1345,9 @@ class SedProcessor:
         """
         if filename is None:
             filename = "sed_config.yaml"
-        if len(self.ec.offset) == 0:
+        if len(self.ec.offsets) == 0:
             raise ValueError("No energy offset parameters to save!")
-        config = {"energy": {"offset": self.ec.offset}}
+        config = {"energy": {"offset": self.ec.offsets}}
         save_config(config, filename, overwrite)
         print(f'Saved energy offset parameters to "{filename}".')
 
