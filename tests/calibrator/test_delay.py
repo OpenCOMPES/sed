@@ -127,15 +127,15 @@ cfg = {
     "delay": {
         "offsets": {
             "constant": 1,
+            "flip_delay_axis": True,
             "bam": {
                 "weight": 0.001,
                 "preserve_mean": False,
             },
-            "flip_time_axis": True,
         },
     },
 }
-df = dask.dataframe.from_pandas(
+test_dataframe = dask.dataframe.from_pandas(
     pd.DataFrame(
         {
             "bam": bam_vals.copy(),
@@ -146,7 +146,7 @@ df = dask.dataframe.from_pandas(
 )
 
 
-def test_add_offset_from_config(df=df) -> None:
+def test_add_offset_from_config(df=test_dataframe) -> None:
     """test that the timing offset is corrected for correctly from config"""
     config = parse_config(
         config=cfg,
@@ -155,10 +155,10 @@ def test_add_offset_from_config(df=df) -> None:
         system_config={},
     )
 
-    expected = (
+    expected = -np.asarray(
         delay_stage_vals
         + bam_vals * cfg["delay"]["offsets"]["bam"]["weight"]
-        + cfg["delay"]["offsets"]["constant"]
+        + cfg["delay"]["offsets"]["constant"],
     )
 
     dc = DelayCalibrator(config=config)
@@ -168,7 +168,7 @@ def test_add_offset_from_config(df=df) -> None:
     np.testing.assert_allclose(expected, df["delay"])
 
 
-def test_add_offset_from_args(df=df) -> None:
+def test_add_offset_from_args(df=test_dataframe) -> None:
     """test that the timing offset applied with arguments works"""
     cfg_ = cfg.copy()
     cfg_.pop("delay")
@@ -179,29 +179,18 @@ def test_add_offset_from_args(df=df) -> None:
         system_config={},
     )
     dc = DelayCalibrator(config=config)
-    df, _ = dc.add_offsets(df.copy(), columns="bam", weights=0.001, constant=1)
+    df, _ = dc.add_offsets(
+        df.copy(),
+        constant=1,
+        flip_delay_axis=True,
+        columns="bam",
+        weights=0.001,
+    )
     assert "delay" in df.columns
     assert "bam" in dc.offsets.keys()
-    expected = (
+    expected = -np.array(
         delay_stage_vals
         + bam_vals * cfg["delay"]["offsets"]["bam"]["weight"]
-        + cfg["delay"]["offsets"]["constant"]
+        + cfg["delay"]["offsets"]["constant"],
     )
     np.testing.assert_allclose(expected, df["delay"])
-
-
-def test_flip_delay_axis(df=df) -> None:
-    """test that the timing offset applied with arguments works"""
-    cfg_ = cfg.copy()
-    cfg_.pop("delay")
-    cfg_["delay"] = {"flip_delay_axis": True}
-    config = parse_config(
-        config=cfg,
-        folder_config={},
-        user_config={},
-        system_config={},
-    )
-    dc = DelayCalibrator(config=config)
-    df, _ = dc.flip_delay_axis(df.copy())
-    assert "delay" in df.columns
-    np.testing.assert_allclose(df["delay"], -delay_stage_vals)
