@@ -340,7 +340,7 @@ def test_offset_by_other_columns_rises():
         df=t_df.copy(),
         target_column="nonexistent_column",
         offset_columns=["off1"],
-        signs=[1],
+        weights=[1],
     )
     pytest.raises(
         KeyError,
@@ -348,7 +348,7 @@ def test_offset_by_other_columns_rises():
         df=t_df.copy(),
         target_column="target",
         offset_columns=["off1", "nonexistent_column"],
-        signs=[1, 1],
+        weights=[1, 1],
     )
     pytest.raises(
         NotImplementedError,
@@ -356,7 +356,7 @@ def test_offset_by_other_columns_rises():
         df=t_df.copy(),
         target_column="target",
         offset_columns=["off1"],
-        signs=[1],
+        weights=[1],
         reductions="not_mean",
     )
     pytest.raises(
@@ -365,7 +365,7 @@ def test_offset_by_other_columns_rises():
         df=t_df.copy(),
         target_column="target",
         offset_columns=["off1"],
-        signs=[1, 1],
+        weights=[1, 1],
     )
     pytest.raises(
         TypeError,
@@ -373,6 +373,6 @@ def test_offset_by_other_columns_rises():
         df=t_df.copy(),
         target_column="target",
         offset_columns=["off1"],
-        signs=[1],
+        weights=[1],
         preserve_mean="asd",
     )

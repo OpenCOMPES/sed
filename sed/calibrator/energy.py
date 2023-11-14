@@ -1474,7 +1474,7 @@ class EnergyCalibrator:
         df: Union[pd.DataFrame, dask.dataframe.DataFrame] = None,
         constant: float = None,
         columns: Union[str, Sequence[str]] = None,
-        weights: Union[int, Sequence[int]] = None,
+        weights: Union[float, Sequence[float]] = None,
         preserve_mean: Union[bool, Sequence[bool]] = False,
         reductions: Union[str, Sequence[str]] = None,
         energy_column: str = None,
