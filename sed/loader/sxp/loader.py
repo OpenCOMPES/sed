@@ -1,11 +1,13 @@
+# pylint: disable=duplicate-code
 """
 This module implements the SXP data loader.
-This loader currently supports hextof, wespe and instruments with similar structure.
+This loader currently supports the SXP momentum microscope instrument.
 The raw hdf5 data is combined and saved into buffer files and loaded as a dask dataframe.
 The dataframe is a amalgamation of all h5 files for a combination of runs, where the NaNs are
 automatically forward filled across different files.
 This can then be saved as a parquet for out-of-sed processing and reread back to access other
 sed funtionality.
+Most of the structure is identical to the FLASH loader.
 """
 import time
 from functools import reduce
@@ -29,8 +31,8 @@ from pandas import Series
 from sed.core import dfops
 from sed.loader.base.loader import BaseLoader
 from sed.loader.sxp.metadata import MetadataRetriever
-from sed.loader.sxp.utils import split_dld_time_from_sector_id
 from sed.loader.utils import parse_h5_keys
+from sed.loader.utils import split_dld_time_from_sector_id
 
 
 class SXPLoader(BaseLoader):

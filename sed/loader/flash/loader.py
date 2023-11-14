@@ -29,8 +29,8 @@ from pandas import Series
 from sed.core import dfops
 from sed.loader.base.loader import BaseLoader
 from sed.loader.flash.metadata import MetadataRetriever
-from sed.loader.flash.utils import split_dld_time_from_sector_id
 from sed.loader.utils import parse_h5_keys
+from sed.loader.utils import split_dld_time_from_sector_id
 
 
 class FlashLoader(BaseLoader):

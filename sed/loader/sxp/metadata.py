@@ -1,3 +1,4 @@
+# pylint: disable=duplicate-code
 """
 The module provides a MetadataRetriever class for retrieving metadata
 from a Scicatinstance based on beamtime and run IDs.
