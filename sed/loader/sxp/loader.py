@@ -53,6 +53,7 @@ class SXPLoader(BaseLoader):
         self.index_per_electron: MultiIndex = None
         self.index_per_pulse: MultiIndex = None
         self.failed_files_error: List[str] = []
+        self.nhits: np.ndarray = None
 
     def initialize_paths(self) -> Tuple[List[Path], Path]:
         """
@@ -211,6 +212,7 @@ class SXPLoader(BaseLoader):
         """Resets the index per pulse and electron"""
         self.index_per_electron = None
         self.index_per_pulse = None
+        self.nhits = None
 
     def create_multi_index_per_electron(self, h5_file: h5py.File) -> None:
         """
@@ -239,6 +241,7 @@ class SXPLoader(BaseLoader):
             - 1
         )
         nhits[nhits == np_array.shape[1] - 1] = 0
+        self.nhits = nhits
         np_array = np_array.astype("float")
         for i in range(np_array.shape[0]):
             np_array[i, nhits[i] :] = np.nan
@@ -371,15 +374,11 @@ class SXPLoader(BaseLoader):
             is set, and the NaN values are dropped, alongside the pulseId = 0 (meaningless).
 
         """
-        nhits = (
-            np_array.shape[1]
-            - np.argmax((np.diff(np_array.astype(np.int32)) != 0)[:, ::-1], axis=1)
-            - 1
-        )
-        nhits[nhits == np_array.shape[1] - 1] = 0
+        if self.nhits is None or self.nhits.shape[0] != np_array.shape[0]:
+            raise RuntimeError("nhits not set correctly, internal inconstency detected.")
         np_array = np_array.astype("float")
         for i in range(np_array.shape[0]):
-            np_array[i, nhits[i] :] = np.nan
+            np_array[i, self.nhits[i] :] = np.nan
         return (
             Series((np_array[i] for i in train_id.index), name=channel)
             .explode()
