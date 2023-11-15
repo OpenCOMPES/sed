@@ -26,9 +26,10 @@ jobs:
         run: poetry build
 
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
-          path: 'dist'
+          name: builds
+          path: dist/
 
   pypi-publish:
     name: Upload release to PyPI
@@ -43,7 +44,7 @@ jobs:
       - name: Download a single artifact
         uses: actions/download-artifact@v3
         with:
-          name: test-pypi
+          name: builds
     # retrieve your distributions here
 
       - name: Publish package distributions to PyPI Test
