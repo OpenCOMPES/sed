@@ -2,7 +2,7 @@
 name = "sed"
 version = "0.1.0"
 description = "Single Event Data Frame Processor: Backend to handle photoelectron resolved datastreams"
-authors = ["Muhammad Zain Sohail <zainsohail04@gmail.com>"]
+authors = ["OpenCOMPES team <zainsohail04@gmail.com>"]
 
 [tool.poetry.dependencies]
 python = ">=3.8,<3.11"
