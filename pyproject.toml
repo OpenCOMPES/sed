@@ -3,6 +3,8 @@ name = "sed"
 version = "0.1.0"
 description = "Single Event Data Frame Processor: Backend to handle photoelectron resolved datastreams"
 authors = ["OpenCOMPES team <zainsohail04@gmail.com>"]
+readme = "README.md"
+homepage = "https://github.com/OpenCOMPES/sed"
 
 [tool.poetry.dependencies]
 python = ">=3.8,<3.11"
