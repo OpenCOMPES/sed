@@ -28,7 +28,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v2
         with:
-          path: '_build'
+          path: 'dist'
 
   pypi-publish:
     name: Upload release to PyPI
@@ -43,7 +43,7 @@ jobs:
       - name: Download a single artifact
         uses: actions/download-artifact@v3
         with:
-          name: _build
+          name: test-pypi
     # retrieve your distributions here
 
       - name: Publish package distributions to PyPI Test
