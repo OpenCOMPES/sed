@@ -52,3 +52,4 @@ jobs:
         with:
           repository-url: https://test.pypi.org/legacy/
           password: ${{ secrets.PYPI_TEST }}
+          packages-dir: $GITHUB_WORKSPACE/dist
