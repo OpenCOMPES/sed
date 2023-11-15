@@ -44,7 +44,7 @@ jobs:
       - name: Download a single artifact
         uses: actions/download-artifact@v3
         with:
-          name: builds
+          name: dist
     # retrieve your distributions here
 
       - name: Publish package distributions to PyPI Test
