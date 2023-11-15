@@ -45,6 +45,9 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: dist
+      - name: Display structure of downloaded files
+        run: ls -R
+
     # retrieve your distributions here
 
       - name: Publish package distributions to PyPI Test
