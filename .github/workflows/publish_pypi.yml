@@ -28,7 +28,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
-          name: builds
+          name: dist
           path: dist
 
   pypi-publish:
@@ -52,4 +52,3 @@ jobs:
         with:
           repository-url: https://test.pypi.org/legacy/
           password: ${{ secrets.PYPI_TEST }}
-          packages-dir: $GITHUB_WORKSPACE/dist
