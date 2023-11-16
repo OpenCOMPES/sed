@@ -4,6 +4,7 @@ from copy import deepcopy
 from typing import Any
 from typing import Dict
 from typing import List
+from typing import Sequence
 from typing import Tuple
 from typing import Union
 
@@ -11,6 +12,8 @@ import dask.dataframe
 import h5py
 import numpy as np
 import pandas as pd
+
+from sed.core import dfops
 
 
 class DelayCalibrator:
@@ -25,20 +28,25 @@ class DelayCalibrator:
     def __init__(
         self,
         config: dict = None,
-    ):
+    ) -> None:
         """Initialization of the DelayCalibrator class passes the config.
 
         Args:
             config (dict, optional): Config dictionary. Defaults to None.
         """
-        if config is None:
-            config = {}
+        if config is not None:
+            self._config = config
+        else:
+            self._config = {}
 
-        self._config = config
-
-        self.adc_column = self._config["dataframe"]["adc_column"]
-        self.delay_column = self._config["dataframe"]["delay_column"]
-        self.calibration: Dict[Any, Any] = {}
+        self.adc_column: str = self._config["dataframe"].get("adc_column", None)
+        self.delay_column: str = self._config["dataframe"]["delay_column"]
+        self.corrected_delay_column = self._config["dataframe"].get(
+            "corrected_delay_column",
+            self.delay_column,
+        )
+        self.calibration: Dict[str, Any] = self._config["delay"].get("calibration", {})
+        self.offsets: Dict[str, Any] = self._config["delay"].get("offsets", {})
 
     def append_delay_axis(
         self,
@@ -54,6 +62,7 @@ class DelayCalibrator:
         p1_key: str = None,
         p2_key: str = None,
         t0_key: str = None,
+        **kwargs,
     ) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
         """Calculate and append the delay axis to the events dataframe, by converting
         values from an analog-digital-converter (ADC).
@@ -93,6 +102,8 @@ class DelayCalibrator:
             Union[pd.DataFrame, dask.dataframe.DataFrame]: dataframe with added column
             and delay calibration metdata dictionary.
         """
+        if len(kwargs) > 0:
+            print(f"WARNING: arguments {kwargs.keys()} are not used in mpes delay calibration.")
         # pylint: disable=duplicate-code
         if calibration is None:
             if self.calibration:
@@ -172,6 +183,136 @@ class DelayCalibrator:
 
         metadata = {"calibration": calibration}
 
+        return df, metadata
+
+    def add_offsets(
+        self,
+        df: dask.dataframe.DataFrame,
+        constant: float = None,
+        flip_delay_axis: bool = None,
+        columns: Union[str, Sequence[str]] = None,
+        weights: Union[float, Sequence[float]] = None,
+        preserve_mean: Union[bool, Sequence[bool]] = False,
+        reductions: Union[str, Sequence[str]] = None,
+        delay_column: str = None,
+    ) -> Tuple[dask.dataframe.DataFrame, dict]:
+        """Apply an offset to the delay column based on a constant or other columns.
+
+        Args:
+            df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to use.
+            constant (float, optional): The constant to shift the delay axis by.
+            flip_delay_axis (bool, optional): Whether to flip the time axis. Defaults to False.
+            columns (Union[str, Sequence[str]]): Name of the column(s) to apply the shift from.
+            weights (Union[int, Sequence[int]]): weights to apply to the columns.
+                Can also be used to flip the sign (e.g. -1). Defaults to 1.
+            preserve_mean (bool): Whether to subtract the mean of the column before applying the
+                shift. Defaults to False.
+            reductions (str): The reduction to apply to the column. Should be an available method
+                of dask.dataframe.Series. For example "mean". In this case the function is applied
+                to the column to generate a single value for the whole dataset. If None, the shift
+                is applied per-dataframe-row. Defaults to None. Currently only "mean" is supported.
+
+        Returns:
+            dask.dataframe.DataFrame: Dataframe with the shifted delay axis.
+            dict: Metadata dictionary.
+        """
+        if delay_column is None:
+            delay_column = self.delay_column
+        metadata: Dict[str, Any] = {
+            "applied": True,
+        }
+
+        if columns is None and constant is None:
+            # load from config
+            # pylint: disable=duplicate-code
+            columns = []
+            weights = []
+            preserve_mean = []
+            reductions = []
+            for k, v in self.offsets.items():
+                if k == "constant":
+                    constant = v
+                elif k == "flip_delay_axis":
+                    fda = str(v)
+                    if fda.lower() in ["true", "1"]:
+                        flip_delay_axis = True
+                    elif fda.lower() in ["false", "0"]:
+                        flip_delay_axis = False
+                    else:
+                        raise ValueError(
+                            f"Invalid value for flip_delay_axis in config: {flip_delay_axis}.",
+                        )
+                else:
+                    columns.append(k)
+                    try:
+                        weights.append(v["weight"])
+                    except KeyError as exc:
+                        raise KeyError(f"Missing weight for offset column {k} in config.") from exc
+                    preserve_mean.append(v.get("preserve_mean", False))
+                    reductions.append(v.get("reduction", None))
+
+        # apply offset
+        if columns is not None:
+            # use passed parameters
+            if isinstance(weights, (int, float, np.integer, np.floating)):
+                weights = [weights]
+            elif not isinstance(weights, Sequence):
+                raise TypeError(
+                    f"Invalid type for weights: {type(weights)}. Must be a number or sequence",
+                )
+            if not all(isinstance(s, (int, float, np.integer, np.floating)) for s in weights):
+                raise TypeError(
+                    f"Invalid type for weights: {type(weights)}. Must be a number or sequence",
+                )
+
+            df = dfops.offset_by_other_columns(
+                df=df,
+                target_column=delay_column,
+                offset_columns=columns,
+                weights=weights,
+                preserve_mean=preserve_mean,
+                reductions=reductions,
+            )
+            metadata["delay_column"] = delay_column
+            metadata["columns"] = columns
+            metadata["weights"] = weights
+            metadata["preserve_mean"] = preserve_mean
+            metadata["reductions"] = reductions
+            # pylint: disable=duplicate-code
+            if not isinstance(columns, Sequence):
+                columns = [columns]
+            if not isinstance(weights, Sequence):
+                weights = [weights]
+            if isinstance(preserve_mean, bool):
+                preserve_mean = [preserve_mean] * len(columns)
+            if not isinstance(reductions, Sequence):
+                reductions = [reductions]
+            if len(reductions) == 1:
+                reductions = [reductions[0]] * len(columns)
+
+            for col, weight, pmean, red in zip(columns, weights, preserve_mean, reductions):
+                self.offsets[col] = {
+                    "weight": weight,
+                    "preserve_mean": pmean,
+                    "reduction": red,
+                }
+
+        # apply constant
+        if isinstance(constant, (int, float, np.integer, np.floating)):
+            df[delay_column] = df.map_partitions(
+                # flip sign if binding energy scale
+                lambda x: x[delay_column] + constant,
+                meta=(delay_column, np.float64),
+            )
+            metadata["constant"] = constant
+            self.offsets["constant"] = constant
+        elif constant is not None:
+            raise TypeError(f"Invalid type for constant: {type(constant)}")
+        # flip the time direction
+        if flip_delay_axis:
+            df[delay_column] = -df[delay_column]
+            metadata["flip_delay_axis"] = True
+            self.offsets["flip_delay_axis"] = True
         return df, metadata
 
 
