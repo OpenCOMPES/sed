@@ -142,6 +142,7 @@ jobs:
           default_author: github_actions
           message: 'bump version to ${{ needs.publish.outputs.version  }}'
           add: pyproject.toml
+          cwd: sed-processor
           new_branch: publish-pypi
           # By default, a workflow run that is triggered by a push event will
           # not trigger another push event when it pushes changes to the repository.
