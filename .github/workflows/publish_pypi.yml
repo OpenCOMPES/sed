@@ -22,6 +22,12 @@ jobs:
           python-version: 3.8
           poetry-version: 1.2.2
 
+      - name: Change to distribution name in toml file
+        run: sed -i '' 's/name = "sed"/name = "sed-processor"/' pyproject.toml
+
+      - name: change the distribution name by changing main file name
+        run: mv ../sed ../sed-processor
+
       - name: Build package
         run: poetry build
 
@@ -40,15 +46,16 @@ jobs:
         url: https://test.pypi.org/p/sed-processor
     permissions:
         id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing
+
     steps:
+        # retrieving distributions here
       - name: Download a single artifact
         uses: actions/download-artifact@v3
         with:
           name: dist
+
       - name: Display structure of downloaded files
         run: ls -R
-
-    # retrieve your distributions here
 
       - name: Publish package distributions to PyPI Test
         uses: pypa/gh-action-pypi-publish@release/v1
