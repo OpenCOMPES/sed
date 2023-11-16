@@ -195,8 +195,6 @@ class DelayCalibrator:
         preserve_mean: Union[bool, Sequence[bool]] = False,
         reductions: Union[str, Sequence[str]] = None,
         delay_column: str = None,
-        inplace: bool = True,
-        rename: str = None,
     ) -> Tuple[dask.dataframe.DataFrame, dict]:
         """Apply an offset to the delay column based on a constant or other columns.
 
@@ -276,8 +274,6 @@ class DelayCalibrator:
                 reductions=reductions,
             )
             metadata["delay_column"] = delay_column
-            if not inplace:
-                metadata["corrected_delay_column"] = rename
             metadata["columns"] = columns
             metadata["weights"] = weights
             metadata["preserve_mean"] = preserve_mean

@@ -281,7 +281,7 @@ def offset_by_other_columns(
         df (dask.dataframe.DataFrame): Dataframe to use. Currently supports only dask dataframes.
         target_column (str): Name of the column to apply the offset to.
         offset_columns (str): Name of the column(s) to use for the offset.
-        weights (int): weights to apply on each column before adding. Used also for changing sign.
+        weights (flot): weights to apply on each column before adding. Used also for changing sign.
         reductions (str, optional): Reduction function to use for the offset. Defaults to "mean".
             Currently, only mean is supported.
         preserve_mean (bool, optional): Whether to subtract the mean of the offset column.
@@ -304,7 +304,7 @@ def offset_by_other_columns(
     if any(c not in df.columns for c in offset_columns):
         raise KeyError(f"{offset_columns} not in dataframe!")
 
-    if isinstance(weights, int):
+    if isinstance(weights, (int, float, np.floating, np.integer)):
         weights = [weights]
     elif not isinstance(weights, Sequence):
         raise TypeError(f"Invalid type for signs: {type(weights)}")

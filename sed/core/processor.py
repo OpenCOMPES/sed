@@ -1279,8 +1279,8 @@ class SedProcessor:
         Args:
             constant (float, optional): The constant to shift the energy axis by.
             columns (Union[str, Sequence[str]]): Name of the column(s) to apply the shift from.
-            weights (Union[int, Sequence[int]]): Sign of the shift to apply. (+1 or -1) A positive
-                sign shifts the energy axis to higher kinetic energies. Defaults to +1.
+            weights (Union[float, Sequence[float]]): weights to apply to the columns.
+                Can also be used to flip the sign (e.g. -1). Defaults to 1.
             preserve_mean (bool): Whether to subtract the mean of the column before applying the
                 shift. Defaults to False.
             reductions (str): The reduction to apply to the column. Should be an available method
@@ -1347,7 +1347,7 @@ class SedProcessor:
             filename = "sed_config.yaml"
         if len(self.ec.offsets) == 0:
             raise ValueError("No energy offset parameters to save!")
-        config = {"energy": {"offset": self.ec.offsets}}
+        config = {"energy": {"offsets": self.ec.offsets}}
         save_config(config, filename, overwrite)
         print(f'Saved energy offset parameters to "{filename}".')
 
@@ -1415,8 +1415,6 @@ class SedProcessor:
     # Delay calibration function
     def calibrate_delay_axis(
         self,
-        time0: float = None,
-        flip_delay_axis: bool = False,
         delay_range: Tuple[float, float] = None,
         datafile: str = None,
         preview: bool = False,
@@ -1426,8 +1424,6 @@ class SedProcessor:
         them from a file.
 
         Args:
-            time0 (float, optional): The pump-probe time overlap in picoseconds.
-            flip_delay_axis (bool, optional): Whether to flip the time axis direction.
             delay_range (Tuple[float, float], optional): The scanned delay range in
                 picoseconds. Defaults to None.
             datafile (str, optional): The file from which to read the delay ranges.
@@ -1464,8 +1460,6 @@ class SedProcessor:
 
                 self._dataframe, metadata = self.dc.append_delay_axis(
                     self._dataframe,
-                    time0=time0,
-                    flip_delay_axis=flip_delay_axis,
                     datafile=datafile,
                     **kwds,
                 )
@@ -1520,24 +1514,20 @@ class SedProcessor:
         weights: Union[float, Sequence[float]] = None,
         reductions: Union[str, Sequence[str]] = None,
         preserve_mean: Union[bool, Sequence[bool]] = None,
-        inplace: bool = False,
-        rename: str = None,
     ) -> None:
         """Shift the delay axis of the dataframe by a constant or other columns.
 
         Args:
             constant (float, optional): The constant to shift the delay axis by.
             columns (Union[str, Sequence[str]]): Name of the column(s) to apply the shift from.
-            weights (Union[float, Sequence[float]]): Weight of the shift to apply. A positive
-                sign shifts the delay axis to higher values. Defaults to +1.
+            weights (Union[float, Sequence[float]]): weights to apply to the columns.
+                Can also be used to flip the sign (e.g. -1). Defaults to 1.
             preserve_mean (bool): Whether to subtract the mean of the column before applying the
                 shift. Defaults to False.
             reductions (str): The reduction to apply to the column. Should be an available method
                 of dask.dataframe.Series. For example "mean". In this case the function is applied
                 to the column to generate a single value for the whole dataset. If None, the shift
                 is applied per-dataframe-row. Defaults to None. Currently only "mean" is supported.
-            inplace: Whether to apply the shift inplace or generate a new column.
-            rename: Whether to rename the column to "delay" after the shift.
 
         Returns:
             None
@@ -1545,10 +1535,7 @@ class SedProcessor:
         print("Adding delay offset to dataframe:")
         delay_column = self._config["dataframe"]["delay_column"]
         if delay_column not in self._dataframe.columns:
-            raise ValueError(
-                f"Energy column {delay_column} not found in dataframe! "
-                "Run `append energy axis` first.",
-            )
+            raise ValueError(f"Delay column {delay_column} not found in dataframe! ")
 
         if self.dataframe is not None:
             df, metadata = self.dc.add_offsets(
@@ -1560,8 +1547,6 @@ class SedProcessor:
                 weights=weights,
                 reductions=reductions,
                 preserve_mean=preserve_mean,
-                inplace=inplace,
-                rename=rename,
             )
         if self._timed_dataframe is not None:
             if delay_column in self._timed_dataframe.columns:
@@ -1574,8 +1559,6 @@ class SedProcessor:
                     weights=weights,
                     reductions=reductions,
                     preserve_mean=preserve_mean,
-                    inplace=inplace,
-                    rename=rename,
                 )
             self._attributes.add(
                 metadata,
@@ -1583,7 +1566,7 @@ class SedProcessor:
                 duplicate_policy="append",
             )
             self._dataframe = df
-            if self._timed_dataframe is not None:
+            if self._timed_dataframe is not None and delay_column in self._timed_dataframe.columns:
                 self._timed_dataframe = tdf
         else:
             raise ValueError("No dataframe loaded!")
@@ -1603,7 +1586,8 @@ class SedProcessor:
         """
         if filename is None:
             filename = "sed_config.yaml"
-
+        if len(self.dc.offsets) == 0:
+            raise ValueError("No delay offset parameters to save!")
         config = {
             "delay": {
                 "offsets": self.dc.offsets,
@@ -1627,6 +1611,7 @@ class SedProcessor:
         """
         for method in [
             self.save_momentum_calibration,
+            self.save_splinewarp,
             self.save_energy_correction,
             self.save_energy_calibration,
             self.save_energy_offset,

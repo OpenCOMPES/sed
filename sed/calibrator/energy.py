@@ -113,7 +113,7 @@ class EnergyCalibrator:
         self.color_clip = self._config["energy"]["color_clip"]
         self.sector_delays = self._config["dataframe"].get("sector_delays", None)
         self.sector_id_column = self._config["dataframe"].get("sector_id_column", None)
-        self.offsets: Dict[str, Any] = self._config["energy"].get("offset", {})
+        self.offsets: Dict[str, Any] = self._config["energy"].get("offsets", {})
         self.correction: Dict[Any, Any] = {}
 
     @property
@@ -1491,8 +1491,8 @@ class EnergyCalibrator:
             df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to use.
             constant (float, optional): The constant to shift the energy axis by.
             columns (Union[str, Sequence[str]]): Name of the column(s) to apply the shift from.
-            weights (Union[int, Sequence[int]]): weight of the shift to apply. (+1 or -1) A positive
-                weight shifts the energy axis to higher kinetic energies. Defaults to +1.
+            weights (Union[float, Sequence[float]]): weights to apply to the columns.
+                Can also be used to flip the sign (e.g. -1). Defaults to 1.
             preserve_mean (bool): Whether to subtract the mean of the column before applying the
                 shift. Defaults to False.
             reductions (str): The reduction to apply to the column. Should be an available method
