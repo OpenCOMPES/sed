@@ -60,16 +60,16 @@ def effective_gaussian_area(
         sigma_x: float = sigma[0]
         sigma_y: float = sigma[1]
     elif isinstance(sigma, (float, np.floating, int, np.integer)):
-        sigma_x: float = sigma
-        sigma_y: float = sigma
+        sigma_x = sigma
+        sigma_y = sigma
     else:
         raise TypeError(f"sigma must be a float or a sequence of floats, not {type(sigma)}")
     if sigma_is_fwhm:
         FWHM_x: float = sigma_x
         FWHM_y: float = sigma_y
     else:
-        FWHM_x: float = sigma_to_fwhm(sigma_x)
-        FWHM_y: float = sigma_to_fwhm(sigma_y)
+        FWHM_x = sigma_to_fwhm(sigma_x)
+        FWHM_y = sigma_to_fwhm(sigma_y)
     return (photoemission_order * FWHM_x * FWHM_y * np.pi) / (4 * np.log(2))
 
 
