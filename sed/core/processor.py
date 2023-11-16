@@ -1563,7 +1563,9 @@ class SedProcessor:
         overwrite: bool = False,
     ) -> None:
         """save the generated k division model parameters to the folder config file.
-        
+
+
+
         Args:
             filename (str, optional): Filename of the config dictionary to save to.
                 Defaults to "sed_config.yaml" in the current folder.
@@ -1575,7 +1577,7 @@ class SedProcessor:
         params = {}
         try:
             for key in ["center", "k0", "k1", "k2", "gamma"]:
-                params[key] = self.mc.k_division_model[key]
+                params[key] = self.mc.division_model_params[key]
         except KeyError as exc:
             raise KeyError(
                 "k division model parameters not found, need to generate parameters first!",

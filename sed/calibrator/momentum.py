@@ -1844,7 +1844,7 @@ class MomentumCorrector:
     def calibrate_k_division_model(
         self,
         df: Union[pd.DataFrame, dask.dataframe.DataFrame],
-        warp_params: Union[dict[str, Any], Sequence[float]] = None,
+        warp_params: Union[Dict[str, Any], Sequence[float]] = None,
         x_column: str = None,
         y_column: str = None,
         kx_column: str = None,
@@ -2225,7 +2225,7 @@ def calibrate_k_division_model(
     y_column: str = None,
     kx_column: str = None,
     ky_column: str = None,
-) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
+) -> dask.dataframe.DataFrame:
     """K calibration based on the division model
 
     This function returns the distorted coordinates given the undistorted ones
@@ -2255,6 +2255,9 @@ def calibrate_k_division_model(
             If None, defaults to x_column.
         ky_column (str, optional): Name of the target calibrated x column.
             If None, defaults to y_column.
+
+    Returns:
+        df (dask.dataframe.DataFrame): Dataframe with added columns
     """
     if kx_column is None:
         kx_column = x_column
