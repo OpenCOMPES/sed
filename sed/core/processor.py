@@ -551,26 +551,27 @@ class SedProcessor:
         if filename is None:
             filename = "sed_config.yaml"
         points = []
-        try:
-            for point in self.mc.pouter_ord:
-                points.append([float(i) for i in point])
-            if self.mc.include_center:
-                points.append([float(i) for i in self.mc.pcent])
-        except AttributeError as exc:
-            raise AttributeError(
-                "Momentum correction parameters not found, need to generate parameters first!",
-            ) from exc
-        config = {
-            "momentum": {
-                "correction": {
-                    "rotation_symmetry": self.mc.rotsym,
-                    "feature_points": points,
-                    "include_center": self.mc.include_center,
-                    "use_center": self.mc.use_center,
+        if self.mc.pouter_ord is not None:  # if there is any calibration info
+            try:
+                for point in self.mc.pouter_ord:
+                    points.append([float(i) for i in point])
+                if self.mc.include_center:
+                    points.append([float(i) for i in self.mc.pcent])
+            except AttributeError as exc:
+                raise AttributeError(
+                    "Momentum correction parameters not found, need to generate parameters first!",
+                ) from exc
+            config = {
+                "momentum": {
+                    "correction": {
+                        "rotation_symmetry": self.mc.rotsym,
+                        "feature_points": points,
+                        "include_center": self.mc.include_center,
+                        "use_center": self.mc.use_center,
+                    },
                 },
-            },
-        }
-        save_config(config, filename, overwrite)
+            }
+            save_config(config, filename, overwrite)
 
     # 4. Pose corrections. Provide interactive interface for correcting
     # scaling, shift and rotation
