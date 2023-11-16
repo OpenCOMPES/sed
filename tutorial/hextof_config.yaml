@@ -21,9 +21,11 @@ dataframe:
   x_column: dldPosX
   corrected_x_column: "X"
   kx_column: "kx"
+  x_position_column: posx
   y_column: dldPosY
   corrected_y_column: "Y"
   ky_column: "ky"
+  y_position_column: posy
   tof_column: dldTimeSteps
   tof_ns_column: dldTime
   corrected_tof_column: "tm"
@@ -50,6 +52,8 @@ dataframe:
     # E: 'eV'
     kx: '1/A'
     ky: '1/A'
+    posx: 'µm'
+    posy: 'µm'
 
   channels:
     timeStamp:
