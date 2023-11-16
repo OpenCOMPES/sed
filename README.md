@@ -1,10 +1,10 @@
 # sed
-[![Documentation Status](https://github.com/OpenCOMPES/sed/actions/workflows/build_deploy_docs.yml/badge.svg)](https://opencompes.github.io/sed/)
+[![Documentation Status](https://github.com/OpenCOMPES/sed/actions/workflows/documentation.yml/badge.svg)](https://opencompes.github.io/sed/)
 ![](https://github.com/OpenCOMPES/sed/actions/workflows/linting.yml/badge.svg?branch=main)
 ![](https://github.com/OpenCOMPES/sed/actions/workflows/testing_multiversion.yml/badge.svg?branch=main)
-![](https://img.shields.io/pypi/pyversions/sedprocessor)
-![](https://img.shields.io/pypi/l/sedprocessor)
-![](https://img.shields.io/pypi/v/sedprocessor)
+![](https://img.shields.io/pypi/pyversions/sed-processor)
+![](https://img.shields.io/pypi/l/sed-processor)
+![](https://img.shields.io/pypi/v/sed-processor)
 [![Coverage Status](https://coveralls.io/repos/github/OpenCOMPES/sed/badge.svg?branch=main&kill_cache=1)](https://coveralls.io/github/OpenCOMPES/sed?branch=main)
 
 
@@ -12,32 +12,39 @@ Single Event Data Frame Processor: Backend to handle photoelectron resolved data
 
 # Installation
 
-## Conda approach
+## Pip (for users)
 
-Clone this repository and cd to its root folder.
-Create a new environment by typing:
+- Create a new virtual environment using either venv, pyenv, conda etc. See below for example.
+
+- Install sed, distributed as sed-processor on PyPI
 ```
-conda env create -f env.yml
+pip install sed-processor
 ```
-This should install all the requirements to run `sed` in your environment.
-To activate your environment:
+- This should install all the requirements to run `sed` in your environment.
+
+- If you intend to work with jupyter notebooks, it is helpfull to install a jupyter kernel of your environment. This can be done, once activating your environment, by typing:
 ```
-conda activate sed_conda
-```
-If you intend to work with jupyter notebooks, it is helpfull to install a jupyter kernel of your environment. This can be done, once activating your environment, by typing:
-```
-python -m ipykernel install --user --name=sed_conda
+python -m ipykernel install --user --name=sed_kernel
 ```
 
 
-## Poetry approach (better, but more complex)
+- To create an environment using venv, use
+```
+python -m venv .sed-venv
+```
+
+- To activate your environment:
+```
+source .sed-venv/bin/activate
+```
+
+
+
+## Poetry (for developers)
 
 - Prerequisites:
   + poetry: https://python-poetry.org/docs/
-  + pyenv: https://github.com/pyenv/pyenv
 
-- Clone this repository and check the python version within the `[tool.poetry.dependencies]` section of the `pyproject.toml` file
-  + If your system is using a different Python version, use `pyenv` to create and activate a Python version compatible with the specifications from the `pyproject.toml`. See [pyenv basic usage](https://github.com/pyenv/pyenv)
 - Create a virtual environment by typing:
 ```python
 poetry shell
