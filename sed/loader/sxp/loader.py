@@ -68,7 +68,11 @@ class SXPLoader(BaseLoader):
             FileNotFoundError: If the raw data directories are not found.
         """
         # Parses to locate the raw beamtime directory from config file
-        if "paths" in self._config["core"]:
+        if (
+            "paths" in self._config["core"]
+            and self._config["core"]["paths"].get("data_raw_dir", "")
+            and self._config["core"]["paths"].get("data_parquet_dir", "")
+        ):
             data_raw_dir = [
                 Path(self._config["core"]["paths"].get("data_raw_dir", "")),
             ]
