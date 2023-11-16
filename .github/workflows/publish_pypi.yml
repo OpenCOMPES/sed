@@ -86,9 +86,10 @@ jobs:
 
       - name: Update version in pyproject.toml and build
         run: |
+          echo ${GITHUB_REF#refs/tags/v}
           cd sed-processor
           VERSION=$(echo ${GITHUB_REF#refs/tags/v} | sed 's/-.*//')
-          sed -i "s/version = \".*\"/version = \"$VERSION\"/" pyproject.toml
+          poetry version $VERSION
           poetry build
 
       - name: Upload artifact
