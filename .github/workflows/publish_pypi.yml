@@ -84,11 +84,12 @@ jobs:
           cd sed-processor
           sed -i 's/name = "sed"/name = "sed-processor"/' pyproject.toml
 
-      - name: Update version in pyproject.toml
+      - name: Update version in pyproject.toml and build
         run: |
           cd sed-processor
           VERSION=$(echo ${GITHUB_REF#refs/tags/v} | sed 's/-.*//')
           sed -i "s/version = \".*\"/version = \"$VERSION\"/" pyproject.toml
+          poetry build
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3
