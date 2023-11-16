@@ -42,8 +42,8 @@ def test_drop_column():
 def test_apply_filter():
     """Test function to filter a df by a column with upper/lower bounds."""
     colname = "posx"
-    lower_bound = -0.5
-    upper_bound = 0.5
+    lower_bound = -0.1
+    upper_bound = 0.1
     df_filtered = apply_filter(
         df,
         col=colname,
