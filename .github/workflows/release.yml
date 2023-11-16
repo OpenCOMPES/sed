@@ -8,7 +8,7 @@ on:
       - '*'
 
 jobs:
-  pre-release:
+  prerelease:
     # change to main later
     if: github.ref == 'refs/heads/publish-pypi'
     runs-on: ubuntu-latest
@@ -85,10 +85,11 @@ jobs:
           path: sed-processor/dist
 
   publish:
-    needs: [pre-release, release]
+    needs: [prerelease, release]
+    if: needs.prerelease.result == 'success' || needs.release.result == 'success'
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ needs.pre-release.outputs.version || needs.release.outputs.version }}
+      version: ${{ needs.prerelease.outputs.version || needs.release.outputs.version }}
     environment:
         name: pypi
         url: https://pypi.org/p/sed-processor
