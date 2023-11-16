@@ -136,7 +136,7 @@ def test_apply_correction():
         user_config={},
         system_config={},
     )
-    df, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
+    df, _, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
         folders=df_folder,
         collect_metadata=False,
     )
@@ -249,7 +249,7 @@ def test_apply_registration(
         user_config={},
         system_config={},
     )
-    df, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
+    df, _, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
         folders=df_folder,
         collect_metadata=False,
     )
@@ -269,9 +269,20 @@ def test_apply_registration(
             [248.29, 248.62],
         ],
     )
+    # store dummy deformation
+    mc.reset_deformation()
+    dummy_inv_dfield = np.asarray(
+        [
+            np.asarray([np.arange(0, 2048) for _ in range(2048)]),
+            np.asarray([np.arange(0, 2048) for _ in range(2048)]).T,
+        ],
+    )
+    mc.inverse_dfield = dummy_inv_dfield
     mc.add_features(features=features, rotsym=6)
     mc.spline_warp_estimate()
     mc.pose_adjustment(**transformations, apply=True)
+    # disable re-calculation of inverse defield to save time, as we are just testing meta data here
+    mc.dfield_updated = False
     df, metadata = mc.apply_corrections(df=df)
     assert "Xm" in df.columns
     assert "Ym" in df.columns
@@ -310,7 +321,7 @@ def test_momentum_calibration_equiscale():
         user_config={},
         system_config={},
     )
-    df, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
+    df, _, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
         folders=df_folder,
         collect_metadata=False,
     )
@@ -341,7 +352,7 @@ def test_momentum_calibration_two_points():
         user_config={},
         system_config={},
     )
-    df, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
+    df, _, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
         folders=df_folder,
         collect_metadata=False,
     )

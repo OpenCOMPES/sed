@@ -29,6 +29,8 @@ dataframe:
   ms_markers_group: "msMarkers"
   # hdf5 attribute containing the timestamp of the first event in a file
   first_event_time_stamp_key: "FirstEventTimeStamp"
+  # Time stepping in seconds of the succesive events in the timed dataframe
+  timed_dataframe_unit_time: 0.001
   # list of columns to apply jitter to
   jitter_cols: ["X", "Y", "t", "ADC"]
   # dataframe column containing x coordinates

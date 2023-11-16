@@ -9,8 +9,12 @@ dataframe:
   y_column: "Y"
   # dataframe column containing time-of-flight data
   tof_column: "t"
+  # dataframe column containing time-of-flight data in nanoseconds
+  tof_ns_column: "t_ns"
   # dataframe column containing analog-to-digital data
   adc_column: "ADC"
+  # dataframe column containing bias voltage data
+  bias_column: "sampleBias"
   # dataframe column containing corrected x coordinates
   corrected_x_column: "Xm"
   # dataframe column containing corrected y coordinates
@@ -25,12 +29,18 @@ dataframe:
   energy_column: "energy"
   # dataframe column containing delay data
   delay_column: "delay"
-  # time length of a base time-of-flight bin in ns
+  # time length of a base time-of-flight bin in s
   tof_binwidth: 4.125e-12
   # Binning factor of the tof_column-data compared to tof_binwidth (2^(tof_binning-1))
   tof_binning: 1
   # binning factor used for the adc coordinate (2^(adc_binning-1))
   adc_binning: 1
+  # list of columns to apply jitter to.
+  jitter_cols: ["@x_column", "@y_column", "@tof_column"]
+  # Jitter amplitude or list of jitter amplitudes. Should equal half the digitial step size of each jitter_column
+  jitter_amps: 0.5
+  # Time stepping in seconds of the succesive events in the timed dataframe
+  timed_dataframe_unit_time: 0.001
 
 energy:
   # Number of bins to use for energy calibration traces
@@ -87,6 +97,10 @@ delay:
   # value ranges of the analog-to-digital converter axes used for encoding the delay stage position
   # (in unbinned coordinates)
   adc_range: [1900, 25600]
+  # pump probe time overlap in ps
+  time0: 0
+  # if to flip the time axis
+  flip_time_axis: False
 
 binning:
   # Histogram computation mode to use.

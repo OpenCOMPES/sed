@@ -1,0 +1,99 @@
+name: build and deploy docs to pages
+on:
+  # Triggers the workflow on push but only for the main branch
+  push:
+    branches: [ main ]
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+  # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
+# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Maximize build space
+        uses: easimon/maximize-build-space@master
+        with:
+          root-reserve-mb: 512
+          swap-size-mb: 1024
+          remove-dotnet: 'true'
+          remove-codeql: 'true'
+          remove-android: 'true'
+          remove-docker-images: 'true'
+
+      #  Check out repo and set up Python
+      - name: Check out the repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      # Use cached python and dependencies, install poetry
+      - name: "Setup Python, Poetry and Dependencies"
+        uses: packetcoders/action-setup-cache-python-poetry@main
+        with:
+          python-version: 3.8
+          poetry-version: 1.2.2
+
+      - name: Install docs and notebook dependencies
+        run: poetry install -E notebook -E docs
+
+      - name: Install pandoc
+        run: |
+          sudo wget https://github.com/jgm/pandoc/releases/download/3.1.8/pandoc-3.1.8-1-amd64.deb
+          sudo dpkg -i pandoc-3.1.8-1-amd64.deb
+
+      # rm because hextof_workflow notebook can not run outside maxwell
+      - name: copy tutorial files to docs
+        run: |
+          cp -r $GITHUB_WORKSPACE/tutorial $GITHUB_WORKSPACE/docs/
+          cp -r $GITHUB_WORKSPACE/sed/config $GITHUB_WORKSPACE/docs/sed
+          rm $GITHUB_WORKSPACE/docs/tutorial/4_hextof_workflow.ipynb
+
+      # To be included later
+      # - name: Cache docs build
+      #   id: cache-docs
+      #   uses: actions/cache@v3
+      #   with:
+      #     path: $GITHUB_WORKSPACE/_build
+      #     key: ${{ runner.os }}-docs
+
+      - name: download WSe2 data
+        # if: steps.cache-primes.outputs.cache-hit != 'true'
+        run: |
+          cd $GITHUB_WORKSPACE/docs/tutorial
+          curl -L --output ./WSe2.zip https://zenodo.org/record/6369728/files/WSe2.zip
+          unzip -o ./WSe2.zip -d .
+
+      - name: build Sphinx docs
+        run: poetry run sphinx-build -b html $GITHUB_WORKSPACE/docs $GITHUB_WORKSPACE/_build
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v3
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v2
+        with:
+          path: '_build'
+
+  # Deployment job
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v2

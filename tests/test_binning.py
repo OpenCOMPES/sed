@@ -14,6 +14,8 @@ import xarray as xr
 
 from sed.binning.binning import bin_dataframe
 from sed.binning.binning import bin_partition
+from sed.binning.binning import normalization_histogram_from_timed_dataframe
+from sed.binning.binning import normalization_histogram_from_timestamps
 from sed.binning.binning import numba_histogramdd
 from sed.binning.binning import simplify_binning_arguments
 from sed.binning.numba_bin import _hist_from_bin_range
@@ -393,8 +395,8 @@ def test_simplify_binning_arguments(
         ranges_,
     )
 
-    for i, bin_ in enumerate(bins__):
-        np.testing.assert_array_equal(bin_, bins_expected[i])
+    for i, _ in enumerate(bins__):
+        np.testing.assert_array_equal(bins__[i], bins_expected[i])
         np.testing.assert_array_equal(axes__[i], axes_expected[i])
         if ranges__ is not None:
             np.testing.assert_array_equal(ranges__[i], ranges_expected[i])
@@ -504,3 +506,29 @@ def test_bin_dataframe():
     np.testing.assert_allclose(res.values, res2.values)
     res2 = bin_dataframe(df=sample_ddf, bins=bins, axes=columns, ranges=ranges, mode="lean")
     np.testing.assert_allclose(res.values, res2.values)
+
+
+def test_normalization_histogram_from_timestamps():
+    """Test the function to generate the normalization histogram from timestamps"""
+    time_stamped_df = sample_ddf.copy()
+    time_stamped_df["timeStamps"] = time_stamped_df.index
+    res = bin_dataframe(df=sample_ddf, bins=[bins[0]], axes=[columns[0]], ranges=[ranges[0]])
+    histogram = normalization_histogram_from_timestamps(
+        df=time_stamped_df,
+        axis=columns[0],
+        bin_centers=res.coords[columns[0]].values,
+        time_stamp_column="timeStamps",
+    )
+    np.testing.assert_allclose(res / res.sum(), histogram / histogram.sum(), rtol=0.001)
+
+
+def test_normalization_histogram_from_timed_dataframe():
+    """Test the function to generate the normalization histogram from the timed dataframe"""
+    res = bin_dataframe(df=sample_ddf, bins=[bins[0]], axes=[columns[0]], ranges=[ranges[0]])
+    histogram = normalization_histogram_from_timed_dataframe(
+        df=sample_ddf,
+        axis=columns[0],
+        bin_centers=res.coords[columns[0]].values,
+        time_unit=1,
+    )
+    np.testing.assert_allclose(res / res.sum(), histogram / histogram.sum())

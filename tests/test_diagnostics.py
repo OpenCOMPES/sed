@@ -31,7 +31,7 @@ def test_plot_histogram(ncols: int, backend: str):
         ncols (int): number of columns
         backend (str): plotting backend to use
     """
-    dataframe, _ = loader.read_dataframe(files=files)
+    dataframe, _, _ = loader.read_dataframe(files=files)
     axes = config["histogram"]["axes"]
     ranges = config["histogram"]["ranges"]
     bins = config["histogram"]["bins"]
