@@ -10,7 +10,7 @@ core:
     data_parquet_dir: "/path/to/parquet"
 
 binning:
-  num_cores: 10
+  num_cores: 50
 
 dataframe:
   ubid_offset: 5
@@ -35,6 +35,7 @@ dataframe:
   sector_id_column: dldSectorID
   sector_delays: [0., 0., 0., 0., 0., 0., 0., 0.]
   jitter_cols: ["dldPosX", "dldPosY", "dldTimeSteps"]
+  delay_column: delayStage
 
   units:
     dldPosX: 'step'
