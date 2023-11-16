@@ -45,8 +45,8 @@ jobs:
           python-version: 3.8
           poetry-version: 1.2.2
 
-      - name: Install docs and notebook dependencies
-        run: poetry install -E notebook -E docs
+      - name: Install notebook dependencies
+        run: poetry install -E notebook
 
       - name: Install pandoc
         run: |
