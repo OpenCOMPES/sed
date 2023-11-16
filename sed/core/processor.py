@@ -21,7 +21,6 @@ from sed.binning import bin_dataframe
 from sed.calibrator import DelayCalibrator
 from sed.calibrator import EnergyCalibrator
 from sed.calibrator import MomentumCorrector
-from sed.calibrator import hextof
 from sed.core.config import parse_config
 from sed.core.config import save_config
 from sed.core.dfops import apply_jitter
@@ -1204,120 +1203,85 @@ class SedProcessor:
             metadata.append(col)
         self._attributes.add(metadata, "jittering", duplicate_policy="append")
 
-    def dld_time_to_ns(
-            self,
-            tof_ns_column: str = None,
-            tof_binwidth: float = None,
-            tof_column: str = None,
-            tof_binning: int = None,
-    ):
-        """Convert time-of-flight channel steps to nanoseconds.
-
-        Args:
-            tof_binwidth (float, optional): Time step size in nanoseconds.
-                Defaults to config["dataframe"]["tof_binwidth"].
-            tof_column (str, optional): Name of the column containing the
-                time-of-flight steps. Defaults to config["dataframe"]["tof_column"].
-            tof_column (str, optional): Name of the column containing the
-                time-of-flight. Defaults to config["dataframe"]["tof_column"].
-            tof_binning (int, optional): Binning of the time-of-flight steps.
-
-        """
-        if self._dataframe is not None:
-            print("Adding energy column to dataframe:")
-            # TODO assert order of execution through metadata
-
-            self._dataframe, metadata = hextof.dld_time_to_ns(
-                df=self._dataframe,
-                tof_ns_column=tof_ns_column,
-                tof_binwidth=tof_binwidth,
-                tof_column=tof_column,
-                tof_binning=tof_binning,
-                config=self._config,
-            )
-            self._attributes.add(
-                metadata,
-                "energy_calibration",
-                duplicate_policy="merge",
-            )
-
-    def align_dld_sectors(
-            self,
-            sector_delays: Sequence[float] = None,
-            sector_id_column: str = None,
-            tof_column: str = None,
-    ):
-        """ Align the 8s sectors of the HEXTOF endstation.
-
-        Intended for use with HEXTOF endstation
-
-        Args:
-            sector_delays (Sequence[float], optional): Delays of the 8s sectors in
-                picoseconds. Defaults to config["dataframe"]["sector_delays"].
-        """
-        if self._dataframe is not None:
-            print("Aligning 8s sectors of dataframe")
-            # TODO assert order of execution through metadata
-            self._dataframe, metadata = hextof.align_dld_sectors(
-                df=self._dataframe,
-                sector_delays=sector_delays,
-                sector_id_column=sector_id_column,
-                tof_column=tof_column,
-                config=self._config,
-            )
-            self._attributes.add(
-                metadata,
-                "sector_alignment",
-                duplicate_policy="merge",
-            )
-
     def calibrate_k_division_model(
         self,
         warp_params: Sequence[float] = None,
-        x_column: str = None,
-        y_column: str = None,
-        kx_column: str = None,
-        ky_column: str = None,
+        **kwargs,
     ) -> None:
-        """Calibrate k space using the division model.
+        """Use the division model to calibrate the momentum axis.
 
         This function returns the distorted coordinates given the undistorted ones
-        a little complicated by the fact that (warp_params[6],warp_params[7]) needs to 
-        go to (0,0)
-        it uses a radial distortion model called division model 
+        a little complicated by the fact that gamma needs to go to (0,0).
+        it uses a radial distortion model called division model
         (https://en.wikipedia.org/wiki/Distortion_(optics)#Software_correction)
         commonly used to correct for lens artifacts.
 
+        The radial distortion parameters k0, k1, k2 are defined as follows:
+        .. math::
+            K_n; rk = rpx/(K_0 + K_1*rpx^2 + K_2*rpx^4)
+        where rpx is the distance from the center of distortion in pixels and rk is the
+        distance from the center of distortion in k space.
+
         Args:
-            warp_params (Sequence[float], optional): warping parameters.
-                warp_params[0],warp_params[1] center of distortion in px
-                warp_params[6],warp_params[7] normal emission (Gamma) in px
-                warp_params[2],warp_params[3], warp_params[4] K_n; rk = rpx/(K_0 + K_1*rpx^2 + K_2*rpx^4)
-                warp_params[5] rotation in rad
-                Defaults to config["dataframe"]["warp_params"].
-            x_column (str, optional): Name of the column containing the
-                x steps. Defaults to config["dataframe"]["x_column"].
-            y_column (str, optional): Name of the column containing the
-                y steps. Defaults to config["dataframe"]["y_column"].
-            kx_column (str, optional): Name of the column containing the
-                x steps. Defaults to config["dataframe"]["kx_column"].
-            ky_column (str, optional): Name of the column containing the
-                y steps. Defaults to config["dataframe"]["ky_column"].
+            df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to apply the
+                distotion correction to.
+            warp_params (Sequence[float], optional): Parameters of the division model.
+                Either a dictionary containing the parameters or a sequence of the
+                parameters in the order ['center','k0','k1','k2','gamma'].
+                center and gamma are both 2D vectors, k0, k1 and k2 are scalars.
+                Center is the center of distortion in pixels, gamma is the center of
+                the image in k space. k0, k1 and k2 are the radial distortion parameters.
+                Defaults to config["momentum"]["division_model_params"].
+            kwargs: Keyword arguments passed to ``calibrate_k_division_model``:
+                x_column (str, optional): Label of the source 'X' column.
+                   Defaults to config["momentum"]["x_column"].
+                y_column (str, optional): Label of the source 'Y' column.
+                    Defaults to config["momentum"]["y_column"].
+                kx_column (str, optional): Label of the destination 'X' column after
+                    momentum calibration. Defaults to config["momentum"]["kx_column"].
+                ky_column (str, optional): Label of the destination 'Y' column after
+                    momentum calibration. Defaults to config["momentum"]["ky_column"].
+
         """
-        self._dataframe, metadata = hextof.calibrate_k_division_model(
+        self._dataframe, metadata = self.mc.calibrate_k_division_model(
             df=self._dataframe,
             warp_params=warp_params,
-            x_column=x_column,
-            y_column=y_column,
-            kx_column=kx_column,
-            ky_column=ky_column,
-            config=self._config,
+            **kwargs,
         )
         self._attributes.add(
             metadata,
             "k_division_model",
             duplicate_policy="raise",
         )
+
+    def save_k_division_model(
+        self,
+        filename: str = None,
+        overwrite: bool = False,
+    ) -> None:
+        """save the generated k division model parameters to the folder config file.
+
+
+        Args:
+            filename (str, optional): Filename of the config dictionary to save to.
+                Defaults to "sed_config.yaml" in the current folder.
+            overwrite (bool, optional): Option to overwrite the present dictionary.
+                Defaults to False.
+        """
+        if filename is None:
+            filename = "sed_config.yaml"
+        params = {}
+        try:
+            for key in ["center", "k0", "k1", "k2", "gamma"]:
+                params[key] = self.mc.k_division_model[key]
+        except KeyError as exc:
+            raise KeyError(
+                "k division model parameters not found, need to generate parameters first!",
+            ) from exc
+
+        config: Dict[str, Any] = {"momentum": {"k_division_model": params}}
+        save_config(config, filename, overwrite)
+        print(f"Saved k division model parameters to {filename}")
 
     def pre_binning(
         self,
