@@ -84,10 +84,9 @@ class SXPLoader(BaseLoader):
             try:
                 beamtime_id = self._config["core"]["beamtime_id"]
                 year = self._config["core"]["year"]
-                daq = self._config["dataframe"]["daq"]
             except KeyError as exc:
                 raise ValueError(
-                    "The beamtime_id, year and daq are required.",
+                    "The beamtime_id and year are required.",
                 ) from exc
 
             beamtime_dir = Path(
@@ -95,22 +94,10 @@ class SXPLoader(BaseLoader):
             )
             beamtime_dir = beamtime_dir.joinpath(f"{year}/{beamtime_id}/")
 
-            # Use pathlib walk to reach the raw data directory
-            data_raw_dir = []
-            raw_path = beamtime_dir.joinpath("raw")
+            if not beamtime_dir.joinpath("raw").is_dir():
+                raise FileNotFoundError("Raw data directory not found.")
 
-            for path in raw_path.glob("**/*"):
-                if path.is_dir():
-                    dir_name = path.name
-                    if dir_name.startswith("express-") or dir_name.startswith(
-                        "online-",
-                    ):
-                        data_raw_dir.append(path.joinpath(daq))
-                    elif dir_name == daq.upper():
-                        data_raw_dir.append(path)
-
-            if not data_raw_dir:
-                raise FileNotFoundError("Raw data directories not found.")
+            data_raw_dir = [beamtime_dir.joinpath("raw")]
 
             parquet_path = "processed/parquet"
             data_parquet_dir = beamtime_dir.joinpath(parquet_path)
@@ -161,7 +148,7 @@ class SXPLoader(BaseLoader):
 
         stream_name_postfix = stream_name_postfixes.get(daq, "")
         # Generate the file patterns to search for in the directory
-        file_pattern = f"{stream_name_prefixes[daq]}{run_id}{stream_name_postfix}*." + extension
+        file_pattern = f"**/{stream_name_prefixes[daq]}{run_id}{stream_name_postfix}*." + extension
 
         files: List[Path] = []
         # Use pathlib to search for matching files in each directory
