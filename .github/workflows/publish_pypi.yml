@@ -18,10 +18,11 @@ jobs:
           path: 'sed-processor'
 
       - name: "Setup Python, Poetry and Dependencies"
-        uses: packetcoders/action-setup-cache-python-poetry@main
+        uses: zain-sohail/action-setup-cache-python-poetry@main
         with:
           python-version: 3.8
           poetry-version: 1.2.2
+          working-directory: sed-processor
 
       - name: Change to distribution name in toml file
         run: |
@@ -72,10 +73,11 @@ jobs:
           path: 'sed-processor'
 
       - name: "Setup Python, Poetry and Dependencies"
-        uses: packetcoders/action-setup-cache-python-poetry@main
+        uses: zain-sohail/action-setup-cache-python-poetry@main
         with:
           python-version: 3.8
           poetry-version: 1.2.2
+          working-directory: sed-processor
 
       - name: Change to distribution name in toml file
         run: |
