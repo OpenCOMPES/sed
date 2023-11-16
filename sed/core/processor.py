@@ -25,6 +25,7 @@ from sed.calibrator import EnergyCalibrator
 from sed.calibrator import MomentumCorrector
 from sed.core.config import parse_config
 from sed.core.config import save_config
+from sed.core.dfops import apply_filter
 from sed.core.dfops import apply_jitter
 from sed.core.metadata import MetaHandler
 from sed.diagnostics import grid_histogram
@@ -401,6 +402,46 @@ class SedProcessor:
                 name=key,
                 duplicate_policy="merge",
             )
+
+    def filter_column_values(
+        self,
+        column: str,
+        min_value: float = -np.inf,
+        max_value: float = np.inf,
+    ) -> None:
+        """Filter values in a column which are outside of a given range
+
+        Args:
+            column (str): Name of the column to filter
+            min_value (float, optional): Minimum value to keep. Defaults to None.
+            max_value (float, optional): Maximum value to keep. Defaults to None.
+        """
+        if column not in self._dataframe.columns:
+            raise ValueError(f"Column {column} not found in dataframe!")
+        if min_value >= max_value:
+            raise ValueError("min_value has to be smaller than max_value!")
+        if self._dataframe is not None:
+            self._dataframe = apply_filter(
+                self._dataframe,
+                col=column,
+                lower_bound=min_value,
+                upper_bound=max_value,
+            )
+        if self._timed_dataframe is not None and column in self._timed_dataframe.columns:
+            self._timed_dataframe = apply_filter(
+                self._timed_dataframe,
+                column,
+                lower_bound=min_value,
+                upper_bound=max_value,
+            )
+            metadata = {
+                "filter": {
+                    "column": column,
+                    "min_value": min_value,
+                    "max_value": max_value,
+                },
+            }
+        self._attributes.add(metadata, "filter", duplicate_policy="merge")
 
     # Momentum calibration workflow
     # 1. Bin raw detector data for distortion correction
