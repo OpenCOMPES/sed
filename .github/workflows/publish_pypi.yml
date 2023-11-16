@@ -29,13 +29,15 @@ jobs:
           sed -i 's/name = "sed"/name = "sed-processor"/' pyproject.toml
 
       - name: Build package
-        run: poetry build
+        run: |
+          cd sed-processor
+          poetry build
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
           name: dist
-          path: dist
+          path: sed-processor/dist
 
   pypi-publish:
     name: Upload release to PyPI
