@@ -30,10 +30,21 @@ jobs:
           sed -i 's/name = "sed"/name = "sed-processor"/' pyproject.toml
 
       - name: bump pre-release version
+        id: version
         run: |
           cd sed-processor
-          poetry version prerelease
+          VERSION=$(poetry version -s prerelease)
+          echo "::set-output name=version::$VERSION"
           poetry build
+
+      # possibly move to last job
+      - name: Commit changes
+        uses: EndBug/add-and-commit@v9
+        with:
+          default_author: github_actions
+          message: 'bump version to ${{ steps.version.outputs.version }}'
+          add: pyproject.toml
+          cwd: sed-processor
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3
@@ -85,12 +96,23 @@ jobs:
           sed -i 's/name = "sed"/name = "sed-processor"/' pyproject.toml
 
       - name: Update version in pyproject.toml and build
+        id: version
         run: |
           echo ${GITHUB_REF#refs/tags/v}
           cd sed-processor
           VERSION=$(echo ${GITHUB_REF#refs/tags/v} | sed 's/-.*//')
           poetry version $VERSION
+          echo "::set-output name=version::$VERSION"
           poetry build
+
+      # possibly move to last job
+      - name: Commit changes
+        uses: EndBug/add-and-commit@v9
+        with:
+          default_author: github_actions
+          message: 'bump version to ${{ steps.version.outputs.version }}'
+          add: pyproject.toml
+          cwd: sed-processor
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3
