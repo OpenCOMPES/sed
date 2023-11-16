@@ -109,6 +109,7 @@ jobs:
 
   bump-version:
     needs: publish
+    if: always() && (needs.publish.result == 'success')
     runs-on: ubuntu-latest
     steps:
     - name: Commit changes
