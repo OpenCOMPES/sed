@@ -113,6 +113,7 @@ jobs:
           message: 'bump version to ${{ steps.version.outputs.version }}'
           add: pyproject.toml
           cwd: sed-processor
+          new_branch: publish-pypi
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3
