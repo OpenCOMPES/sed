@@ -14,6 +14,10 @@ jobs:
       - uses: actions/checkout@v3
         with:
           lfs: true
+      - run: |
+          ls -lha
+          mv ../sed ../sed-processor
+
 
       # Use cached python and dependencies, install poetry
       - name: "Setup Python, Poetry and Dependencies"
@@ -25,8 +29,6 @@ jobs:
       - name: Change to distribution name in toml file
         run: sed -i 's/name = "sed"/name = "sed-processor"/' pyproject.toml
 
-      - name: change the distribution name by changing main file name
-        run: mv ../sed ../sed-processor
 
       - name: Build package
         run: poetry build
