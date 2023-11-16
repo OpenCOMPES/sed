@@ -112,6 +112,10 @@ jobs:
     if: always() && (needs.publish.result == 'success')
     runs-on: ubuntu-latest
     steps:
+    # step to see what the version is
+    - name: Show version
+      run: echo ${{ needs.publish.outputs.version }}
+
     - name: Commit changes
       uses: EndBug/add-and-commit@v9
       with:
