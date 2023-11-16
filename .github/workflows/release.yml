@@ -86,7 +86,7 @@ jobs:
 
   publish:
     needs: [prerelease, release]
-    if: needs.prerelease.result == 'success' || needs.release.result == 'success'
+    if: always() && (needs.prerelease.result == 'success' || needs.release.result == 'success')
     runs-on: ubuntu-latest
     outputs:
       version: ${{ needs.prerelease.outputs.version || needs.release.outputs.version }}
