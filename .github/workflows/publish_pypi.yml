@@ -47,7 +47,7 @@ jobs:
         name: test-pypi
         url: https://test.pypi.org/p/sed-processor
     permissions:
-        id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing
+        id-token: write
 
     steps:
       - name: Download a single artifact
@@ -82,17 +82,11 @@ jobs:
           cd sed-processor
           sed -i 's/name = "sed"/name = "sed-processor"/' pyproject.toml
 
-      - name: bump release version
+      - name: Update version in pyproject.toml
         run: |
           cd sed-processor
-          if contains(github.ref, 'patch')
-            poetry version patch
-          elif contains(github.ref, 'minor')
-            poetry version minor
-          elif contains(github.ref, 'major')
-            poetry version major
-          fi
-          poetry build
+          VERSION=$(echo ${GITHUB_REF#refs/tags/v} | sed 's/-.*//')
+          sed -i "s/version = \".*\"/version = \"$VERSION\"/" pyproject.toml
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3
@@ -103,14 +97,21 @@ jobs:
   pypi-publish:
     needs: release
     runs-on: ubuntu-latest
+    environment:
+        name: test-pypi
+        url: https://test.pypi.org/p/sed-processor
+    permissions:
+        id-token: write
+
     steps:
       - name: Download a single artifact
         uses: actions/download-artifact@v3
         with:
           name: dist
 
-      - name: Publish package distributions to PyPI
+      - name: Publish package distributions to PyPI Test
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          password: ${{ secrets.PYPI }}
+          repository-url: https://test.pypi.org/legacy/
+          password: ${{ secrets.PYPI_TEST }}
           packages-dir: .
