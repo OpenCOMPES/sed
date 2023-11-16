@@ -15,10 +15,6 @@ jobs:
         with:
           lfs: true
           path: 'sed-processor'
-      - run: |
-          cd sed-processor
-          ls -lha
-
 
       # Use cached python and dependencies, install poetry
       - name: "Setup Python, Poetry and Dependencies"
@@ -28,8 +24,9 @@ jobs:
           poetry-version: 1.2.2
 
       - name: Change to distribution name in toml file
-        run: sed -i 's/name = "sed"/name = "sed-processor"/' pyproject.toml
-
+        run: |
+          cd sed-processor
+          sed -i 's/name = "sed"/name = "sed-processor"/' pyproject.toml
 
       - name: Build package
         run: poetry build
