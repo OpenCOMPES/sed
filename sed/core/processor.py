@@ -551,26 +551,27 @@ class SedProcessor:
         if filename is None:
             filename = "sed_config.yaml"
         points = []
-        try:
-            for point in self.mc.pouter_ord:
-                points.append([float(i) for i in point])
-            if self.mc.include_center:
-                points.append([float(i) for i in self.mc.pcent])
-        except AttributeError as exc:
-            raise AttributeError(
-                "Momentum correction parameters not found, need to generate parameters first!",
-            ) from exc
-        config = {
-            "momentum": {
-                "correction": {
-                    "rotation_symmetry": self.mc.rotsym,
-                    "feature_points": points,
-                    "include_center": self.mc.include_center,
-                    "use_center": self.mc.use_center,
+        if self.mc.pouter_ord is not None:  # if there is any calibration info
+            try:
+                for point in self.mc.pouter_ord:
+                    points.append([float(i) for i in point])
+                if self.mc.include_center:
+                    points.append([float(i) for i in self.mc.pcent])
+            except AttributeError as exc:
+                raise AttributeError(
+                    "Momentum correction parameters not found, need to generate parameters first!",
+                ) from exc
+            config = {
+                "momentum": {
+                    "correction": {
+                        "rotation_symmetry": self.mc.rotsym,
+                        "feature_points": points,
+                        "include_center": self.mc.include_center,
+                        "use_center": self.mc.use_center,
+                    },
                 },
-            },
-        }
-        save_config(config, filename, overwrite)
+            }
+            save_config(config, filename, overwrite)
 
     # 4. Pose corrections. Provide interactive interface for correcting
     # scaling, shift and rotation
@@ -1215,7 +1216,6 @@ class SedProcessor:
             raise AttributeError(
                 "Energy calibration parameters not found, need to generate parameters first!",
             ) from exc
-
         config = {"energy": {"calibration": calibration}}
         save_config(config, filename, overwrite)
         print(f'Saved energy calibration parameters to "{filename}".')
@@ -1271,7 +1271,7 @@ class SedProcessor:
         self,
         constant: float = None,
         columns: Union[str, Sequence[str]] = None,
-        signs: Union[int, Sequence[int]] = None,
+        weights: Union[float, Sequence[float]] = None,
         reductions: Union[str, Sequence[str]] = None,
         preserve_mean: Union[bool, Sequence[bool]] = None,
     ) -> None:
@@ -1280,8 +1280,8 @@ class SedProcessor:
         Args:
             constant (float, optional): The constant to shift the energy axis by.
             columns (Union[str, Sequence[str]]): Name of the column(s) to apply the shift from.
-            signs (Union[int, Sequence[int]]): Sign of the shift to apply. (+1 or -1) A positive
-                sign shifts the energy axis to higher kinetic energies. Defaults to +1.
+            weights (Union[float, Sequence[float]]): weights to apply to the columns.
+                Can also be used to flip the sign (e.g. -1). Defaults to 1.
             preserve_mean (bool): Whether to subtract the mean of the column before applying the
                 shift. Defaults to False.
             reductions (str): The reduction to apply to the column. Should be an available method
@@ -1292,6 +1292,7 @@ class SedProcessor:
         Raises:
             ValueError: If the energy column is not in the dataframe.
         """
+        print("Adding energy offset to dataframe:")
         energy_column = self._config["dataframe"]["energy_column"]
         if self.dataframe is not None:
             if energy_column not in self._dataframe.columns:
@@ -1304,7 +1305,7 @@ class SedProcessor:
                 constant=constant,
                 columns=columns,
                 energy_column=energy_column,
-                signs=signs,
+                weights=weights,
                 reductions=reductions,
                 preserve_mean=preserve_mean,
             )
@@ -1315,7 +1316,7 @@ class SedProcessor:
                         constant=constant,
                         columns=columns,
                         energy_column=energy_column,
-                        signs=signs,
+                        weights=weights,
                         reductions=reductions,
                         preserve_mean=preserve_mean,
                     )
@@ -1345,9 +1346,9 @@ class SedProcessor:
         """
         if filename is None:
             filename = "sed_config.yaml"
-        if len(self.ec.offset) == 0:
+        if len(self.ec.offsets) == 0:
             raise ValueError("No energy offset parameters to save!")
-        config = {"energy": {"offset": self.ec.offset}}
+        config = {"energy": {"offsets": self.ec.offsets}}
         save_config(config, filename, overwrite)
         print(f'Saved energy offset parameters to "{filename}".')
 
@@ -1483,6 +1484,119 @@ class SedProcessor:
                 if self.verbose:
                     print(self._dataframe)
 
+    def save_delay_calibration(
+        self,
+        filename: str = None,
+        overwrite: bool = False,
+    ) -> None:
+        """Save the generated delay calibration parameters to the folder config file.
+
+        Args:
+            filename (str, optional): Filename of the config dictionary to save to.
+                Defaults to "sed_config.yaml" in the current folder.
+            overwrite (bool, optional): Option to overwrite the present dictionary.
+                Defaults to False.
+        """
+        if filename is None:
+            filename = "sed_config.yaml"
+
+        config = {
+            "delay": {
+                "calibration": self.dc.calibration,
+            },
+        }
+        save_config(config, filename, overwrite)
+
+    def add_delay_offset(
+        self,
+        constant: float = None,
+        flip_delay_axis: bool = None,
+        columns: Union[str, Sequence[str]] = None,
+        weights: Union[float, Sequence[float]] = None,
+        reductions: Union[str, Sequence[str]] = None,
+        preserve_mean: Union[bool, Sequence[bool]] = None,
+    ) -> None:
+        """Shift the delay axis of the dataframe by a constant or other columns.
+
+        Args:
+            constant (float, optional): The constant to shift the delay axis by.
+            columns (Union[str, Sequence[str]]): Name of the column(s) to apply the shift from.
+            weights (Union[float, Sequence[float]]): weights to apply to the columns.
+                Can also be used to flip the sign (e.g. -1). Defaults to 1.
+            preserve_mean (bool): Whether to subtract the mean of the column before applying the
+                shift. Defaults to False.
+            reductions (str): The reduction to apply to the column. Should be an available method
+                of dask.dataframe.Series. For example "mean". In this case the function is applied
+                to the column to generate a single value for the whole dataset. If None, the shift
+                is applied per-dataframe-row. Defaults to None. Currently only "mean" is supported.
+
+        Returns:
+            None
+        """
+        print("Adding delay offset to dataframe:")
+        delay_column = self._config["dataframe"]["delay_column"]
+        if delay_column not in self._dataframe.columns:
+            raise ValueError(f"Delay column {delay_column} not found in dataframe! ")
+
+        if self.dataframe is not None:
+            df, metadata = self.dc.add_offsets(
+                df=self._dataframe,
+                constant=constant,
+                flip_delay_axis=flip_delay_axis,
+                columns=columns,
+                delay_column=delay_column,
+                weights=weights,
+                reductions=reductions,
+                preserve_mean=preserve_mean,
+            )
+        if self._timed_dataframe is not None:
+            if delay_column in self._timed_dataframe.columns:
+                tdf, _ = self.dc.add_offsets(
+                    df=self._timed_dataframe,
+                    constant=constant,
+                    flip_delay_axis=flip_delay_axis,
+                    columns=columns,
+                    delay_column=delay_column,
+                    weights=weights,
+                    reductions=reductions,
+                    preserve_mean=preserve_mean,
+                )
+            self._attributes.add(
+                metadata,
+                "add_delay_offset",
+                duplicate_policy="append",
+            )
+            self._dataframe = df
+            if self._timed_dataframe is not None and delay_column in self._timed_dataframe.columns:
+                self._timed_dataframe = tdf
+        else:
+            raise ValueError("No dataframe loaded!")
+
+    def save_delay_offsets(
+        self,
+        filename: str = None,
+        overwrite: bool = False,
+    ) -> None:
+        """Save the generated delay calibration parameters to the folder config file.
+
+        Args:
+            filename (str, optional): Filename of the config dictionary to save to.
+                Defaults to "sed_config.yaml" in the current folder.
+            overwrite (bool, optional): Option to overwrite the present dictionary.
+                Defaults to False.
+        """
+        if filename is None:
+            filename = "sed_config.yaml"
+        if len(self.dc.offsets) == 0:
+            raise ValueError("No delay offset parameters to save!")
+        config = {
+            "delay": {
+                "offsets": self.dc.offsets,
+            },
+        }
+        save_config(config, filename, overwrite)
+        print(f'Saved delay offset parameters to "{filename}".')
+
     def save_workflow_params(
         self,
         filename: str = None,
@@ -1498,10 +1612,12 @@ class SedProcessor:
         """
         for method in [
             self.save_momentum_calibration,
+            self.save_splinewarp,
             self.save_energy_correction,
             self.save_energy_calibration,
             self.save_energy_offset,
-            # self.save_delay_calibration,  # TODO: uncomment once implemented
+            self.save_delay_calibration,
+            self.save_delay_offsets,
         ]:
             try:
                 method(filename, overwrite)

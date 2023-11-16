@@ -3,6 +3,9 @@
 import os
 from importlib.util import find_spec
 
+import dask.dataframe
+import numpy as np
+import pandas as pd
 import pytest
 
 from sed.calibrator.delay import DelayCalibrator
@@ -114,3 +117,74 @@ def test_delay_parameters_from_delay_range_mm():
     assert "adc_range" in metadata["calibration"]
     assert "time0" in metadata["calibration"]
     assert "delay_range_mm" in metadata["calibration"]
+
+
+bam_vals = 1000 * (np.random.normal(size=100) + 5)
+delay_stage_vals = np.linspace(0, 99, 100)
+cfg = {
+    "core": {"loader": "flash"},
+    "dataframe": {"delay_column": "delay"},
+    "delay": {
+        "offsets": {
+            "constant": 1,
+            "flip_delay_axis": True,
+            "bam": {
+                "weight": 0.001,
+                "preserve_mean": False,
+            },
+        },
+    },
+}
+test_dataframe = dask.dataframe.from_pandas(
+    pd.DataFrame(
+        {
+            "bam": bam_vals.copy(),
+            "delay": delay_stage_vals.copy(),
+        },
+    ),
+    npartitions=2,
+)
+
+
+def test_add_offset_from_config(df=test_dataframe) -> None:
+    """test that the timing offset is corrected for correctly from config"""
+    config = parse_config(
+        config=cfg,
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+
+    expected = -np.asarray(delay_stage_vals + bam_vals * 0.001 + 1)
+
+    dc = DelayCalibrator(config=config)
+    df, _ = dc.add_offsets(df.copy())
+    assert "delay" in df.columns
+    assert "bam" in dc.offsets.keys()
+    np.testing.assert_allclose(expected, df["delay"])
+
+
+def test_add_offset_from_args(df=test_dataframe) -> None:
+    """test that the timing offset applied with arguments works"""
+    cfg_ = cfg.copy()
+    cfg_.pop("delay")
+    config = parse_config(
+        config=cfg,
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+    dc = DelayCalibrator(config=config)
+    df, _ = dc.add_offsets(
+        df.copy(),
+        constant=1,
+        flip_delay_axis=True,
+        columns="bam",
+        weights=0.001,
+    )
+    assert "delay" in df.columns
+    assert "bam" in dc.offsets.keys()
+    expected = -np.array(
+        delay_stage_vals + bam_vals * 0.001 + 1,
+    )
+    np.testing.assert_allclose(expected, df["delay"])
