@@ -16,6 +16,7 @@ jobs:
           lfs: true
           path: 'sed-processor'
       - run: |
+          cd sed-processor
           ls -lha
 
 
