@@ -190,6 +190,12 @@ def test_timed_dataframe(loader: BaseLoader):
             assert set(loaded_timed_dataframe.columns).issubset(set(loaded_dataframe.columns))
             assert loaded_timed_dataframe.npartitions == loaded_dataframe.npartitions
 
+    if loader.__name__ == "flash":
+        loader = cast(FlashLoader, loader)
+        _, parquet_data_dir = loader.initialize_paths()
+        for file in os.listdir(Path(parquet_data_dir, "buffer")):
+            os.remove(Path(parquet_data_dir, "buffer", file))
+
 
 @pytest.mark.parametrize("loader", get_all_loaders())
 def test_get_count_rate(loader: BaseLoader):

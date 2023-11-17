@@ -10,6 +10,7 @@ from sed.loader.flash.loader import FlashLoader
 
 package_dir = os.path.dirname(find_spec("sed").origin)
 config_path = os.path.join(package_dir, "../tests/data/loader/flash/config.yaml")
+h5_path = "FLASH1_USER3_stream_2_run43878_file1_20230130T153807.1.h5"
 
 
 @pytest.fixture(name="config_file")
@@ -157,7 +158,6 @@ def test_group_name_not_in_h5(config_file):
     """
     config = config_file
     config["dataframe"]["channels"]["dldPosX"]["group_name"] = "foo"
-    h5_path = "FLASH1_USER3_stream_2_run43878_file1_20230130T153807.1.h5"
     fl = FlashLoader(config=config)
 
     with pytest.raises(ValueError) as e:
