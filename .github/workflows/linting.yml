@@ -1,10 +1,7 @@
 name: linting
 
 # Triggers the workflow on push for all branches
-on:
-  push:
-    branches:
-      main
+on: [push]
 
 jobs:
   lint:
