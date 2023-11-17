@@ -10,7 +10,7 @@ from sed.loader.flash.loader import FlashLoader
 
 package_dir = os.path.dirname(find_spec("sed").origin)
 config_path = os.path.join(package_dir, "../tests/data/loader/flash/config.yaml")
-h5_path = "FLASH1_USER3_stream_2_run43878_file1_20230130T153807.1.h5"
+H5_PATH = "FLASH1_USER3_stream_2_run43878_file1_20230130T153807.1.h5"
 
 
 @pytest.fixture(name="config_file")
@@ -161,7 +161,7 @@ def test_group_name_not_in_h5(config_file):
     fl = FlashLoader(config=config)
 
     with pytest.raises(ValueError) as e:
-        fl.create_dataframe_per_file(config["core"]["paths"]["data_raw_dir"] + h5_path)
+        fl.create_dataframe_per_file(config["core"]["paths"]["data_raw_dir"] + H5_PATH)
 
     assert str(e.value.args[0]) == "The group_name for channel dldPosX does not exist."
 
