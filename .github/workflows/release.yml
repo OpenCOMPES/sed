@@ -10,14 +10,13 @@ name: Publish to PyPI
 on:
   push:
     branches:
-      - publish-pypi
+      - main
     tags:
       - '*'
 
 jobs:
   prerelease:
-    # change to main later
-    if: github.ref == 'refs/heads/publish-pypi'
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
@@ -150,7 +149,7 @@ jobs:
           message: 'bump version to ${{ needs.publish.outputs.version  }}'
           add: pyproject.toml
           cwd: sed-processor
-          new_branch: publish-pypi
+          new_branch: main
           # By default, a workflow run that is triggered by a push event will
           # not trigger another push event when it pushes changes to the repository.
           # So no problem here.
