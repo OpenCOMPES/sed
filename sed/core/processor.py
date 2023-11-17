@@ -434,13 +434,13 @@ class SedProcessor:
                 lower_bound=min_value,
                 upper_bound=max_value,
             )
-            metadata = {
-                "filter": {
-                    "column": column,
-                    "min_value": min_value,
-                    "max_value": max_value,
-                },
-            }
+        metadata = {
+            "filter": {
+                "column": column,
+                "min_value": min_value,
+                "max_value": max_value,
+            },
+        }
         self._attributes.add(metadata, "filter", duplicate_policy="merge")
 
     # Momentum calibration workflow
