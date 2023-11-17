@@ -4,7 +4,7 @@
 ![](https://github.com/OpenCOMPES/sed/actions/workflows/testing_multiversion.yml/badge.svg?branch=main)
 ![](https://img.shields.io/pypi/pyversions/sed-processor)
 ![](https://img.shields.io/pypi/l/sed-processor)
-![](https://img.shields.io/pypi/v/sed-processor)
+[![](https://img.shields.io/pypi/v/sed-processor)](https://pypi.org/project/sed-processor)
 [![Coverage Status](https://coveralls.io/repos/github/OpenCOMPES/sed/badge.svg?branch=main&kill_cache=1)](https://coveralls.io/github/OpenCOMPES/sed?branch=main)
 
 
