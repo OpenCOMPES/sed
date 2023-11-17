@@ -3,20 +3,26 @@
 core:
   # defines the loader
   loader: flash
-
   # the beamline where experiment took place
   beamline: pg2
+  # the instrument used
+  instrument: hextof
+  # the ID number of the beamtimme
+  beamtime_id: 11013410
+  # the year of the beamtime
+  year: 2023
 
-  # The paths to the raw and parquet data directories.
+  # The paths to the raw and parquet data directories. If these are not
+  # provided, the loader will try to find the data based on year beamtimeID etc
   paths:
+    # location of the raw data.
     data_raw_dir: "tests/data/loader/flash/"
+    # location of the intermediate parquet files.
     data_parquet_dir: "tests/data/loader/flash/parquet"
 
-  # These can be replaced by beamtime_id and year to automatically
-  # find the folders on the desy cluster
-
-  # beamtime_id: xxxxxxxx
-  # year: 20xx
+binning:
+  # Since this will run on maxwell most probably, we have a lot of cores at our disposal
+  num_cores: 100
 
 dataframe:
   # The name of the DAQ system to use. Necessary to resolve the filenames/paths.
@@ -28,7 +34,7 @@ dataframe:
   forward_fill_iterations: 2
   # if true, removes the 3 bits reserved for dldSectorID from the dldTimeSteps column
   split_sector_id_from_dld_time: True
-
+  # bits reserved for dldSectorID in the dldTimeSteps column
   sector_id_reserved_bits: 3
   # dataframe column containing x coordinates
   x_column: dldPosX
@@ -63,6 +69,7 @@ dataframe:
   jitter_cols: ["dldPosX", "dldPosY", "dldTimeSteps"]
 
   units:
+    # These are the units of the columns
     dldPosX: 'step'
     dldPosY: 'step'
     dldTimeSteps: 'step'
@@ -72,10 +79,10 @@ dataframe:
     cryoTemperature: 'K'
     sampleTemperature: 'K'
     dldTime: 'ns'
-    # delay: 'ps'
+    delay: 'ps'
     timeStamp: 's'
-    # energy: 'eV'
-    # E: 'eV'
+    energy: 'eV'
+    E: 'eV'
     kx: '1/A'
     ky: '1/A'
 
@@ -87,23 +94,32 @@ dataframe:
   #   slice: if the group contains multidim data, where to slice
 
   channels:
+    # The timestamp
+    timeStamp:
+      format: per_train
+      group_name: "/uncategorised/FLASH.DIAG/TIMINGINFO/TIME1.BUNCH_FIRST_INDEX.1/"
+
     # pulse ID is a necessary channel for using the loader.
     pulseId:
       format: per_electron
       group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
       slice: 2
 
+    # detector x position
     dldPosX:
       format: per_electron
       group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
       slice: 1
 
+    # detector y position
     dldPosY:
       format: per_electron
       group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
       slice: 0
-    # This channel will actually create dldTimeSteps and dldSectorID,
-    # if unravel_8s_detector_time_channel is set to True
+
+    # Detector time-of-flight channel
+    # if split_sector_id_from_dld_time is set to True, This this will generate
+    # also the dldSectorID channel
     dldTimeSteps:
       format: per_electron
       group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
@@ -124,6 +140,33 @@ dataframe:
         sampleTemperature: 5
         dldTimeBinSize: 15
 
+    # ADC containing the pulser sign (1: value approx. 35000, 0: 33000)
+    pulserSignAdc:
+      format: per_pulse
+      group_name: "/FL1/Experiment/PG/SIS8300 100MHz ADC/CH6/TD/"
+
+    # the energy of the monochromatized beam. This is a quasi-static value.
+    # there is a better channel which still needs implementation.
+    monochromatorPhotonEnergy:
+      format: per_train
+      group_name: "/FL1/Beamlines/PG/Monochromator/monochromator photon energy/"
+
+    # The GMDs can not be read yet...
+    gmdBda:
+      format: per_train
+      group_name: "/FL1/Photon Diagnostic/GMD/Average energy/energy BDA/"
+    # Beam Arrival Monitor, vital for pump-probe experiments as it can compensate sase
+    # timing fluctuations.
+    # Here we use the DBC2 BAM as the "normal" one is broken.
+    bam:
+        format: per_pulse
+        group_name: "/uncategorised/FLASH.SDIAG/BAM.DAQ/FL0.DBC2.ARRIVAL_TIME.ABSOLUTE.SA1.COMP/"
+
+    # The delay Stage position, encoding the pump-probe delay
+    delayStage:
+      format: per_train
+      group_name: "/zraw/FLASH.SYNC/LASER.LOCK.EXP/F1.PG.OSC/FMC0.MD22.1.ENCODER_POSITION.RD/dGroup/"
+
   # The prefixes of the stream names for different DAQ systems for parsing filenames
   # (Not to be changed by user)
   stream_name_prefixes:
@@ -139,6 +182,8 @@ dataframe:
   # (Not to be changed by user)
   beamtime_dir:
     pg2: "/asap3/flash/gpfs/pg2/"
+    hextof: "/asap3/fs-flash-o/gpfs/hextof/"
+    wespe: "/asap3/fs-flash-o/gpfs/wespe/"
 
 # metadata collection from scicat
 # metadata:
