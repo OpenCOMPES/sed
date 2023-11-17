@@ -30,7 +30,6 @@ from pandas import Series
 
 from sed.core import dfops
 from sed.loader.base.loader import BaseLoader
-from sed.loader.sxp.metadata import MetadataRetriever
 from sed.loader.utils import parse_h5_keys
 from sed.loader.utils import split_dld_time_from_sector_id
 
@@ -793,18 +792,18 @@ class SXPLoader(BaseLoader):
 
         return dataframe_electron, dataframe_pulse
 
-    def parse_metadata(self) -> dict:
-        """Uses the MetadataRetriever class to fetch metadata from scicat for each run.
+    def gather_metadata(self, metadata: dict = None) -> dict:
+        """Dummy function returning empty metadata dictionary for now.
+
+        Args:
+            metadata (dict, optional): Manual meta data dictionary. Auto-generated
+                meta data are added to it. Defaults to None.
 
         Returns:
             dict: Metadata dictionary
         """
-        metadata_retriever = MetadataRetriever(self._config["metadata"])
-        metadata = metadata_retriever.get_metadata(
-            beamtime_id=self._config["core"]["beamtime_id"],
-            runs=self.runs,
-            metadata=self.metadata,
-        )
+        if metadata is None:
+            metadata = {}
 
         return metadata
 
@@ -882,7 +881,12 @@ class SXPLoader(BaseLoader):
 
         df, df_timed = self.parquet_handler(data_parquet_dir, **kwds)
 
-        metadata = self.parse_metadata() if collect_metadata else {}
+        if collect_metadata:
+            metadata = self.gather_metadata(
+                metadata=self.metadata,
+            )
+        else:
+            metadata = self.metadata
         print(f"loading complete  in {time.time() - t0:.2f} s")
 
         return df, df_timed, metadata
