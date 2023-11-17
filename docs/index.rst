@@ -3,7 +3,6 @@ Single-Event DataFrame (SED) documentation
 
 .. toctree::
    :maxdepth: 1
-   :numbered:
    :caption: Getting Started
 
    getting_started
@@ -13,7 +12,6 @@ Single-Event DataFrame (SED) documentation
 
 .. toctree::
    :maxdepth: 1
-   :numbered:
    :caption: SED Core Modules
 
    sed/core
@@ -28,7 +26,6 @@ Single-Event DataFrame (SED) documentation
 
 .. toctree::
    :maxdepth: 2
-   :numbered:
    :caption: Contributing
 
    misc/maintain
