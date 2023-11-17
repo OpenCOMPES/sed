@@ -1,5 +1,12 @@
 name: Publish to PyPI
 
+# Workflow runs prerelease job on every push to main branch
+# and a release job on every tag push.
+# A publish job is executed on every successful prerelease or release job
+# And if publish is successful, the version is also updated in the pyproject.toml file and pushed to main branch
+  # By default, a workflow run that is triggered by a push event will
+  # not trigger another push event when it pushes changes to the repository.
+# The package is distributed as sed-processor
 on:
   push:
     branches:
