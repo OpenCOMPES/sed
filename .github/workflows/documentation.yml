@@ -1,4 +1,4 @@
-name: build and deploy docs to pages
+name: documentation
 on:
   # Triggers the workflow on push but only for the main branch
   push:
