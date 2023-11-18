@@ -674,6 +674,31 @@ def test_delay_calibration_workflow():
     assert "delay" in processor.dataframe.columns
 
 
+def test_filter_column():
+    """Test the jittering function"""
+    config = parse_config(
+        config={"core": {"loader": "mpes"}},
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+    processor = SedProcessor(
+        folder=df_folder,
+        config=config,
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+    low, high = np.quantile(processor.dataframe["X"].compute(), [0.1, 0.9])
+    processor.filter_column("X", low, high)
+    assert processor.dataframe["X"].compute().min() >= low
+    assert processor.dataframe["X"].compute().max() <= high
+    with pytest.raises(KeyError):
+        processor.filter_column("wrong", low, high)
+    with pytest.raises(ValueError):
+        processor.filter_column("X", high, low)
+
+
 def test_add_jitter():
     """Test the jittering function"""
     config = parse_config(
