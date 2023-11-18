@@ -1,3 +1,4 @@
+Backend to handle photoelectron resolved datastreams.
 [![Documentation Status](https://github.com/OpenCOMPES/sed/actions/workflows/documentation.yml/badge.svg)](https://opencompes.github.io/sed/)
 ![](https://github.com/OpenCOMPES/sed/actions/workflows/linting.yml/badge.svg?branch=main)
 ![](https://github.com/OpenCOMPES/sed/actions/workflows/testing_multiversion.yml/badge.svg?branch=main)
@@ -6,9 +7,6 @@
 [![](https://img.shields.io/pypi/v/sed-processor)](https://pypi.org/project/sed-processor)
 [![Coverage Status](https://coveralls.io/repos/github/OpenCOMPES/sed/badge.svg?branch=main&kill_cache=1)](https://coveralls.io/github/OpenCOMPES/sed?branch=main)
 
-# Single Event Data Frame Processor
-
-Backend to handle photoelectron resolved datastreams.
 
 ## Installation
 
