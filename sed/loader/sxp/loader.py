@@ -1,11 +1,13 @@
+# pylint: disable=duplicate-code
 """
-This module implements the flash data loader.
-This loader currently supports hextof, wespe and instruments with similar structure.
+This module implements the SXP data loader.
+This loader currently supports the SXP momentum microscope instrument.
 The raw hdf5 data is combined and saved into buffer files and loaded as a dask dataframe.
 The dataframe is a amalgamation of all h5 files for a combination of runs, where the NaNs are
 automatically forward filled across different files.
 This can then be saved as a parquet for out-of-sed processing and reread back to access other
 sed funtionality.
+Most of the structure is identical to the FLASH loader.
 """
 import time
 from functools import reduce
@@ -28,19 +30,18 @@ from pandas import Series
 
 from sed.core import dfops
 from sed.loader.base.loader import BaseLoader
-from sed.loader.flash.metadata import MetadataRetriever
 from sed.loader.utils import parse_h5_keys
 from sed.loader.utils import split_dld_time_from_sector_id
 
 
-class FlashLoader(BaseLoader):
+class SXPLoader(BaseLoader):
     """
-    The class generates multiindexed multidimensional pandas dataframes from the new FLASH
+    The class generates multiindexed multidimensional pandas dataframes from the new SXP
     dataformat resolved by both macro and microbunches alongside electrons.
     Only the read_dataframe (inherited and implemented) method is accessed by other modules.
     """
 
-    __name__ = "flash"
+    __name__ = "sxp"
 
     supported_file_types = ["h5"]
 
@@ -51,6 +52,7 @@ class FlashLoader(BaseLoader):
         self.index_per_electron: MultiIndex = None
         self.index_per_pulse: MultiIndex = None
         self.failed_files_error: List[str] = []
+        self.nhits: np.ndarray = None
 
     def initialize_paths(self) -> Tuple[List[Path], Path]:
         """
@@ -65,7 +67,11 @@ class FlashLoader(BaseLoader):
             FileNotFoundError: If the raw data directories are not found.
         """
         # Parses to locate the raw beamtime directory from config file
-        if "paths" in self._config["core"]:
+        if (
+            "paths" in self._config["core"]
+            and self._config["core"]["paths"].get("data_raw_dir", "")
+            and self._config["core"]["paths"].get("data_parquet_dir", "")
+        ):
             data_raw_dir = [
                 Path(self._config["core"]["paths"].get("data_raw_dir", "")),
             ]
@@ -77,33 +83,20 @@ class FlashLoader(BaseLoader):
             try:
                 beamtime_id = self._config["core"]["beamtime_id"]
                 year = self._config["core"]["year"]
-                daq = self._config["dataframe"]["daq"]
             except KeyError as exc:
                 raise ValueError(
-                    "The beamtime_id, year and daq are required.",
+                    "The beamtime_id and year are required.",
                 ) from exc
 
             beamtime_dir = Path(
                 self._config["dataframe"]["beamtime_dir"][self._config["core"]["beamline"]],
             )
-            beamtime_dir = beamtime_dir.joinpath(f"{year}/data/{beamtime_id}/")
+            beamtime_dir = beamtime_dir.joinpath(f"{year}/{beamtime_id}/")
 
-            # Use pathlib walk to reach the raw data directory
-            data_raw_dir = []
-            raw_path = beamtime_dir.joinpath("raw")
+            if not beamtime_dir.joinpath("raw").is_dir():
+                raise FileNotFoundError("Raw data directory not found.")
 
-            for path in raw_path.glob("**/*"):
-                if path.is_dir():
-                    dir_name = path.name
-                    if dir_name.startswith("express-") or dir_name.startswith(
-                        "online-",
-                    ):
-                        data_raw_dir.append(path.joinpath(daq))
-                    elif dir_name == daq.upper():
-                        data_raw_dir.append(path)
-
-            if not data_raw_dir:
-                raise FileNotFoundError("Raw data directories not found.")
+            data_raw_dir = [beamtime_dir.joinpath("raw")]
 
             parquet_path = "processed/parquet"
             data_parquet_dir = beamtime_dir.joinpath(parquet_path)
@@ -138,6 +131,10 @@ class FlashLoader(BaseLoader):
         """
         # Define the stream name prefixes based on the data acquisition identifier
         stream_name_prefixes = self._config["dataframe"]["stream_name_prefixes"]
+        stream_name_postfixes = self._config["dataframe"].get("stream_name_postfixes", {})
+
+        if isinstance(run_id, int):
+            run_id = str(run_id).zfill(4)
 
         if folders is None:
             folders = self._config["core"]["base_folder"]
@@ -147,8 +144,9 @@ class FlashLoader(BaseLoader):
 
         daq = kwds.pop("daq", self._config.get("dataframe", {}).get("daq"))
 
+        stream_name_postfix = stream_name_postfixes.get(daq, "")
         # Generate the file patterns to search for in the directory
-        file_pattern = f"{stream_name_prefixes[daq]}_run{run_id}_*." + extension
+        file_pattern = f"**/{stream_name_prefixes[daq]}{run_id}{stream_name_postfix}*." + extension
 
         files: List[Path] = []
         # Use pathlib to search for matching files in each directory
@@ -208,7 +206,7 @@ class FlashLoader(BaseLoader):
                 and key != "dldAux"
             )
             # Include 'dldAuxChannels' if the format is 'per_pulse'.
-            if format_ == "per_pulse":
+            if format_ == "per_pulse" and "dldAux" in self._config["dataframe"]["channels"]:
                 channels.extend(
                     self._config["dataframe"]["channels"]["dldAux"]["dldAuxChannels"].keys(),
                 )
@@ -223,6 +221,7 @@ class FlashLoader(BaseLoader):
         """Resets the index per pulse and electron"""
         self.index_per_electron = None
         self.index_per_pulse = None
+        self.nhits = None
 
     def create_multi_index_per_electron(self, h5_file: h5py.File) -> None:
         """
@@ -240,10 +239,21 @@ class FlashLoader(BaseLoader):
         """
 
         # Macrobunch IDs obtained from the pulseId channel
-        [train_id, np_array] = self.create_numpy_array_per_channel(
+        train_id, np_array = self.create_numpy_array_per_channel(
             h5_file,
             "pulseId",
         )
+        # change trailing zeros to nan
+        nhits = (
+            np_array.shape[1]
+            - np.argmax((np.diff(np_array.astype(np.int32)) < 0)[:, ::-1], axis=1)
+            - 1
+        )
+        nhits[nhits == np_array.shape[1] - 1] = 0
+        self.nhits = nhits
+        np_array = np_array.astype("float")
+        for i in range(np_array.shape[0]):
+            np_array[i, nhits[i] :] = np.nan
 
         # Create a series with the macrobunches as index and
         # microbunches as values
@@ -326,17 +336,20 @@ class FlashLoader(BaseLoader):
 
         """
         # Get the data from the necessary h5 file and channel
-        group = h5_file[self._config["dataframe"]["channels"][channel]["group_name"]]
+        dataset = h5_file[self._config["dataframe"]["channels"][channel]["dataset_key"]]
+        index = h5_file[self._config["dataframe"]["channels"][channel]["index_key"]]
 
         channel_dict = self._config["dataframe"]["channels"][channel]  # channel parameters
 
-        train_id = Series(group["index"], name="trainId")  # macrobunch
+        train_id = Series(index, name="trainId")  # macrobunch
 
-        # unpacks the timeStamp or value
-        if channel == "timeStamp":
-            np_array = group["time"][()]
-        else:
-            np_array = group["value"][()]
+        # unpacks the data into np.ndarray
+        np_array = dataset[()]
+        if len(np_array.shape) == 2 and self._config["dataframe"]["channels"][channel].get(
+            "max_hits",
+            0,
+        ):
+            np_array = np_array[:, : self._config["dataframe"]["channels"][channel]["max_hits"]]
 
         # Use predefined axis and slice from the json file
         # to choose correct dimension for necessary channel
@@ -370,6 +383,11 @@ class FlashLoader(BaseLoader):
             is set, and the NaN values are dropped, alongside the pulseId = 0 (meaningless).
 
         """
+        if self.nhits is None or self.nhits.shape[0] != np_array.shape[0]:
+            raise RuntimeError("nhits not set correctly, internal inconstency detected.")
+        np_array = np_array.astype("float")
+        for i in range(np_array.shape[0]):
+            np_array[i, self.nhits[i] :] = np.nan
         return (
             Series((np_array[i] for i in train_id.index), name=channel)
             .explode()
@@ -564,16 +582,17 @@ class FlashLoader(BaseLoader):
         """
         all_keys = parse_h5_keys(h5_file)  # Parses all channels present
 
-        # Check for if the provided group_name actually exists in the file
+        # Check for if the provided dataset_keys and index_keys actually exists in the file
         for channel in self._config["dataframe"]["channels"]:
-            if channel == "timeStamp":
-                group_name = self._config["dataframe"]["channels"][channel]["group_name"] + "time"
-            else:
-                group_name = self._config["dataframe"]["channels"][channel]["group_name"] + "value"
-
-            if group_name not in all_keys:
+            dataset_key = self._config["dataframe"]["channels"][channel]["dataset_key"]
+            if dataset_key not in all_keys:
                 raise ValueError(
-                    f"The group_name for channel {channel} does not exist.",
+                    f"The dataset_key for channel {channel} does not exist.",
+                )
+            index_key = self._config["dataframe"]["channels"][channel]["index_key"]
+            if index_key not in all_keys:
+                raise ValueError(
+                    f"The index_key for channel {channel} does not exist.",
                 )
 
         # Create a generator expression to generate data frames for each channel
@@ -726,6 +745,8 @@ class FlashLoader(BaseLoader):
             )
             if any(error):
                 raise RuntimeError(f"Conversion failed for some files. {error}")
+        # for h5_path, parquet_path in files_to_read:
+        #     self.create_buffer_file(h5_path, parquet_path)
 
         # Raise an error if the conversion failed for any files
         # TODO: merge this and the previous error trackings
@@ -836,18 +857,18 @@ class FlashLoader(BaseLoader):
 
         return dataframe_electron, dataframe_pulse
 
-    def parse_metadata(self) -> dict:
-        """Uses the MetadataRetriever class to fetch metadata from scicat for each run.
+    def gather_metadata(self, metadata: dict = None) -> dict:
+        """Dummy function returning empty metadata dictionary for now.
+
+        Args:
+            metadata (dict, optional): Manual meta data dictionary. Auto-generated
+                meta data are added to it. Defaults to None.
 
         Returns:
             dict: Metadata dictionary
         """
-        metadata_retriever = MetadataRetriever(self._config["metadata"])
-        metadata = metadata_retriever.get_metadata(
-            beamtime_id=self._config["core"]["beamtime_id"],
-            runs=self.runs,
-            metadata=self.metadata,
-        )
+        if metadata is None:
+            metadata = {}
 
         return metadata
 
@@ -925,10 +946,15 @@ class FlashLoader(BaseLoader):
 
         df, df_timed = self.parquet_handler(data_parquet_dir, **kwds)
 
-        metadata = self.parse_metadata() if collect_metadata else {}
+        if collect_metadata:
+            metadata = self.gather_metadata(
+                metadata=self.metadata,
+            )
+        else:
+            metadata = self.metadata
         print(f"loading complete in {time.time() - t0: .2f} s")
 
         return df, df_timed, metadata
 
 
-LOADER = FlashLoader
+LOADER = SXPLoader
