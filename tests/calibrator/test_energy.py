@@ -580,14 +580,14 @@ def test_add_offsets_functionality():
                 "calibration": {
                     "energy_scale": "kinetic",
                 },
-                "offset": {
+                "offsets": {
                     "constant": 1,
                     "off1": {
-                        "sign": 1,
+                        "weight": 1,
                         "preserve_mean": True,
                     },
-                    "off2": {"sign": -1, "preserve_mean": False},
-                    "off3": {"sign": 1, "preserve_mean": False, "reduction": "mean"},
+                    "off2": {"weight": -1, "preserve_mean": False},
+                    "off3": {"weight": 1, "preserve_mean": False, "reduction": "mean"},
                 },
             },
         },
@@ -599,7 +599,7 @@ def test_add_offsets_functionality():
         "constant": 1,
         "energy_column": "energy",
         "columns": ["off1", "off2", "off3"],
-        "signs": [1, -1, 1],
+        "weights": [1, -1, 1],
         "preserve_mean": [True, False, False],
         "reductions": [None, None, "mean"],
     }
@@ -646,11 +646,11 @@ def test_add_offset_raises():
             "calibration": {
                 "energy_scale": "kinetic",
             },
-            "offset": {
+            "offsets": {
                 "constant": 1,
-                "off1": {"sign": -1, "preserve_mean": True},
-                "off2": {"sign": -1, "preserve_mean": False},
-                "off3": {"sign": 1, "preserve_mean": False, "reduction": "mean"},
+                "off1": {"weight": -1, "preserve_mean": True},
+                "off2": {"weight": -1, "preserve_mean": False},
+                "off3": {"weight": 1, "preserve_mean": False, "reduction": "mean"},
             },
         },
     }
@@ -667,7 +667,7 @@ def test_add_offset_raises():
     # no sign in config
     with pytest.raises(KeyError):
         cfg = deepcopy(cfg_dict)
-        cfg["energy"]["offset"]["off1"].pop("sign")
+        cfg["energy"]["offsets"]["off1"].pop("weight")
         config = parse_config(config=cfg, folder_config={}, user_config={}, system_config={})
         ec = EnergyCalibrator(config=cfg, loader=get_loader("flash", config=config))
         _ = ec.add_offsets(t_df)
@@ -691,7 +691,7 @@ def test_add_offset_raises():
     # invalid sign
     with pytest.raises(TypeError):
         cfg = deepcopy(cfg_dict)
-        cfg["energy"]["offset"]["off1"]["sign"] = "wrong_type"
+        cfg["energy"]["offsets"]["off1"]["weight"] = "wrong_type"
         config = parse_config(config=cfg, folder_config={}, user_config={}, system_config={})
         ec = EnergyCalibrator(config=cfg, loader=get_loader("flash", config=config))
         _ = ec.add_offsets(t_df)
@@ -699,7 +699,7 @@ def test_add_offset_raises():
         # invalid constant
     with pytest.raises(TypeError):
         cfg = deepcopy(cfg_dict)
-        cfg["energy"]["offset"]["constant"] = "wrong_type"
+        cfg["energy"]["offsets"]["constant"] = "wrong_type"
         config = parse_config(config=cfg, folder_config={}, user_config={}, system_config={})
         ec = EnergyCalibrator(config=cfg, loader=get_loader("flash", config=config))
         _ = ec.add_offsets(t_df)
