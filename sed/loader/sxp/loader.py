@@ -20,7 +20,7 @@ from typing import Union
 import dask.dataframe as dd
 import h5py
 import numpy as np
-import pyarrow as pa
+import pyarrow.parquet as pq
 from joblib import delayed
 from joblib import Parallel
 from natsort import natsorted
@@ -122,7 +122,6 @@ class SXPLoader(BaseLoader):
             extension (str, optional): The file extension. Defaults to "h5".
             kwds: Keyword arguments:
                 - daq (str): The data acquisition identifier.
-                Defaults to config["dataframe"]["daq"].
 
         Returns:
             List[str]: A list of path strings representing the collected file names.
@@ -176,29 +175,46 @@ class SXPLoader(BaseLoader):
         available_channels.remove("pulseId")
         return available_channels
 
-    def get_channels_by_format(self, formats: List[str]) -> List:
+    def get_channels(self, formats: Union[str, List[str]] = "", index: bool = False) -> List[str]:
         """
-        Returns a list of channels with the specified format.
+        Returns a list of channels associated with the specified format(s).
 
         Args:
-            formats (List[str]): The desired formats ('per_pulse', 'per_electron',
-                or 'per_train').
+            formats (Union[str, List[str]]): The desired format(s)
+                                ('per_pulse', 'per_electron', 'per_train', 'all').
+            index (bool): If True, includes channels from the multi_index.
 
         Returns:
-            List: A list of channels with the specified format(s).
+            List[str]: A list of channels with the specified format(s).
         """
+        # If 'formats' is a single string, convert it to a list for uniform processing.
+        if isinstance(formats, str):
+            formats = [formats]
+
+        # If 'formats' is a string "all", gather all possible formats.
+        if formats == ["all"]:
+            channels = self.get_channels(["per_pulse", "per_train", "per_electron"], index)
+            return channels
+
         channels = []
         for format_ in formats:
-            for key in self.available_channels:
-                channel_format = self._config["dataframe"]["channels"][key]["format"]
-                if channel_format == format_:
-                    if key == "dldAux":
-                        aux_channels = self._config["dataframe"]["channels"][key][
-                            "dldAuxChannels"
-                        ].keys()
-                        channels.extend(aux_channels)
-                    else:
-                        channels.append(key)
+            # Gather channels based on the specified format(s).
+            channels.extend(
+                key
+                for key in self.available_channels
+                if self._config["dataframe"]["channels"][key]["format"] == format_
+                and key != "dldAux"
+            )
+            # Include 'dldAuxChannels' if the format is 'per_pulse'.
+            if format_ == "per_pulse" and "dldAux" in self._config["dataframe"]["channels"]:
+                channels.extend(
+                    self._config["dataframe"]["channels"]["dldAux"]["dldAuxChannels"].keys(),
+                )
+
+        # Include channels from multi_index if 'index' is True.
+        if index:
+            channels.extend(self.multi_index)
+
         return channels
 
     def reset_multi_index(self) -> None:
@@ -566,12 +582,17 @@ class SXPLoader(BaseLoader):
         """
         all_keys = parse_h5_keys(h5_file)  # Parses all channels present
 
-        # Check for if the provided group_name actually exists in the file
+        # Check for if the provided dataset_keys and index_keys actually exists in the file
         for channel in self._config["dataframe"]["channels"]:
             dataset_key = self._config["dataframe"]["channels"][channel]["dataset_key"]
             if dataset_key not in all_keys:
                 raise ValueError(
-                    f"The group_name for channel {channel} does not exist.",
+                    f"The dataset_key for channel {channel} does not exist.",
+                )
+            index_key = self._config["dataframe"]["channels"][channel]["index_key"]
+            if index_key not in all_keys:
+                raise ValueError(
+                    f"The index_key for channel {channel} does not exist.",
                 )
 
         # Create a generator expression to generate data frames for each channel
@@ -639,17 +660,23 @@ class SXPLoader(BaseLoader):
             return exc
         return None
 
-    def buffer_file_handler(self, data_parquet_dir: Path, detector: str):
+    def buffer_file_handler(
+        self,
+        data_parquet_dir: Path,
+        detector: str,
+        force_recreate: bool,
+    ) -> Tuple[List[Path], List, List]:
         """
         Handles the conversion of buffer files (h5 to parquet) and returns the filenames.
 
         Args:
             data_parquet_dir (Path): Directory where the parquet files will be stored.
             detector (str): Detector name.
+            force_recreate (bool): Forces recreation of buffer files
 
         Returns:
-            Tuple[List[Path], List[Path]]: Two lists, one for h5 file paths and one for
-            corresponding parquet file paths.
+            Tuple[List[Path], List, List]: Three lists, one for
+            parquet file paths, one for metadata and one for schema.
 
         Raises:
             FileNotFoundError: If the conversion fails for any files or no data is available.
@@ -664,16 +691,45 @@ class SXPLoader(BaseLoader):
         parquet_filenames = [
             buffer_file_dir.joinpath(Path(file).stem + detector) for file in self.files
         ]
+        existing_parquet_filenames = [file for file in parquet_filenames if file.exists()]
 
         # Raise a value error if no data is available after the conversion
         if len(h5_filenames) == 0:
             raise ValueError("No data available. Probably failed reading all h5 files")
 
+        if not force_recreate:
+            # Check if the available channels match the schema of the existing parquet files
+            parquet_schemas = [pq.read_schema(file) for file in existing_parquet_filenames]
+            config_schema = set(self.get_channels(formats="all", index=True))
+            if self._config["dataframe"].get("split_sector_id_from_dld_time", False):
+                config_schema.add(self._config["dataframe"].get("sector_id_column", False))
+
+            for i, schema in enumerate(parquet_schemas):
+                schema_set = set(schema.names)
+                if schema_set != config_schema:
+                    missing_in_parquet = config_schema - schema_set
+                    missing_in_config = schema_set - config_schema
+
+                    missing_in_parquet_str = (
+                        f"Missing in parquet: {missing_in_parquet}" if missing_in_parquet else ""
+                    )
+                    missing_in_config_str = (
+                        f"Missing in config: {missing_in_config}" if missing_in_config else ""
+                    )
+
+                    raise ValueError(
+                        "The available channels do not match the schema of file",
+                        f"{existing_parquet_filenames[i]}",
+                        f"{missing_in_parquet_str}",
+                        f"{missing_in_config_str}",
+                        "Please check the configuration file or set force_recreate to True.",
+                    )
+
         # Choose files to read
         files_to_read = [
             (h5_path, parquet_path)
             for h5_path, parquet_path in zip(h5_filenames, parquet_filenames)
-            if not parquet_path.exists()
+            if force_recreate or not parquet_path.exists()
         ]
 
         print(f"Reading files: {len(files_to_read)} new files of {len(h5_filenames)} total.")
@@ -701,7 +757,11 @@ class SXPLoader(BaseLoader):
 
         print("All files converted successfully!")
 
-        return h5_filenames, parquet_filenames
+        # read all parquet metadata and schema
+        metadata = [pq.read_metadata(file) for file in parquet_filenames]
+        schema = [pq.read_schema(file) for file in parquet_filenames]
+
+        return parquet_filenames, metadata, schema
 
     def parquet_handler(
         self,
@@ -711,7 +771,8 @@ class SXPLoader(BaseLoader):
         converted: bool = False,
         load_parquet: bool = False,
         save_parquet: bool = False,
-    ):
+        force_recreate: bool = False,
+    ) -> Tuple[dd.DataFrame, dd.DataFrame]:
         """
         Handles loading and saving of parquet files based on the provided parameters.
 
@@ -724,7 +785,7 @@ class SXPLoader(BaseLoader):
                 externally and saved into converted folder.
             load_parquet (bool, optional): Loads the entire parquet into the dd dataframe.
             save_parquet (bool, optional): Saves the entire dataframe into a parquet.
-
+            force_recreate (bool, optional): Forces recreation of buffer file.
         Returns:
             tuple: A tuple containing two dataframes:
             - dataframe_electron: Dataframe containing the loaded/augmented electron data.
@@ -755,19 +816,23 @@ class SXPLoader(BaseLoader):
                 ) from exc
 
         else:
-            # Obtain the filenames from the method which handles buffer file creation/reading
-            _, parquet_filenames = self.buffer_file_handler(
+            # Obtain the parquet filenames, metadata and schema from the method
+            # which handles buffer file creation/reading
+            filenames, metadata, _ = self.buffer_file_handler(
                 data_parquet_dir,
                 detector,
+                force_recreate,
             )
+
             # Read all parquet files into one dataframe using dask
-            dataframe = dd.read_parquet(parquet_filenames, calculate_divisions=True)
+            dataframe = dd.read_parquet(filenames, calculate_divisions=True)
+
             # Channels to fill NaN values
+            channels: List[str] = self.get_channels(["per_pulse", "per_train"])
+
+            overlap = min(file.num_rows for file in metadata)
+
             print("Filling nan values...")
-            channels: List[str] = self.get_channels_by_format(["per_pulse", "per_train"])
-
-            overlap = min(pa.parquet.read_metadata(prq).num_rows for prq in parquet_filenames)
-
             dataframe = dfops.forward_fill_lazy(
                 df=dataframe,
                 columns=channels,
@@ -776,10 +841,10 @@ class SXPLoader(BaseLoader):
             )
             # Remove the NaNs from per_electron channels
             dataframe_electron = dataframe.dropna(
-                subset=self.get_channels_by_format(["per_electron"]),
+                subset=self.get_channels(["per_electron"]),
             )
             dataframe_pulse = dataframe[
-                self.multi_index + self.get_channels_by_format(["per_pulse", "per_train"])
+                self.multi_index + self.get_channels(["per_pulse", "per_train"])
             ]
             dataframe_pulse = dataframe_pulse[
                 (dataframe_pulse["electronId"] == 0) | (np.isnan(dataframe_pulse["electronId"]))
@@ -887,7 +952,7 @@ class SXPLoader(BaseLoader):
             )
         else:
             metadata = self.metadata
-        print(f"loading complete  in {time.time() - t0:.2f} s")
+        print(f"loading complete in {time.time() - t0: .2f} s")
 
         return df, df_timed, metadata
 
