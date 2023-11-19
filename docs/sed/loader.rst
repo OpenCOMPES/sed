@@ -35,7 +35,9 @@ FlashLoader
    :members:
    :undoc-members:
 
-.. automodule:: sed.loader.flash.utils
+SXPLoader
+###################################################
+.. automodule:: sed.loader.sxp.loader
    :members:
    :undoc-members:
 

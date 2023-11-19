@@ -777,11 +777,11 @@ class EnergyCalibrator:
     def get_current_calibration(self) -> dict:
         """Return the current calibration dictionary.
 
-         if none is present, return the one from the config. If none is present there,
+        If none is present, return the one from the config. If none is present there,
         return an empty dictionary.
 
-         Returns:
-             dict: Calibration dictionary.
+        Returns:
+            dict: Calibration dictionary.
         """
         if self.calibration:
             calibration = deepcopy(self.calibration)
