@@ -156,9 +156,9 @@ momentum:
   # default momentum calibration
   calibration:
     # x momentum scaleing factor
-    kx_scale: 0.012389400615413859
+    kx_scale: 0.010729535670610963
     # y momentum scaleing factor
-    ky_scale: 0.012389400615413859
+    ky_scale: 0.010729535670610963
     # x BZ center pixel
     x_center: 256.0
     # y BZ center pixel
