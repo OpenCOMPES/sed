@@ -173,7 +173,7 @@ class MomentumCorrector:
                 self.bin_ranges.append(
                     (
                         data.coords[axis][0].values,
-                        data.coords[axis][-1].values,
+                        2 * data.coords[axis][-1].values - data.coords[axis][-2].values,  # endpoint
                     ),
                 )
         else:
