@@ -4199,13 +4199,13 @@ files = [
 
 [[package]]
 name = "pygments"
-version = "2.17.0"
+version = "2.17.1"
 description = "Pygments is a syntax highlighting package written in Python."
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "pygments-2.17.0-py3-none-any.whl", hash = "sha256:cd0c46944b2551af02ecc15961050182ea120d3895000e2676160820f3421527"},
-    {file = "pygments-2.17.0.tar.gz", hash = "sha256:edaa0fa2453d055d0ac94449d1f73ec7bc52c5e318204da1377c1392978c4a8d"},
+    {file = "pygments-2.17.1-py3-none-any.whl", hash = "sha256:1b37f1b1e1bff2af52ecaf28cc601e2ef7077000b227a0675da25aef85784bc4"},
+    {file = "pygments-2.17.1.tar.gz", hash = "sha256:e45a0e74bf9c530f564ca81b8952343be986a29f6afe7f5ad95c5f06b7bdf5e8"},
 ]
 
 [package.extras]
@@ -4820,13 +4820,13 @@ use-chardet-on-py3 = ["chardet (>=3.0.2,<6)"]
 
 [[package]]
 name = "requests-cache"
-version = "1.1.0"
+version = "1.1.1"
 description = "A persistent cache for python requests"
 optional = false
 python-versions = ">=3.7,<4.0"
 files = [
-    {file = "requests_cache-1.1.0-py3-none-any.whl", hash = "sha256:178282bce704b912c59e7f88f367c42bddd6cde6bf511b2a3e3cfb7e5332a92a"},
-    {file = "requests_cache-1.1.0.tar.gz", hash = "sha256:41b79166aa8e300cc4de982f7ab7c52af914a785160be1eda25c6e9265969a67"},
+    {file = "requests_cache-1.1.1-py3-none-any.whl", hash = "sha256:c8420cf096f3aafde13c374979c21844752e2694ffd8710e6764685bb577ac90"},
+    {file = "requests_cache-1.1.1.tar.gz", hash = "sha256:764f93d3fa860be72125a568c2cc8eafb151cf29b4dc2515433a56ee657e1c60"},
 ]
 
 [package.dependencies]
