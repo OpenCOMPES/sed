@@ -1923,9 +1923,12 @@ class SedProcessor:
         )
         df_partitions: Union[int, Sequence[int]] = kwds.pop("df_partitions", None)
         if isinstance(df_partitions, int):
-            df_partitions = np.arange(
-                0,
-                min(df_partitions, self._dataframe.npartitions),
+            df_partitions = cast(
+                Sequence[int],
+                np.arange(
+                    0,
+                    min(df_partitions, self._dataframe.npartitions),
+                ),
             )
         if df_partitions is not None:
             dataframe = self._dataframe.partitions[df_partitions]
@@ -2030,9 +2033,12 @@ class SedProcessor:
 
         df_partitions: Union[int, Sequence[int]] = kwds.pop("df_partitions", None)
         if isinstance(df_partitions, int):
-            df_partitions = np.arange(
-                0,
-                min(df_partitions, self._dataframe.npartitions),
+            df_partitions = cast(
+                Sequence[int],
+                np.arange(
+                    0,
+                    min(df_partitions, self._dataframe.npartitions),
+                ),
             )
 
         if use_time_stamps or self._timed_dataframe is None:
