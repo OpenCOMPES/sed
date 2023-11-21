@@ -4,8 +4,7 @@ name: Publish to PyPI
 # and a release job on every tag push.
 # A publish job is executed on every successful prerelease or release job
 # And if publish is successful, the version is also updated in the pyproject.toml file and pushed to main branch
-  # By default, a workflow run that is triggered by a push event will
-  # not trigger another push event when it pushes changes to the repository.
+  # Workflow does not trigger itself as it only changes pyproject.toml, which is not in paths for this workflow
 # The package is distributed as sed-processor
 on:
   push:
@@ -15,7 +14,10 @@ on:
       - '*'
     paths:
       - sed/**/*
-      - pyproject.toml
+      - .github/workflows/release.yml
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
 jobs:
   prerelease:
     if: github.ref == 'refs/heads/main'
@@ -132,6 +134,13 @@ jobs:
     if: always() && (needs.publish.result == 'success')
     runs-on: ubuntu-latest
     steps:
+      - name: Generate a token
+        id: generate_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - uses: actions/checkout@v3
         with:
           lfs: true
@@ -143,8 +152,9 @@ jobs:
           name: pyproject
           path: sed-processor
 
-      # new_branch set for cases when tagging a release
       - name: Commit changes
+        env:
+          GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
         uses: EndBug/add-and-commit@v9
         with:
           default_author: github_actions
@@ -152,6 +162,3 @@ jobs:
           add: pyproject.toml
           cwd: sed-processor
           new_branch: main
-          # By default, a workflow run that is triggered by a push event will
-          # not trigger another push event when it pushes changes to the repository.
-          # So no problem here.
