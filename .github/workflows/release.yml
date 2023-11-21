@@ -152,13 +152,16 @@ jobs:
           name: pyproject
           path: sed-processor
 
-      - name: Commit changes
-        env:
-          GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
-        uses: EndBug/add-and-commit@v9
+      - name: Commit files
+        run: |
+          git config --local user.email "bump[bot]@users.noreply.github.com"
+          git config --local user.name "bump[bot]"
+          git add sed-processor/pyproject.toml
+          git commit -m "bump version to ${{ needs.publish.outputs.version  }}"
+
+      - name: Push changes
+        uses: ad-m/github-push-action@master
         with:
-          default_author: github_actions
-          message: 'bump version to ${{ needs.publish.outputs.version  }}'
-          add: pyproject.toml
-          cwd: sed-processor
-          new_branch: main
+          github_token:  ${{ steps.generate_token.outputs.token }}
+          branch: main
+          directory: sed-processor
