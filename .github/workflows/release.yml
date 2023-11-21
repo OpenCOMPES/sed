@@ -145,6 +145,7 @@ jobs:
         with:
           lfs: true
           path: 'sed-processor'
+          token: ${{ steps.generate_token.outputs.token }}
 
       - name: Download pyproject.toml
         uses: actions/download-artifact@v3
