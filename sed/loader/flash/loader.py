@@ -52,6 +52,8 @@ class FlashLoader(BaseLoader):
         self.index_per_pulse: MultiIndex = None
         self.failed_files_error: List[str] = []
 
+        self.prq_metadata = None
+
     def initialize_paths(self) -> Tuple[List[Path], Path]:
         """
         Initializes the paths based on the configuration.
@@ -737,10 +739,10 @@ class FlashLoader(BaseLoader):
         print("All files converted successfully!")
 
         # read all parquet metadata and schema
-        metadata = [pq.read_metadata(file) for file in parquet_filenames]
+        self.prq_metadata = [pq.read_metadata(file) for file in parquet_filenames]
         schema = [pq.read_schema(file) for file in parquet_filenames]
 
-        return parquet_filenames, metadata, schema
+        return parquet_filenames, self.prq_metadata, schema
 
     def parquet_handler(
         self,
