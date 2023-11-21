@@ -10,6 +10,7 @@ sed funtionality.
 import time
 from functools import reduce
 from pathlib import Path
+from typing import Any
 from typing import List
 from typing import Sequence
 from typing import Tuple
@@ -52,7 +53,10 @@ class FlashLoader(BaseLoader):
         self.index_per_pulse: MultiIndex = None
         self.failed_files_error: List[str] = []
 
-        self.prq_metadata = None
+        self.prq_metadata: List[Any] = None
+        self.num_electrons: int = None
+        self.num_electrons_per_part: List[int] = None
+        self.num_pulses: int = None
 
     def initialize_paths(self) -> Tuple[List[Path], Path]:
         """
@@ -727,7 +731,7 @@ class FlashLoader(BaseLoader):
                 for h5_path, parquet_path in files_to_read
             )
             if any(error):
-                raise RuntimeError(f"Conversion failed for some files. {error}")
+                raise RuntimeError(f"Conversion failed for some files. {error}") from error[0]
 
         # Raise an error if the conversion failed for any files
         # TODO: merge this and the previous error trackings
@@ -740,6 +744,8 @@ class FlashLoader(BaseLoader):
 
         # read all parquet metadata and schema
         self.prq_metadata = [pq.read_metadata(file) for file in parquet_filenames]
+        self.num_electrons_per_part = [metadata.num_rows for metadata in self.prq_metadata]
+        self.num_electrons = sum(self.num_electrons_per_part)
         schema = [pq.read_schema(file) for file in parquet_filenames]
 
         return parquet_filenames, self.prq_metadata, schema
