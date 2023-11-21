@@ -1,7 +1,11 @@
 name: linting
 
 # Triggers the workflow on push for all branches
-on: [push]
+on:
+  push:
+    branches: [ main ]
+    paths-ignore:
+      pyproject.toml
 
 jobs:
   lint:
