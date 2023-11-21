@@ -14,6 +14,7 @@ on:
       - '*'
     paths:
       - sed/**/*
+      - .github/workflows/release.yml
     paths-ignore:
       - pyproject.toml
   # Allows you to run this workflow manually from the Actions tab
