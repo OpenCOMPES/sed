@@ -172,7 +172,7 @@ class SedProcessor:
             df_str = f"Data Frame: {len(info['dataframe']['columns'])} columns.\n"
             df_str += f"{' '*11} {info['dataframe']['num_electrons']:,.0f} electrons.\n"
             df_str += f"{' '*11} {info['dataframe']['num_trains']:,.0f} trains.\n"
-            df_str += f"{' '*11} {info['dataframe']['electrons_per_train']} electrons/train.\n"
+            df_str += f"{' '*11} {info['dataframe']['electrons_per_train']:,.1f} electrons/train.\n"
             if "num_pulses" in info["dataframe"]:
                 df_str += f"{' '*11} {info['dataframe']['num_pulses']:,.0f} pulses.\n"
                 df_str += (
