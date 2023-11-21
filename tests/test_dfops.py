@@ -1,10 +1,13 @@
 """This file contains code that performs several tests for the dfops functions
 """
+import datetime as dt
+
 import dask.dataframe as ddf
 import numpy as np
 import pandas as pd
 import pytest
 
+from sed.core.dfops import add_time_stamped_data
 from sed.core.dfops import apply_filter
 from sed.core.dfops import apply_jitter
 from sed.core.dfops import backward_fill_lazy
@@ -54,6 +57,52 @@ def test_apply_filter():
     assert np.any(df[colname] > upper_bound)
     assert np.all(df_filtered[colname] > lower_bound)
     assert np.all(df_filtered[colname] < upper_bound)
+
+
+def test_add_time_stamped_data():
+    """Test the addition of time-stamped data to the df."""
+    df_ts = df
+    time_stamp = dt.datetime.now().timestamp()
+    df_ts["timeStamps"] = time_stamp + np.linspace(0, 100, N_PTS)
+    data = np.linspace(0, 1, 20)
+    time_stamps = time_stamp + np.linspace(0, 100, 20)
+    with pytest.raises(ValueError):
+        add_time_stamped_data(
+            df=df_ts,
+            time_stamps=time_stamps,
+            data=data,
+            dest_column="time_stamped_data",
+            time_stamp_column="timeStamps",
+        )
+    dd_ts = ddf.from_pandas(df_ts, npartitions=N_PARTITIONS)
+    with pytest.raises(ValueError):
+        add_time_stamped_data(
+            df=dd_ts,
+            time_stamps=time_stamps,
+            data=data,
+            dest_column="time_stamped_data",
+            time_stamp_column="invalidColumn",
+        )
+    dd_ts = add_time_stamped_data(
+        df=dd_ts,
+        time_stamps=time_stamps,
+        data=data,
+        dest_column="time_stamped_data",
+        time_stamp_column="timeStamps",
+    )
+    assert "time_stamped_data" in dd_ts
+    res = dd_ts["time_stamped_data"].compute().values
+    assert res[0] == 0
+    assert res[-1] == 1
+    with pytest.raises(ValueError):
+        data = np.linspace(0, 1, 19)
+        add_time_stamped_data(
+            df=dd_ts,
+            time_stamps=time_stamps,
+            data=data,
+            dest_column="time_stamped_data",
+            time_stamp_column="timeStamps",
+        )
 
 
 def test_map_columns_2d():
