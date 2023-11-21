@@ -155,6 +155,7 @@ jobs:
 
       - name: Commit files
         run: |
+          cd sed-processor
           git config --local user.email "bump[bot]@users.noreply.github.com"
           git config --local user.name "bump[bot]"
           git add sed-processor/pyproject.toml
