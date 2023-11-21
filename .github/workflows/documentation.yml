@@ -81,6 +81,7 @@ jobs:
           curl -L --output ./WSe2.zip https://zenodo.org/record/6369728/files/WSe2.zip
           unzip -o ./WSe2.zip -d .
           curl -L --output ./TaS2.zip https://zenodo.org/records/10160182/files/TaS2.zip
+          unzip -o ./WSe2.zip -d .
 
       - name: build Sphinx docs
         run: poetry run sphinx-build -b html $GITHUB_WORKSPACE/docs $GITHUB_WORKSPACE/_build
