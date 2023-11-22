@@ -57,6 +57,7 @@ class FlashLoader(BaseLoader):
         self.num_electrons: int = None
         self.num_electrons_per_part: List[int] = None
         self.num_pulses: int = None
+        self.parallel_loader: bool = True
 
     def initialize_paths(self) -> Tuple[List[Path], Path]:
         """
@@ -437,7 +438,15 @@ class FlashLoader(BaseLoader):
             # Macrobunch resolved data is exploded to a DataFrame and the MultiIndex is set
 
             # Creates the index_per_pulse for the given channel
-            self.create_multi_index_per_pulse(train_id, np_array)
+            # if np_array.ndim != 2:
+            #     np_array = np.empty((train_id.size, 0))
+            #     np_array[:,:]=np.nan
+            try:
+                self.create_multi_index_per_pulse(train_id, np_array)
+            except IndexError:
+                raise IndexError(
+                    f"IndexError: {channel} seems to be empty.",
+                )
             data = (
                 Series((np_array[i] for i in train_id.index), name=channel)
                 .explode()
@@ -652,6 +661,7 @@ class FlashLoader(BaseLoader):
         data_parquet_dir: Path,
         detector: str,
         force_recreate: bool,
+        parallel_loader=True,
     ) -> Tuple[List[Path], List, List]:
         """
         Handles the conversion of buffer files (h5 to parquet) and returns the filenames.
@@ -726,12 +736,20 @@ class FlashLoader(BaseLoader):
 
         # Convert the remaining h5 files to parquet in parallel if there are any
         if len(files_to_read) > 0:
-            error = Parallel(n_jobs=len(files_to_read), verbose=10)(
-                delayed(self.create_buffer_file)(h5_path, parquet_path)
-                for h5_path, parquet_path in files_to_read
-            )
-            if any(error):
-                raise RuntimeError(f"Conversion failed for some files. {error}") from error[0]
+            if parallel_loader:
+                error = Parallel(n_jobs=len(files_to_read), verbose=10)(
+                    delayed(self.create_buffer_file)(h5_path, parquet_path)
+                    for h5_path, parquet_path in files_to_read
+                )
+                if any(error):
+                    raise RuntimeError(f"Conversion failed for some files. {error}") from error[0]
+            else:
+                for h5_path, parquet_path in files_to_read:
+                    error = self.create_buffer_file(h5_path, parquet_path)
+                    if error:
+                        raise RuntimeError(
+                            f"Conversion failed for some file {h5_path}.\n {error}",
+                        ) from error
 
         # Raise an error if the conversion failed for any files
         # TODO: merge this and the previous error trackings
@@ -759,6 +777,7 @@ class FlashLoader(BaseLoader):
         load_parquet: bool = False,
         save_parquet: bool = False,
         force_recreate: bool = False,
+        parallel_loader: bool = True,
     ) -> Tuple[dd.DataFrame, dd.DataFrame]:
         """
         Handles loading and saving of parquet files based on the provided parameters.
@@ -809,6 +828,7 @@ class FlashLoader(BaseLoader):
                 data_parquet_dir,
                 detector,
                 force_recreate,
+                parallel_loader,
             )
 
             # Read all parquet files into one dataframe using dask
