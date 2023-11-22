@@ -1923,7 +1923,7 @@ class SedProcessor:
         )
         df_partitions: Union[int, Sequence[int]] = kwds.pop("df_partitions", None)
         if isinstance(df_partitions, int):
-            df_partitions = [i for i in range(0, min(df_partitions, self._dataframe.npartitions))]
+            df_partitions = list(range(0, min(df_partitions, self._dataframe.npartitions)))
         if df_partitions is not None:
             dataframe = self._dataframe.partitions[df_partitions]
         else:
@@ -2027,7 +2027,7 @@ class SedProcessor:
 
         df_partitions: Union[int, Sequence[int]] = kwds.pop("df_partitions", None)
         if isinstance(df_partitions, int):
-            df_partitions = [i for i in range(0, min(df_partitions, self._dataframe.npartitions))]
+            df_partitions = list(range(0, min(df_partitions, self._dataframe.npartitions)))
         if use_time_stamps or self._timed_dataframe is None:
             if df_partitions is not None:
                 self._normalization_histogram = normalization_histogram_from_timestamps(

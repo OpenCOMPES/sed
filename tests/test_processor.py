@@ -829,6 +829,16 @@ def test_compute_with_normalization():
         processor.binned.data,
         (processor.normalized * processor.normalization_histogram).data,
     )
+    # bin only second dataframe partition
+    result2 = processor.compute(
+        bins=bins,
+        axes=axes,
+        ranges=ranges,
+        df_partitions=[1],
+        normalize_to_acquisition_time="ADC",
+    )
+    # Test that the results normalize roughly to the same count rate
+    assert abs(result.sum(axis=(0, 1, 2, 3)) / result2.sum(axis=(0, 1, 2, 3)) - 1) < 0.15
 
 
 def test_get_normalization_histogram():
