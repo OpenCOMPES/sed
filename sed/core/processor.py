@@ -1999,20 +1999,28 @@ class SedProcessor:
             dataframe = self._dataframe.partitions[df_partitions]
         else:
             dataframe = self._dataframe
-
-        self._binned = bin_dataframe(
-            df=dataframe,
-            bins=bins,
-            axes=axes,
-            ranges=ranges,
-            hist_mode=hist_mode,
-            mode=mode,
-            pbar=pbar,
-            n_cores=num_cores,
-            threads_per_worker=threads_per_worker,
-            threadpool_api=threadpool_api,
-            **kwds,
-        )
+        try:
+            self._binned = bin_dataframe(
+                df=dataframe,
+                bins=bins,
+                axes=axes,
+                ranges=ranges,
+                hist_mode=hist_mode,
+                mode=mode,
+                pbar=pbar,
+                n_cores=num_cores,
+                threads_per_worker=threads_per_worker,
+                threadpool_api=threadpool_api,
+                **kwds,
+            )
+        except Exception as ex:
+            if type(ex).__name__ == "TypingError":
+                raise TypeError(
+                    "Numba TypingError during binning. One of the axes probably has invalid types."
+                    " Could one of the axes be all nans?",
+                ) from ex
+            else:
+                raise ex
 
         for dim in self._binned.dims:
             try:
