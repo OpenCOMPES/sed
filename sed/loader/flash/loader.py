@@ -26,6 +26,7 @@ from natsort import natsorted
 from pandas import DataFrame
 from pandas import MultiIndex
 from pandas import Series
+from tqdm.auto import tqdm
 
 from sed.core import dfops
 from sed.loader.base.loader import BaseLoader
@@ -438,9 +439,9 @@ class FlashLoader(BaseLoader):
             # Macrobunch resolved data is exploded to a DataFrame and the MultiIndex is set
 
             # Creates the index_per_pulse for the given channel
-            # if np_array.ndim != 2:
-            #     np_array = np.empty((train_id.size, 0))
-            #     np_array[:,:]=np.nan
+            if np_array.ndim != 2:
+                np_array = np.empty((train_id.size, 0))
+                np_array[:, :] = np.nan
             try:
                 self.create_multi_index_per_pulse(train_id, np_array)
             except IndexError:
@@ -535,6 +536,8 @@ class FlashLoader(BaseLoader):
         # Pulse resolved data is treated here
         elif channel_dict["format"] == "per_pulse":
             # Create a DataFrame for pulse-resolved data
+            if np_array.ndim != 2:
+                np_array = np_array.reshape((np_array.size, 1))
             data = self.create_dataframe_per_pulse(
                 np_array,
                 train_id,
@@ -744,7 +747,10 @@ class FlashLoader(BaseLoader):
                 if any(error):
                     raise RuntimeError(f"Conversion failed for some files. {error}") from error[0]
             else:
-                for h5_path, parquet_path in files_to_read:
+                for h5_path, parquet_path in tqdm(
+                    files_to_read,
+                    desc="Converting h5 files to parquet",
+                ):
                     error = self.create_buffer_file(h5_path, parquet_path)
                     if error:
                         raise RuntimeError(
