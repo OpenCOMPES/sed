@@ -25,8 +25,8 @@ from sed.calibrator import EnergyCalibrator
 from sed.calibrator import MomentumCorrector
 from sed.core.config import parse_config
 from sed.core.config import save_config
-from sed.core.dfops import apply_filter
 from sed.core.dfops import add_time_stamped_data
+from sed.core.dfops import apply_filter
 from sed.core.dfops import apply_jitter
 from sed.core.metadata import MetaHandler
 from sed.diagnostics import grid_histogram
@@ -453,7 +453,7 @@ class SedProcessor:
     # 1. Bin raw detector data for distortion correction
     def bin_and_load_momentum_calibration(
         self,
-        df_partitions: int = 100,
+        df_partitions: Union[int, Sequence[int]] = 100,
         axes: List[str] = None,
         bins: List[int] = None,
         ranges: Sequence[Tuple[float, float]] = None,
@@ -467,8 +467,8 @@ class SedProcessor:
         interactive view, and load it into the momentum corrector class.
 
         Args:
-            df_partitions (int, optional): Number of dataframe partitions to use for
-                the initial binning. Defaults to 100.
+            df_partitions (Union[int, Sequence[int]], optional): Number of dataframe partitions
+                to use for the initial binning. Defaults to 100.
             axes (List[str], optional): Axes to bin.
                 Defaults to config["momentum"]["axes"].
             bins (List[int], optional): Bin numbers to use for binning.
@@ -1792,7 +1792,7 @@ class SedProcessor:
 
     def pre_binning(
         self,
-        df_partitions: int = 100,
+        df_partitions: Union[int, Sequence[int]] = 100,
         axes: List[str] = None,
         bins: List[int] = None,
         ranges: Sequence[Tuple[float, float]] = None,
@@ -1801,8 +1801,8 @@ class SedProcessor:
         """Function to do an initial binning of the dataframe loaded to the class.
 
         Args:
-            df_partitions (int, optional): Number of dataframe partitions to use for
-                the initial binning. Defaults to 100.
+            df_partitions (Union[int, Sequence[int]], optional): Number of dataframe partitions to
+                use for the initial binning. Defaults to 100.
             axes (List[str], optional): Axes to bin.
                 Defaults to config["momentum"]["axes"].
             bins (List[int], optional): Bin numbers to use for binning.
@@ -1895,7 +1895,7 @@ class SedProcessor:
                 - **threadpool_api**: The API to use for multiprocessing. "blas",
                   "openmp" or None. See ``threadpool_limit`` for details. Defaults to
                   config["binning"]["threadpool_API"].
-                - **df_partitions**: A range or list of dataframe partitions, or the
+                - **df_partitions**: A sequence of dataframe partitions, or the
                   number of the dataframe partitions to use. Defaults to all partitions.
 
                 Additional kwds are passed to ``bin_dataframe``.
@@ -1921,12 +1921,9 @@ class SedProcessor:
             "threadpool_API",
             self._config["binning"]["threadpool_API"],
         )
-        df_partitions = kwds.pop("df_partitions", None)
+        df_partitions: Union[int, Sequence[int]] = kwds.pop("df_partitions", None)
         if isinstance(df_partitions, int):
-            df_partitions = slice(
-                0,
-                min(df_partitions, self._dataframe.npartitions),
-            )
+            df_partitions = list(range(0, min(df_partitions, self._dataframe.npartitions)))
         if df_partitions is not None:
             dataframe = self._dataframe.partitions[df_partitions]
         else:
@@ -2009,8 +2006,8 @@ class SedProcessor:
                 dataframe, rather than the timed dataframe. Defaults to False.
             **kwds: Keyword arguments:
 
-                -df_partitions (int, optional): Number of dataframe partitions to use.
-                  Defaults to all.
+                - **df_partitions**: A sequence of dataframe partitions, or the
+                  number of the dataframe partitions to use. Defaults to all partitions.
 
         Raises:
             ValueError: Raised if no data are binned.
@@ -2028,13 +2025,9 @@ class SedProcessor:
         if axis not in self._binned.coords:
             raise ValueError(f"Axis '{axis}' not found in binned data!")
 
-        df_partitions: Union[int, slice] = kwds.pop("df_partitions", None)
+        df_partitions: Union[int, Sequence[int]] = kwds.pop("df_partitions", None)
         if isinstance(df_partitions, int):
-            df_partitions = slice(
-                0,
-                min(df_partitions, self._dataframe.npartitions),
-            )
-
+            df_partitions = list(range(0, min(df_partitions, self._dataframe.npartitions)))
         if use_time_stamps or self._timed_dataframe is None:
             if df_partitions is not None:
                 self._normalization_histogram = normalization_histogram_from_timestamps(
