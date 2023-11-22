@@ -293,7 +293,8 @@ def bin_dataframe(
         xarray object, combining the data with the axes (bin centers).
     """
     bins, axes, ranges = simplify_binning_arguments(bins, axes, ranges)
-
+    # filter dataframe to use only the columns needed for the binning
+    df = df[axes]
     # create the coordinate axes for the xarray output
     # if provided as array, they are interpreted as bin centers
     if isinstance(bins[0], np.ndarray):
