@@ -1897,6 +1897,9 @@ class SedProcessor:
                   config["binning"]["threadpool_API"].
                 - **df_partitions**: A sequence of dataframe partitions, or the
                   number of the dataframe partitions to use. Defaults to all partitions.
+                - **filter**: A Sequence of Dictionaries with entries "col", "lower_bound",
+                  "upper_bound" to apply as filter to the dataframe before binning. The
+                  dataframe in the class remains unmodified by this.
 
                 Additional kwds are passed to ``bin_dataframe``.
 
@@ -1928,6 +1931,24 @@ class SedProcessor:
             dataframe = self._dataframe.partitions[df_partitions]
         else:
             dataframe = self._dataframe
+
+        filter_params = kwds.pop("filter", None)
+        if filter_params is not None:
+            try:
+                for param in filter_params:
+                    if "col" not in param:
+                        raise ValueError(
+                            "'col' needs to be defined for each filter entry! ",
+                            f"Not present in {param}.",
+                        )
+                    assert set(param.keys()).issubset({"col", "lower_bound", "upper_bound"})
+                    dataframe = apply_filter(dataframe, **param)
+            except AssertionError as exc:
+                invalid_keys = set(param.keys()) - {"lower_bound", "upper_bound"}
+                raise ValueError(
+                    "Only 'col', 'lower_bound' and 'upper_bound' allowed as filter entries. ",
+                    f"Parameters {invalid_keys} not valid in {param}.",
+                ) from exc
 
         self._binned = bin_dataframe(
             df=dataframe,
