@@ -87,18 +87,19 @@ dataframe:
   #   slice: if the group contains multidim data, where to slice
 
   channels:
-    # pulse ID is a necessary channel for using the loader.
-    pulseId:
+    timeStamp:
+      format: per_train
+      group_name: "/uncategorised/FLASH.DIAG/TIMINGINFO/TIME1.BUNCH_FIRST_INDEX.1/"
+    pulseId:  # pulse ID is a necessary channel for using the loader.
       format: per_electron
       group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
       slice: 2
-
-    dldPosX:
+    # DLD channels
+    dldPosX: # x position on the DLD detector
       format: per_electron
       group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
       slice: 1
-
-    dldPosY:
+    dldPosY: # x position on the DLD detector
       format: per_electron
       group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
       slice: 0
@@ -108,10 +109,8 @@ dataframe:
       format: per_electron
       group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
       slice: 3
-
-    # The auxillary channel has a special structure where the group further contains
-    # a multidim structure so further aliases are defined below
-    dldAux:
+    dldAux: # The auxillary channel has a special structure where the group further contains
+            # a multidim structure so further aliases are defined below
       format: per_pulse
       group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
       slice: 4
@@ -123,6 +122,49 @@ dataframe:
         cryoTemperature: 4
         sampleTemperature: 5
         dldTimeBinSize: 15
+    # FEL channels
+    gmdBda: # in uJ per pulse
+      format: per_pulse
+      group_name: "/FL1/Photon Diagnostic/GMD/Average energy/energy BDA/"
+      slice: 0
+    gmdPosh: # verrical position of the FEL
+      format: per_pulse
+      group_name: "/FL1/Photon Diagnostic/GMD/Average energy/energy BDA/"
+      slice: 2
+    gmdPosv: # horizontal position of the FEL
+      format: per_pulse
+      group_name: "/FL1/Photon Diagnostic/GMD/Average energy/energy BDA/"
+      slice: 3
+    bam: # Here we use the DBC2 BAM as the "normal" one is broken.
+        format: per_pulse
+        group_name: "/uncategorised/FLASH.SDIAG/BAM.DAQ/FL0.DBC2.ARRIVAL_TIME.ABSOLUTE.SA1.COMP/"
+    monochromatorPhotonEnergy: # single value. to be changed
+      format: per_train
+      group_name: "/FL1/Beamlines/PG/Monochromator/monochromator photon energy/"
+    monoDelta1:
+      format: per_train
+      group_name: "/FL1/Beamlines/PG/Monochromator/ADC.PGM2/"
+      slice: 0
+    monoDelta2:
+      format: per_train
+      group_name: "/FL1/Beamlines/PG/Monochromator/ADC.PGM2/"
+      slice: 1
+    monoMirrorAngle:
+      format: per_train
+      group_name: "/FL1/Beamlines/PG/Monochromator/ADC.PGM2/"
+      slice: 2
+    monoGratingAngle:
+      format: per_train
+      group_name: "/FL1/Beamlines/PG/Monochromator/ADC.PGM2/"
+      slice: 3
+
+    # Optical laser channels
+    delayStage:
+      format: per_train
+      group_name: "/zraw/FLASH.SYNC/LASER.LOCK.EXP/F1.PG.OSC/FMC0.MD22.1.ENCODER_POSITION.RD/dGroup/"
+    opticalDiode:
+      format: per_pulse
+      group_name: "/zraw/FLASH.LASER/FLACPUPGLASER1.PULSEENERGY/PG2_incoupl/dGroup/"
 
   # The prefixes of the stream names for different DAQ systems for parsing filenames
   # (Not to be changed by user)
@@ -139,6 +181,8 @@ dataframe:
   # (Not to be changed by user)
   beamtime_dir:
     pg2: "/asap3/flash/gpfs/pg2/"
+    hextof: "/asap3/fs-flash-o/gpfs/hextof/"
+    wespe: "/asap3/fs-flash-o/gpfs/wespe/"
 
 # metadata collection from scicat
 # metadata:
