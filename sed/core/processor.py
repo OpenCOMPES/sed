@@ -422,7 +422,7 @@ class SedProcessor:
             min_value (float, optional): Minimum value to keep. Defaults to None.
             max_value (float, optional): Maximum value to keep. Defaults to None.
         """
-        if column not in self._dataframe.columns:
+        if column != "index" and column not in self._dataframe.columns:
             raise KeyError(f"Column {column} not found in dataframe!")
         if min_value >= max_value:
             raise ValueError("min_value has to be smaller than max_value!")
