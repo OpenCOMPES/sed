@@ -29,6 +29,7 @@ Single-Event DataFrame (SED) documentation
    :maxdepth: 2
    :caption: Contributing
 
+   misc/contributing
    misc/maintain
 
 Indices and tables
