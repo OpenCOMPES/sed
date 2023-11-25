@@ -52,7 +52,7 @@ class SXPLoader(BaseLoader):
         self.index_per_electron: MultiIndex = None
         self.index_per_pulse: MultiIndex = None
         self.failed_files_error: List[str] = []
-        self.nhits: np.ndarray = None
+        self.array_indices: List[List[np.ndarray]] = None
 
     def initialize_paths(self) -> Tuple[List[Path], Path]:
         """
@@ -173,6 +173,7 @@ class SXPLoader(BaseLoader):
         excluding pulseId, defined by the json file"""
         available_channels = list(self._config["dataframe"]["channels"].keys())
         available_channels.remove("pulseId")
+        available_channels.remove("trainId")
         return available_channels
 
     def get_channels(self, formats: Union[str, List[str]] = "", index: bool = False) -> List[str]:
@@ -221,7 +222,7 @@ class SXPLoader(BaseLoader):
         """Resets the index per pulse and electron"""
         self.index_per_electron = None
         self.index_per_pulse = None
-        self.nhits = None
+        self.array_indices = None
 
     def create_multi_index_per_electron(self, h5_file: h5py.File) -> None:
         """
@@ -238,30 +239,41 @@ class SXPLoader(BaseLoader):
                 as the index levels.
         """
 
-        # Macrobunch IDs obtained from the pulseId channel
-        train_id, np_array = self.create_numpy_array_per_channel(
+        # relative macrobunch IDs obtained from the trainId channel
+        train_id, mab_array = self.create_numpy_array_per_channel(
+            h5_file,
+            "trainId",
+        )
+        # Internal microbunch IDs obtained from the pulseId channel
+        train_id, mib_array = self.create_numpy_array_per_channel(
             h5_file,
             "pulseId",
         )
-        # change trailing zeros to nan
-        nhits = (
-            np_array.shape[1]
-            - np.argmax((np.diff(np_array.astype(np.int32)) < 0)[:, ::-1], axis=1)
-            - 1
-        )
-        nhits[nhits == np_array.shape[1] - 1] = 0
-        self.nhits = nhits
-        np_array = np_array.astype("float")
-        for i in range(np_array.shape[0]):
-            np_array[i, nhits[i] :] = np.nan
+        # Chopping data into trains
+        # trains, ids, nhits = np.unique(mab_array, return_index=True, return_counts=True, axis=1)
+        # trains = trains[1:]
+        # ids = ids[1:]
+        # nhits = nhits[1:]
 
         # Create a series with the macrobunches as index and
         # microbunches as values
+        macrobunch_index = []
+        microbunch_ids = []
+        macrobunch_indices = []
+        for i in train_id.index:
+            trains, ids = np.unique(mab_array[i], return_inverse=True)
+            indices = []
+            for j in range(1, len(trains)):
+                macrobunch_index.append(train_id[i] + trains[j])
+                microbunch_ids.append(mib_array[i, ids == trains[j]])
+                indices.append(ids == trains[j])
+            macrobunch_indices.append(indices)
+        self.array_indices = macrobunch_indices
         macrobunches = (
             Series(
-                (np_array[i] for i in train_id.index),
+                (microbunch_ids[i] for i in range(len(macrobunch_index))),
                 name="pulseId",
-                index=train_id,
+                index=macrobunch_index,
             )
             - self._config["dataframe"]["ubid_offset"]
         )
@@ -364,7 +376,6 @@ class SXPLoader(BaseLoader):
     def create_dataframe_per_electron(
         self,
         np_array: np.ndarray,
-        train_id: Series,
         channel: str,
     ) -> DataFrame:
         """
@@ -372,7 +383,6 @@ class SXPLoader(BaseLoader):
 
         Args:
             np_array (np.ndarray): The numpy array containing the channel data.
-            train_id (Series): The train ID Series.
             channel (str): The name of the channel.
 
         Returns:
@@ -383,13 +393,16 @@ class SXPLoader(BaseLoader):
             is set, and the NaN values are dropped, alongside the pulseId = 0 (meaningless).
 
         """
-        if self.nhits is None or self.nhits.shape[0] != np_array.shape[0]:
-            raise RuntimeError("nhits not set correctly, internal inconstency detected.")
-        np_array = np_array.astype("float")
-        for i in range(np_array.shape[0]):
-            np_array[i, self.nhits[i] :] = np.nan
+        if self.array_indices is None or len(self.array_indices) != np_array.shape[0]:
+            raise RuntimeError(
+                "macrobunch_indices not set correctly, internal inconstency detected.",
+            )
+        train_data = []
+        for i, _ in enumerate(self.array_indices):
+            for indices in self.array_indices[i]:
+                train_data.append(np_array[i, indices])
         return (
-            Series((np_array[i] for i in train_id.index), name=channel)
+            Series((train for train in train_data), name=channel)
             .explode()
             .dropna()
             .to_frame()
@@ -531,7 +544,6 @@ class SXPLoader(BaseLoader):
             # Create a DataFrame for electron-resolved data
             data = self.create_dataframe_per_electron(
                 np_array,
-                train_id,
                 channel,
             )
 
