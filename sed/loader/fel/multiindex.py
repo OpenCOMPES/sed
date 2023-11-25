@@ -1,40 +1,45 @@
-from __future__ import annotations
-
-from typing import TypeVar
-
-import dask.dataframe as ddf
 import numpy as np
-from pandas import DataFrame
 from pandas import MultiIndex
 from pandas import Series
 
-DFType = TypeVar("DFType", DataFrame, ddf.DataFrame)
-
 
 class MultiIndexCreator:
+    """
+    Utility class for creating MultiIndex for electron and pulse resolved DataFrames.
+    """
+
+    def __init__(self) -> None:
+        self.index_per_electron: MultiIndex = None
+        self.index_per_pulse: MultiIndex = None
+        self.multi_index = ["trainId", "pulseId", "electronId"]
+
     def reset_multi_index(self) -> None:
-        """Resets the index per pulse and electron"""
+        """Resets the index per pulse and electron."""
         self.index_per_electron = None
         self.index_per_pulse = None
 
-    def create_multi_index_per_electron(self, train_id, np_array, ubid_offset) -> None:
+    def create_multi_index_per_electron(
+        self,
+        train_id: Series,
+        np_array: np.ndarray,
+        ubid_offset: int,
+    ) -> None:
         """
         Creates an index per electron using pulseId for usage with the electron
-            resolved pandas DataFrame.
+        resolved pandas DataFrame.
 
         Args:
             train_id (Series): The train ID Series.
             np_array (np.ndarray): The numpy array containing the pulseId data.
+            ubid_offset (int): The offset for adjusting pulseId.
 
         Notes:
             - This method relies on the 'pulseId' channel to determine
-                the macrobunch IDs.
+              the macrobunch IDs.
             - It creates a MultiIndex with trainId, pulseId, and electronId
-                as the index levels.
+              as the index levels.
         """
-
-        # Create a series with the macrobunches as index and
-        # microbunches as values
+        # Calculate macrobunches
         macrobunches = (
             Series(
                 (np_array[i] for i in train_id.index),
@@ -44,7 +49,7 @@ class MultiIndexCreator:
             - ubid_offset
         )
 
-        # Explode dataframe to get all microbunch vales per macrobunch,
+        # Explode dataframe to get all microbunch values per macrobunch,
         # remove NaN values and convert to type int
         microbunches = macrobunches.explode().dropna().astype(int)
 
@@ -54,7 +59,7 @@ class MultiIndexCreator:
             names=["trainId", "pulseId"],
         )
 
-        # Calculate the electron counts per pulseId unique preserves the order of appearance
+        # Calculate electron counts per pulseId; unique preserves the order of appearance
         electron_counts = index_temp.value_counts()[index_temp.unique()].values
 
         # Series object for indexing with electrons
@@ -88,7 +93,6 @@ class MultiIndexCreator:
         Notes:
             - This method creates a MultiIndex with trainId and pulseId as the index levels.
         """
-
         # Create a pandas MultiIndex, useful for comparing electron and
         # pulse resolved dataframes
         self.index_per_pulse = MultiIndex.from_product(

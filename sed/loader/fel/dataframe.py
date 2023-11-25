@@ -2,40 +2,36 @@ from __future__ import annotations
 
 from functools import reduce
 from pathlib import Path
-from typing import TypeVar
 
-import dask.dataframe as ddf
 import h5py
 import numpy as np
 from pandas import DataFrame
-from pandas import MultiIndex
 from pandas import Series
 
 from sed.loader.fel.multiindex import MultiIndexCreator
 from sed.loader.utils import parse_h5_keys
 from sed.loader.utils import split_dld_time_from_sector_id
 
-DFType = TypeVar("DFType", DataFrame, ddf.DataFrame)
-
 
 class DataFrameCreator(MultiIndexCreator):
+    """
+    Utility class for creating pandas DataFrames from HDF5 files with multiple channels.
+    """
+
     def __init__(self, config_dataframe: dict) -> None:
         """
         Initializes the DataFrameCreator class.
 
         Args:
-            config (dict): The configuration dictionary with only dataframe key.
+            config_dataframe (dict): The configuration dictionary with only the dataframe key.
         """
-        self.multi_index = ["trainId", "pulseId", "electronId"]
-        self.index_per_electron: MultiIndex = None
-        self.index_per_pulse: MultiIndex = None
+        super().__init__()
         self.failed_files_error: list[str] = []
         self._config = config_dataframe
 
     @property
     def available_channels(self) -> list:
-        """Returns the channel names that are available for use,
-        excluding pulseId, defined by the json file"""
+        """Returns the channel names that are available for use, excluding pulseId."""
         available_channels = list(self._config["channels"].keys())
         available_channels.remove("pulseId")
         return available_channels
@@ -46,7 +42,7 @@ class DataFrameCreator(MultiIndexCreator):
 
         Args:
             formats (Union[str, List[str]]): The desired format(s)
-                                ('per_pulse', 'per_electron', 'per_train', 'all').
+            ('per_pulse', 'per_electron', 'per_train', 'all').
             index (bool): If True, includes channels from the multi_index.
 
         Returns:
@@ -81,6 +77,38 @@ class DataFrameCreator(MultiIndexCreator):
 
         return channels
 
+    def get_index_dataset_key(self, channel: str) -> tuple[str, str]:
+        """
+        Checks if 'group_name' and converts to 'index_key' and 'dataset_key' if so.
+
+        Args:
+            channel (str): The name of the channel.
+
+        Returns:
+            tuple[str, str]: Outputs a tuple of 'index_key' and 'dataset_key'.
+
+        Raises:
+            ValueError: If neither 'group_name' nor both 'index_key' and 'dataset_key' are provided.
+        """
+        channel_config = self._config["channels"][channel]
+
+        if "group_name" in channel_config:
+            index_key = channel_config["group_name"]["index"]
+            if channel == "timeStamp":
+                dataset_key = channel_config["group_name"]["time"]
+            else:
+                dataset_key = channel_config["group_name"]["value"]
+            return index_key, dataset_key
+        elif "index_key" in channel_config and "dataset_key" in channel_config:
+            return channel_config["index_key"], channel_config["dataset_key"]
+        else:
+            raise ValueError(
+                "For channel:",
+                channel,
+                "Provide either both 'index_key' and 'dataset_key'.",
+                "or 'group_name' (allows only 'index' and 'value' or 'time' keys.)",
+            )
+
     def create_numpy_array_per_channel(
         self,
         h5_file: h5py.File,
@@ -96,20 +124,14 @@ class DataFrameCreator(MultiIndexCreator):
         Returns:
             Tuple[Series, np.ndarray]: A tuple containing the train ID Series and the numpy array
             for the channel's data.
-
         """
         # Get the data from the necessary h5 file and channel
-        group = h5_file[self._config["channels"][channel]["group_name"]]
+        index_key, dataset_key = self.get_index_dataset_key(channel)
 
         channel_dict = self._config["channels"][channel]  # channel parameters
 
-        train_id = Series(group["index"], name="trainId")  # macrobunch
-
-        # unpacks the timeStamp or value
-        if channel == "timeStamp":
-            np_array = group["time"][()]
-        else:
-            np_array = group["value"][()]
+        train_id = Series(h5_file[index_key], name="trainId")  # macrobunch
+        np_array = h5_file[dataset_key][()]
 
         # Use predefined axis and slice from the json file
         # to choose correct dimension for necessary channel
@@ -137,11 +159,6 @@ class DataFrameCreator(MultiIndexCreator):
 
         Returns:
             DataFrame: The pandas DataFrame for the channel's data.
-
-        Notes:
-            The microbunch resolved data is exploded and converted to a DataFrame. The MultiIndex
-            is set, and the NaN values are dropped, alongside the pulseId = 0 (meaningless).
-
         """
         return (
             Series((np_array[i] for i in train_id.index), name=channel)
@@ -174,16 +191,7 @@ class DataFrameCreator(MultiIndexCreator):
 
         Returns:
             DataFrame: The pandas DataFrame for the channel's data.
-
-        Notes:
-            - For auxillary channels, the macrobunch resolved data is repeated 499 times to be
-              compared to electron resolved data for each auxillary channel. The data is then
-              converted to a multicolumn DataFrame.
-            - For all other pulse resolved channels, the macrobunch resolved data is exploded
-              to a DataFrame and the MultiIndex is set.
-
         """
-
         # Special case for auxillary channels
         if channel == "dldAux":
             # Checks the channel dictionary for correct slices and creates a multicolumn DataFrame
@@ -202,7 +210,6 @@ class DataFrameCreator(MultiIndexCreator):
         # For all other pulse resolved channels
         else:
             # Macrobunch resolved data is exploded to a DataFrame and the MultiIndex is set
-
             # Creates the index_per_pulse for the given channel
             self.create_multi_index_per_pulse(train_id, np_array)
             data = (
@@ -258,7 +265,6 @@ class DataFrameCreator(MultiIndexCreator):
 
         Raises:
             ValueError: If the channel has an undefined format.
-
         """
         [train_id, np_array] = self.create_numpy_array_per_channel(
             h5_file,
@@ -313,9 +319,8 @@ class DataFrameCreator(MultiIndexCreator):
 
         else:
             raise ValueError(
-                channel
-                + "has an undefined format. Available formats are \
-                per_pulse, per_electron and per_train",
+                f"{channel} has an undefined format",
+                "Available formats are per_pulse, per_electron and per_train",
             )
 
         return data
@@ -339,7 +344,6 @@ class DataFrameCreator(MultiIndexCreator):
 
         Raises:
             ValueError: If the group_name for any channel does not exist in the file.
-
         """
         all_keys = parse_h5_keys(h5_file)  # Parses all channels present
 
@@ -382,14 +386,13 @@ class DataFrameCreator(MultiIndexCreator):
 
         Returns:
             DataFrame: pandas DataFrame
-
         """
         # Loads h5 file and creates a dataframe
         with h5py.File(file_path, "r") as h5_file:
-            self.reset_multi_index()  # Reset MultiIndexes for next file
+            self.reset_multi_index()  # Reset MultiIndexes for the next file
             df = self.concatenate_channels(h5_file)
             df = df.dropna(subset=self._config.get("tof_column", "dldTimeSteps"))
-            # correct the 3 bit shift which encodes the detector ID in the 8s time
+            # Correct the 3-bit shift which encodes the detector ID in the 8s time
             if self._config.get("split_sector_id_from_dld_time", False):
                 df = split_dld_time_from_sector_id(df, config=self._config)
             return df
