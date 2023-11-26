@@ -16,6 +16,7 @@ dataframe:
   ubid_offset: 0
   daq: DA03
   forward_fill_iterations: 2
+  num_microbunches: 750
   x_column: dldPosX
   corrected_x_column: "X"
   kx_column: "kx"

@@ -248,18 +248,26 @@ class SXPLoader(BaseLoader):
             h5_file,
             "pulseId",
         )
-        # Chopping data into trains
+        
         # trains, ids, nhits = np.unique(mab_array, return_index=True, return_counts=True, axis=1)
         # trains = trains[1:]
         # ids = ids[1:]
         # nhits = nhits[1:]
 
-        # Create a series with the macrobunches as index and
-        # microbunches as values
+        # Chopping data into trains
         macrobunch_index = []
         microbunch_ids = []
         macrobunch_indices = []
         for i in train_id.index:
+            # removing broken trailing hit copies
+            num_microbunches = self._config["dataframe"].get("num_microbunches", 0)
+            if num_microbunches:
+                try:
+                    num_valid_hits = np.where(np.diff(mib_array[0].astype(np.int32)) < -num_microbunches)[0][-2]
+                    mab_array[i, num_valid_hits:] = 0
+                    mib_array[i, num_valid_hits:] = 0
+                except IndexError:
+                    pass
             trains, ids = np.unique(mab_array[i], return_inverse=True)
             indices = []
             for j in range(1, len(trains)):
@@ -268,6 +276,8 @@ class SXPLoader(BaseLoader):
                 indices.append(ids == trains[j])
             macrobunch_indices.append(indices)
         self.array_indices = macrobunch_indices
+        # Create a series with the macrobunches as index and
+        # microbunches as values
         macrobunches = (
             Series(
                 (microbunch_ids[i] for i in range(len(macrobunch_index))),
