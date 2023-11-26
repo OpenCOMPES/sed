@@ -266,12 +266,14 @@ class SXPLoader(BaseLoader):
                     mib_array[i, num_valid_hits:] = 0
                 except IndexError:
                     pass
-            trains, ids = np.unique(mab_array[i], return_inverse=True)
+            train_ends = np.where(np.diff(mib_array[i].astype(np.int32)) < 0)[0]
             indices = []
-            for j in range(1, len(trains)):
-                macrobunch_index.append(train_id[i] + trains[j])
-                microbunch_ids.append(mib_array[i, ids == trains[j]])
-                indices.append(ids == trains[j])
+            index = 0
+            for j in range(0, len(train_ends)):
+                macrobunch_index.append(train_id[i] + np.uint(j))
+                microbunch_ids.append(mib_array[i, index : train_ends[j]])
+                indices.append(slice(index, train_ends[j]))
+                index = train_ends[j]
             macrobunch_indices.append(indices)
         self.array_indices = macrobunch_indices
         # Create a series with the macrobunches as index and
