@@ -1,9 +1,9 @@
 energy:
   calibration:
-    E0: -31.09210508670466
-    d: 1.0954452312102088
+    E0: -196.10237272644352
+    d: 1.1
     energy_scale: kinetic
-    t0: 7.607260648079262e-07
+    t0: -1.0015085404650659e-07
   correction:
     amplitude: 2.5
     center:

@@ -16,7 +16,7 @@ dataframe:
   ubid_offset: 0
   daq: DA03
   forward_fill_iterations: 2
-  num_microbunches: 750
+  num_trains: 10
   x_column: dldPosX
   corrected_x_column: "X"
   kx_column: "kx"
@@ -27,8 +27,8 @@ dataframe:
   tof_ns_column: dldTime
   corrected_tof_column: "tm"
   bias_column: "sampleBias"
-  tof_binwidth: 2.0576131995767355E-11 # in seconds
-  tof_binning: 3
+  tof_binwidth: 6.875E-12 # in seconds
+  tof_binning: 0
   jitter_cols: ["dldPosX", "dldPosY", "dldTimeSteps"]
 
   units:
@@ -41,9 +41,10 @@ dataframe:
     cryoTemperature: 'K'
     sampleTemperature: 'K'
     dldTime: 'ns'
-    # delay: 'ps'
+    delay: 'ps'
+    delayStage: 'ps'
     timeStamp: 's'
-    # energy: 'eV'
+    energy: 'eV'
     # E: 'eV'
     kx: '1/A'
     ky: '1/A'

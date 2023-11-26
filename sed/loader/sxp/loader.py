@@ -248,11 +248,6 @@ class SXPLoader(BaseLoader):
             h5_file,
             "pulseId",
         )
-        
-        # trains, ids, nhits = np.unique(mab_array, return_index=True, return_counts=True, axis=1)
-        # trains = trains[1:]
-        # ids = ids[1:]
-        # nhits = nhits[1:]
 
         # Chopping data into trains
         macrobunch_index = []
@@ -260,10 +255,12 @@ class SXPLoader(BaseLoader):
         macrobunch_indices = []
         for i in train_id.index:
             # removing broken trailing hit copies
-            num_microbunches = self._config["dataframe"].get("num_microbunches", 0)
-            if num_microbunches:
+            num_trains = self._config["dataframe"].get("num_trains", 0)
+            if num_trains:
                 try:
-                    num_valid_hits = np.where(np.diff(mib_array[0].astype(np.int32)) < -num_microbunches)[0][-2]
+                    num_valid_hits = np.where(np.diff(mib_array[i].astype(np.int32)) < 0)[0][
+                        num_trains - 1
+                    ]
                     mab_array[i, num_valid_hits:] = 0
                     mib_array[i, num_valid_hits:] = 0
                 except IndexError:
