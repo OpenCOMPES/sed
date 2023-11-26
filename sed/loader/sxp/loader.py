@@ -377,6 +377,10 @@ class SXPLoader(BaseLoader):
                 channel_dict["slice"],
                 axis=1,
             )
+
+        if "scale" in channel_dict:
+            np_array = np_array / float(channel_dict["scale"])
+
         return train_id, np_array
 
     def create_dataframe_per_electron(

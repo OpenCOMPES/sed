@@ -54,6 +54,7 @@ dataframe:
       format: per_train
       dataset_key: "/INDEX/timestamp"
       index_key: "/INDEX/trainId"
+      scale: 1000000000
     pulseId:
       format: per_electron
       dataset_key: "/INSTRUMENT/SXP_TR_XPES/DET/MCP_DETECTOR:output/data/starterCounter"
