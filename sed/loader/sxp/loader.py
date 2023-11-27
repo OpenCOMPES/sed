@@ -51,7 +51,7 @@ class SXPLoader(BaseLoader):
         self.index_per_electron: MultiIndex = None
         self.index_per_pulse: MultiIndex = None
         self.failed_files_error: List[str] = []
-        self.array_indices: List[List[np.ndarray]] = None
+        self.array_indices: List[List[slice]] = None
 
     def initialize_paths(self) -> Tuple[List[Path], Path]:
         """
@@ -265,14 +265,14 @@ class SXPLoader(BaseLoader):
                     mib_array[i, num_valid_hits:] = 0
                 except IndexError:
                     pass
-            train_ends = np.where(np.diff(mib_array[i].astype(np.int32)) < 0)[0]
+            train_ends = np.where(np.diff(mib_array[i].astype(np.int32)) < -1)[0]
             indices = []
             index = 0
-            for j in range(0, len(train_ends)):
-                macrobunch_index.append(train_id[i] + np.uint(j))
-                microbunch_ids.append(mib_array[i, index : train_ends[j]])
-                indices.append(slice(index, train_ends[j]))
-                index = train_ends[j]
+            for train, train_end in enumerate(train_ends):
+                macrobunch_index.append(train_id[i] + np.uint(train))
+                microbunch_ids.append(mib_array[i, index:train_end])
+                indices.append(slice(index, train_end))
+                index = train_end + 1
             macrobunch_indices.append(indices)
         self.array_indices = macrobunch_indices
         # Create a series with the macrobunches as index and
