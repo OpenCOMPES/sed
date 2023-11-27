@@ -133,7 +133,7 @@ class SXPLoader(BaseLoader):
         stream_name_prefixes = self._config["dataframe"]["stream_name_prefixes"]
         stream_name_postfixes = self._config["dataframe"].get("stream_name_postfixes", {})
 
-        if isinstance(run_id, int):
+        if isinstance(run_id, (int, np.integer)):
             run_id = str(run_id).zfill(4)
 
         if folders is None:
