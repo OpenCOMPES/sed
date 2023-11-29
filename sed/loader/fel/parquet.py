@@ -1,13 +1,9 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TypeVar
 
 import dask.dataframe as ddf
 from pandas import DataFrame
-
-
-DFType = TypeVar("DFType", DataFrame, ddf.DataFrame)
 
 
 class ParquetHandler:
@@ -25,36 +21,61 @@ class ParquetHandler:
 
     def __init__(
         self,
-        parquet_names: str | list[str],
+        folder=None,
+        parquet_names=None,
+        subfolder=None,
+        prefix=None,
+        suffix=None,
+        parquet_paths=None,
+    ):
+
+        self.parquet_paths: Path | list[Path] = None
+
+        if not folder and not parquet_paths:
+            raise ValueError("Please provide folder or parquet_paths.")
+        if folder and not parquet_names:
+            raise ValueError("With folder, please provide parquet_names.")
+
+        if parquet_paths:
+            self.parquet_paths: Path | list[Path] = parquet_paths
+        else:
+            self._initialize_paths(folder, parquet_names, subfolder, prefix, suffix)
+
+    def _initialize_paths(
+        self,
         folder: Path,
+        parquet_names: str | list[str],
         subfolder: str = "",
         prefix: str = "",
         suffix: str = "",
-        parquet_paths: Path | list[Path] = None,
-    ):
-        if parquet_paths is not None:
-            self.parquet_paths = parquet_paths
-        else:
-            # Create the full path for the Parquet file
-            parquet_dir = folder.joinpath(subfolder)
-            parquet_dir.mkdir(parents=True, exist_ok=True)
-            filenames = [
-                Path(prefix + parquet_name + suffix).with_suffix(".parquet")
-                for parquet_name in parquet_names
-            ]
-            self.parquet_paths = [parquet_dir.joinpath(filename) for filename in filenames]
+    ) -> None:
+        """
+        Create the directory for the Parquet file.
+        """
+        # Create the full path for the Parquet file
+        parquet_dir = folder.joinpath(subfolder)
+        parquet_dir.mkdir(parents=True, exist_ok=True)
 
-    def save_parquet(self, dfs: DFType | list[DFType]) -> None:
+        self.parquet_paths = [
+            parquet_dir.joinpath(Path(f"{prefix}{name}{suffix}.parquet")) for name in parquet_names
+        ]
+
+    def save_parquet(
+        self,
+        dfs: list(ddf.DataFrame | DataFrame),
+        parquet_paths,
+        drop_index=False,
+    ) -> None:
         """
         Save the DataFrame to a Parquet file.
 
         Args:
-            df (DFType | List[DFType]): The Dask DataFrame to be saved.
+            dfs (DataFrame | ddf.DataFrame): The pandas or Dask Dataframe to be saved.
         """
+        parquet_paths = parquet_paths if parquet_paths else self.parquet_paths
         # Compute the Dask DataFrame, reset the index, and save to Parquet
-        for df, parquet_paths in zip(dfs, self.parquet_paths):
-            df.compute().reset_index(drop=True).to_parquet(parquet_paths)
-            print(f"Parquet file saved: {parquet_paths}")
+        for df, parquet_paths in zip(dfs, parquet_paths):
+            df.compute().reset_index(drop=drop_index).to_parquet(parquet_paths)
 
     def read_parquet(self) -> ddf.DataFrame:
         """
