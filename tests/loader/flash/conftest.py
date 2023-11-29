@@ -1,0 +1,86 @@
+import os
+from importlib.util import find_spec
+
+import h5py
+import pytest
+
+from sed.core.config import parse_config
+from sed.loader.fel import DataFrameCreator
+from sed.loader.fel import MultiIndexCreator
+
+package_dir = os.path.dirname(find_spec("sed").origin)
+config_path = os.path.join(package_dir, "../tests/data/loader/flash/config.yaml")
+H5_PATH = "FLASH1_USER3_stream_2_run43878_file1_20230130T153807.1.h5"
+
+
+@pytest.fixture(name="config_dataframe")
+def fixture_config_file_dataframe():
+    """Fixture providing a configuration file for FlashLoader tests.
+
+    Returns:
+        dict: The parsed configuration file.
+    """
+    return parse_config(config_path)["dataframe"]
+
+
+@pytest.fixture(name="h5_file")
+def fixture_h5_file():
+    """Fixture providing an open h5 file.
+
+    Returns:
+        h5py.File: The open h5 file.
+    """
+    return h5py.File(os.path.join(package_dir, f"../tests/data/loader/flash/{H5_PATH}"), "r")
+
+
+@pytest.fixture(name="gmd_channel_array")
+def get_pulse_channel_from_h5(config_dataframe, h5_file):
+    df = DataFrameCreator(config_dataframe)
+    train_id, pulse_id = df.create_numpy_array_per_channel(h5_file, "gmdTunnel")
+    return train_id, pulse_id
+
+
+@pytest.fixture(name="pulse_id_array")
+def get_pulse_ids_from_h5(config_dataframe, h5_file):
+    df = DataFrameCreator(config_dataframe)
+    train_id, pulse_id = df.create_numpy_array_per_channel(h5_file, "pulseId")
+
+    return train_id, pulse_id
+
+
+@pytest.fixture(name="multiindex_electron")
+def fixture_multi_index_creator(config_dataframe, pulse_id_array):
+    """Fixture providing a MultiIndexCreator instance.
+
+    Returns:
+        MultiIndexCreator: The MultiIndexCreator instance.
+    """
+    train_id, np_array = pulse_id_array
+    mc = MultiIndexCreator()
+    mc.create_multi_index_per_electron(train_id, np_array, config_dataframe["ubid_offset"])
+    return mc.index_per_electron
+
+
+# @pytest.fixture(name="fake_data")
+# def fake_data_electron():
+#     # Creating manageable fake data, but not used currently
+#     num_trains = 5
+#     max_pulse_id = 100
+#     nan_threshold = 50
+#     ubid_offset = 5
+#     seed = 42
+#     np.random.seed(seed)
+#     train_ids = np.arange(1600000000, 1600000000 + num_trains)
+#     fake_data = []
+
+#     for _ in train_ids:
+#         pulse_ids = []
+#         while len(pulse_ids) < nan_threshold:
+#             random_pulse_ids = np.random.choice(
+#                 np.arange(ubid_offset, nan_threshold), size=np.random.randint(0, 10))
+#             pulse_ids = np.concatenate([pulse_ids, random_pulse_ids])
+
+#         pulse_ids = np.concatenate([pulse_ids, np.full(max_pulse_id-len(pulse_ids), np.nan)])
+
+#         fake_data.append(np.sort(pulse_ids))
+#     return Series(train_ids, name="trainId"), np.array(fake_data), ubid_offset
