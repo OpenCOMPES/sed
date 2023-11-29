@@ -93,11 +93,11 @@ class DataFrameCreator(MultiIndexCreator):
         channel_config = self._config["channels"][channel]
 
         if "group_name" in channel_config:
-            index_key = channel_config["group_name"]["index"]
+            index_key = channel_config["group_name"] + "/index"
             if channel == "timeStamp":
-                dataset_key = channel_config["group_name"]["time"]
+                dataset_key = channel_config["group_name"] + "/time"
             else:
-                dataset_key = channel_config["group_name"]["value"]
+                dataset_key = channel_config["group_name"] + "/value"
             return index_key, dataset_key
         elif "index_key" in channel_config and "dataset_key" in channel_config:
             return channel_config["index_key"], channel_config["dataset_key"]
@@ -178,7 +178,6 @@ class DataFrameCreator(MultiIndexCreator):
         np_array: np.ndarray,
         train_id: Series,
         channel: str,
-        channel_dict: dict,
     ) -> DataFrame:
         """
         Returns a pandas DataFrame for a given channel name of type [per pulse].
@@ -187,7 +186,6 @@ class DataFrameCreator(MultiIndexCreator):
             np_array (np.ndarray): The numpy array containing the channel data.
             train_id (Series): The train ID Series.
             channel (str): The name of the channel.
-            channel_dict (dict): The dictionary containing channel parameters.
 
         Returns:
             DataFrame: The pandas DataFrame for the channel's data.
@@ -195,13 +193,15 @@ class DataFrameCreator(MultiIndexCreator):
         # Special case for auxillary channels
         if channel == "dldAux":
             # Checks the channel dictionary for correct slices and creates a multicolumn DataFrame
+            aux_channels = self._config["channels"]["dldAux"]["dldAuxChannels"].items()
             data_frames = (
                 Series(
                     (np_array[i, value] for i in train_id.index),
                     name=key,
-                    index=train_id,
-                ).to_frame()
-                for key, value in channel_dict["dldAuxChannels"].items()
+                )
+                .to_frame()
+                .set_index(train_id)
+                for key, value in aux_channels
             )
 
             # Multiindex set and combined dataframe returned
@@ -270,7 +270,7 @@ class DataFrameCreator(MultiIndexCreator):
             h5_file,
             channel,
         )  # numpy Array created
-        channel_dict = self._config["channels"][channel]  # channel parameters
+        cformat = self._config["channels"][channel]["format"]  # channel format
 
         # If np_array is size zero, fill with NaNs
         if np_array.size == 0:
@@ -284,15 +284,14 @@ class DataFrameCreator(MultiIndexCreator):
             )
 
         # Electron resolved data is treated here
-        if channel_dict["format"] == "per_electron":
+        if cformat == "per_electron":
             # If index_per_electron is None, create it for the given file
             if self.index_per_electron is None:
+                index_pulse, array_pulse = self.create_numpy_array_per_channel(h5_file, "pulseId")
                 self.create_multi_index_per_electron(
-                    self.create_numpy_array_per_channel(
-                        h5_file,
-                        "pulseId",
-                        self._config["ubid_offset"],
-                    ),
+                    index_pulse,
+                    array_pulse,
+                    self._config["ubid_offset"],
                 )
 
             # Create a DataFrame for electron-resolved data
@@ -303,17 +302,16 @@ class DataFrameCreator(MultiIndexCreator):
             )
 
         # Pulse resolved data is treated here
-        elif channel_dict["format"] == "per_pulse":
+        elif cformat == "per_pulse":
             # Create a DataFrame for pulse-resolved data
             data = self.create_dataframe_per_pulse(
                 np_array,
                 train_id,
                 channel,
-                channel_dict,
             )
 
         # Train resolved data is treated here
-        elif channel_dict["format"] == "per_train":
+        elif cformat == "per_train":
             # Create a DataFrame for train-resolved data
             data = self.create_dataframe_per_train(np_array, train_id, channel)
 
