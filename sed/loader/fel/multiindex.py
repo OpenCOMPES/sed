@@ -11,6 +11,7 @@ class MultiIndexCreator:
     def __init__(self) -> None:
         self.index_per_electron: MultiIndex = None
         self.index_per_pulse: MultiIndex = None
+        # Can be extended to be alias agnostic
         self.multi_index = ["trainId", "pulseId", "electronId"]
 
     def reset_multi_index(self) -> None:
@@ -39,6 +40,9 @@ class MultiIndexCreator:
             - It creates a MultiIndex with trainId, pulseId, and electronId
               as the index levels.
         """
+        if np_array.ndim != 2:
+            np_array = np.empty((train_id.size, 0))
+            np_array[:, :] = np.nan
         # Calculate macrobunches
         macrobunches = (
             Series(
