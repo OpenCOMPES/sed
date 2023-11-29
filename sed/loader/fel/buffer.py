@@ -1,20 +1,17 @@
 from __future__ import annotations
 
+from itertools import compress
 from pathlib import Path
-from typing import TypeVar
 
 import dask.dataframe as ddf
 import numpy as np
 import pyarrow.parquet as pq
 from joblib import delayed
 from joblib import Parallel
-from pandas import DataFrame
 
 from sed.core.dfops import forward_fill_lazy
 from sed.loader.fel.dataframe import DataFrameCreator
 from sed.loader.fel.parquet import ParquetHandler
-
-DFType = TypeVar("DFType", DataFrame, ddf.DataFrame)
 
 
 class BufferFileHandler(ParquetHandler, DataFrameCreator):
@@ -38,8 +35,6 @@ class BufferFileHandler(ParquetHandler, DataFrameCreator):
             self.schema_check()
 
         self.parallel_buffer_file_creation(h5_paths, force_recreate)
-
-        self.fill()
 
     def schema_check(self) -> None:
         """
@@ -76,33 +71,7 @@ class BufferFileHandler(ParquetHandler, DataFrameCreator):
                     "Please check the configuration file or set force_recreate to True.",
                 )
 
-    def create_buffer_file(self, h5_path: Path, parquet_path: Path) -> bool | Exception:
-        """
-        Converts an HDF5 file to Parquet format to create a buffer file.
-
-        This method uses `create_dataframe_per_file` method to create dataframes from individual
-        files within an HDF5 file. The resulting dataframe is then saved to a Parquet file.
-
-        Args:
-            h5_path (Path): Path to the input HDF5 file.
-            parquet_path (Path): Path to the output Parquet file.
-
-        Raises:
-            ValueError: If an error occurs during the conversion process.
-
-        """
-        try:
-            (
-                self.create_dataframe_per_file(h5_path)
-                .reset_index(level=self.multi_index)
-                .to_parquet(parquet_path, index=False)
-            )
-        except Exception as exc:  # pylint: disable=broad-except
-            self.failed_files_error.append(f"{parquet_path}: {type(exc)} {exc}")
-            return exc
-        return None
-
-    def parallel_buffer_file_creation(self, h5_paths: list[Path], force_recreate) -> None:
+    def parallel_buffer_file_creation(self, h5_paths: list[Path], force_recreate: bool) -> None:
         """
         Parallelizes the creation of buffer files.
 
@@ -113,35 +82,28 @@ class BufferFileHandler(ParquetHandler, DataFrameCreator):
             ValueError: If an error occurs during the conversion process.
 
         """
-        files_to_read = [
-            (h5_path, parquet_path)
-            for h5_path, parquet_path in zip(h5_paths, self.parquet_paths)
-            if force_recreate or not parquet_path.exists()
+        to_read = [
+            force_recreate or not parquet_path.exists() for parquet_path in self.parquet_paths
         ]
+        num_files = sum(to_read)
 
-        print(f"Reading files: {len(files_to_read)} new files of {len(h5_paths)} total.")
+        h5_to_read = list(compress(h5_paths, to_read))
+        parquets_to_read = list(compress(self.parquet_paths, to_read))
+
+        print(f"Reading files: {num_files} new files of {len(h5_paths)} total.")
 
         # Initialize the indices for create_buffer_file conversion
         self.reset_multi_index()
 
-        if len(files_to_read) > 0:
-            error = Parallel(n_jobs=len(files_to_read), verbose=10)(
-                delayed(self.create_buffer_file)(h5_path, parquet_path)
-                for h5_path, parquet_path in files_to_read
-            )
-        if any(error):
-            raise RuntimeError(f"Conversion failed for some files. {error}")
-
-            # Raise an error if the conversion failed for any files
-        # TODO: merge this and the previous error trackings
-        if self.failed_files_error:
-            raise FileNotFoundError(
-                "Conversion failed for the following files:\n" + "\n".join(self.failed_files_error),
+        if num_files > 0:
+            dataframes = Parallel(n_jobs=num_files, verbose=10)(
+                delayed(self.create_dataframe_per_file)(h5_path) for h5_path in h5_to_read
             )
 
-        print("All files converted successfully!")
+            # Save the dataframes to Parquet files
+            self.save_parquet(dataframes, parquets_to_read)
 
-    def get_filled_dataframes(self):
+    def get_filled_dataframe(self):
         # Read all parquet files into one dataframe using dask and reads the metadata and schema
         dataframe = ddf.read_parquet(self.parquet_paths, calculate_divisions=True)
         metadata = [pq.read_metadata(file) for file in self.parquet_paths]
