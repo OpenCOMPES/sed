@@ -266,10 +266,10 @@ class FlashLoader(BaseLoader):
                 force_recreate,
                 suffix=detector,
             )
-            df, df_timed = bfh.get_filled_dataframes()
+            df, df_timed = bfh.get_filled_dataframe()
         # Save the dataframe as parquet if requested
         if save_parquet:
-            prq.save_parquet(df)
+            prq.save_parquet(df, drop_index=True)
 
         metadata = self.parse_metadata(**kwds) if collect_metadata else {}
         print(f"loading complete in {time.time() - t0: .2f} s")
