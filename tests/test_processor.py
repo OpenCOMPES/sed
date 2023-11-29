@@ -796,6 +796,63 @@ def test_compute():
     assert result.data.sum(axis=(0, 1, 2, 3)) > 0
 
 
+def test_compute_with_filter():
+    """Test binning of final result using filters"""
+    config = parse_config(
+        config={"core": {"loader": "mpes"}},
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+    processor = SedProcessor(
+        folder=df_folder,
+        config=config,
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+    bins = [10, 10, 10, 10]
+    axes = ["X", "Y", "t", "ADC"]
+    ranges = [[0, 2048], [0, 2048], [0, 200000], [0, 50000]]
+    filters = [
+        {"col": "X", "lower_bound": 100, "upper_bound": 200},
+        {"col": "index", "lower_bound": 100, "upper_bound": 200},
+    ]
+    result = processor.compute(bins=bins, axes=axes, ranges=ranges, df_partitions=5)
+    result_filtered = processor.compute(
+        bins=bins,
+        axes=axes,
+        ranges=ranges,
+        df_partitions=5,
+        filter=filters,
+    )
+    assert result.sum(axis=(0, 1, 2, 3)) > result_filtered.sum(axis=(0, 1, 2, 3))
+    with pytest.raises(ValueError) as e:
+        processor.compute(
+            bins=bins,
+            axes=axes,
+            ranges=ranges,
+            df_partitions=5,
+            filter=[{"lower_bound": 100}],
+        )
+    assert str(e.value.args[0]).find("'col' needs to be defined for each filter entry!") > -1
+
+    with pytest.raises(ValueError) as e:
+        processor.compute(
+            bins=bins,
+            axes=axes,
+            ranges=ranges,
+            df_partitions=5,
+            filter=[{"col": "X", "invalid": 100}],
+        )
+    assert (
+        str(e.value.args[0]).find(
+            "Only 'col', 'lower_bound' and 'upper_bound' allowed as filter entries. ",
+        )
+        > -1
+    )
+
+
 def test_compute_with_normalization():
     """Test binning of final result with histogram normalization"""
     config = parse_config(
@@ -829,6 +886,16 @@ def test_compute_with_normalization():
         processor.binned.data,
         (processor.normalized * processor.normalization_histogram).data,
     )
+    # bin only second dataframe partition
+    result2 = processor.compute(
+        bins=bins,
+        axes=axes,
+        ranges=ranges,
+        df_partitions=[1],
+        normalize_to_acquisition_time="ADC",
+    )
+    # Test that the results normalize roughly to the same count rate
+    assert abs(result.sum(axis=(0, 1, 2, 3)) / result2.sum(axis=(0, 1, 2, 3)) - 1) < 0.15
 
 
 def test_get_normalization_histogram():

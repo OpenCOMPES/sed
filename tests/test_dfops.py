@@ -1,6 +1,8 @@
 """This file contains code that performs several tests for the dfops functions
 """
 import datetime as dt
+from typing import Any
+from typing import List
 
 import dask.dataframe as ddf
 import numpy as np
@@ -23,7 +25,7 @@ cols = ["posx", "posy", "energy"]
 df = pd.DataFrame(np.random.randn(N_PTS, len(cols)), columns=cols)
 
 
-def test_apply_jitter():
+def test_apply_jitter() -> None:
     """This function tests if the apply_jitter function generates the correct
     dataframe column.
     """
@@ -34,7 +36,7 @@ def test_apply_jitter():
         assert col in df_jittered.columns
 
 
-def test_drop_column():
+def test_drop_column() -> None:
     """Test function to drop a df column."""
     column_name = "energy"
     df_dropped = drop_column(df, column_name=column_name)
@@ -42,7 +44,7 @@ def test_drop_column():
     assert "energy" not in df_dropped.columns
 
 
-def test_apply_filter():
+def test_apply_filter() -> None:
     """Test function to filter a df by a column with upper/lower bounds."""
     colname = "posx"
     lower_bound = -0.1
@@ -59,7 +61,34 @@ def test_apply_filter():
     assert np.all(df_filtered[colname] < upper_bound)
 
 
-def test_add_time_stamped_data():
+def test_apply_filter_index() -> None:
+    """Test function to filter a df by a index with upper/lower bounds."""
+    colname = "index"
+    lower_bound = 3
+    upper_bound = 6
+    df_filtered = apply_filter(
+        df,
+        col=colname,
+        lower_bound=lower_bound,
+        upper_bound=upper_bound,
+    )
+    np.testing.assert_allclose(df_filtered, df.iloc[lower_bound + 1 : upper_bound, :])
+
+    dd: ddf.DataFrame = ddf.from_pandas(df, npartitions=N_PARTITIONS).reset_index(drop=True)
+    dd_filtered = apply_filter(
+        dd,
+        col=colname,
+        lower_bound=lower_bound,
+        upper_bound=upper_bound,
+    )
+    for i in range(dd.npartitions):
+        np.testing.assert_allclose(
+            dd_filtered.partitions[i].compute().values,
+            dd.partitions[i].compute().values[lower_bound + 1 : upper_bound, :],
+        )
+
+
+def test_add_time_stamped_data() -> None:
     """Test the addition of time-stamped data to the df."""
     df_ts = df
     time_stamp = dt.datetime.now().timestamp()
@@ -105,7 +134,7 @@ def test_add_time_stamped_data():
         )
 
 
-def test_map_columns_2d():
+def test_map_columns_2d() -> None:
     """Test mapping of a 2D-function onto the df."""
 
     def swap(x, y):
@@ -127,7 +156,7 @@ def test_map_columns_2d():
     assert np.all(df[y_column] == df_swapped[new_y_column])
 
 
-def test_forward_fill_lazy_sparse_nans():
+def test_forward_fill_lazy_sparse_nans() -> None:
     """test that a lazy forward fill works as expected with sparse nans"""
     t_df = df.copy()
     t_df["energy"][::2] = np.nan
@@ -137,7 +166,7 @@ def test_forward_fill_lazy_sparse_nans():
     pd.testing.assert_frame_equal(t_df, t_dask_df.compute())
 
 
-def test_forward_fill_lazy_full_partition_nans():
+def test_forward_fill_lazy_full_partition_nans() -> None:
     """test that a lazy forward fill works as expected with a full partition of nans"""
     t_df = df.copy()
     t_df["energy"][5:25] = np.nan
@@ -147,7 +176,7 @@ def test_forward_fill_lazy_full_partition_nans():
     pd.testing.assert_frame_equal(t_df, t_dask_df.compute())
 
 
-def test_forward_fill_lazy_consecutive_full_partition_nans():
+def test_forward_fill_lazy_consecutive_full_partition_nans() -> None:
     """test that a lazy forward fill fails as expected on two consecutive partitions
     full of nans
     """
@@ -159,7 +188,7 @@ def test_forward_fill_lazy_consecutive_full_partition_nans():
     assert not t_df.equals(t_dask_df.compute())
 
 
-def test_forward_fill_lazy_wrong_parameters():
+def test_forward_fill_lazy_wrong_parameters() -> None:
     """test that a lazy forward fill fails as expected on wrong parameters"""
     t_df = df.copy()
     t_df["energy"][5:35] = np.nan
@@ -168,7 +197,7 @@ def test_forward_fill_lazy_wrong_parameters():
         t_dask_df = forward_fill_lazy(t_dask_df, "energy", before="wrong parameter")
 
 
-def test_forward_fill_lazy_compute():
+def test_forward_fill_lazy_compute() -> None:
     """test that a lazy forward fill works as expected with compute=True"""
     t_df = df.copy()
     t_df["energy"][5:35] = np.nan
@@ -178,7 +207,7 @@ def test_forward_fill_lazy_compute():
     pd.testing.assert_frame_equal(t_dask_df_comp.compute(), t_dask_df_nocomp.compute())
 
 
-def test_forward_fill_lazy_keep_head_nans():
+def test_forward_fill_lazy_keep_head_nans() -> None:
     """test that a lazy forward fill works as expected with missing values at the
     beginning of the dataframe"""
     t_df = df.copy()
@@ -189,7 +218,7 @@ def test_forward_fill_lazy_keep_head_nans():
     assert np.all(np.isfinite(t_df["energy"][5:]))
 
 
-def test_forward_fill_lazy_no_channels():
+def test_forward_fill_lazy_no_channels() -> None:
     """test that a lazy forward fill raises an error when no channels are specified"""
     t_df = df.copy()
     t_dask_df = ddf.from_pandas(t_df, npartitions=N_PARTITIONS)
@@ -197,7 +226,7 @@ def test_forward_fill_lazy_no_channels():
         t_dask_df = forward_fill_lazy(t_dask_df, [])
 
 
-def test_forward_fill_lazy_wrong_channels():
+def test_forward_fill_lazy_wrong_channels() -> None:
     """test that a lazy forward fill raises an error when the specified channels do not exist"""
     t_df = df.copy()
     t_dask_df = ddf.from_pandas(t_df, npartitions=N_PARTITIONS)
@@ -205,7 +234,7 @@ def test_forward_fill_lazy_wrong_channels():
         t_dask_df = forward_fill_lazy(t_dask_df, ["nonexistent_channel"])
 
 
-def test_forward_fill_lazy_multiple_iterations():
+def test_forward_fill_lazy_multiple_iterations() -> None:
     """test that a lazy forward fill works as expected with multiple iterations"""
     t_df = df.copy()
     t_df["energy"][5:35] = np.nan
@@ -215,7 +244,7 @@ def test_forward_fill_lazy_multiple_iterations():
     pd.testing.assert_frame_equal(t_df, t_dask_df.compute())
 
 
-def test_backward_fill_lazy():
+def test_backward_fill_lazy() -> None:
     """Test backward fill function"""
     t_df = pd.DataFrame(
         {
@@ -231,7 +260,7 @@ def test_backward_fill_lazy():
     pd.testing.assert_frame_equal(t_df, t_dask_df.compute())
 
 
-def test_backward_fill_lazy_no_channels():
+def test_backward_fill_lazy_no_channels() -> None:
     """Test that an error is raised when no channels are specified"""
     t_df = pd.DataFrame(
         {
@@ -246,7 +275,7 @@ def test_backward_fill_lazy_no_channels():
         t_dask_df = backward_fill_lazy(t_dask_df, [], after=2, iterations=2)
 
 
-def test_backward_fill_lazy_wrong_channels():
+def test_backward_fill_lazy_wrong_channels() -> None:
     """Test that an error is raised when the specified channels do not exist"""
     t_df = pd.DataFrame(
         {
@@ -261,7 +290,7 @@ def test_backward_fill_lazy_wrong_channels():
         t_dask_df = backward_fill_lazy(t_dask_df, ["nonexistent_channel"], after=2, iterations=2)
 
 
-def test_backward_fill_lazy_wrong_after():
+def test_backward_fill_lazy_wrong_after() -> None:
     """Test that an error is raised when the 'after' parameter is not an integer or 'max'"""
     t_df = pd.DataFrame(
         {
@@ -281,7 +310,7 @@ def test_backward_fill_lazy_wrong_after():
         )
 
 
-def test_backward_fill_lazy_multiple_iterations():
+def test_backward_fill_lazy_multiple_iterations() -> None:
     """Test that the function works with multiple iterations"""
     t_df = pd.DataFrame(
         {
@@ -297,7 +326,7 @@ def test_backward_fill_lazy_multiple_iterations():
     pd.testing.assert_frame_equal(t_df, t_dask_df.compute())
 
 
-def test_offset_by_other_columns_functionality():
+def test_offset_by_other_columns_functionality() -> None:
     """test that the offset_by_other_columns function works as expected"""
     pd_df = pd.DataFrame(
         {
@@ -314,7 +343,7 @@ def test_offset_by_other_columns_functionality():
         offset_columns=["off1"],
         weights=[1],
     )
-    expected = [11, 22, 33, 44, 55, 66]
+    expected: List[Any] = [11, 22, 33, 44, 55, 66]
     np.testing.assert_allclose(res["target"].values, expected)
 
     res = offset_by_other_columns(
@@ -347,7 +376,7 @@ def test_offset_by_other_columns_functionality():
     np.testing.assert_allclose(res["target"].values, expected)
 
 
-def test_offset_by_other_columns_pandas_not_working():
+def test_offset_by_other_columns_pandas_not_working() -> None:
     """test that the offset_by_other_columns function raises an error when
     used with pandas
     """
@@ -368,7 +397,7 @@ def test_offset_by_other_columns_pandas_not_working():
         )
 
 
-def test_offset_by_other_columns_rises():
+def test_offset_by_other_columns_rises() -> None:
     """Test that the offset_by_other_columns function raises an error when
     the specified columns do not exist
     """

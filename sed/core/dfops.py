@@ -98,7 +98,8 @@ def apply_filter(
 
     Args:
         df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to use.
-        col (str): Name of the column to filter.
+        col (str): Name of the column to filter. Passing "index" for col will
+            filter on the index in each dataframe partition.
         lower_bound (float, optional): The lower bound used in the filtering.
             Defaults to -np.inf.
         upper_bound (float, optional): The lower bound used in the filtering.
@@ -107,7 +108,14 @@ def apply_filter(
     Returns:
         Union[pd.DataFrame, dask.dataframe.DataFrame]: The filtered dataframe.
     """
+    df = df.copy()
+    if col == "index":
+        df["index"] = df.index
+
     out_df = df[(df[col] > lower_bound) & (df[col] < upper_bound)]
+
+    if col == "index":
+        out_df = drop_column(out_df, "index")
 
     return out_df
 
@@ -157,8 +165,8 @@ def add_time_stamped_data(
 def map_columns_2d(
     df: Union[pd.DataFrame, dask.dataframe.DataFrame],
     map_2d: Callable,
-    x_column: np.ndarray,
-    y_column: np.ndarray,
+    x_column: str,
+    y_column: str,
     **kwds,
 ) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
     """Apply a 2-dimensional mapping simultaneously to two dimensions.
@@ -166,8 +174,8 @@ def map_columns_2d(
     Args:
         df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to use.
         map_2d (Callable): 2D mapping function.
-        x_column (np.ndarray): The X column of the dataframe to apply mapping to.
-        y_column (np.ndarray): The Y column of the dataframe to apply mapping to.
+        x_column (str): The X column of the dataframe to apply mapping to.
+        y_column (str): The Y column of the dataframe to apply mapping to.
         **kwds: Additional arguments for the 2D mapping function.
 
     Returns:
