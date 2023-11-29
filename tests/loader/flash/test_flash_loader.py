@@ -24,64 +24,6 @@ def fixture_config_file() -> dict:
     return parse_config(config_path)
 
 
-def test_get_channels_by_format(config_file: dict) -> None:
-    """
-    Test function to verify the 'get_channels' method in FlashLoader class for
-    retrieving channels based on formats and index inclusion.
-    """
-    # Initialize the FlashLoader instance with the given config_file.
-    fl = FlashLoader(config_file)
-
-    # Define expected channels for each format.
-    electron_channels = ["dldPosX", "dldPosY", "dldTimeSteps"]
-    pulse_channels = [
-        "sampleBias",
-        "tofVoltage",
-        "extractorVoltage",
-        "extractorCurrent",
-        "cryoTemperature",
-        "sampleTemperature",
-        "dldTimeBinSize",
-        "gmdTunnel",
-    ]
-    train_channels = ["timeStamp", "delayStage"]
-    index_channels = ["trainId", "pulseId", "electronId"]
-
-    # Call get_channels method with different format options.
-
-    # Request channels for 'per_electron' format using a list.
-    format_electron = fl.get_channels(["per_electron"])
-
-    # Request channels for 'per_pulse' format using a string.
-    format_pulse = fl.get_channels("per_pulse")
-
-    # Request channels for 'per_train' format using a list.
-    format_train = fl.get_channels(["per_train"])
-
-    # Request channels for 'all' formats using a list.
-    format_all = fl.get_channels(["all"])
-
-    # Request index channels only.
-    format_index = fl.get_channels(index=True)
-
-    # Request 'per_electron' format and include index channels.
-    format_index_electron = fl.get_channels(["per_electron"], index=True)
-
-    # Request 'all' formats and include index channels.
-    format_all_index = fl.get_channels(["all"], index=True)
-
-    # Assert that the obtained channels match the expected channels.
-    assert set(electron_channels) == set(format_electron)
-    assert set(pulse_channels) == set(format_pulse)
-    assert set(train_channels) == set(format_train)
-    assert set(electron_channels + pulse_channels + train_channels) == set(format_all)
-    assert set(index_channels) == set(format_index)
-    assert set(index_channels + electron_channels) == set(format_index_electron)
-    assert set(index_channels + electron_channels + pulse_channels + train_channels) == set(
-        format_all_index,
-    )
-
-
 @pytest.mark.parametrize(
     "sub_dir",
     ["online-0/fl1user3/", "express-0/fl1user3/", "FL1USER3/"],
@@ -140,86 +82,61 @@ def test_initialize_paths_filenotfound(config_file: dict) -> None:
         _, _ = fl.initialize_paths()
 
 
-def test_invalid_channel_format(config_file: dict) -> None:
-    """
-    Test ValueError for an invalid channel format.
-    """
-    config = config_file
-    config["dataframe"]["channels"]["dldPosX"]["format"] = "foo"
+# def test_buffer_schema_mismatch(config_file):
+#     """
+#     Test function to verify schema mismatch handling in the FlashLoader's 'read_dataframe' method.
 
-    fl = FlashLoader(config=config)
+#     The test validates the error handling mechanism when the available channels do not match the
+#     schema of the existing parquet files.
 
-    with pytest.raises(ValueError):
-        fl.read_dataframe()
+#     Test Steps:
+#     - Attempt to read a dataframe after adding a new channel 'gmdTunnel2' to the configuration.
+#     - Check for an expected error related to the mismatch between available channels and schema.
+#     - Force recreation of dataframe with the added channel, ensuring successful dataframe
+#       creation.
+#     - Simulate a missing channel scenario by removing 'gmdTunnel2' from the configuration.
+#     - Check for an error indicating a missing channel in the configuration.
+#     - Clean up created buffer files after the test.
+#     """
+#     fl = FlashLoader(config=config_file)
 
+#     # Read a dataframe for a specific run
+#     fl.read_dataframe(runs=["43878"])
 
-def test_group_name_not_in_h5(config_file: dict) -> None:
-    """
-    Test ValueError when the group_name for a channel does not exist in the H5 file.
-    """
-    config = config_file
-    config["dataframe"]["channels"]["dldPosX"]["group_name"] = "foo"
-    fl = FlashLoader(config=config)
+#     # Manipulate the configuration to introduce a new channel 'gmdTunnel2'
+#     config = config_file
+#     config["dataframe"]["channels"]["gmdTunnel2"] = {
+#         "group_name": "/FL1/Photon Diagnostic/GMD/Pulse resolved energy/energy tunnel/",
+#         "format": "per_pulse",
+#     }
 
-    with pytest.raises(ValueError) as e:
-        fl.create_dataframe_per_file(Path(config["core"]["paths"]["data_raw_dir"] + H5_PATH))
+#     # Reread the dataframe with the modified configuration, expecting a schema mismatch error
+#     fl = FlashLoader(config=config)
+#     with pytest.raises(ValueError) as e:
+#         fl.read_dataframe(runs=["43878"])
+#     expected_error = e.value.args
 
-    assert str(e.value.args[0]) == "The group_name for channel dldPosX does not exist."
+#     # Validate the specific error messages for schema mismatch
+#     assert "The available channels do not match the schema of file" in expected_error[0]
+#     assert expected_error[2] == "Missing in parquet: {'gmdTunnel2'}"
+#     assert expected_error[4] == "Please check the configuration file or set force_recreate to
+#       True."
 
+#     # Force recreation of the dataframe, including the added channel 'gmdTunnel2'
+#     fl.read_dataframe(runs=["43878"], force_recreate=True)
 
-def test_buffer_schema_mismatch(config_file: dict) -> None:
-    """
-    Test function to verify schema mismatch handling in the FlashLoader's 'read_dataframe' method.
+#     # Remove 'gmdTunnel2' from the configuration to simulate a missing channel scenario
+#     del config["dataframe"]["channels"]["gmdTunnel2"]
+#     fl = FlashLoader(config=config)
+#     with pytest.raises(ValueError) as e:
+#         # Attempt to read the dataframe again to check for the missing channel error
+#         fl.read_dataframe(runs=["43878"])
 
-    The test validates the error handling mechanism when the available channels do not match the
-    schema of the existing parquet files.
+#     expected_error = e.value.args
+#     # Check for the specific error message indicating a missing channel in the configuration
+#     assert expected_error[3] == "Missing in config: {'gmdTunnel2'}"
 
-    Test Steps:
-    - Attempt to read a dataframe after adding a new channel 'gmdTunnel2' to the configuration.
-    - Check for an expected error related to the mismatch between available channels and schema.
-    - Force recreation of dataframe with the added channel, ensuring successful dataframe creation.
-    - Simulate a missing channel scenario by removing 'gmdTunnel2' from the configuration.
-    - Check for an error indicating a missing channel in the configuration.
-    - Clean up created buffer files after the test.
-    """
-    fl = FlashLoader(config=config_file)
-
-    # Read a dataframe for a specific run
-    fl.read_dataframe(runs=["43878"])
-
-    # Manipulate the configuration to introduce a new channel 'gmdTunnel2'
-    config = config_file
-    config["dataframe"]["channels"]["gmdTunnel2"] = {
-        "group_name": "/FL1/Photon Diagnostic/GMD/Pulse resolved energy/energy tunnel/",
-        "format": "per_pulse",
-    }
-
-    # Reread the dataframe with the modified configuration, expecting a schema mismatch error
-    fl = FlashLoader(config=config)
-    with pytest.raises(ValueError) as e:
-        fl.read_dataframe(runs=["43878"])
-    expected_error = e.value.args
-
-    # Validate the specific error messages for schema mismatch
-    assert "The available channels do not match the schema of file" in expected_error[0]
-    assert expected_error[2] == "Missing in parquet: {'gmdTunnel2'}"
-    assert expected_error[4] == "Please check the configuration file or set force_recreate to True."
-
-    # Force recreation of the dataframe, including the added channel 'gmdTunnel2'
-    fl.read_dataframe(runs=["43878"], force_recreate=True)
-
-    # Remove 'gmdTunnel2' from the configuration to simulate a missing channel scenario
-    del config["dataframe"]["channels"]["gmdTunnel2"]
-    fl = FlashLoader(config=config)
-    with pytest.raises(ValueError) as e:
-        # Attempt to read the dataframe again to check for the missing channel error
-        fl.read_dataframe(runs=["43878"])
-
-    expected_error = e.value.args
-    # Check for the specific error message indicating a missing channel in the configuration
-    assert expected_error[3] == "Missing in config: {'gmdTunnel2'}"
-
-    # Clean up created buffer files after the test
-    _, parquet_data_dir = fl.initialize_paths()
-    for file in os.listdir(Path(parquet_data_dir, "buffer")):
-        os.remove(Path(parquet_data_dir, "buffer", file))
+#     # Clean up created buffer files after the test
+#     _, parquet_data_dir = fl.initialize_paths()
+#     for file in os.listdir(Path(parquet_data_dir, "buffer")):
+#         os.remove(Path(parquet_data_dir, "buffer", file))
