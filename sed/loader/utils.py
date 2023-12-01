@@ -201,7 +201,7 @@ def calculate_monochromator_photon_energy(
     delta1: float,
     delta2: float,
     grating_density: int,
-    order: int,
+    grating_order: int,
 ) -> float:
     """
     Calculates the photon energy of the monochromator using the grating density and order.
@@ -218,7 +218,7 @@ def calculate_monochromator_photon_energy(
     alpha = 2.0 * delta1 + 90.0 - delta2
     beta = -1.0 * delta2 - 86.0
     num = 1e6 * (np.sin(beta / 180.0 * np.pi) + np.sin(alpha / 180.0 * np.pi))
-    den = order * grating_density
+    den = grating_order * grating_density
     lambda_nm = num / den
     hc = 1239.84
     lambda_ev = hc / lambda_nm

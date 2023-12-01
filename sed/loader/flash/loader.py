@@ -31,7 +31,7 @@ from tqdm.auto import tqdm
 from sed.core import dfops
 from sed.loader.base.loader import BaseLoader
 from sed.loader.flash.metadata import MetadataRetriever
-from sed.loader.utils import add_monochromator_photon_energy
+from sed.loader.utils import calculate_monochromator_photon_energy
 from sed.loader.utils import parse_h5_keys
 from sed.loader.utils import split_dld_time_from_sector_id
 
@@ -350,11 +350,17 @@ class FlashLoader(BaseLoader):
         # Use predefined axis and slice from the json file
         # to choose correct dimension for necessary channel
         if "slice" in channel_dict:
-            np_array = np.take(
-                np_array,
-                channel_dict["slice"],
-                axis=1,
-            )
+            try:
+                np_array = np.take(
+                    np_array,
+                    channel_dict["slice"],
+                    axis=1,
+                )
+            except np.AxisError:
+                raise np.AxisError(
+                    f"AxisError: {channel}, looking for slice {channel_dict['slice']}, "
+                    f"when shape is  {np_array.shape}",
+                )
         return train_id, np_array
 
     def create_dataframe_per_electron(
@@ -632,12 +638,33 @@ class FlashLoader(BaseLoader):
             # correct the 3 bit shift which encodes the detector ID in the 8s time
             if self._config["dataframe"].get("split_sector_id_from_dld_time", False):
                 df = split_dld_time_from_sector_id(df, config=self._config)
-            mono_channels = ["delta1", "delta2"]
-            if all([channel in df.columns for channel in mono_channels]):
-                grating_density = self._config["dataframe"].get("gratingDensity", None)
-                order = self._config["dataframe"].get("order", None)
-                if grating_density is not None and order is not None:
-                    df = add_monochromator_photon_energy(df)
+            mono_settings = self._config["dataframe"].get("monochromator", None)
+            if mono_settings is not None:
+                mono_vals = {}
+                for k, v in mono_settings.items():
+                    if k == "channel":
+                        if not isinstance(v, str):
+                            raise ValueError(
+                                f"Invalid channel name {k} in mono_settings. Name must be a string",
+                            )
+                        mono_vals[k] = v
+                    elif isinstance(v, str) and v in df.columns:
+                        mono_vals[k] = df[v].values
+                    elif isinstance(v, int):
+                        mono_vals[k] = v
+                    else:
+                        raise ValueError(f"Invalid value for {k} in mono_settings")
+
+                name = mono_vals.pop("channel")
+                df[name] = calculate_monochromator_photon_energy(
+                    delta1=mono_vals["delta1"],
+                    delta2=mono_vals["delta2"],
+                    grating_density=mono_vals["grating_density"],
+                    grating_order=mono_vals["grating_order"],
+                )
+
+            else:
+                print("no monochromator settings found in config")
             return df
 
     def create_buffer_file(self, h5_path: Path, parquet_path: Path) -> Union[bool, Exception]:
