@@ -785,7 +785,7 @@ class FlashLoader(BaseLoader):
                     files_to_read,
                     desc="Converting h5 files to parquet",
                 ):
-                    error = self.create_buffer_file(h5_path, parquet_path)
+                    error: Exception = self.create_buffer_file(h5_path, parquet_path)
                     if error:
                         raise RuntimeError(
                             f"Conversion failed for some file {h5_path}.\n {error}",
