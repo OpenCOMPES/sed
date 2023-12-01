@@ -195,3 +195,56 @@ def split_dld_time_from_sector_id(
         types=[np.int8, np.int32],
     )
     return df
+
+
+def calculate_monochromator_photon_energy(
+    delta1: float,
+    delta2: float,
+    grating_density: int,
+    order: int,
+) -> float:
+    """
+    Calculates the photon energy of the monochromator using the grating density and order.
+
+    Args:
+        delta1 (float): The angle of the first crystal in radians.
+        delta2 (float): The angle of the second crystal in radians.
+        grating_density (int): The grating density in grooves per mm.
+        order (int): The order of the diffraction.
+
+    Returns:
+        float: The photon energy in eV.
+    """
+    alpha = 2.0 * delta1 + 90.0 - delta2
+    beta = -1.0 * delta2 - 86.0
+    num = 1e6 * (np.sin(beta / 180.0 * np.pi) + np.sin(alpha / 180.0 * np.pi))
+    den = order * grating_density
+    lambda_nm = num / den
+    hc = 1239.84
+    lambda_ev = hc / lambda_nm
+    return lambda_ev
+
+
+def add_monochromator_photon_energy(
+    df: Union[pd.DataFrame, dask.dataframe.DataFrame],
+    config: dict = None,
+) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
+    mono_channels = ["delta1", "delta2", "gratingDensity", "order"]
+    if config is None:
+        raise ValueError("config must be given.")
+    for channel in mono_channels:
+        if channel not in config["dataframe"]:
+            raise ValueError(f"config must contain {channel}.")
+    if "monoPhotonEnergy" in df.columns:
+        raise ValueError(
+            "Column monoPhotonEnergy already in dataframe. ",
+        )
+    df = df.assign(
+        monoPhotonEnergy=calculate_monochromator_photon_energy(
+            df[config["dataframe"]["delta1"]],
+            df[config["dataframe"]["delta2"]],
+            config["dataframe"]["gratingDensity"],
+            config["dataframe"]["order"],
+        ),
+    )
+    return df

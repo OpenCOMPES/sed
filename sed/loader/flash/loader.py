@@ -31,6 +31,7 @@ from tqdm.auto import tqdm
 from sed.core import dfops
 from sed.loader.base.loader import BaseLoader
 from sed.loader.flash.metadata import MetadataRetriever
+from sed.loader.utils import add_monochromator_photon_energy
 from sed.loader.utils import parse_h5_keys
 from sed.loader.utils import split_dld_time_from_sector_id
 
@@ -631,6 +632,12 @@ class FlashLoader(BaseLoader):
             # correct the 3 bit shift which encodes the detector ID in the 8s time
             if self._config["dataframe"].get("split_sector_id_from_dld_time", False):
                 df = split_dld_time_from_sector_id(df, config=self._config)
+            mono_channels = ["delta1", "delta2"]
+            if all([channel in df.columns for channel in mono_channels]):
+                grating_density = self._config["dataframe"].get("gratingDensity", None)
+                order = self._config["dataframe"].get("order", None)
+                if grating_density is not None and order is not None:
+                    df = add_monochromator_photon_energy(df)
             return df
 
     def create_buffer_file(self, h5_path: Path, parquet_path: Path) -> Union[bool, Exception]:
