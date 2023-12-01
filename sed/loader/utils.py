@@ -223,28 +223,3 @@ def calculate_monochromator_photon_energy(
     hc = 1239.84
     lambda_ev = hc / lambda_nm
     return lambda_ev
-
-
-def add_monochromator_photon_energy(
-    df: Union[pd.DataFrame, dask.dataframe.DataFrame],
-    config: dict = None,
-) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
-    mono_channels = ["delta1", "delta2", "gratingDensity", "order"]
-    if config is None:
-        raise ValueError("config must be given.")
-    for channel in mono_channels:
-        if channel not in config["dataframe"]:
-            raise ValueError(f"config must contain {channel}.")
-    if "monoPhotonEnergy" in df.columns:
-        raise ValueError(
-            "Column monoPhotonEnergy already in dataframe. ",
-        )
-    df = df.assign(
-        monoPhotonEnergy=calculate_monochromator_photon_energy(
-            df[config["dataframe"]["delta1"]],
-            df[config["dataframe"]["delta2"]],
-            config["dataframe"]["gratingDensity"],
-            config["dataframe"]["order"],
-        ),
-    )
-    return df
