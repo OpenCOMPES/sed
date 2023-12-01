@@ -1,4 +1,5 @@
 import os
+import shutil
 from importlib.util import find_spec
 
 import h5py
@@ -31,6 +32,22 @@ def fixture_h5_file():
         h5py.File: The open h5 file.
     """
     return h5py.File(os.path.join(package_dir, f"../tests/data/loader/flash/{H5_PATH}"), "r")
+
+
+@pytest.fixture(name="h5_file_copy")
+def fixture_h5_file_copy(tmp_path):
+    """Fixture providing a copy of an open h5 file.
+
+    Returns:
+        h5py.File: The open h5 file copy.
+    """
+    # Create a copy of the h5 file in a temporary directory
+    original_file_path = os.path.join(package_dir, f"../tests/data/loader/flash/{H5_PATH}")
+    copy_file_path = tmp_path / "copy.h5"
+    shutil.copyfile(original_file_path, copy_file_path)
+
+    # Open the copy in 'read-write' mode and return it
+    return h5py.File(copy_file_path, "r+")
 
 
 @pytest.fixture(name="gmd_channel_array")

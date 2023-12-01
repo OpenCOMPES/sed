@@ -93,11 +93,11 @@ class DataFrameCreator(MultiIndexCreator):
         channel_config = self._config["channels"][channel]
 
         if "group_name" in channel_config:
-            index_key = channel_config["group_name"] + "/index"
+            index_key = channel_config["group_name"] + "index"
             if channel == "timeStamp":
-                dataset_key = channel_config["group_name"] + "/time"
+                dataset_key = channel_config["group_name"] + "time"
             else:
-                dataset_key = channel_config["group_name"] + "/value"
+                dataset_key = channel_config["group_name"] + "value"
             return index_key, dataset_key
         elif "index_key" in channel_config and "dataset_key" in channel_config:
             return channel_config["index_key"], channel_config["dataset_key"]
@@ -106,7 +106,7 @@ class DataFrameCreator(MultiIndexCreator):
                 "For channel:",
                 channel,
                 "Provide either both 'index_key' and 'dataset_key'.",
-                "or 'group_name' (allows only 'index' and 'value' or 'time' keys.)",
+                "or 'group_name' (parses only 'index' and 'value' or 'time' keys.)",
             )
 
     def create_numpy_array_per_channel(
@@ -128,19 +128,25 @@ class DataFrameCreator(MultiIndexCreator):
         # Get the data from the necessary h5 file and channel
         index_key, dataset_key = self.get_index_dataset_key(channel)
 
-        channel_dict = self._config["channels"][channel]  # channel parameters
+        slice = self._config["channels"][channel].get("slice", None)
 
         train_id = Series(h5_file[index_key], name="trainId")  # macrobunch
         np_array = h5_file[dataset_key][()]
 
         # Use predefined axis and slice from the json file
         # to choose correct dimension for necessary channel
-        if "slice" in channel_dict:
+        if slice is not None:
             np_array = np.take(
                 np_array,
-                channel_dict["slice"],
+                slice,
                 axis=1,
             )
+
+        # If np_array is size zero, fill with NaNs
+        if np_array.size == 0:
+            # Fill the np_array with NaN values of the same shape as train_id
+            np_array = np.full_like(train_id, np.nan, dtype=np.double)
+
         return train_id, np_array
 
     def create_dataframe_per_electron(
@@ -248,7 +254,7 @@ class DataFrameCreator(MultiIndexCreator):
         self,
         h5_file: h5py.File,
         channel: str,
-    ) -> Series | DataFrame:
+    ) -> DataFrame:
         """
         Returns a pandas DataFrame for a given channel name from a given file.
 
@@ -261,7 +267,7 @@ class DataFrameCreator(MultiIndexCreator):
             channel (str): The name of the channel.
 
         Returns:
-            Union[Series, DataFrame]: A pandas Series or DataFrame representing the channel's data.
+            Series: A pandas DataFrame representing the channel's data.
 
         Raises:
             ValueError: If the channel has an undefined format.
@@ -271,17 +277,6 @@ class DataFrameCreator(MultiIndexCreator):
             channel,
         )  # numpy Array created
         cformat = self._config["channels"][channel]["format"]  # channel format
-
-        # If np_array is size zero, fill with NaNs
-        if np_array.size == 0:
-            # Fill the np_array with NaN values of the same shape as train_id
-            np_array = np.full_like(train_id, np.nan, dtype=np.double)
-            # Create a Series using np_array, with train_id as the index
-            data = Series(
-                (np_array[i] for i in train_id.index),
-                name=channel,
-                index=train_id,
-            )
 
         # Electron resolved data is treated here
         if cformat == "per_electron":
@@ -347,14 +342,11 @@ class DataFrameCreator(MultiIndexCreator):
 
         # Check for if the provided group_name actually exists in the file
         for channel in self._config["channels"]:
-            if channel == "timeStamp":
-                group_name = self._config["channels"][channel]["group_name"] + "time"
-            else:
-                group_name = self._config["channels"][channel]["group_name"] + "value"
+            index_key, dataset_key = self.get_index_dataset_key(channel)
 
-            if group_name not in all_keys:
+            if index_key or dataset_key not in all_keys:
                 raise ValueError(
-                    f"The group_name for channel {channel} does not exist.",
+                    f"The index_key or dataset_key for channel {channel} does not exist.",
                 )
 
         # Create a generator expression to generate data frames for each channel

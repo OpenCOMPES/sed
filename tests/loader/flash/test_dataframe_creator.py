@@ -100,10 +100,23 @@ def test_group_name_not_in_h5(config_dataframe, h5_file):
     assert str(e.value.args[0]) == "The group_name for channel dldPosX does not exist."
 
 
+def test_get_index_dataset_key(config_dataframe):
+    config = config_dataframe
+    channel = "dldPosX"
+    df = DataFrameCreator(config)
+    index_key, dataset_key = df.get_index_dataset_key(channel)
+    group_name = config["channels"][channel]["group_name"]
+    assert index_key == group_name + "index"
+    assert dataset_key == group_name + "value"
+
+    # remove group_name key
+    del config["channels"][channel]["group_name"]
+    with pytest.raises(ValueError):
+        df.get_index_dataset_key(channel)
+
+
 def test_create_numpy_array_per_channel(config_dataframe, h5_file):
-    """
-    Test the creation of a numpy array for a given channel.
-    """
+
     df = DataFrameCreator(config_dataframe)
     channel = "dldPosX"
 
@@ -115,6 +128,26 @@ def test_create_numpy_array_per_channel(config_dataframe, h5_file):
     assert train_id.name == "trainId"
     assert train_id.shape[0] == np_array.shape[0]
     assert np_array.shape[1] == 2048
+
+
+def test_empty_numpy_array_per_channel(config_dataframe, h5_file, h5_file_copy):
+
+    df = DataFrameCreator(config_dataframe)
+    channel = "dldPosX"
+    channel_dataset_key = config_dataframe["channels"][channel]["group_name"] + "value"
+
+    train_id, np_array = df.create_numpy_array_per_channel(h5_file, channel)
+    # alter the h5 file to have no data
+    h5_file_copy[channel_dataset_key][...] = np.nan
+
+    train_id, np_array_empty_dset = df.create_numpy_array_per_channel(h5_file_copy, channel)
+    print(train_id.shape)
+    print(np_array_empty_dset.shape)
+    print(h5_file_copy[channel_dataset_key][()].shape)
+
+    assert train_id.shape[0] == np_array.shape[0]
+    assert np_array.shape[1] == 2048
+    assert np_array_empty_dset.shape[1] == np_array.shape[1]
 
 
 def test_create_dataframe_per_electron(config_dataframe, h5_file, multiindex_electron):
@@ -169,33 +202,37 @@ def test_create_dataframe_per_pulse(config_dataframe, h5_file):
     )
 
 
-# def test_create_dataframe_per_train(config_dataframe, h5_file):
-#     """
-#     Test the creation of a pandas DataFrame for a channel of type [per train].
-#     """
-#     df = DataFrameCreator(config_dataframe)
-#     channel = "timeStamp"
+def test_create_dataframe_per_train(config_dataframe, h5_file):
+    """
+    Test the creation of a pandas DataFrame for a channel of type [per train].
+    """
+    df = DataFrameCreator(config_dataframe)
+    channel = "delayStage"
 
-#     train_id, np_array = df.create_numpy_array_per_channel(h5_file, channel)
-#     result_df = df.create_dataframe_per_train(np_array, train_id, channel)
+    train_id, np_array = df.create_numpy_array_per_channel(h5_file, channel)
+    result_df = df.create_dataframe_per_train(np_array, train_id, channel)
 
-#     # Check that the result_df is a DataFrame and has the correct shape
-#     assert isinstance(result_df, DataFrame)
-#     assert result_df.shape[0] == train_id.shape[0]
+    # Check that the result_df is a DataFrame and has the correct shape
+    assert isinstance(result_df, DataFrame)
+    assert result_df.shape[0] == train_id.shape[0]
+    assert np.all(np.equal(np.squeeze(result_df.values), np_array))
 
 
-# def test_create_dataframe_per_channel(config_dataframe, h5_file):
-#     """
-#     Test the creation of a pandas Series or DataFrame for a channel from a given file.
-#     """
-#     df = DataFrameCreator(config_dataframe)
-#     channel = "dldPosX"
+@pytest.mark.parametrize(
+    "channel",
+    [ELECTRON_CHANNELS[0], "dldAux", PULSE_CHANNELS[-1], TRAIN_CHANNELS[0]],
+)
+def test_create_dataframe_per_channel(config_dataframe, h5_file, multiindex_electron, channel):
+    """
+    Test the creation of a pandas Series or DataFrame for a channel from a given file.
+    """
+    df = DataFrameCreator(config_dataframe)
+    df.index_per_electron = multiindex_electron
 
-#     result = df.create_dataframe_per_channel(h5_file, channel)
+    result = df.create_dataframe_per_channel(h5_file, channel)
 
-#     # Check that the result is a Series or DataFrame and has the correct shape
-#     assert isinstance(result, (Series, DataFrame))
-#     assert result.shape[0] == df.create_numpy_array_per_channel(h5_file, channel)[0].shape[0]
+    # Check that the result is a Series or DataFrame and has the correct shape
+    assert isinstance(result, DataFrame)
 
 
 # def test_concatenate_channels(config_dataframe, h5_file):
