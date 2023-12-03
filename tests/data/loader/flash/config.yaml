@@ -122,9 +122,9 @@ dataframe:
       format: per_train
       group_name: "/zraw/FLASH.SYNC/LASER.LOCK.EXP/F1.PG.OSC/FMC0.MD22.1.ENCODER_POSITION.RD/dGroup/"
 
-    gmdTunnel:
+    pulserSignAdc:
       format: per_pulse
-      group_name: "/FL1/Photon Diagnostic/GMD/Pulse resolved energy/energy tunnel/"
+      group_name: "/FL1/Experiment/PG/SIS8300 100MHz ADC/CH6/TD/"
 
   # The prefixes of the stream names for different DAQ systems for parsing filenames
   # (Not to be changed by user)
