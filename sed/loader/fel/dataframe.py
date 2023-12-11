@@ -75,7 +75,7 @@ class DataFrameCreator:
                 if self._config["channels"][key]["format"] == format_ and key != "dldAux"
             )
             # Include 'dldAuxChannels' if the format is 'per_pulse' and extend_aux is True.
-            # Oterwise, include 'dldAux'.
+            # Otherwise, include 'dldAux'.
             if format_ == "per_train" and "dldAux" in available_channels:
                 if extend_aux:
                     channels.extend(
@@ -126,16 +126,16 @@ class DataFrameCreator:
         self,
         channel: str,
         slice: bool = False,
-    ):
+    ) -> tuple[Index, np.ndarray]:
         """
-        Returns a numpy array for a given channel name for a given file.
+        Returns a numpy array for a given channel name.
 
         Args:
-            h5_file (h5py.File): The h5py file object.
             channel (str): The name of the channel.
+            slice (bool): If True, applies slicing on the dataset.
 
         Returns:
-            Tuple[Series, np.ndarray]: A tuple containing the train ID Series and the numpy array
+            tuple[Index, np.ndarray]: A tuple containing the train ID Index and the numpy array
             for the channel's data.
         """
         # Get the data from the necessary h5 file and channel
@@ -155,13 +155,26 @@ class DataFrameCreator:
 
         return key, dataset
 
-    def pulse_index(self, offset):
+    def pulse_index(self, offset: int) -> tuple[MultiIndex, np.ndarray]:
+        """
+        Computes the index for the 'per_electron' data.
+
+        Args:
+            offset (int): The offset value.
+
+        Returns:
+            tuple[MultiIndex, np.ndarray]: A tuple containing the computed MultiIndex and
+            the indexer.
+        """
         index_train, dataset_pulse = self.get_dataset_array("pulseId", slice=True)
         index_train_ravel = np.repeat(index_train, dataset_pulse.shape[1])
         pulse_ravel = dataset_pulse.ravel().astype(int) - offset
         microbunches = MultiIndex.from_arrays((index_train_ravel, pulse_ravel)).dropna()
-        microbunches_sorted, indexer = microbunches.sort_values(return_indexer=True)
-        electron_counts = microbunches_sorted.value_counts(sort=False).values
+        # Only sort if necessary
+        indexer = slice(None)
+        if not microbunches.is_monotonic_increasing:
+            microbunches, indexer = microbunches.sort_values(return_indexer=True)
+        electron_counts = microbunches.value_counts(sort=False).values
         electrons = np.concatenate([np.arange(count) for count in electron_counts])
         return (
             MultiIndex.from_arrays(
@@ -176,13 +189,8 @@ class DataFrameCreator:
         """
         Returns a pandas DataFrame for a given channel name of type [per electron].
 
-        Args:
-            np_array (np.ndarray): The numpy array containing the channel data.
-            train_id (Series): The train ID Series.
-            channel (str): The name of the channel.
-
         Returns:
-            DataFrame: The pandas DataFrame for the channel's data.
+            DataFrame: The pandas DataFrame for the 'per_electron' channel's data.
         """
         offset = self._config["ubid_offset"]
         # Index
@@ -197,18 +205,15 @@ class DataFrameCreator:
         if all_keys_same:
             _, dataset = self.get_dataset_array(channels[0])
             sliced_dataset = np.take(dataset, slice_index, axis=1)
-            raveled_dataset = sliced_dataset.transpose(0, 2, 1).reshape(
+            raveled_dataset = sliced_dataset.reshape(
                 (-1, sliced_dataset.shape[1]),
-            )  # transposed to flatten dataset
+            )
 
             dataframe = DataFrame(raveled_dataset[indexer], index=index, columns=channels)
 
         else:  # 3x slower
-            series = []
-            for channel in channels:
-                _, dataset = self.get_dataset_array(channel)
-                series.append(Series(dataset[()].ravel(), index=index, name=channel))
-            dataframe = concat(series, axis=1)
+            series = {channel: self.get_dataset_array(channel)[1].ravel() for channel in channels}
+            dataframe = concat(series, axis=1)[indexer]
 
         drop_vals = np.arange(-offset, 0)
         return dataframe.dropna().drop(index=drop_vals, level="pulseId", errors="ignore")
@@ -218,13 +223,8 @@ class DataFrameCreator:
         """
         Returns a pandas DataFrame for a given channel name of type [per pulse].
 
-        Args:
-            np_array (np.ndarray): The numpy array containing the channel data.
-            train_id (Series): The train ID Series.
-            channel (str): The name of the channel.
-
         Returns:
-            DataFrame: The pandas DataFrame for the channel's data.
+            DataFrame: The pandas DataFrame for the 'per_pulse' channel's data.
         """
         series = []
         channels = self.get_channels("per_pulse")
@@ -241,7 +241,12 @@ class DataFrameCreator:
 
     @property
     def df_train(self) -> DataFrame:
+        """
+        Returns a pandas DataFrame for a given channel name of type [per train].
 
+        Returns:
+            DataFrame: The pandas DataFrame for the 'per_train' channel's data.
+        """
         series = []
         channels = self.get_channels("per_train", extend_aux=False)
 
@@ -256,22 +261,25 @@ class DataFrameCreator:
                 for name, slice_aux in aux_channels:
                     series.append(Series(dataset[: key.size, slice_aux], index, name=name))
             else:
-
                 series.append(Series(dataset, index, name=channel))
 
         return concat(series, axis=1)
 
     @property
     def df(self) -> DataFrame:
+        """
+        Returns a pandas DataFrame containing data from 'per_electron', 'per_pulse',
+        and 'per_train' channels.
+
+        Returns:
+            DataFrame: The combined pandas DataFrame.
+        """
         # Use pd.concat to join the data frames into a single DataFrame
         return concat((self.df_electron, self.df_pulse, self.df_train), axis=1)
 
     def validate_channel_keys(self) -> None:
         """
         Validates if the index and dataset keys for all channels in config exist in the h5 file.
-
-        Args:
-            h5_file (h5py.File): The h5py.File object representing the HDF5 file.
 
         Raises:
             KeyError: If the index or dataset keys do not exist in the file.
@@ -283,16 +291,9 @@ class DataFrameCreator:
             if dataset_key not in self.h5_file:
                 raise KeyError(f"Dataset key '{dataset_key}' doesn't exist in the file.")
 
-    def create_dataframe_per_file(
-        self,
-        file_path: Path,
-    ) -> DataFrame:
+    def create_dataframe_per_file(self, file_path: Path) -> DataFrame:
         """
         Create pandas DataFrames for the given file.
-
-        This method loads an HDF5 file specified by `file_path` and constructs a pandas DataFrame
-        from the datasets within the file. The order of datasets in the DataFrames is the opposite
-        of the order specified by channel names.
 
         Args:
             file_path (Path): Path to the input HDF5 file.
@@ -302,7 +303,6 @@ class DataFrameCreator:
         """
         # Loads h5 file and creates a dataframe
         self.h5_file = h5py.File(file_path, "r")
-        # with h5py.File(file_path, "r") as h5_file:
         self.validate_channel_keys()
         df = self.df()
         # TODO: Not sure if this should be here and not at electron df
@@ -311,20 +311,3 @@ class DataFrameCreator:
         if self._config.get("split_sector_id_from_dld_time", False):
             df = split_dld_time_from_sector_id(df, config=self._config)
         return df.reset_index()
-
-
-class DataVerification:
-    def __init__(self, df):
-        self.df = df
-
-    def verify_data(self):
-        # Add your verification logic here
-        # For example, check if 'pulseId' is sorted
-        if not self.df["pulseId"].is_monotonic_increasing:
-            print("The per_electron data is not sorted correctly.")
-
-    def correct_data(self):
-        # Add your correction logic here
-        # For example, sort the DataFrame by 'pulseId'
-        self.df = self.df.sort_values(by="pulseId")
-        print("Sorted per pulse correctly.")
