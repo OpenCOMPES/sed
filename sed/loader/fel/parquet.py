@@ -1,3 +1,14 @@
+"""
+The ParquetHandler class allows for saving and reading Dask DataFrames to/from Parquet files.
+It also provides methods for initializing paths, deleting Parquet files, and reading Parquet
+files into a Dask DataFrame.
+
+Typical usage example:
+
+    parquet_handler = ParquetHandler(parquet_names='data', folder=Path('/path/to/folder'))
+    parquet_handler.save_parquet(df) # df is a uncomputed Dask DataFrame
+    data = parquet_handler.read_parquet()
+"""
 from __future__ import annotations
 
 from pathlib import Path
@@ -20,16 +31,19 @@ class ParquetHandler:
 
     def __init__(
         self,
-        parquet_names=None,
-        folder=None,
-        subfolder=None,
-        prefix=None,
-        suffix=None,
-        extension="parquet",
-        parquet_paths=None,
+        parquet_names: str | list[str] = None,
+        folder: Path = None,
+        subfolder: str = None,
+        prefix: str = None,
+        suffix: str = None,
+        extension: str = "parquet",
+        parquet_paths: Path = None,
     ):
 
-        self.parquet_paths: Path | list[Path] = None
+        self.parquet_paths: list[Path] = None
+
+        if isinstance(parquet_names, str):
+            parquet_names = [parquet_names]
 
         if not folder and not parquet_paths:
             raise ValueError("Please provide folder or parquet_paths.")
@@ -37,13 +51,15 @@ class ParquetHandler:
             raise ValueError("With folder, please provide parquet_names.")
 
         if parquet_paths:
-            self.parquet_paths: Path | list[Path] = parquet_paths
+            self.parquet_paths = (
+                parquet_paths if isinstance(parquet_paths, list) else [parquet_paths]
+            )
         else:
             self._initialize_paths(parquet_names, folder, subfolder, prefix, suffix, extension)
 
     def _initialize_paths(
         self,
-        parquet_names: str | list[str],
+        parquet_names: list[str],
         folder: Path,
         subfolder: str = "",
         prefix: str = "",
@@ -64,8 +80,7 @@ class ParquetHandler:
 
     def save_parquet(
         self,
-        dfs: list(ddf.DataFrame),
-        parquet_paths,
+        df: ddf.DataFrame,
         drop_index=False,
     ) -> None:
         """
@@ -74,10 +89,8 @@ class ParquetHandler:
         Args:
             dfs (DataFrame | ddf.DataFrame): The pandas or Dask Dataframe to be saved.
         """
-        parquet_paths = parquet_paths if parquet_paths else self.parquet_paths
         # Compute the Dask DataFrame, reset the index, and save to Parquet
-        for df, parquet_paths in zip(dfs, parquet_paths):
-            df.compute().reset_index(drop=drop_index).to_parquet(parquet_paths)
+        df.compute().reset_index(drop=drop_index).to_parquet(self.parquet_paths)
 
     def read_parquet(self) -> ddf.DataFrame:
         """

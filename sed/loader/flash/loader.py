@@ -7,12 +7,11 @@ automatically forward-filled across different files.
 This can then be saved as a parquet for out-of-sed processing and reread back to access other
 sed functionality.
 """
+from __future__ import annotations
+
 import time
 from pathlib import Path
-from typing import List
 from typing import Sequence
-from typing import Tuple
-from typing import Union
 
 import dask.dataframe as dd
 from natsort import natsorted
@@ -43,7 +42,7 @@ class FlashLoader(BaseLoader):
         """
         super().__init__(config=config)
 
-    def initialize_paths(self) -> Tuple[List[Path], Path]:
+    def initialize_paths(self) -> tuple[list[Path], Path]:
         """
         Initializes the paths based on the configuration.
 
@@ -106,10 +105,10 @@ class FlashLoader(BaseLoader):
     def get_files_from_run_id(
         self,
         run_id: str,
-        folders: Union[str, Sequence[str]] = None,
+        folders: str | Sequence[str] = None,
         extension: str = "h5",
         **kwds,
-    ) -> List[str]:
+    ) -> list[str]:
         """
         Returns a list of filenames for a given run located in the specified directory
         for the specified data acquisition (daq).
@@ -142,7 +141,7 @@ class FlashLoader(BaseLoader):
         # Generate the file patterns to search for in the directory
         file_pattern = f"{stream_name_prefixes[daq]}_run{run_id}_*." + extension
 
-        files: List[Path] = []
+        files: list[Path] = []
         # Use pathlib to search for matching files in each directory
         for folder in folders:
             files.extend(
@@ -189,9 +188,9 @@ class FlashLoader(BaseLoader):
 
     def read_dataframe(
         self,
-        files: Union[str, Sequence[str]] = None,
-        folders: Union[str, Sequence[str]] = None,
-        runs: Union[str, Sequence[str]] = None,
+        files: str | Sequence[str] = None,
+        folders: str | Sequence[str] = None,
+        runs: str | Sequence[str] = None,
         ftype: str = "h5",
         metadata: dict = None,
         collect_metadata: bool = False,
@@ -200,9 +199,9 @@ class FlashLoader(BaseLoader):
         save_parquet: bool = False,
         detector: str = "",
         force_recreate: bool = False,
-        parquet_dir: str = None,
+        parquet_dir: str | Path = None,
         **kwds,
-    ) -> Tuple[dd.DataFrame, dd.DataFrame, dict]:
+    ) -> tuple[dd.DataFrame, dd.DataFrame, dict]:
         """
         Read express data from the DAQ, generating a parquet in between.
 
@@ -256,7 +255,7 @@ class FlashLoader(BaseLoader):
                 metadata=metadata,
             )
         parquet_dir = (
-            parquet_dir or data_parquet_dir
+            Path(parquet_dir) or data_parquet_dir
         )  # if parquet_dir is None, use data_parquet_dir
         filename = "_".join(str(run) for run in self.runs)
         converted_str = "converted" if converted else ""
@@ -277,8 +276,8 @@ class FlashLoader(BaseLoader):
                 force_recreate,
                 suffix=detector,
             )
-            df = buffer.df_electron()
-            df_timed = buffer.df_pulse()
+            df = buffer.df_electron
+            df_timed = buffer.df_pulse
         # Save the dataframe as parquet if requested
         if save_parquet:
             prq.save_parquet(df, drop_index=True)

@@ -1,3 +1,17 @@
+"""
+The BufferFileHandler class extends the DataFrameCreator class and uses the ParquetHandler class to
+manage buffer files. It provides methods for initializing paths, checking the schema of Parquet
+files, determining the list of files to read, serializing and parallelizing the creation of buffer
+files, and reading all Parquet files into one Dask DataFrame.
+
+Typical usage example:
+
+    buffer_handler = BufferFileHandler(config_dataframe, h5_paths, folder)
+
+Combined DataFrames for electrons and pulses are then available as:
+    buffer_handler.electron_dataframe
+    buffer_handler.pulse_dataframe
+"""
 from __future__ import annotations
 
 from itertools import compress
@@ -128,7 +142,7 @@ class BufferFileHandler(DataFrameCreator):
         Raises:
             ValueError: If an error occurs during the conversion process.
         """
-        dataframes = []
+        dataframes: list[ddf.DataFrame] = None
         if self.num_files > 0:
             dataframes = [self.create_dataframe_per_file(h5_path) for h5_path in self.h5_to_create]
 
@@ -142,7 +156,7 @@ class BufferFileHandler(DataFrameCreator):
         Raises:
             ValueError: If an error occurs during the conversion process.
         """
-        dataframes = []
+        dataframes: list[ddf.DataFrame] = None
         if self.num_files > 0:
             dataframes = Parallel(n_jobs=self.num_files, verbose=10)(
                 delayed(self.create_dataframe_per_file)(h5_path) for h5_path in self.h5_to_create

@@ -8,6 +8,5 @@ from .parquet import ParquetHandler
 __all__ = [
     "BufferFileHandler",
     "DataFrameCreator",
-    "MultiIndexCreator",
     "ParquetHandler",
 ]

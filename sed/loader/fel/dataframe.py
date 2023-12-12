@@ -1,3 +1,19 @@
+"""
+This module contains the DataFrameCreator class which provides functionality for creating pandas
+DataFrames from HDF5 files with multiple channels.
+
+The DataFrameCreator class provides methods for getting channels associated with specified formats,
+checking if 'group_name' and converting to 'index_key' and 'dataset_key' if so, returning
+a h5 dataset for a given channel name, computing the index for the 'per_electron' data,
+returning a pandas DataFrame for a given channel name of type [per electron], [per pulse],
+and [per train], validating if the index and dataset keys for all channels in config exist
+in the h5 file, and creating pandas DataFrames for the given file.
+
+Typical usage example:
+
+    df_creator = DataFrameCreator(config_dataframe)
+    dataframe = df_creator.create_dataframe_per_file(file_path)
+"""
 from __future__ import annotations
 
 from pathlib import Path
@@ -112,20 +128,20 @@ class DataFrameCreator:
             else:
                 dataset_key = channel_config["group_name"] + "value"
             return index_key, dataset_key
-        elif "index_key" in channel_config and "dataset_key" in channel_config:
+        if "index_key" in channel_config and "dataset_key" in channel_config:
             return channel_config["index_key"], channel_config["dataset_key"]
-        else:
-            raise ValueError(
-                "For channel:",
-                channel,
-                "Provide either both 'index_key' and 'dataset_key'.",
-                "or 'group_name' (parses only 'index' and 'value' or 'time' keys.)",
-            )
+
+        raise ValueError(
+            "For channel:",
+            channel,
+            "Provide either both 'index_key' and 'dataset_key'.",
+            "or 'group_name' (parses only 'index' and 'value' or 'time' keys.)",
+        )
 
     def get_dataset_array(
         self,
         channel: str,
-        slice: bool = False,
+        slice_: bool = False,
     ) -> tuple[Index, h5py.Dataset]:
         """
         Returns a numpy array for a given channel name.
@@ -144,7 +160,7 @@ class DataFrameCreator:
         key = Index(self.h5_file[index_key], name="trainId")  # macrobunch
         dataset = self.h5_file[dataset_key]
 
-        if slice:
+        if slice_:
             slice_index = self._config["channels"][channel].get("slice", None)
             if slice_index is not None:
                 dataset = np.take(dataset, slice_index, axis=1)
@@ -155,7 +171,7 @@ class DataFrameCreator:
 
         return key, dataset
 
-    def pulse_index(self, offset: int) -> tuple[MultiIndex, np.ndarray]:
+    def pulse_index(self, offset: int) -> tuple[MultiIndex, slice | np.ndarray]:
         """
         Computes the index for the 'per_electron' data.
 
@@ -166,12 +182,12 @@ class DataFrameCreator:
             tuple[MultiIndex, np.ndarray]: A tuple containing the computed MultiIndex and
             the indexer.
         """
-        index_train, dataset_pulse = self.get_dataset_array("pulseId", slice=True)
+        index_train, dataset_pulse = self.get_dataset_array("pulseId", slice_=True)
         index_train_ravel = np.repeat(index_train, dataset_pulse.shape[1])
         pulse_ravel = dataset_pulse.ravel().astype(int) - offset
         microbunches = MultiIndex.from_arrays((index_train_ravel, pulse_ravel)).dropna()
         # Only sort if necessary
-        indexer = slice(None)
+        indexer: slice | np.ndarray = slice(None)
         if not microbunches.is_monotonic_increasing:
             microbunches, indexer = microbunches.sort_values(return_indexer=True)
         electron_counts = microbunches.value_counts(sort=False).values
@@ -230,7 +246,7 @@ class DataFrameCreator:
         channels = self.get_channels("per_pulse")
         for channel in channels:
             # get slice
-            key, dataset = self.get_dataset_array(channel, slice=True)
+            key, dataset = self.get_dataset_array(channel, slice_=True)
             index = MultiIndex.from_product(
                 (key, np.arange(0, dataset.shape[1]), [0]),
                 names=self.multi_index,
@@ -251,7 +267,7 @@ class DataFrameCreator:
         channels = self.get_channels("per_train", extend_aux=False)
 
         for channel in channels:
-            key, dataset = self.get_dataset_array(channel, slice=True)
+            key, dataset = self.get_dataset_array(channel, slice_=True)
             index = MultiIndex.from_product(
                 (key, [0], [0]),
                 names=self.multi_index,
