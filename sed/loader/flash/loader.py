@@ -2,10 +2,10 @@
 This module implements the flash data loader.
 This loader currently supports hextof, wespe and instruments with similar structure.
 The raw hdf5 data is combined and saved into buffer files and loaded as a dask dataframe.
-The dataframe is a amalgamation of all h5 files for a combination of runs, where the NaNs are
-automatically forward filled across different files.
+The dataframe is an amalgamation of all h5 files for a combination of runs, where the NaNs are
+automatically forward-filled across different files.
 This can then be saved as a parquet for out-of-sed processing and reread back to access other
-sed funtionality.
+sed functionality.
 """
 import time
 from pathlib import Path
@@ -32,9 +32,15 @@ class FlashLoader(BaseLoader):
 
     __name__ = "flash"
 
-    supported_file_types = ["h5"]
+    supported_file_types = ["h5", "parquet"]
 
     def __init__(self, config: dict) -> None:
+        """
+        Initializes the FlashLoader.
+
+        Args:
+            config (dict): Configuration dictionary.
+        """
         super().__init__(config=config)
 
     def initialize_paths(self) -> Tuple[List[Path], Path]:
@@ -104,7 +110,8 @@ class FlashLoader(BaseLoader):
         extension: str = "h5",
         **kwds,
     ) -> List[str]:
-        """Returns a list of filenames for a given run located in the specified directory
+        """
+        Returns a list of filenames for a given run located in the specified directory
         for the specified data acquisition (daq).
 
         Args:
@@ -193,6 +200,7 @@ class FlashLoader(BaseLoader):
         save_parquet: bool = False,
         detector: str = "",
         force_recreate: bool = False,
+        parquet_dir: str = None,
         **kwds,
     ) -> Tuple[dd.DataFrame, dd.DataFrame, dict]:
         """
@@ -204,14 +212,15 @@ class FlashLoader(BaseLoader):
                 Path has priority such that if it's specified, the specified files will be ignored.
                 Defaults to None.
             runs (Union[str, Sequence[str]], optional): Run identifier(s). Corresponding files will
-                be located in the location provided by ``folders``. Takes precendence over
+                be located in the location provided by ``folders``. Takes precedence over
                 ``files`` and ``folders``. Defaults to None.
             ftype (str, optional): The file extension type. Defaults to "h5".
             metadata (dict, optional): Additional metadata. Defaults to None.
             collect_metadata (bool, optional): Whether to collect metadata. Defaults to False.
 
         Returns:
-            Tuple[dd.DataFrame, dict]: A tuple containing the concatenated DataFrame and metadata.
+            Tuple[dd.DataFrame, dd.DataFrame, dict]: A tuple containing the concatenated DataFrame
+                and metadata.
 
         Raises:
             ValueError: If neither 'runs' nor 'files'/'data_raw_dir' is provided.
@@ -246,27 +255,30 @@ class FlashLoader(BaseLoader):
                 ftype=ftype,
                 metadata=metadata,
             )
-
+        parquet_dir = (
+            parquet_dir or data_parquet_dir
+        )  # if parquet_dir is None, use data_parquet_dir
         filename = "_".join(str(run) for run in self.runs)
         converted_str = "converted" if converted else ""
-        prq = ParquetHandler(filename, data_parquet_dir, converted_str, "run_", detector)
+        prq = ParquetHandler(filename, parquet_dir, converted_str, "run_", detector)
 
         # Check if load_parquet is flagged and then load the file if it exists
         if load_parquet:
             prq.read_parquet()
 
         else:
-            # Obtain the parquet filenames, metadata and schema from the method
+            # Obtain the parquet filenames, metadata, and schema from the method
             # which handles buffer file creation/reading
             h5_paths = [Path(file) for file in self.files]
-            bfh = BufferFileHandler(
+            buffer = BufferFileHandler(
                 self._config["dataframe"],
                 h5_paths,
                 data_parquet_dir,
                 force_recreate,
                 suffix=detector,
             )
-            df, df_timed = bfh.get_filled_dataframe()
+            df = buffer.df_electron()
+            df_timed = buffer.df_pulse()
         # Save the dataframe as parquet if requested
         if save_parquet:
             prq.save_parquet(df, drop_index=True)

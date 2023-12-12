@@ -102,7 +102,7 @@ dataframe:
     # The auxillary channel has a special structure where the group further contains
     # a multidim structure so further aliases are defined below
     dldAux:
-      format: per_pulse
+      format: per_train
       group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
       slice: 4
       dldAuxChannels:
@@ -125,6 +125,11 @@ dataframe:
     pulserSignAdc:
       format: per_pulse
       group_name: "/FL1/Experiment/PG/SIS8300 100MHz ADC/CH6/TD/"
+
+    gmdTunnel:
+      format: per_pulse
+      group_name: "/FL1/Photon Diagnostic/GMD/Pulse resolved energy/energy tunnel/"
+      slice: 0
 
   # The prefixes of the stream names for different DAQ systems for parsing filenames
   # (Not to be changed by user)

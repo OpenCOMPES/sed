@@ -126,7 +126,7 @@ class DataFrameCreator:
         self,
         channel: str,
         slice: bool = False,
-    ) -> tuple[Index, np.ndarray]:
+    ) -> tuple[Index, h5py.Dataset]:
         """
         Returns a numpy array for a given channel name.
 
@@ -135,7 +135,7 @@ class DataFrameCreator:
             slice (bool): If True, applies slicing on the dataset.
 
         Returns:
-            tuple[Index, np.ndarray]: A tuple containing the train ID Index and the numpy array
+            tuple[Index, h5py.Dataset]: A tuple containing the train ID Index and the numpy array
             for the channel's data.
         """
         # Get the data from the necessary h5 file and channel
@@ -304,7 +304,7 @@ class DataFrameCreator:
         # Loads h5 file and creates a dataframe
         self.h5_file = h5py.File(file_path, "r")
         self.validate_channel_keys()
-        df = self.df()
+        df = self.df
         # TODO: Not sure if this should be here and not at electron df
         df = df.dropna(subset=self._config.get("tof_column", "dldTimeSteps"))
         # Correct the 3-bit shift which encodes the detector ID in the 8s time
