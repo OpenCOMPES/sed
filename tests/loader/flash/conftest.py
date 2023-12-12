@@ -1,3 +1,5 @@
+""" This module contains fixtures for the FEL module tests.
+"""
 import os
 import shutil
 from importlib.util import find_spec
@@ -6,11 +8,12 @@ import h5py
 import pytest
 
 from sed.core.config import parse_config
-from sed.loader.fel import DataFrameCreator
+
+# from sed.loader.fel import DataFrameCreator
 
 package_dir = os.path.dirname(find_spec("sed").origin)
 config_path = os.path.join(package_dir, "../tests/data/loader/flash/config.yaml")
-H5_PATH = "FLASH1_USER3_stream_2_run44826_file13_20230324T091535.1.h5"
+H5_PATH = "FLASH1_USER3_stream_2_run43878_file1_20230130T153807.1.h5"
 
 
 @pytest.fixture(name="config_dataframe")
@@ -49,22 +52,22 @@ def fixture_h5_file_copy(tmp_path):
     return h5py.File(copy_file_path, "r+")
 
 
-@pytest.fixture(name="pulserSignAdc_channel_array")
-def get_pulse_channel_from_h5(config_dataframe, h5_file):
-    df = DataFrameCreator(config_dataframe)
-    df.h5_file = h5_file
-    train_id, pulse_id = df.get_dataset_array("pulserSignAdc")
-    return train_id, pulse_id
+# @pytest.fixture(name="pulserSignAdc_channel_array")
+# def get_pulse_channel_from_h5(config_dataframe, h5_file):
+#     df = DataFrameCreator(config_dataframe)
+#     df.h5_file = h5_file
+#     train_id, pulse_id = df.get_dataset_array("pulserSignAdc")
+#     return train_id, pulse_id
 
 
-@pytest.fixture(name="multiindex_electron")
-def fixture_multi_index_electron(config_dataframe, h5_file):
-    """Fixture providing multi index for electron resolved data"""
-    df = DataFrameCreator(config_dataframe)
-    df.h5_file = h5_file
-    pulse_index, indexer = df.pulse_index(config_dataframe["ubid_offset"])
+# @pytest.fixture(name="multiindex_electron")
+# def fixture_multi_index_electron(config_dataframe, h5_file):
+#     """Fixture providing multi index for electron resolved data"""
+#     df = DataFrameCreator(config_dataframe)
+#     df.h5_file = h5_file
+#     pulse_index, indexer = df.pulse_index(config_dataframe["ubid_offset"])
 
-    return pulse_index, indexer
+#     return pulse_index, indexer
 
 
 # @pytest.fixture(name="fake_data")
