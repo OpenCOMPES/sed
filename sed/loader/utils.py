@@ -162,7 +162,7 @@ def split_dld_time_from_sector_id(
         sector_id_column (str, optional): Name of the column containing the
             sectorID. Defaults to config["dataframe"]["sector_id_column"].
         sector_id_reserved_bits (int, optional): Number of bits reserved for the
-        config (dict, optional): Configuration dictionary. Defaults to None.
+        config (dict, optional): Dataframe configuration dictionary. Defaults to None.
 
     Returns:
         Union[pd.DataFrame, dask.dataframe.DataFrame]: Dataframe with the new columns.
@@ -170,15 +170,15 @@ def split_dld_time_from_sector_id(
     if tof_column is None:
         if config is None:
             raise ValueError("Either tof_column or config must be given.")
-        tof_column = config["dataframe"]["tof_column"]
+        tof_column = config["tof_column"]
     if sector_id_column is None:
         if config is None:
             raise ValueError("Either sector_id_column or config must be given.")
-        sector_id_column = config["dataframe"]["sector_id_column"]
+        sector_id_column = config["sector_id_column"]
     if sector_id_reserved_bits is None:
         if config is None:
             raise ValueError("Either sector_id_reserved_bits or config must be given.")
-        sector_id_reserved_bits = config["dataframe"].get("sector_id_reserved_bits", None)
+        sector_id_reserved_bits = config.get("sector_id_reserved_bits", None)
         if sector_id_reserved_bits is None:
             raise ValueError('No value for "sector_id_reserved_bits" found in config.')
 

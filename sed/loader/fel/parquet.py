@@ -3,7 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import dask.dataframe as ddf
-from pandas import DataFrame
 
 
 class ParquetHandler:
@@ -21,11 +20,12 @@ class ParquetHandler:
 
     def __init__(
         self,
-        folder=None,
         parquet_names=None,
+        folder=None,
         subfolder=None,
         prefix=None,
         suffix=None,
+        extension="parquet",
         parquet_paths=None,
     ):
 
@@ -39,15 +39,16 @@ class ParquetHandler:
         if parquet_paths:
             self.parquet_paths: Path | list[Path] = parquet_paths
         else:
-            self._initialize_paths(folder, parquet_names, subfolder, prefix, suffix)
+            self._initialize_paths(parquet_names, folder, subfolder, prefix, suffix, extension)
 
     def _initialize_paths(
         self,
-        folder: Path,
         parquet_names: str | list[str],
+        folder: Path,
         subfolder: str = "",
         prefix: str = "",
         suffix: str = "",
+        extension: str = "",
     ) -> None:
         """
         Create the directory for the Parquet file.
@@ -57,12 +58,13 @@ class ParquetHandler:
         parquet_dir.mkdir(parents=True, exist_ok=True)
 
         self.parquet_paths = [
-            parquet_dir.joinpath(Path(f"{prefix}{name}{suffix}.parquet")) for name in parquet_names
+            parquet_dir.joinpath(Path(f"{prefix}{name}{suffix}.{extension}"))
+            for name in parquet_names
         ]
 
     def save_parquet(
         self,
-        dfs: list(ddf.DataFrame | DataFrame),
+        dfs: list(ddf.DataFrame),
         parquet_paths,
         drop_index=False,
     ) -> None:

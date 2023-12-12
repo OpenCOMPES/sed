@@ -38,16 +38,24 @@ def test_create_multi_index_per_electron(pulse_id_array, config_dataframe):
         mi.index_per_electron.get_level_values("electronId").values[-5:] == [0, 1, 0, 1, 0],
     )
 
+    # check if all indexes are unique
+    assert len(mi.index_per_electron) == len(mi.index_per_electron.unique())
 
-def test_create_multi_index_per_pulse(gmd_channel_array):
+
+def test_create_multi_index_per_pulse(pulserSignAdc_channel_array):
     # can use pulse_id_array as it is also pulse resolved
-    train_id, np_array = gmd_channel_array
+    train_id, np_array = pulserSignAdc_channel_array
     mi = MultiIndexCreator()
     mi.create_multi_index_per_pulse(train_id, np_array)
 
     # Check if the index_per_pulse is a MultiIndex and has the correct levels
     assert isinstance(mi.index_per_pulse, MultiIndex)
-    assert set(mi.index_per_pulse.names) == {"trainId", "pulseId"}
+    assert set(mi.index_per_pulse.names) == {"trainId", "pulseId", "electronId"}
     assert len(mi.index_per_pulse) == np_array.size
-    print(mi.index_per_pulse.get_level_values("pulseId"))
-    assert np.all(mi.index_per_pulse.get_level_values("pulseId").values[:7] == np.arange(0, 7))
+    assert np.all(
+        mi.index_per_pulse.get_level_values("pulseId").values[790:800] == np.arange(790, 800),
+    )
+    assert np.all(
+        mi.index_per_pulse.get_level_values("pulseId").values[800:810] == np.arange(0, 10),
+    )
+    assert np.all(mi.index_per_pulse.get_level_values("electronId") == 0)
