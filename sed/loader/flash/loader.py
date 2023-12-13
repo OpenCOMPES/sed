@@ -31,7 +31,7 @@ class FlashLoader(BaseLoader):
 
     __name__ = "flash"
 
-    supported_file_types = ["h5", "parquet"]
+    supported_file_types = ["h5"]
 
     def __init__(self, config: dict) -> None:
         """
@@ -199,6 +199,7 @@ class FlashLoader(BaseLoader):
         detector: str = "",
         force_recreate: bool = False,
         parquet_dir: str | Path = None,
+        debug: bool = False,
         **kwds,
     ) -> tuple[dd.DataFrame, dd.DataFrame, dict]:
         """
@@ -253,17 +254,26 @@ class FlashLoader(BaseLoader):
                 ftype=ftype,
                 metadata=metadata,
             )
-        parquet_dir = (
-            Path(parquet_dir) or data_parquet_dir
-        )  # if parquet_dir is None, use data_parquet_dir
+
+        # if parquet_dir is None, use data_parquet_dir
+        parquet_dir = parquet_dir or data_parquet_dir
+        parquet_path = Path(parquet_dir)
         filename = "_".join(str(run) for run in self.runs)
         converted_str = "converted" if converted else ""
-        prq = ParquetHandler(filename, parquet_dir, converted_str, "run_", detector)
+        # Create parquet paths for saving and loading the parquet files of df and timed_df
+        prq = ParquetHandler(
+            [filename, filename + "_timed"],
+            parquet_path,
+            converted_str,
+            "run_",
+            detector,
+        )
 
         # Check if load_parquet is flagged and then load the file if it exists
         if load_parquet:
-            prq.read_parquet()
+            df, df_timed = prq.read_parquet()
 
+        # Default behavior is to create the buffer files and load them
         else:
             # Obtain the parquet filenames, metadata, and schema from the method
             # which handles buffer file creation/reading
@@ -271,15 +281,17 @@ class FlashLoader(BaseLoader):
             buffer = BufferFileHandler(
                 self._config["dataframe"],
                 h5_paths,
-                data_parquet_dir,
+                parquet_path,
                 force_recreate,
                 suffix=detector,
+                debug=debug,
             )
-            df = buffer.df_electron
-            df_timed = buffer.df_pulse
+            df = buffer.dataframe_electron
+            df_timed = buffer.dataframe_pulse
+
         # Save the dataframe as parquet if requested
         if save_parquet:
-            prq.save_parquet(df, drop_index=True)
+            prq.save_parquet([df, df_timed], drop_index=True)
 
         metadata = self.parse_metadata() if collect_metadata else {}
         print(f"loading complete in {time.time() - t0: .2f} s")

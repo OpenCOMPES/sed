@@ -68,6 +68,7 @@ class DataFrameCreator:
         """
         # Get the available channels excluding 'pulseId'.
         available_channels = list(self._config["channels"].keys())
+        # raises error if not available, but necessary for pulse_index
         available_channels.remove("pulseId")
         # If 'formats' is a single string, convert it to a list for uniform processing.
         if isinstance(formats, str):
