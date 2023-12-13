@@ -80,7 +80,7 @@ class ParquetHandler:
 
     def save_parquet(
         self,
-        dfs: list(ddf.DataFrame),
+        dfs: list[ddf.DataFrame],
         drop_index=False,
     ) -> None:
         """
