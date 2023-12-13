@@ -146,8 +146,8 @@ class BufferFileHandler(DataFrameCreator):
         if self.num_files > 0:
             dataframes = [self.create_dataframe_per_file(h5_path) for h5_path in self.h5_to_create]
 
-        for df, prq in zip(dataframes, self.buffer_to_create):
-            df.to_parquet(prq)
+            for df, prq in zip(dataframes, self.buffer_to_create):
+                df.to_parquet(prq)
 
     def parallel_buffer_file_creation(self) -> None:
         """
@@ -162,8 +162,8 @@ class BufferFileHandler(DataFrameCreator):
                 delayed(self.create_dataframe_per_file)(h5_path) for h5_path in self.h5_to_create
             )
 
-        for df, prq in zip(dataframes, self.buffer_to_create):
-            df.to_parquet(prq)
+            for df, prq in zip(dataframes, self.buffer_to_create):
+                df.to_parquet(prq)
 
     def get_filled_dataframe(self) -> None:
         """

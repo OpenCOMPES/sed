@@ -80,7 +80,7 @@ class ParquetHandler:
 
     def save_parquet(
         self,
-        df: ddf.DataFrame,
+        dfs: list(ddf.DataFrame),
         drop_index=False,
     ) -> None:
         """
@@ -90,7 +90,8 @@ class ParquetHandler:
             dfs (DataFrame | ddf.DataFrame): The pandas or Dask Dataframe to be saved.
         """
         # Compute the Dask DataFrame, reset the index, and save to Parquet
-        df.compute().reset_index(drop=drop_index).to_parquet(self.parquet_paths)
+        for df, parquet_path in zip(dfs, self.parquet_paths):
+            df.compute().reset_index(drop=drop_index).to_parquet(parquet_path)
 
     def read_parquet(self) -> ddf.DataFrame:
         """
