@@ -225,7 +225,7 @@ class CopyTool:
             total_size = 0
             for scan in scan_dirs:
                 size = 0
-                for (path, dirs, filenames) in os.walk(  # pylint: disable=W0612
+                for path, dirs, filenames in os.walk(  # pylint: disable=W0612
                     scan,
                 ):
                     for sfile in filenames:
@@ -240,7 +240,7 @@ class CopyTool:
         oldest_scan = None
         for scan in scan_dirs:
             size = 0
-            for (path, dirs, filenames) in os.walk(  # pylint: disable=W0612
+            for path, dirs, filenames in os.walk(  # pylint: disable=W0612
                 scan,
             ):
                 for sfile in filenames:

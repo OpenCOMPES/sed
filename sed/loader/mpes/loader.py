@@ -7,12 +7,14 @@ import datetime
 import glob
 import json
 import os
-import urllib
 from typing import Dict
 from typing import List
 from typing import Sequence
 from typing import Tuple
 from typing import Union
+from urllib.error import HTTPError
+from urllib.error import URLError
+from urllib.request import urlopen
 
 import dask
 import dask.array as da
@@ -255,7 +257,6 @@ def hdf5_to_array(
     # Read out groups:
     data_list = []
     for group in group_names:
-
         g_dataset = np.asarray(h5file[group])
         if bool(data_type):
             g_dataset = g_dataset.astype(data_type)
@@ -341,7 +342,6 @@ def hdf5_to_timed_array(
     data_list = []
     ms_marker = np.asarray(h5file[ms_markers_group])
     for group in group_names:
-
         g_dataset = np.asarray(h5file[group])
         if bool(data_type):
             g_dataset = g_dataset.astype(data_type)
@@ -461,7 +461,7 @@ def get_archiver_data(
     iso_from = datetime.datetime.utcfromtimestamp(ts_from).isoformat()
     iso_to = datetime.datetime.utcfromtimestamp(ts_to).isoformat()
     req_str = archiver_url + archiver_channel + "&from=" + iso_from + "Z&to=" + iso_to + "Z"
-    with urllib.request.urlopen(req_str) as req:
+    with urlopen(req_str) as req:
         data = json.load(req)
         secs = [x["secs"] + x["nanos"] * 1e-9 for x in data[0]["data"]]
         vals = [x["val"] for x in data[0]["data"]]
@@ -767,14 +767,14 @@ class MpesLoader(BaseLoader):
                 print(
                     f"Data for channel {channel} doesn't exist for time {start}",
                 )
-            except urllib.error.HTTPError as exc:
+            except HTTPError as exc:
                 print(
                     f"Incorrect URL for the archive channel {channel}. "
                     "Make sure that the channel name and file start and end times are "
                     "correct.",
                 )
                 print("Error code: ", exc)
-            except urllib.error.URLError as exc:
+            except URLError as exc:
                 print(
                     f"Cannot access the archive URL for channel {channel}. "
                     f"Make sure that you are within the FHI network."

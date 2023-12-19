@@ -80,7 +80,7 @@ omit = [
 ]
 
 [tool.ruff]
-include = ["pynxtools/*.py", "tests/*.py"]
+include = ["sed/*.py", "tests/*.py"]
 select = [
     "E", # pycodestyle
     "W", # pycodestyle
@@ -93,6 +93,8 @@ ignore = [
     "PLR0913", # Too many arguments in function definition
     "PLR0915", # Too many statements
     "PLR2004", # Magic value used instead of constant
+    "PLR5501", # else-if-used
+    "PLW2901", # redefined-loop-name
 ]
 fixable = ["ALL"]
 line-length = 100 # change the default line length number or characters.

@@ -250,7 +250,6 @@ class MomentumCorrector:
         )
 
         def apply_fun(apply: bool):  # pylint: disable=unused-argument
-
             start = plane_slider.value
             stop = plane_slider.value + width_slider.value
 
@@ -439,7 +438,6 @@ class MomentumCorrector:
                 raise ValueError("No image loaded for feature extraction!")
 
         if feature_type == "points":
-
             # Detect the point landmarks
             self.peaks = po.peakdetect2d(image, **kwds)
 
@@ -551,7 +549,6 @@ class MomentumCorrector:
         cid = fig.canvas.mpl_connect("button_press_event", onclick)
 
         def apply_func(apply: bool):  # pylint: disable=unused-argument
-
             fig.canvas.mpl_disconnect(cid)
 
             point_no_input.close()
@@ -1256,7 +1253,6 @@ class MomentumCorrector:
                             )
 
         elif backend == "bokeh":
-
             output_notebook(hide_banner=True)
             colors = it.cycle(ColorCycle[10])
             ttp = [("(x, y)", "($x, $y)")]
@@ -1281,7 +1277,6 @@ class MomentumCorrector:
 
             if annotated is True:
                 for p_keys, p_vals in points.items():
-
                     try:
                         xcirc, ycirc = p_vals[:, 0], p_vals[:, 1]
                         fig.scatter(

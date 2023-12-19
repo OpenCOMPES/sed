@@ -94,7 +94,6 @@ def to_h5(data: xr.DataArray, faddr: str, mode: str = "w"):
             saving.
     """
     with h5py.File(faddr, mode) as h5_file:
-
         print(f"saving data to {faddr}")
 
         # Saving data, make a single dataset
