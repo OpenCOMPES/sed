@@ -52,9 +52,8 @@ pytest = "^7.0.1"
 pytest-cov = "^3.0.0"
 pytest-xdist = "^2.5.0"
 pytest-clarity = "^1.0.1"
-pylint = "^3.0.1"
+ruff = "^0.1.7"
 mypy = "^1.6.0"
-pycodestyle = "^2.11.1"
 types-pyyaml = "^6.0.12.12"
 types-requests = "^2.31.0.9"
 pyfakefs = "^5.3.0"
@@ -79,3 +78,28 @@ omit = [
     "config.py",
     "config-3.py",
 ]
+
+[tool.ruff]
+include = ["pynxtools/*.py", "tests/*.py"]
+select = [
+    "E", # pycodestyle
+    "W", # pycodestyle
+    "PL", # pylint
+]
+ignore = [
+    "E701", # Multiple statements on one line (colon)
+    "PLR0911", # Too many return statements
+    "PLR0912", # Too many branches
+    "PLR0913", # Too many arguments in function definition
+    "PLR0915", # Too many statements
+    "PLR2004", # Magic value used instead of constant
+]
+fixable = ["ALL"]
+line-length = 100 # change the default line length number or characters.
+
+[tool.mypy]
+strict = false
+ignore_missing_imports = true
+follow_imports = "silent"
+no_strict_optional = true
+disable_error_code = "import, annotation-unchecked"
