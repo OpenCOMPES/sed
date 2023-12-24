@@ -8,6 +8,7 @@ import tempfile
 from importlib.util import find_spec
 from pathlib import Path
 from typing import Any
+from typing import cast
 from typing import Dict
 from typing import List
 from typing import Tuple
@@ -19,6 +20,7 @@ import xarray as xr
 
 from sed import SedProcessor
 from sed.core.config import parse_config
+from sed.loader.flash.loader import FlashLoader
 from sed.loader.loader_interface import get_loader
 
 #  pylint: disable=duplicate-code
@@ -48,7 +50,7 @@ with open(folder + "biases.csv", newline="", encoding="utf-8") as csvfile:
     biases = np.asarray(next(reader))
 
 
-def test_processor_from_dataframe():
+def test_processor_from_dataframe() -> None:
     """Test generation of the processor from a dataframe object"""
     config = {"core": {"loader": "mpes"}}
     dataframe, timed_dataframe, _ = loader.read_dataframe(files=files)
@@ -68,7 +70,7 @@ def test_processor_from_dataframe():
         ).all()
 
 
-def test_processor_from_files():
+def test_processor_from_files() -> None:
     """Test generation of the processor from a list of files"""
     config = {"core": {"loader": "mpes"}}
     dataframe, timed_dataframe, _ = loader.read_dataframe(files=files)
@@ -87,7 +89,7 @@ def test_processor_from_files():
         ).all()
 
 
-def test_processor_from_folders():
+def test_processor_from_folders() -> None:
     """Test generation of the processor from a folder"""
     config = {"core": {"loader": "mpes"}}
     dataframe, timed_dataframe, _ = loader.read_dataframe(folders=df_folder)
@@ -106,7 +108,7 @@ def test_processor_from_folders():
         ).all()
 
 
-def test_processor_from_runs():
+def test_processor_from_runs() -> None:
     """Test generation of the processor from runs"""
     config = {"core": {"loader": "mpes"}}
     dataframe, timed_dataframe, _ = loader.read_dataframe(folders=df_folder, runs=runs)
@@ -127,7 +129,7 @@ def test_processor_from_runs():
         ).all()
 
 
-def test_additional_parameter_to_loader():
+def test_additional_parameter_to_loader() -> None:
     """Test if additinal keyword parameter can be passed to the loader from the
     Processor initialiuzation.
     """
@@ -143,7 +145,7 @@ def test_additional_parameter_to_loader():
     assert processor.files[0].find("json") > -1
 
 
-def test_repr():
+def test_repr() -> None:
     """test the ___repr___ method"""
     config = {"core": {"loader": "mpes"}}
     processor = SedProcessor(
@@ -162,7 +164,7 @@ def test_repr():
     assert processor_str.find("key1") > 0
 
 
-def test_attributes_setters():
+def test_attributes_setters() -> None:
     """Test class attributes and setters."""
     config = {"core": {"loader": "mpes"}}
     processor = SedProcessor(
@@ -191,7 +193,7 @@ def test_attributes_setters():
     assert len(processor.files) == 2
 
 
-def test_copy_tool():
+def test_copy_tool() -> None:
     """Test the copy tool functionality in the processor"""
     config = {"core": {"loader": "mpes", "use_copy_tool": True}}
     processor = SedProcessor(
@@ -260,7 +262,7 @@ adjust_params = {
     "features",
     feature_list,
 )
-def test_momentum_correction_workflow(features: np.ndarray):
+def test_momentum_correction_workflow(features: np.ndarray) -> None:
     """Test for the momentum correction workflow"""
     config = parse_config(
         config={"core": {"loader": "mpes"}},
@@ -315,7 +317,7 @@ def test_momentum_correction_workflow(features: np.ndarray):
     os.remove(f"sed_config_momentum_correction{len(features)}.yaml")
 
 
-def test_pose_adjustment():
+def test_pose_adjustment() -> None:
     """Test for the pose correction and application of momentum correction workflow"""
     config = parse_config(
         config={"core": {"loader": "mpes"}},
@@ -331,11 +333,11 @@ def test_pose_adjustment():
         system_config={},
     )
     with pytest.raises(ValueError):
-        processor.pose_adjustment(**adjust_params, use_correction=False, apply=True)
+        processor.pose_adjustment(**adjust_params, use_correction=False, apply=True)  # type: ignore[arg-type]
 
     processor.bin_and_load_momentum_calibration(apply=True)
     # test pose adjustment
-    processor.pose_adjustment(**adjust_params, use_correction=False, apply=True)
+    processor.pose_adjustment(**adjust_params, use_correction=False, apply=True)  # type: ignore[arg-type]
 
     processor = SedProcessor(
         folder=df_folder,
@@ -354,7 +356,7 @@ def test_pose_adjustment():
         apply=True,
     )
     processor.generate_splinewarp(use_center=True)
-    processor.pose_adjustment(**adjust_params, apply=True)
+    processor.pose_adjustment(**adjust_params, apply=True)  # type: ignore[arg-type]
     processor.apply_momentum_correction()
     assert "Xm" in processor.dataframe.columns
     assert "Ym" in processor.dataframe.columns
@@ -365,7 +367,7 @@ k_distance = 4 / 3 * np.pi / 3.28
 k_coord_a = [k_distance * 0.3, k_distance * 0.8]
 
 
-def test_momentum_calibration_workflow():
+def test_momentum_calibration_workflow() -> None:
     """Test the calibration of the momentum axes"""
     config = parse_config(
         config={"core": {"loader": "mpes"}},
@@ -418,7 +420,7 @@ def test_momentum_calibration_workflow():
     os.remove("sed_config_momentum_calibration.yaml")
 
 
-def test_energy_correction():
+def test_energy_correction() -> None:
     """Test energy correction workflow."""
     config = parse_config(
         config={"core": {"loader": "mpes"}},
@@ -474,7 +476,7 @@ calibration_methods = ["lmfit", "lstsq", "lsqr"]
     "energy_scale, calibration_method",
     itertools.product(energy_scales, calibration_methods),
 )
-def test_energy_calibration_workflow(energy_scale: str, calibration_method: str):
+def test_energy_calibration_workflow(energy_scale: str, calibration_method: str) -> None:
     """Test energy calibration workflow
 
     Args:
@@ -585,7 +587,7 @@ def test_energy_calibration_workflow(energy_scale: str, calibration_method: str)
     np.testing.assert_allclose(energy1, energy2 + (1 if energy_scale == "binding" else -1))
 
 
-def test_align_dld_sectors():
+def test_align_dld_sectors() -> None:
     """Test alignment of DLD sectors for flash detector"""
     config = df_folder + "../flash/config.yaml"
     processor = SedProcessor(
@@ -627,12 +629,12 @@ def test_align_dld_sectors():
     np.testing.assert_allclose(tof_ref_array, tof_aligned_array + sector_delays[:, np.newaxis])
 
     # cleanup flash inermediaries
-    _, parquet_data_dir = processor.loader.initialize_paths()
+    _, parquet_data_dir = cast(FlashLoader, processor.loader).initialize_paths()
     for file in os.listdir(Path(parquet_data_dir, "buffer")):
         os.remove(Path(parquet_data_dir, "buffer", file))
 
 
-def test_append_tof_ns_axis():
+def test_append_tof_ns_axis() -> None:
     """Test the append_tof_ns_axis function"""
     processor = SedProcessor(
         folder=df_folder,
@@ -645,7 +647,7 @@ def test_append_tof_ns_axis():
     assert processor.config["dataframe"]["tof_ns_column"] in processor.dataframe
 
 
-def test_delay_calibration_workflow():
+def test_delay_calibration_workflow() -> None:
     """Test the delay calibration workflow"""
     config = parse_config(
         config={"core": {"loader": "mpes"}},
@@ -674,7 +676,7 @@ def test_delay_calibration_workflow():
     assert "delay" in processor.dataframe.columns
 
 
-def test_filter_column():
+def test_filter_column() -> None:
     """Test the jittering function"""
     config = parse_config(
         config={"core": {"loader": "mpes"}},
@@ -699,7 +701,7 @@ def test_filter_column():
         processor.filter_column("X", high, low)
 
 
-def test_add_jitter():
+def test_add_jitter() -> None:
     """Test the jittering function"""
     config = parse_config(
         config={"core": {"loader": "mpes"}},
@@ -726,7 +728,7 @@ def test_add_jitter():
     np.testing.assert_allclose(res1a, res2a)
 
 
-def test_add_time_stamped_data():
+def test_add_time_stamped_data() -> None:
     """Test the function to add time-stamped data"""
     processor = SedProcessor(
         folder=df_folder + "../mpes/",
@@ -753,7 +755,7 @@ def test_add_time_stamped_data():
     np.testing.assert_array_equal(processor.attributes["time_stamped_data"][2], data)
 
 
-def test_event_histogram():
+def test_event_histogram() -> None:
     """Test histogram plotting function"""
     config = parse_config(
         config={"core": {"loader": "mpes"}},
@@ -773,7 +775,7 @@ def test_event_histogram():
         processor.view_event_histogram(dfpid=5)
 
 
-def test_compute():
+def test_compute() -> None:
     """Test binning of final result"""
     config = parse_config(
         config={"core": {"loader": "mpes"}},
@@ -790,13 +792,13 @@ def test_compute():
     )
     bins = [10, 10, 10, 10]
     axes = ["X", "Y", "t", "ADC"]
-    ranges = [[0, 2048], [0, 2048], [0, 200000], [0, 50000]]
+    ranges = [(0, 2048), (0, 2048), (0, 200000), (0, 50000)]
     result = processor.compute(bins=bins, axes=axes, ranges=ranges, df_partitions=5)
     assert result.data.shape == tuple(bins)
     assert result.data.sum(axis=(0, 1, 2, 3)) > 0
 
 
-def test_compute_with_filter():
+def test_compute_with_filter() -> None:
     """Test binning of final result using filters"""
     config = parse_config(
         config={"core": {"loader": "mpes"}},
@@ -813,7 +815,7 @@ def test_compute_with_filter():
     )
     bins = [10, 10, 10, 10]
     axes = ["X", "Y", "t", "ADC"]
-    ranges = [[0, 2048], [0, 2048], [0, 200000], [0, 50000]]
+    ranges = [(0, 2048), (0, 2048), (0, 200000), (0, 50000)]
     filters = [
         {"col": "X", "lower_bound": 100, "upper_bound": 200},
         {"col": "index", "lower_bound": 100, "upper_bound": 200},
@@ -853,7 +855,7 @@ def test_compute_with_filter():
     )
 
 
-def test_compute_with_normalization():
+def test_compute_with_normalization() -> None:
     """Test binning of final result with histogram normalization"""
     config = parse_config(
         config={"core": {"loader": "mpes"}},
@@ -870,7 +872,7 @@ def test_compute_with_normalization():
     )
     bins = [10, 10, 10, 5]
     axes = ["X", "Y", "t", "ADC"]
-    ranges = [[0, 2048], [0, 2048], [0, 200000], [650, 655]]
+    ranges = [(0, 2048), (0, 2048), (0, 200000), (650, 655)]
     result = processor.compute(
         bins=bins,
         axes=axes,
@@ -898,7 +900,7 @@ def test_compute_with_normalization():
     assert abs(result.sum(axis=(0, 1, 2, 3)) / result2.sum(axis=(0, 1, 2, 3)) - 1) < 0.15
 
 
-def test_get_normalization_histogram():
+def test_get_normalization_histogram() -> None:
     """Test the generation function for the normalization histogram"""
     config = parse_config(
         config={"core": {"loader": "mpes"}, "dataframe": {"time_stamp_alias": "timeStamps"}},
@@ -916,7 +918,7 @@ def test_get_normalization_histogram():
     )
     bins = [10, 10, 10, 5]
     axes = ["X", "Y", "t", "ADC"]
-    ranges = [[0, 2048], [0, 2048], [0, 200000], [650, 655]]
+    ranges = [(0, 2048), (0, 2048), (0, 200000), (650, 655)]
     with pytest.raises(ValueError):
         processor.get_normalization_histogram(axis="ADC")
     processor.compute(bins=bins, axes=axes, ranges=ranges, df_partitions=5)
@@ -925,7 +927,7 @@ def test_get_normalization_histogram():
     histogram1 = processor.get_normalization_histogram(axis="ADC", df_partitions=1)
     histogram2 = processor.get_normalization_histogram(
         axis="ADC",
-        use_time_stamps="True",
+        use_time_stamps=True,
         df_partitions=1,
     )
     # TODO: Check why histograms are so different
@@ -961,7 +963,7 @@ metadata["sample"]["preparation_date"] = "2019-01-13T10:00:00+00:00"
 metadata["sample"]["name"] = "Sample Name"
 
 
-def test_save():
+def test_save() -> None:
     """Test the save functionality"""
     config = parse_config(
         config={"dataframe": {"tof_binning": 1}},
@@ -985,7 +987,7 @@ def test_save():
         processor.save("output.tiff")
     axes = ["kx", "ky", "energy", "delay"]
     bins = [100, 100, 200, 50]
-    ranges = [[-2, 2], [-2, 2], [-4, 2], [-600, 1600]]
+    ranges = [(-2, 2), (-2, 2), (-4, 2), (-600, 1600)]
     processor.compute(bins=bins, axes=axes, ranges=ranges)
     with pytest.raises(NotImplementedError):
         processor.save("output.jpeg")

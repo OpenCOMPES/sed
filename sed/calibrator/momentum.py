@@ -95,8 +95,8 @@ class MomentumCorrector:
         self.mdist: float = np.nan
         self.mcvdist: float = np.nan
         self.mvvdist: float = np.nan
-        self.cvdist: float = np.nan
-        self.vvdist: float = np.nan
+        self.cvdist: np.ndarray = np.array(np.nan)
+        self.vvdist: np.ndarray = np.array(np.nan)
         self.rdeform_field: np.ndarray = None
         self.cdeform_field: np.ndarray = None
         self.rdeform_field_bkp: np.ndarray = None
@@ -573,7 +573,7 @@ class MomentumCorrector:
 
         plt.show()
 
-    def calc_geometric_distances(self):
+    def calc_geometric_distances(self) -> None:
         """Calculate geometric distances involving the center and the vertices.
         Distances calculated include center-vertex and nearest-neighbor vertex-vertex
         distances.

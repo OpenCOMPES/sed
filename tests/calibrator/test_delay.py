@@ -2,6 +2,8 @@
 """
 import os
 from importlib.util import find_spec
+from typing import Any
+from typing import Dict
 
 import dask.dataframe
 import numpy as np
@@ -16,7 +18,7 @@ package_dir = os.path.dirname(find_spec("sed").origin)
 file = package_dir + "/../tests/data/loader/mpes/Scan0030_2.h5"
 
 
-def test_delay_parameters_from_file():
+def test_delay_parameters_from_file() -> None:
     """Test the option to extract the delay parameters from a file"""
     config = parse_config(
         config={
@@ -45,7 +47,7 @@ def test_delay_parameters_from_file():
     assert "delay_range_mm" in metadata["calibration"]
 
 
-def test_delay_parameters_from_delay_range():
+def test_delay_parameters_from_delay_range() -> None:
     """Test the option to extract the delay parameters from a delay range"""
     # from keywords
     config = parse_config(
@@ -78,7 +80,7 @@ def test_delay_parameters_from_delay_range():
     assert metadata["calibration"]["adc_range"] == (100, 1000)
 
 
-def test_delay_parameters_from_delay_range_mm():
+def test_delay_parameters_from_delay_range_mm() -> None:
     """Test the option to extract the delay parameters from a mm range + t0"""
     # from keywords
     config = parse_config(
@@ -107,7 +109,7 @@ def test_delay_parameters_from_delay_range_mm():
         collect_metadata=False,
     )
     dc = DelayCalibrator(config=config)
-    calibration = {"delay_range_mm": (1, 15)}
+    calibration: Dict[str, Any] = {"delay_range_mm": (1, 15)}
     with pytest.raises(NotImplementedError):
         dc.append_delay_axis(df, calibration=calibration)
     calibration["time0"] = 1
