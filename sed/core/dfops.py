@@ -64,7 +64,7 @@ def apply_jitter(
         # jitter sizes that don't match the original bin sizes
         jitter = np.random.standard_normal(size=colsize)
 
-    for (col, col_jittered, amp) in zip(cols, cols_jittered, amps):
+    for col, col_jittered, amp in zip(cols, cols_jittered, amps):
         df[col_jittered] = df[col] + amp * jitter
 
     return df

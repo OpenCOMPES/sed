@@ -106,7 +106,7 @@ def test_histdd_bins_as_numpy(args: Tuple[np.ndarray, np.ndarray, int]):
     hist1, edges1 = np.histogramdd(sample_, bins_)
     hist2, edges2 = numba_histogramdd(sample_, bins_)
     np.testing.assert_allclose(hist1, hist2)
-    for (edges1_, edges2_) in zip(edges1, edges2):
+    for edges1_, edges2_ in zip(edges1, edges2):
         np.testing.assert_allclose(edges1_, edges2_)
 
 
@@ -139,7 +139,7 @@ def test_histdd_ranges_as_numpy(args: Tuple[np.ndarray, tuple, tuple, int]):
     hist1, edges1 = np.histogramdd(sample_, bins_, ranges_)
     hist2, edges2 = numba_histogramdd(sample_, bins_, ranges_)
     np.testing.assert_allclose(hist1, hist2)
-    for (edges1_, edges2_) in zip(edges1, edges2):
+    for edges1_, edges2_ in zip(edges1, edges2):
         np.testing.assert_allclose(edges1_, edges2_)
 
 
@@ -172,7 +172,7 @@ def test_histdd_one_bins_as_numpy(args: Tuple[np.ndarray, int, tuple, int]):
     hist1, edges1 = np.histogramdd(sample_, bins_, ranges_)
     hist2, edges2 = numba_histogramdd(sample_, bins_, ranges_)
     np.testing.assert_allclose(hist1, hist2)
-    for (edges1_, edges2_) in zip(edges1, edges2):
+    for edges1_, edges2_ in zip(edges1, edges2):
         np.testing.assert_allclose(edges1_, edges2_)
 
 
@@ -207,7 +207,7 @@ def test_from_bins_equals_from_bin_range(
     hist1, edges1 = numba_histogramdd(sample_, bins_, ranges_)
     hist2, edges2 = numba_histogramdd(sample_, arrays_)
     np.testing.assert_allclose(hist1, hist2, verbose=True)
-    for (edges1_, edges2_) in zip(edges1, edges2):
+    for edges1_, edges2_ in zip(edges1, edges2):
         np.testing.assert_allclose(edges1_, edges2_)
 
 

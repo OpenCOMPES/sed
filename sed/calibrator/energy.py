@@ -461,7 +461,6 @@ class EnergyCalibrator:
             newranges: List[Tuple] = []
 
             for i in range(self.ntraces):
-
                 pathcorr = find_correspondence(
                     traces[ref_id, :],
                     traces[i, :],
@@ -651,7 +650,6 @@ class EnergyCalibrator:
         sign = 1 if energy_scale == "kinetic" else -1
 
         if backend == "matplotlib":
-
             figsize = kwds.pop("figsize", (12, 4))
             fig, ax = plt.subplots(figsize=figsize)
             for itr, trace in enumerate(traces):
@@ -704,7 +702,6 @@ class EnergyCalibrator:
             ax.set_title(ttl)
 
         elif backend == "bokeh":
-
             output_notebook(hide_banner=True)
             colors = it.cycle(ColorCycle[10])
             ttp = [("(x, y)", "($x, $y)")]
@@ -1767,7 +1764,6 @@ def normspec(
     specnorm = []
 
     for i in range(nspec):
-
         spec = specs[i]
 
         if smooth:
@@ -1879,7 +1875,6 @@ def peaksearch(
         plt.figure(figsize=(10, 4))
 
     for rng, trace in zip(ranges, traces.tolist()):
-
         cond = (tof >= rng[0]) & (tof <= rng[1])
         trace = np.array(trace).ravel()
         tofseg, trseg = tof[cond], trace[cond]
@@ -1991,7 +1986,6 @@ def peakdetect1d(
     for index, (x, y) in enumerate(
         zip(x_axis[:-lookahead], y_axis[:-lookahead]),
     ):
-
         if y > _max:
             _max = y
             _max_pos = x
@@ -2005,7 +1999,6 @@ def peakdetect1d(
             # Maxima peak candidate found
             # look ahead in signal to ensure that this is a peak and not jitter
             if y_axis[index : index + lookahead].max() < _max:
-
                 max_peaks.append([_max_pos, _max])
                 dump.append(True)
                 # Set algorithm to only find minima now
@@ -2025,7 +2018,6 @@ def peakdetect1d(
             # Minima peak candidate found
             # look ahead in signal to ensure that this is a peak and not jitter
             if y_axis[index : index + lookahead].min() > _min:
-
                 min_peaks.append([_min_pos, _min])
                 dump.append(False)
                 # Set algorithm to only find maxima now

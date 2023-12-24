@@ -316,13 +316,10 @@ def bin_dataframe(
 
     # limit multithreading in worker threads
     with threadpool_limits(limits=threads_per_worker, user_api=threadpool_api):
-
         # Main loop for binning
         for i in tqdm(range(0, df.npartitions, n_cores), disable=not pbar):
-
             core_tasks = []  # Core-level jobs
             for j in range(0, n_cores):
-
                 partition_index = i + j
                 if partition_index >= df.npartitions:
                     break

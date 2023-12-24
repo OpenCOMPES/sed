@@ -46,7 +46,6 @@ class SXPLoader(BaseLoader):
     supported_file_types = ["h5"]
 
     def __init__(self, config: dict) -> None:
-
         super().__init__(config=config)
         self.multi_index = ["trainId", "pulseId", "electronId"]
         self.index_per_electron: MultiIndex = None

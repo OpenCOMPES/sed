@@ -827,7 +827,6 @@ class SedProcessor:
             preview (bool): Option to preview the first elements of the data frame.
         """
         if self._dataframe is not None:
-
             print("Adding kx/ky columns to dataframe:")
             self._dataframe, metadata = self.mc.append_k_axis(
                 df=self._dataframe,
@@ -1049,7 +1048,6 @@ class SedProcessor:
             self.ec.load_data(biases=biases, traces=traces, tof=tof)
 
         elif data_files is not None:
-
             self.ec.bin_data(
                 data_files=cast(List[str], self.cpy(data_files)),
                 axes=axes,
@@ -1250,7 +1248,7 @@ class SedProcessor:
             filename = "sed_config.yaml"
         calibration = {}
         try:
-            for (key, value) in self.ec.calibration.items():
+            for key, value in self.ec.calibration.items():
                 if key in ["axis", "refid", "Tmat", "bvec"]:
                     continue
                 if key == "energy_scale":
