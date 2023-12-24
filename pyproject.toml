@@ -3,7 +3,7 @@ name = "sed-processor"
 packages = [
     {include = "sed"}
 ]
-version = "0.1.8a2"
+version = "0.1.8a3"
 description = "Single Event Data Frame Processor: Backend to handle photoelectron resolved datastreams"
 authors = ["OpenCOMPES team <sed-processor@mpes.science>"]
 readme = "README.md"
