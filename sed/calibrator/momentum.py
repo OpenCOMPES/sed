@@ -104,8 +104,8 @@ class MomentumCorrector:
         self.inverse_dfield: np.ndarray = None
         self.dfield_updated: bool = False
         self.transformations: Dict[Any, Any] = {}
-        self.correction: Dict[Any, Any] = {"applied": False}
-        self.adjust_params: Dict[Any, Any] = {"applied": False}
+        self.correction: Dict[Any, Any] = {}
+        self.adjust_params: Dict[Any, Any] = {}
         self.calibration: Dict[Any, Any] = {}
 
         self.x_column = self._config["dataframe"]["x_column"]
@@ -714,13 +714,19 @@ class MomentumCorrector:
         self.rdeform_field_bkp = self.rdeform_field
         self.cdeform_field_bkp = self.cdeform_field
 
-        self.correction["applied"] = True
-        self.correction["pouter"] = self.pouter_ord
-        self.correction["pcent"] = np.asarray(self.pcent)
-        self.correction["prefs"] = self.prefs
-        self.correction["ptargs"] = self.ptargs
-        self.correction["rotsym"] = self.rotsym
+        self.correction["outer_points"] = self.pouter_ord
+        self.correction["center_point"] = np.asarray(self.pcent)
+        self.correction["reference_points"] = self.prefs
+        self.correction["target_points"] = self.ptargs
+        self.correction["rotation_symmetry"] = self.rotsym
         self.correction["use_center"] = self.use_center
+        self.correction["include_center"] = self.include_center
+        if self.include_center:
+            self.correction["feature_points"] = np.concatenate(
+                (self.pouter_ord, np.asarray([self.pcent])),
+            )
+        else:
+            self.correction["feature_points"] = self.pouter_ord
 
         if self.slice is not None:
             self.slice_corrected = corrected_image
@@ -1661,12 +1667,14 @@ class MomentumCorrector:
             dict: generated correction metadata dictionary.
         """
         metadata: Dict[Any, Any] = {}
-        if self.correction["applied"]:
+        if len(self.correction) > 0:
             metadata["correction"] = self.correction
+            metadata["correction"]["applied"] = True
             metadata["correction"]["cdeform_field"] = self.cdeform_field
             metadata["correction"]["rdeform_field"] = self.rdeform_field
-        if self.adjust_params["applied"]:
+        if len(self.adjust_params) > 0:
             metadata["registration"] = self.adjust_params
+            metadata["registration"]["applied"] = True
             metadata["registration"]["depends_on"] = (
                 "/entry/process/registration/tranformations/rot_z"
                 if "angle" in metadata["registration"] and metadata["registration"]["angle"]

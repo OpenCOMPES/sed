@@ -2,6 +2,7 @@
 
 """
 import pathlib
+from datetime import datetime
 from typing import Any
 from typing import cast
 from typing import Dict
@@ -597,28 +598,33 @@ class SedProcessor:
         """
         if filename is None:
             filename = "sed_config.yaml"
-        points = []
-        if self.mc.pouter_ord is not None:  # if there is any calibration info
-            try:
-                for point in self.mc.pouter_ord:
-                    points.append([float(i) for i in point])
-                if self.mc.include_center:
-                    points.append([float(i) for i in self.mc.pcent])
-            except AttributeError as exc:
-                raise AttributeError(
-                    "Momentum correction parameters not found, need to generate parameters first!",
-                ) from exc
-            config = {
-                "momentum": {
-                    "correction": {
-                        "rotation_symmetry": self.mc.rotsym,
-                        "feature_points": points,
-                        "include_center": self.mc.include_center,
-                        "use_center": self.mc.use_center,
-                    },
-                },
-            }
-            save_config(config, filename, overwrite)
+        if len(self.mc.correction) == 0:
+            raise ValueError("No momentum calibration parameters to save!")
+        correction = {}
+        for key, value in self.mc.correction.items():
+            if key in ["reference_points", "target_points", "cdeform_field", "rdeform_field"]:
+                continue
+            elif key in ["use_center", "rotation_symmetry"]:
+                correction[key] = value
+            elif key == "center_point":
+                correction[key] = [float(i) for i in value]
+            elif key in ["outer_points", "feature_points"]:
+                correction[key] = []
+                for point in value:
+                    correction[key].append([float(i) for i in point])
+            else:
+                correction[key] = float(value)
+
+        if "creation_date" not in correction.keys():
+            correction["creation_date"] = datetime.now().timestamp()
+
+        config = {
+            "momentum": {
+                "correction": correction,
+            },
+        }
+        save_config(config, filename, overwrite)
+        print(f'Saved momentum correction parameters to "{filename}".')
 
     # 4. Pose corrections. Provide interactive interface for correcting
     # scaling, shift and rotation
@@ -789,23 +795,17 @@ class SedProcessor:
         """
         if filename is None:
             filename = "sed_config.yaml"
+        if len(self.mc.calibration) == 0:
+            raise ValueError("No momentum calibration parameters to save!")
         calibration = {}
-        try:
-            for key in [
-                "kx_scale",
-                "ky_scale",
-                "x_center",
-                "y_center",
-                "rstart",
-                "cstart",
-                "rstep",
-                "cstep",
-            ]:
-                calibration[key] = float(self.mc.calibration[key])
-        except KeyError as exc:
-            raise KeyError(
-                "Momentum calibration parameters not found, need to generate parameters first!",
-            ) from exc
+        for key, value in self.mc.calibration.items():
+            if key in ["kx_axis", "ky_axis", "grid", "extent"]:
+                continue
+            else:
+                calibration[key] = float(value)
+
+        if "creation_date" not in calibration.keys():
+            calibration["creation_date"] = datetime.now().timestamp()
 
         config = {"momentum": {"calibration": calibration}}
         save_config(config, filename, overwrite)
@@ -916,19 +916,19 @@ class SedProcessor:
         """
         if filename is None:
             filename = "sed_config.yaml"
+        if len(self.ec.correction) == 0:
+            raise ValueError("No energy correction parameters to save!")
         correction = {}
-        try:
-            for key, val in self.ec.correction.items():
-                if key == "correction_type":
-                    correction[key] = val
-                elif key == "center":
-                    correction[key] = [float(i) for i in val]
-                else:
-                    correction[key] = float(val)
-        except AttributeError as exc:
-            raise AttributeError(
-                "Energy correction parameters not found, need to generate parameters first!",
-            ) from exc
+        for key, val in self.ec.correction.items():
+            if key == "correction_type":
+                correction[key] = val
+            elif key == "center":
+                correction[key] = [float(i) for i in val]
+            else:
+                correction[key] = float(val)
+
+        if "creation_date" not in correction.keys():
+            correction["creation_date"] = datetime.now().timestamp()
 
         config = {"energy": {"correction": correction}}
         save_config(config, filename, overwrite)
@@ -1246,21 +1246,22 @@ class SedProcessor:
         """
         if filename is None:
             filename = "sed_config.yaml"
+        if len(self.ec.calibration) == 0:
+            raise ValueError("No energy calibration parameters to save!")
         calibration = {}
-        try:
-            for key, value in self.ec.calibration.items():
-                if key in ["axis", "refid", "Tmat", "bvec"]:
-                    continue
-                if key == "energy_scale":
-                    calibration[key] = value
-                elif key == "coeffs":
-                    calibration[key] = [float(i) for i in value]
-                else:
-                    calibration[key] = float(value)
-        except AttributeError as exc:
-            raise AttributeError(
-                "Energy calibration parameters not found, need to generate parameters first!",
-            ) from exc
+        for key, value in self.ec.calibration.items():
+            if key in ["axis", "refid", "Tmat", "bvec"]:
+                continue
+            if key == "energy_scale":
+                calibration[key] = value
+            elif key == "coeffs":
+                calibration[key] = [float(i) for i in value]
+            else:
+                calibration[key] = float(value)
+
+        if "creation_date" not in calibration.keys():
+            calibration["creation_date"] = datetime.now().timestamp()
+
         config = {"energy": {"calibration": calibration}}
         save_config(config, filename, overwrite)
         print(f'Saved energy calibration parameters to "{filename}".')
@@ -1393,6 +1394,10 @@ class SedProcessor:
             filename = "sed_config.yaml"
         if len(self.ec.offsets) == 0:
             raise ValueError("No energy offset parameters to save!")
+
+        if "creation_date" not in self.ec.offsets.keys():
+            self.ec.offsets["creation_date"] = datetime.now().timestamp()
+
         config = {"energy": {"offsets": self.ec.offsets}}
         save_config(config, filename, overwrite)
         print(f'Saved energy offset parameters to "{filename}".')
@@ -1545,6 +1550,12 @@ class SedProcessor:
         if filename is None:
             filename = "sed_config.yaml"
 
+        if len(self.dc.calibration) == 0:
+            raise ValueError("No delay calibration parameters to save!")
+
+        if "creation_date" not in self.ec.calibration.keys():
+            self.ec.calibration["creation_date"] = datetime.now().timestamp()
+
         config = {
             "delay": {
                 "calibration": self.dc.calibration,
@@ -1634,6 +1645,10 @@ class SedProcessor:
             filename = "sed_config.yaml"
         if len(self.dc.offsets) == 0:
             raise ValueError("No delay offset parameters to save!")
+
+        if "creation_date" not in self.ec.offsets.keys():
+            self.ec.offsets["creation_date"] = datetime.now().timestamp()
+
         config = {
             "delay": {
                 "offsets": self.dc.offsets,
@@ -1656,8 +1671,8 @@ class SedProcessor:
                 Defaults to False.
         """
         for method in [
-            self.save_momentum_calibration,
             self.save_splinewarp,
+            self.save_momentum_calibration,
             self.save_energy_correction,
             self.save_energy_calibration,
             self.save_energy_offset,

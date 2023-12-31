@@ -162,7 +162,7 @@ def test_apply_correction() -> None:
     assert "Xm" in df.columns
     assert "Ym" in df.columns
     assert metadata["correction"]["applied"] is True
-    np.testing.assert_equal(metadata["correction"]["prefs"], features)
+    np.testing.assert_equal(metadata["correction"]["reference_points"], features)
     assert metadata["correction"]["cdeform_field"].shape == momentum_map.shape
     assert metadata["correction"]["rdeform_field"].shape == momentum_map.shape
 
