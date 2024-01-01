@@ -665,13 +665,20 @@ def test_delay_calibration_workflow() -> None:
     delay_range = (-500, 1500)
     processor.calibrate_delay_axis(delay_range=delay_range, preview=False)
     # read from datafile
+    processor = SedProcessor(
+        folder=df_folder,
+        config=config,
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
     with pytest.raises(NotImplementedError):
-        processor.calibrate_delay_axis(preview=True)
+        processor.calibrate_delay_axis(preview=False)
     processor.calibrate_delay_axis(
         p1_key="@trARPES:DelayStage:p1",
         p2_key="@trARPES:DelayStage:p2",
         t0_key="@trARPES:DelayStage:t0",
-        preview=True,
+        preview=False,
     )
     assert "delay" in processor.dataframe.columns
 

@@ -1469,6 +1469,7 @@ class SedProcessor:
         delay_range: Tuple[float, float] = None,
         datafile: str = None,
         preview: bool = False,
+        verbose: bool = None,
         **kwds,
     ):
         """Append delay column to dataframe. Either provide delay ranges, or read
@@ -1479,27 +1480,20 @@ class SedProcessor:
                 picoseconds. Defaults to None.
             datafile (str, optional): The file from which to read the delay ranges.
                 Defaults to None.
-            preview (bool): Option to preview the first elements of the data frame.
+            preview (bool, optional): Option to preview the first elements of the data frame.
+                Defaults to False.
+            verbose (bool, optional): Option to print out diagnostic information.
+                Defaults to config["core"]["verbose"].
             **kwds: Keyword args passed to ``DelayCalibrator.append_delay_axis``.
         """
+        if verbose is None:
+            verbose = self.verbose
+
         if self._dataframe is not None:
             print("Adding delay column to dataframe:")
 
-            if delay_range is not None:
-                self._dataframe, metadata = self.dc.append_delay_axis(
-                    self._dataframe,
-                    delay_range=delay_range,
-                    **kwds,
-                )
-                if self._timed_dataframe is not None:
-                    if self._config["dataframe"]["adc_column"] in self._timed_dataframe.columns:
-                        self._timed_dataframe, _ = self.dc.append_delay_axis(
-                            self._timed_dataframe,
-                            delay_range=delay_range,
-                            **kwds,
-                        )
-            else:
-                if datafile is None:
+            if datafile is None:
+                if len(self.dc.calibration) == 0:
                     try:
                         datafile = self._files[0]
                     except IndexError:
@@ -1509,18 +1503,22 @@ class SedProcessor:
                         )
                         raise
 
-                self._dataframe, metadata = self.dc.append_delay_axis(
-                    self._dataframe,
-                    datafile=datafile,
-                    **kwds,
-                )
-                if self._timed_dataframe is not None:
-                    if self._config["dataframe"]["adc_column"] in self._timed_dataframe.columns:
-                        self._timed_dataframe, _ = self.dc.append_delay_axis(
-                            self._timed_dataframe,
-                            datafile=datafile,
-                            **kwds,
-                        )
+            self._dataframe, metadata = self.dc.append_delay_axis(
+                self._dataframe,
+                delay_range=delay_range,
+                datafile=datafile,
+                verbose=verbose,
+                **kwds,
+            )
+            if self._timed_dataframe is not None:
+                if self._config["dataframe"]["adc_column"] in self._timed_dataframe.columns:
+                    self._timed_dataframe, _ = self.dc.append_delay_axis(
+                        self._timed_dataframe,
+                        delay_range=delay_range,
+                        datafile=datafile,
+                        verbose=False,
+                        **kwds,
+                    )
 
             # Add Metadata
             self._attributes.add(
@@ -1552,13 +1550,21 @@ class SedProcessor:
 
         if len(self.dc.calibration) == 0:
             raise ValueError("No delay calibration parameters to save!")
+        calibration = {}
+        for key, value in self.dc.calibration.items():
+            if key == "datafile":
+                calibration[key] = value
+            elif key in ["adc_range", "delay_range", "delay_range_mm"]:
+                calibration[key] = [float(i) for i in value]
+            else:
+                calibration[key] = float(value)
 
-        if "creation_date" not in self.ec.calibration.keys():
-            self.ec.calibration["creation_date"] = datetime.now().timestamp()
+        if "creation_date" not in calibration.keys():
+            calibration["creation_date"] = datetime.now().timestamp()
 
         config = {
             "delay": {
-                "calibration": self.dc.calibration,
+                "calibration": calibration,
             },
         }
         save_config(config, filename, overwrite)
@@ -1568,9 +1574,10 @@ class SedProcessor:
         constant: float = None,
         flip_delay_axis: bool = None,
         columns: Union[str, Sequence[str]] = None,
-        weights: Union[float, Sequence[float]] = None,
+        weights: Union[float, Sequence[float]] = 1.0,
         reductions: Union[str, Sequence[str]] = None,
-        preserve_mean: Union[bool, Sequence[bool]] = None,
+        preserve_mean: Union[bool, Sequence[bool]] = False,
+        verbose: bool = None,
     ) -> None:
         """Shift the delay axis of the dataframe by a constant or other columns.
 
@@ -1585,11 +1592,17 @@ class SedProcessor:
                 of dask.dataframe.Series. For example "mean". In this case the function is applied
                 to the column to generate a single value for the whole dataset. If None, the shift
                 is applied per-dataframe-row. Defaults to None. Currently only "mean" is supported.
+            verbose (bool, optional): Option to print out diagnostic information.
+                Defaults to config["core"]["verbose"].
 
         Returns:
             None
         """
-        print("Adding delay offset to dataframe:")
+        if verbose is None:
+            verbose = self.verbose
+
+        if verbose:
+            print("Adding delay offset to dataframe:")
         delay_column = self._config["dataframe"]["delay_column"]
         if delay_column not in self._dataframe.columns:
             raise ValueError(f"Delay column {delay_column} not found in dataframe! ")
@@ -1604,27 +1617,29 @@ class SedProcessor:
                 weights=weights,
                 reductions=reductions,
                 preserve_mean=preserve_mean,
+                verbose=verbose,
             )
-        if self._timed_dataframe is not None:
-            if delay_column in self._timed_dataframe.columns:
-                tdf, _ = self.dc.add_offsets(
-                    df=self._timed_dataframe,
-                    constant=constant,
-                    flip_delay_axis=flip_delay_axis,
-                    columns=columns,
-                    delay_column=delay_column,
-                    weights=weights,
-                    reductions=reductions,
-                    preserve_mean=preserve_mean,
-                )
-            self._attributes.add(
-                metadata,
-                "add_delay_offset",
-                duplicate_policy="append",
+        if self._timed_dataframe is not None and delay_column in self._timed_dataframe.columns:
+            tdf, _ = self.dc.add_offsets(
+                df=self._timed_dataframe,
+                constant=constant,
+                flip_delay_axis=flip_delay_axis,
+                columns=columns,
+                delay_column=delay_column,
+                weights=weights,
+                reductions=reductions,
+                preserve_mean=preserve_mean,
+                verbose=False,
             )
-            self._dataframe = df
-            if self._timed_dataframe is not None and delay_column in self._timed_dataframe.columns:
-                self._timed_dataframe = tdf
+
+        self._attributes.add(
+            metadata,
+            "add_delay_offset",
+            duplicate_policy="append",
+        )
+        self._dataframe = df
+        if self._timed_dataframe is not None and delay_column in self._timed_dataframe.columns:
+            self._timed_dataframe = tdf
         else:
             raise ValueError("No dataframe loaded!")
 
