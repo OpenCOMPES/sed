@@ -1634,7 +1634,7 @@ class SedProcessor:
 
         self._attributes.add(
             metadata,
-            "add_delay_offset",
+            "delay_offset",
             duplicate_policy="append",
         )
         self._dataframe = df

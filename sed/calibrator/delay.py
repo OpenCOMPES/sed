@@ -357,11 +357,6 @@ class DelayCalibrator:
                     preserve_mean=preserve_mean,
                     reductions=reductions,
                 )
-                metadata["delay_column"] = delay_column
-                metadata["columns"] = columns
-                metadata["weights"] = weights
-                metadata["preserve_mean"] = preserve_mean
-                metadata["reductions"] = reductions
 
             if constant:
                 df[delay_column] = df.map_partitions(
@@ -369,13 +364,12 @@ class DelayCalibrator:
                     lambda x: x[delay_column] + constant,
                     meta=(delay_column, np.float64),
                 )
-                metadata["constant"] = constant
 
             if flip_delay_axis:
                 df[delay_column] = -df[delay_column]
-                metadata["flip_delay_axis"] = True
 
             self.offsets = offsets
+            metadata["offsets"] = offsets
 
         return df, metadata
 
