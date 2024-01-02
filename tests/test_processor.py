@@ -576,7 +576,7 @@ def test_energy_calibration_workflow(energy_scale: str, calibration_method: str)
     )
     with pytest.raises(ValueError):
         processor.add_energy_offset(constant=1)
-    processor.append_energy_axis(preview=True)
+    processor.append_energy_axis(preview=False)
     assert "energy" in processor.dataframe.columns
     assert processor.attributes["energy_calibration"]["calibration"]["energy_scale"] == energy_scale
     os.remove(f"sed_config_energy_calibration_{energy_scale}-{calibration_method}.yaml")
@@ -672,6 +672,8 @@ def test_delay_calibration_workflow() -> None:
         user_config={},
         system_config={},
     )
+    with pytest.raises(ValueError):
+        processor.add_delay_offset(constant=1)
     with pytest.raises(NotImplementedError):
         processor.calibrate_delay_axis(preview=False)
     processor.calibrate_delay_axis(
@@ -681,6 +683,33 @@ def test_delay_calibration_workflow() -> None:
         preview=False,
     )
     assert "delay" in processor.dataframe.columns
+    creation_date_calibration = processor.dc.calibration["creation_date"]
+    expected = -1 * (
+        processor.dataframe["delay"].compute() + 1 + processor.dataframe["ADC"].compute()
+    )
+    processor.add_delay_offset(constant=1, columns="ADC", flip_delay_axis=True)
+    creation_date_offsets = processor.dc.offsets["creation_date"]
+    np.testing.assert_allclose(expected, processor.dataframe["delay"].compute())
+    # test saving and loading
+    processor.save_delay_calibration(filename="sed_config_delay_calibration.yaml")
+    processor.save_delay_offsets(filename="sed_config_delay_calibration.yaml")
+    processor = SedProcessor(
+        folder=df_folder + "../mpes/",
+        config=config,
+        folder_config="sed_config_delay_calibration.yaml",
+        user_config={},
+        system_config={},
+    )
+    processor.calibrate_delay_axis()
+    assert "delay" in processor.dataframe.columns
+    assert (
+        processor.attributes["delay_calibration"]["calibration"]["creation_date"]
+        == creation_date_calibration
+    )
+    processor.add_delay_offset()
+    assert processor.attributes["delay_offset"]["offsets"]["creation_date"] == creation_date_offsets
+    np.testing.assert_allclose(expected, processor.dataframe["delay"].compute())
+    os.remove("sed_config_delay_calibration.yaml")
 
 
 def test_filter_column() -> None:
