@@ -604,7 +604,7 @@ class SedProcessor:
         for key, value in self.mc.correction.items():
             if key in ["reference_points", "target_points", "cdeform_field", "rdeform_field"]:
                 continue
-            elif key in ["use_center", "rotation_symmetry"]:
+            if key in ["use_center", "rotation_symmetry"]:
                 correction[key] = value
             elif key == "center_point":
                 correction[key] = [float(i) for i in value]
@@ -615,7 +615,7 @@ class SedProcessor:
             else:
                 correction[key] = float(value)
 
-        if "creation_date" not in correction.keys():
+        if "creation_date" not in correction:
             correction["creation_date"] = datetime.now().timestamp()
 
         config = {
@@ -801,10 +801,10 @@ class SedProcessor:
         for key, value in self.mc.calibration.items():
             if key in ["kx_axis", "ky_axis", "grid", "extent"]:
                 continue
-            else:
-                calibration[key] = float(value)
 
-        if "creation_date" not in calibration.keys():
+            calibration[key] = float(value)
+
+        if "creation_date" not in calibration:
             calibration["creation_date"] = datetime.now().timestamp()
 
         config = {"momentum": {"calibration": calibration}}
@@ -927,7 +927,7 @@ class SedProcessor:
             else:
                 correction[key] = float(val)
 
-        if "creation_date" not in correction.keys():
+        if "creation_date" not in correction:
             correction["creation_date"] = datetime.now().timestamp()
 
         config = {"energy": {"correction": correction}}
@@ -939,6 +939,7 @@ class SedProcessor:
         self,
         correction: dict = None,
         preview: bool = False,
+        verbose: bool = None,
         **kwds,
     ):
         """2. step of the energy correction workflow: Apply the enery correction
@@ -947,38 +948,50 @@ class SedProcessor:
         Args:
             correction (dict, optional): Dictionary containing the correction
                 parameters. Defaults to config["energy"]["calibration"].
-            preview (bool): Option to preview the first elements of the data frame.
+            preview (bool, optional): Option to preview the first elements of the data frame.
+                Defaults to False.
+            verbose (bool, optional): Option to print out diagnostic information.
+                Defaults to config["core"]["verbose"].
             **kwds:
-                Keyword args passed to ``EnergyCalibrator.apply_energy_correction``.
-            preview (bool): Option to preview the first elements of the data frame.
-            **kwds:
-                Keyword args passed to ``EnergyCalibrator.apply_energy_correction``.
+                Keyword args passed to ``EnergyCalibrator.apply_energy_correction()``.
         """
+        if verbose is None:
+            verbose = self.verbose
+
+        tof_column = self._config["dataframe"]["tof_column"]
+
         if self._dataframe is not None:
-            print("Applying energy correction to dataframe...")
-            self._dataframe, metadata = self.ec.apply_energy_correction(
+            if verbose:
+                print("Applying energy correction to dataframe...")
+            df, metadata = self.ec.apply_energy_correction(
                 df=self._dataframe,
                 correction=correction,
+                verbose=verbose,
                 **kwds,
             )
-            if self._timed_dataframe is not None:
-                if self._config["dataframe"]["tof_column"] in self._timed_dataframe.columns:
-                    self._timed_dataframe, _ = self.ec.apply_energy_correction(
-                        df=self._timed_dataframe,
-                        correction=correction,
-                        **kwds,
-                    )
+            if self._timed_dataframe is not None and tof_column in self._timed_dataframe.columns:
+                tdf, _ = self.ec.apply_energy_correction(
+                    df=self._timed_dataframe,
+                    correction=correction,
+                    verbose=False,
+                    **kwds,
+                )
 
             # Add Metadata
             self._attributes.add(
                 metadata,
                 "energy_correction",
             )
-            if preview:
-                print(self._dataframe.head(10))
-            else:
-                if self.verbose:
-                    print(self._dataframe)
+            self._dataframe = df
+            if self._timed_dataframe is not None and tof_column in self._timed_dataframe.columns:
+                self._timed_dataframe = tdf
+        else:
+            raise ValueError("No dataframe loaded!")
+        if preview:
+            print(self._dataframe.head(10))
+        else:
+            if verbose:
+                print(self._dataframe)
 
     # Energy calibrator workflow
     # 1. Load and normalize data
@@ -1154,6 +1167,7 @@ class SedProcessor:
         ref_energy: float,
         method: str = None,
         energy_scale: str = None,
+        verbose: bool = None,
         **kwds,
     ):
         """3. Step of the energy calibration workflow: Calculate the calibration
@@ -1178,7 +1192,13 @@ class SedProcessor:
                 - **'binding'**: increasing energy with increasing TOF.
 
                 Defaults to config["energy"]["energy_scale"]
+            verbose (bool, optional): Option to print out diagnostic information.
+                Defaults to config["core"]["verbose"].
+            **kwds**: Keyword parameters passed to ``EnergyCalibrator.calibrate()``.
         """
+        if verbose is None:
+            verbose = self.verbose
+
         if method is None:
             method = self._config["energy"]["calibration_method"]
 
@@ -1190,45 +1210,47 @@ class SedProcessor:
             ref_energy=ref_energy,
             method=method,
             energy_scale=energy_scale,
+            verbose=verbose,
             **kwds,
         )
-        print("Quality of Calibration:")
-        self.ec.view(
-            traces=self.ec.traces_normed,
-            xaxis=self.ec.calibration["axis"],
-            align=True,
-            energy_scale=energy_scale,
-            backend="bokeh",
-        )
-        print("E/TOF relationship:")
-        self.ec.view(
-            traces=self.ec.calibration["axis"][None, :],
-            xaxis=self.ec.tof,
-            backend="matplotlib",
-            show_legend=False,
-        )
-        if energy_scale == "kinetic":
-            plt.scatter(
-                self.ec.peaks[:, 0],
-                -(self.ec.biases - self.ec.biases[ref_id]) + ref_energy,
-                s=50,
-                c="k",
+        if verbose:
+            print("Quality of Calibration:")
+            self.ec.view(
+                traces=self.ec.traces_normed,
+                xaxis=self.ec.calibration["axis"],
+                align=True,
+                energy_scale=energy_scale,
+                backend="bokeh",
             )
-        elif energy_scale == "binding":
-            plt.scatter(
-                self.ec.peaks[:, 0],
-                self.ec.biases - self.ec.biases[ref_id] + ref_energy,
-                s=50,
-                c="k",
+            print("E/TOF relationship:")
+            self.ec.view(
+                traces=self.ec.calibration["axis"][None, :],
+                xaxis=self.ec.tof,
+                backend="matplotlib",
+                show_legend=False,
             )
-        else:
-            raise ValueError(
-                'energy_scale needs to be either "binding" or "kinetic"',
-                f", got {energy_scale}.",
-            )
-        plt.xlabel("Time-of-flight", fontsize=15)
-        plt.ylabel("Energy (eV)", fontsize=15)
-        plt.show()
+            if energy_scale == "kinetic":
+                plt.scatter(
+                    self.ec.peaks[:, 0],
+                    -(self.ec.biases - self.ec.biases[ref_id]) + ref_energy,
+                    s=50,
+                    c="k",
+                )
+            elif energy_scale == "binding":
+                plt.scatter(
+                    self.ec.peaks[:, 0],
+                    self.ec.biases - self.ec.biases[ref_id] + ref_energy,
+                    s=50,
+                    c="k",
+                )
+            else:
+                raise ValueError(
+                    'energy_scale needs to be either "binding" or "kinetic"',
+                    f", got {energy_scale}.",
+                )
+            plt.xlabel("Time-of-flight", fontsize=15)
+            plt.ylabel("Energy (eV)", fontsize=15)
+            plt.show()
 
     # 3a. Save energy calibration parameters to config file.
     def save_energy_calibration(
@@ -1259,7 +1281,7 @@ class SedProcessor:
             else:
                 calibration[key] = float(value)
 
-        if "creation_date" not in calibration.keys():
+        if "creation_date" not in calibration:
             calibration["creation_date"] = datetime.now().timestamp()
 
         config = {"energy": {"calibration": calibration}}
@@ -1271,6 +1293,7 @@ class SedProcessor:
         self,
         calibration: dict = None,
         preview: bool = False,
+        verbose: bool = None,
         **kwds,
     ):
         """4. step of the energy calibration workflow: Apply the calibration function
@@ -1283,23 +1306,32 @@ class SedProcessor:
                 parameters. Overrides calibration from class or config.
                 Defaults to None.
             preview (bool): Option to preview the first elements of the data frame.
+            verbose (bool, optional): Option to print out diagnostic information.
+                Defaults to config["core"]["verbose"].
             **kwds:
-                Keyword args passed to ``EnergyCalibrator.append_energy_axis``.
+                Keyword args passed to ``EnergyCalibrator.append_energy_axis()``.
         """
+        if verbose is None:
+            verbose = self.verbose
+
+        tof_column = self._config["dataframe"]["tof_column"]
+
         if self._dataframe is not None:
-            print("Adding energy column to dataframe:")
-            self._dataframe, metadata = self.ec.append_energy_axis(
+            if verbose:
+                print("Adding energy column to dataframe:")
+            df, metadata = self.ec.append_energy_axis(
                 df=self._dataframe,
                 calibration=calibration,
+                verbose=verbose,
                 **kwds,
             )
-            if self._timed_dataframe is not None:
-                if self._config["dataframe"]["tof_column"] in self._timed_dataframe.columns:
-                    self._timed_dataframe, _ = self.ec.append_energy_axis(
-                        df=self._timed_dataframe,
-                        calibration=calibration,
-                        **kwds,
-                    )
+            if self._timed_dataframe is not None and tof_column in self._timed_dataframe.columns:
+                tdf, _ = self.ec.append_energy_axis(
+                    df=self._timed_dataframe,
+                    calibration=calibration,
+                    verbose=False,
+                    **kwds,
+                )
 
             # Add Metadata
             self._attributes.add(
@@ -1307,11 +1339,17 @@ class SedProcessor:
                 "energy_calibration",
                 duplicate_policy="merge",
             )
-            if preview:
-                print(self._dataframe.head(10))
-            else:
-                if self.verbose:
-                    print(self._dataframe)
+            self._dataframe = df
+            if self._timed_dataframe is not None and tof_column in self._timed_dataframe.columns:
+                self._timed_dataframe = tdf
+
+        else:
+            raise ValueError("No dataframe loaded!")
+        if preview:
+            print(self._dataframe.head(10))
+        else:
+            if verbose:
+                print(self._dataframe)
 
     def add_energy_offset(
         self,
@@ -1320,6 +1358,8 @@ class SedProcessor:
         weights: Union[float, Sequence[float]] = None,
         reductions: Union[str, Sequence[str]] = None,
         preserve_mean: Union[bool, Sequence[bool]] = None,
+        preview: bool = False,
+        verbose: bool = None,
     ) -> None:
         """Shift the energy axis of the dataframe by a given amount.
 
@@ -1334,18 +1374,26 @@ class SedProcessor:
                 of dask.dataframe.Series. For example "mean". In this case the function is applied
                 to the column to generate a single value for the whole dataset. If None, the shift
                 is applied per-dataframe-row. Defaults to None. Currently only "mean" is supported.
+            preview (bool, optional): Option to preview the first elements of the data frame.
+                Defaults to False.
+            verbose (bool, optional): Option to print out diagnostic information.
+                Defaults to config["core"]["verbose"].
 
         Raises:
             ValueError: If the energy column is not in the dataframe.
         """
-        print("Adding energy offset to dataframe:")
+        if verbose is None:
+            verbose = self.verbose
+
         energy_column = self._config["dataframe"]["energy_column"]
+        if energy_column not in self._dataframe.columns:
+            raise ValueError(
+                f"Energy column {energy_column} not found in dataframe! "
+                "Run `append_energy_axis()` first.",
+            )
         if self.dataframe is not None:
-            if energy_column not in self._dataframe.columns:
-                raise ValueError(
-                    f"Energy column {energy_column} not found in dataframe! "
-                    "Run `append energy axis` first.",
-                )
+            if verbose:
+                print("Adding energy offset to dataframe:")
             df, metadata = self.ec.add_offsets(
                 df=self._dataframe,
                 constant=constant,
@@ -1354,18 +1402,19 @@ class SedProcessor:
                 weights=weights,
                 reductions=reductions,
                 preserve_mean=preserve_mean,
+                verbose=verbose,
             )
-            if self._timed_dataframe is not None:
-                if energy_column in self._timed_dataframe.columns:
-                    self._timed_dataframe, _ = self.ec.add_offsets(
-                        df=self._timed_dataframe,
-                        constant=constant,
-                        columns=columns,
-                        energy_column=energy_column,
-                        weights=weights,
-                        reductions=reductions,
-                        preserve_mean=preserve_mean,
-                    )
+            if self._timed_dataframe is not None and energy_column in self._timed_dataframe.columns:
+                tdf, _ = self.ec.add_offsets(
+                    df=self._timed_dataframe,
+                    constant=constant,
+                    columns=columns,
+                    energy_column=energy_column,
+                    weights=weights,
+                    reductions=reductions,
+                    preserve_mean=preserve_mean,
+                )
+
             self._attributes.add(
                 metadata,
                 "add_energy_offset",
@@ -1374,8 +1423,14 @@ class SedProcessor:
                 duplicate_policy="append",
             )
             self._dataframe = df
+            if self._timed_dataframe is not None and energy_column in self._timed_dataframe.columns:
+                self._timed_dataframe = tdf
         else:
             raise ValueError("No dataframe loaded!")
+        if preview:
+            print(self._dataframe.head(10))
+        elif verbose:
+            print(self._dataframe)
 
     def save_energy_offset(
         self,
@@ -1404,7 +1459,9 @@ class SedProcessor:
 
     def append_tof_ns_axis(
         self,
-        **kwargs,
+        preview: bool = False,
+        verbose: bool = None,
+        **kwds,
     ):
         """Convert time-of-flight channel steps to nanoseconds.
 
@@ -1412,56 +1469,104 @@ class SedProcessor:
             tof_ns_column (str, optional): Name of the generated column containing the
                 time-of-flight in nanosecond.
                 Defaults to config["dataframe"]["tof_ns_column"].
-            kwargs: additional arguments are passed to ``energy.tof_step_to_ns``.
+            preview (bool, optional): Option to preview the first elements of the data frame.
+                Defaults to False.
+            verbose (bool, optional): Option to print out diagnostic information.
+                Defaults to config["core"]["verbose"].
+            **kwds: additional arguments are passed to ``energy.tof_step_to_ns()``.
 
         """
+        if verbose is None:
+            verbose = self.verbose
+
+        tof_column = self._config["dataframe"]["tof_column"]
+
         if self._dataframe is not None:
-            print("Adding time-of-flight column in nanoseconds to dataframe:")
+            if verbose:
+                print("Adding time-of-flight column in nanoseconds to dataframe:")
             # TODO assert order of execution through metadata
 
-            self._dataframe, metadata = self.ec.append_tof_ns_axis(
+            df, metadata = self.ec.append_tof_ns_axis(
                 df=self._dataframe,
-                **kwargs,
+                **kwds,
             )
-            if self._timed_dataframe is not None:
-                if self._config["dataframe"]["tof_column"] in self._timed_dataframe.columns:
-                    self._timed_dataframe, _ = self.ec.append_tof_ns_axis(
-                        df=self._timed_dataframe,
-                        **kwargs,
-                    )
+            if self._timed_dataframe is not None and tof_column in self._timed_dataframe.columns:
+                tdf, _ = self.ec.append_tof_ns_axis(
+                    df=self._timed_dataframe,
+                    **kwds,
+                )
+
             self._attributes.add(
                 metadata,
                 "tof_ns_conversion",
-                duplicate_policy="append",
+                duplicate_policy="overwrite",
             )
+            self._dataframe = df
+            if self._timed_dataframe is not None and tof_column in self._timed_dataframe.columns:
+                self._timed_dataframe = tdf
+        else:
+            raise ValueError("No dataframe loaded!")
+        if preview:
+            print(self._dataframe.head(10))
+        else:
+            if verbose:
+                print(self._dataframe)
 
-    def align_dld_sectors(self, sector_delays: np.ndarray = None, **kwargs):
+    def align_dld_sectors(
+        self,
+        sector_delays: np.ndarray = None,
+        preview: bool = False,
+        verbose: bool = None,
+        **kwds,
+    ):
         """Align the 8s sectors of the HEXTOF endstation.
 
         Args:
             sector_delays (np.ndarray, optional): Array containing the sector delays. Defaults to
                 config["dataframe"]["sector_delays"].
+            preview (bool, optional): Option to preview the first elements of the data frame.
+                Defaults to False.
+            verbose (bool, optional): Option to print out diagnostic information.
+                Defaults to config["core"]["verbose"].
+            **kwds: additional arguments are passed to ``energy.align_dld_sectors()``.
         """
+        if verbose is None:
+            verbose = self.verbose
+
+        tof_column = self._config["dataframe"]["tof_column"]
+
         if self._dataframe is not None:
-            print("Aligning 8s sectors of dataframe")
+            if verbose:
+                print("Aligning 8s sectors of dataframe")
             # TODO assert order of execution through metadata
-            self._dataframe, metadata = self.ec.align_dld_sectors(
+
+            df, metadata = self.ec.align_dld_sectors(
                 df=self._dataframe,
                 sector_delays=sector_delays,
-                **kwargs,
+                **kwds,
             )
-            if self._timed_dataframe is not None:
-                if self._config["dataframe"]["tof_column"] in self._timed_dataframe.columns:
-                    self._timed_dataframe, _ = self.ec.align_dld_sectors(
-                        df=self._timed_dataframe,
-                        sector_delays=sector_delays,
-                        **kwargs,
-                    )
+            if self._timed_dataframe is not None and tof_column in self._timed_dataframe.columns:
+                tdf, _ = self.ec.align_dld_sectors(
+                    df=self._timed_dataframe,
+                    sector_delays=sector_delays,
+                    **kwds,
+                )
+
             self._attributes.add(
                 metadata,
                 "dld_sector_alignment",
                 duplicate_policy="raise",
             )
+            self._dataframe = df
+            if self._timed_dataframe is not None and tof_column in self._timed_dataframe.columns:
+                self._timed_dataframe = tdf
+        else:
+            raise ValueError("No dataframe loaded!")
+        if preview:
+            print(self._dataframe.head(10))
+        else:
+            if verbose:
+                print(self._dataframe)
 
     # Delay calibration function
     def calibrate_delay_axis(
@@ -1489,8 +1594,13 @@ class SedProcessor:
         if verbose is None:
             verbose = self.verbose
 
+        adc_column = self._config["dataframe"]["adc_column"]
+        if adc_column not in self._dataframe.columns:
+            raise ValueError(f"ADC column {adc_column} not found in dataframe, cannot calibrate!")
+
         if self._dataframe is not None:
-            print("Adding delay column to dataframe:")
+            if verbose:
+                print("Adding delay column to dataframe:")
 
             if datafile is None:
                 if len(self.dc.calibration) == 0:
@@ -1503,34 +1613,38 @@ class SedProcessor:
                         )
                         raise
 
-            self._dataframe, metadata = self.dc.append_delay_axis(
+            df, metadata = self.dc.append_delay_axis(
                 self._dataframe,
                 delay_range=delay_range,
                 datafile=datafile,
                 verbose=verbose,
                 **kwds,
             )
-            if self._timed_dataframe is not None:
-                if self._config["dataframe"]["adc_column"] in self._timed_dataframe.columns:
-                    self._timed_dataframe, _ = self.dc.append_delay_axis(
-                        self._timed_dataframe,
-                        delay_range=delay_range,
-                        datafile=datafile,
-                        verbose=False,
-                        **kwds,
-                    )
+            if self._timed_dataframe is not None and adc_column in self._timed_dataframe.columns:
+                tdf, _ = self.dc.append_delay_axis(
+                    self._timed_dataframe,
+                    delay_range=delay_range,
+                    datafile=datafile,
+                    verbose=False,
+                    **kwds,
+                )
 
             # Add Metadata
             self._attributes.add(
                 metadata,
                 "delay_calibration",
-                duplicate_policy="merge",
+                duplicate_policy="overwrite",
             )
-            if preview:
-                print(self._dataframe.head(10))
-            else:
-                if self.verbose:
-                    print(self._dataframe)
+            self._dataframe = df
+            if self._timed_dataframe is not None and adc_column in self._timed_dataframe.columns:
+                self._timed_dataframe = tdf
+        else:
+            raise ValueError("No dataframe loaded!")
+        if preview:
+            print(self._dataframe.head(10))
+        else:
+            if self.verbose:
+                print(self._dataframe)
 
     def save_delay_calibration(
         self,
@@ -1559,7 +1673,7 @@ class SedProcessor:
             else:
                 calibration[key] = float(value)
 
-        if "creation_date" not in calibration.keys():
+        if "creation_date" not in calibration:
             calibration["creation_date"] = datetime.now().timestamp()
 
         config = {
@@ -1577,6 +1691,7 @@ class SedProcessor:
         weights: Union[float, Sequence[float]] = 1.0,
         reductions: Union[str, Sequence[str]] = None,
         preserve_mean: Union[bool, Sequence[bool]] = False,
+        preview: bool = False,
         verbose: bool = None,
     ) -> None:
         """Shift the delay axis of the dataframe by a constant or other columns.
@@ -1592,22 +1707,24 @@ class SedProcessor:
                 of dask.dataframe.Series. For example "mean". In this case the function is applied
                 to the column to generate a single value for the whole dataset. If None, the shift
                 is applied per-dataframe-row. Defaults to None. Currently only "mean" is supported.
+            preview (bool, optional): Option to preview the first elements of the data frame.
+                Defaults to False.
             verbose (bool, optional): Option to print out diagnostic information.
                 Defaults to config["core"]["verbose"].
 
-        Returns:
-            None
+        Raises:
+            ValueError: If the delay column is not in the dataframe.
         """
         if verbose is None:
             verbose = self.verbose
 
-        if verbose:
-            print("Adding delay offset to dataframe:")
         delay_column = self._config["dataframe"]["delay_column"]
         if delay_column not in self._dataframe.columns:
             raise ValueError(f"Delay column {delay_column} not found in dataframe! ")
 
         if self.dataframe is not None:
+            if verbose:
+                print("Adding delay offset to dataframe:")
             df, metadata = self.dc.add_offsets(
                 df=self._dataframe,
                 constant=constant,
@@ -1619,29 +1736,34 @@ class SedProcessor:
                 preserve_mean=preserve_mean,
                 verbose=verbose,
             )
-        if self._timed_dataframe is not None and delay_column in self._timed_dataframe.columns:
-            tdf, _ = self.dc.add_offsets(
-                df=self._timed_dataframe,
-                constant=constant,
-                flip_delay_axis=flip_delay_axis,
-                columns=columns,
-                delay_column=delay_column,
-                weights=weights,
-                reductions=reductions,
-                preserve_mean=preserve_mean,
-                verbose=False,
-            )
+            if self._timed_dataframe is not None and delay_column in self._timed_dataframe.columns:
+                tdf, _ = self.dc.add_offsets(
+                    df=self._timed_dataframe,
+                    constant=constant,
+                    flip_delay_axis=flip_delay_axis,
+                    columns=columns,
+                    delay_column=delay_column,
+                    weights=weights,
+                    reductions=reductions,
+                    preserve_mean=preserve_mean,
+                    verbose=False,
+                )
 
-        self._attributes.add(
-            metadata,
-            "delay_offset",
-            duplicate_policy="append",
-        )
-        self._dataframe = df
-        if self._timed_dataframe is not None and delay_column in self._timed_dataframe.columns:
-            self._timed_dataframe = tdf
+            self._attributes.add(
+                metadata,
+                "delay_offset",
+                duplicate_policy="append",
+            )
+            self._dataframe = df
+            if self._timed_dataframe is not None and delay_column in self._timed_dataframe.columns:
+                self._timed_dataframe = tdf
         else:
             raise ValueError("No dataframe loaded!")
+        if preview:
+            print(self._dataframe.head(10))
+        else:
+            if verbose:
+                print(self._dataframe)
 
     def save_delay_offsets(
         self,
@@ -1747,6 +1869,7 @@ class SedProcessor:
         metadata = []
         for col in cols:
             metadata.append(col)
+        # TODO: allow only appending if columns are not jittered yet
         self._attributes.add(metadata, "jittering", duplicate_policy="append")
 
     def add_time_stamped_data(

@@ -589,7 +589,15 @@ def test_energy_calibration_workflow(energy_scale: str, calibration_method: str)
 
 def test_align_dld_sectors() -> None:
     """Test alignment of DLD sectors for flash detector"""
-    config = df_folder + "../flash/config.yaml"
+    config = parse_config(
+        df_folder + "../flash/config.yaml",
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+    config["core"]["paths"]["data_parquet_dir"] = (
+        config["core"]["paths"]["data_parquet_dir"] + "_align_dld_sectors"
+    )
     processor = SedProcessor(
         folder=df_folder + "../flash/",
         config=config,
@@ -629,7 +637,7 @@ def test_align_dld_sectors() -> None:
     np.testing.assert_allclose(tof_ref_array, tof_aligned_array + sector_delays[:, np.newaxis])
 
     # cleanup flash inermediaries
-    _, parquet_data_dir = cast(FlashLoader, processor.loader).initialize_paths()
+    parquet_data_dir = config["core"]["paths"]["data_parquet_dir"]
     for file in os.listdir(Path(parquet_data_dir, "buffer")):
         os.remove(Path(parquet_data_dir, "buffer", file))
 

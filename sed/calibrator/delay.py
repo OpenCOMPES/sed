@@ -240,7 +240,6 @@ class DelayCalibrator:
             dask.dataframe.DataFrame: Dataframe with the shifted delay axis.
             dict: Metadata dictionary.
         """
-        # pylint: disable=duplicate-code
         if offsets is None:
             offsets = deepcopy(self.offsets)
 
@@ -252,6 +251,7 @@ class DelayCalibrator:
         }
 
         if columns is not None or constant is not None or flip_delay_axis:
+            # pylint:disable=duplicate-code
             # use passed parameters, overwrite config
             offsets = {}
             offsets["creation_date"] = datetime.now().timestamp()
@@ -261,7 +261,7 @@ class DelayCalibrator:
                     weights = [weights]
                 if len(weights) == 1:
                     weights = [weights[0]] * len(columns)
-                elif not isinstance(weights, Sequence):
+                if not isinstance(weights, Sequence):
                     raise TypeError(
                         f"Invalid type for weights: {type(weights)}. Must be a number or sequence",
                     )
@@ -270,7 +270,6 @@ class DelayCalibrator:
                         f"Invalid type for weights: {type(weights)}. Must be a number or sequence",
                     )
 
-                # pylint: disable=duplicate-code
                 if isinstance(columns, str):
                     columns = [columns]
                 if isinstance(preserve_mean, bool):
@@ -305,7 +304,6 @@ class DelayCalibrator:
 
         if len(offsets) > 0:
             # unpack dictionary
-            # pylint: disable=duplicate-code
             columns = []
             weights = []
             preserve_mean = []
@@ -360,7 +358,6 @@ class DelayCalibrator:
 
             if constant:
                 df[delay_column] = df.map_partitions(
-                    # flip sign if binding energy scale
                     lambda x: x[delay_column] + constant,
                     meta=(delay_column, np.float64),
                 )
