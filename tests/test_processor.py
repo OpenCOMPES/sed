@@ -332,8 +332,8 @@ def test_pose_adjustment() -> None:
         user_config={},
         system_config={},
     )
-    with pytest.raises(ValueError):
-        processor.pose_adjustment(**adjust_params, use_correction=False, apply=True)  # type: ignore[arg-type]
+    # pose adjustment w/o loaded image
+    processor.pose_adjustment(**adjust_params, use_correction=False, apply=True)  # type: ignore[arg-type]
 
     processor.bin_and_load_momentum_calibration(apply=True)
     # test pose adjustment

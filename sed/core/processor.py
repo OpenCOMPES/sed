@@ -70,7 +70,7 @@ class SedProcessor:
         folder: str = None,
         runs: Sequence[str] = None,
         collect_metadata: bool = False,
-        verbose: bool = False,
+        verbose: bool = None,
         **kwds,
     ):
         """Processor class of sed. Contains wrapper functions defining a work flow
@@ -88,8 +88,10 @@ class SedProcessor:
                 defined in the config. Defaults to None.
             runs (Sequence[str], optional): List of run identifiers to pass to the loader
                 defined in the config. Defaults to None.
-            collect_metadata (bool): Option to collect metadata from files.
+            collect_metadata (bool, optional): Option to collect metadata from files.
                 Defaults to False.
+            verbose (bool, optional): Option to print out diagnostic information.
+                Defaults to config["core"]["verbose"] or False.
             **kwds: Keyword arguments passed to parse_config and to the reader.
         """
         config_kwds = {
@@ -103,7 +105,8 @@ class SedProcessor:
             num_cores = N_CPU - 1
         self._config["binning"]["num_cores"] = num_cores
 
-        self.verbose = verbose
+        if verbose is None:
+            self.verbose = self._config["core"].get("verbose", False)
 
         self._dataframe: Union[pd.DataFrame, ddf.DataFrame] = None
         self._timed_dataframe: Union[pd.DataFrame, ddf.DataFrame] = None
@@ -605,7 +608,7 @@ class SedProcessor:
         if filename is None:
             filename = "sed_config.yaml"
         if len(self.mc.correction) == 0:
-            raise ValueError("No momentum calibration parameters to save!")
+            raise ValueError("No momentum correction parameters to save!")
         correction = {}
         for key, value in self.mc.correction.items():
             if key in ["reference_points", "target_points", "cdeform_field", "rdeform_field"]:
@@ -636,13 +639,12 @@ class SedProcessor:
     # scaling, shift and rotation
     def pose_adjustment(
         self,
-        scale: float = 1,
-        xtrans: float = 0,
-        ytrans: float = 0,
-        angle: float = 0,
+        transformations: Dict[str, Any] = None,
         apply: bool = False,
         use_correction: bool = True,
         reset: bool = True,
+        verbose: bool = None,
+        **kwds,
     ):
         """3. step of the distortion correction workflow: Generate an interactive panel
         to adjust affine transformations that are applied to the image. Applies first
@@ -650,27 +652,30 @@ class SedProcessor:
         the image.
 
         Args:
-            scale (float, optional): Initial value of the scaling slider.
-                Defaults to 1.
-            xtrans (float, optional): Initial value of the xtrans slider.
-                Defaults to 0.
-            ytrans (float, optional): Initial value of the ytrans slider.
-                Defaults to 0.
-            angle (float, optional): Initial value of the angle slider.
-                Defaults to 0.
+            transformations (dict, optional): Dictionary with transformations.
+                Defaults to self.transformations or config["momentum"]["transformtions"].
             apply (bool, optional): Option to directly apply the provided
                 transformations. Defaults to False.
             use_correction (bool, option): Whether to use the spline warp correction
                 or not. Defaults to True.
-            reset (bool, optional):
-                Option to reset the correction before transformation. Defaults to True.
+            reset (bool, optional): Option to reset the correction before transformation.
+                Defaults to True.
+            verbose (bool, optional): Option to print out diagnostic information.
+                Defaults to config["core"]["verbose"].
+            **kwds: Keyword parameters defining defaults for the transformations:
+
+                - *scale* (float): Initial value of the scaling slider.
+                - *xtrans* (float): Initial value of the xtrans slider.
+                - *ytrans* (float): Initial value of the ytrans slider.
+                - *angle* (float): Initial value of the angle slider.
         """
+        if verbose is None:
+            verbose = self.verbose
+
         # Generate homomorphy as default if no distortion correction has been applied
         if self.mc.slice_corrected is None:
             if self.mc.slice is None:
-                raise ValueError(
-                    "No slice for corrections and transformations loaded!",
-                )
+                self.mc.slice = np.zeros(self._config["momentum"]["bins"][0:2])
             self.mc.slice_corrected = self.mc.slice
 
         if not use_correction:
@@ -678,16 +683,48 @@ class SedProcessor:
 
         if self.mc.cdeform_field is None or self.mc.rdeform_field is None:
             # Generate distortion correction from config values
-            self.mc.spline_warp_estimate()
+            self.mc.spline_warp_estimate(verbose=verbose)
 
         self.mc.pose_adjustment(
-            scale=scale,
-            xtrans=xtrans,
-            ytrans=ytrans,
-            angle=angle,
+            transformations=transformations,
             apply=apply,
             reset=reset,
+            verbose=verbose,
+            **kwds,
         )
+
+    # 4a. Save pose adjustment parameters to config file.
+    def save_transformations(
+        self,
+        filename: str = None,
+        overwrite: bool = False,
+    ):
+        """Save the pose adjustment parameters to the folder config file.
+
+        Args:
+            filename (str, optional): Filename of the config dictionary to save to.
+                Defaults to "sed_config.yaml" in the current folder.
+            overwrite (bool, optional): Option to overwrite the present dictionary.
+                Defaults to False.
+        """
+        if filename is None:
+            filename = "sed_config.yaml"
+        if len(self.mc.transformations) == 0:
+            raise ValueError("No momentum transformation parameters to save!")
+        transformations = {}
+        for key, value in self.mc.transformations.items():
+            transformations[key] = float(value)
+
+        if "creation_date" not in transformations:
+            transformations["creation_date"] = datetime.now().timestamp()
+
+        config = {
+            "momentum": {
+                "transformations": transformations,
+            },
+        }
+        save_config(config, filename, overwrite)
+        print(f'Saved momentum transformation parameters to "{filename}".')
 
     # 5. Apply the momentum correction to the dataframe
     def apply_momentum_correction(
@@ -1862,6 +1899,7 @@ class SedProcessor:
         """
         for method in [
             self.save_splinewarp,
+            self.save_transformations,
             self.save_momentum_calibration,
             self.save_energy_correction,
             self.save_energy_calibration,
