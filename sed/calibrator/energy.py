@@ -823,6 +823,7 @@ class EnergyCalibrator:
         binwidth = kwds.pop("binwidth", self.binwidth)
         binning = kwds.pop("binning", self.binning)
 
+        # pylint: disable=duplicate-code
         if calibration is None:
             calibration = deepcopy(self.calibration)
 
