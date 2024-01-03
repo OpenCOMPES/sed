@@ -4,6 +4,7 @@ correction. Mostly ported from https://github.com/mpes-kit/mpes.
 import itertools as it
 import warnings as wn
 from copy import deepcopy
+from datetime import datetime
 from functools import partial
 from typing import Any
 from typing import cast
@@ -94,7 +95,7 @@ class EnergyCalibrator:
 
         self.featranges: List[Tuple] = []  # Value ranges for feature detection
         self.peaks: np.ndarray = np.asarray([])
-        self.calibration: Dict[Any, Any] = {}
+        self.calibration: Dict[str, Any] = self._config["energy"].get("calibration", {})
 
         self.tof_column = self._config["dataframe"]["tof_column"]
         self.tof_ns_column = self._config["dataframe"].get("tof_ns_column", None)
@@ -114,7 +115,7 @@ class EnergyCalibrator:
         self.sector_delays = self._config["dataframe"].get("sector_delays", None)
         self.sector_id_column = self._config["dataframe"].get("sector_id_column", None)
         self.offsets: Dict[str, Any] = self._config["energy"].get("offsets", {})
-        self.correction: Dict[Any, Any] = {}
+        self.correction: Dict[str, Any] = self._config["energy"].get("correction", {})
 
     @property
     def ntraces(self) -> int:
@@ -519,6 +520,7 @@ class EnergyCalibrator:
         landmarks: np.ndarray = None,
         biases: np.ndarray = None,
         t: np.ndarray = None,
+        verbose: bool = True,
         **kwds,
     ) -> dict:
         """Calculate the functional mapping between time-of-flight and the energy
@@ -543,6 +545,8 @@ class EnergyCalibrator:
                 calibration. Defaults to self.peaks.
             biases (np.ndarray, optional): Bias values. Defaults to self.biases.
             t (np.ndarray, optional): TOF values. Defaults to self.tof.
+            verbose (bool, optional): Option to print out diagnostic information.
+                Defaults to True.
             **kwds: keyword arguments.
                 See available keywords for ``poly_energy_calibration()`` and
                 ``fit_energy_calibration()``
@@ -582,6 +586,7 @@ class EnergyCalibrator:
                 ref_id=ref_id,
                 t=t,
                 energy_scale=energy_scale,
+                verbose=verbose,
                 **kwds,
             )
         elif method in ("lstsq", "lsqr"):
@@ -598,6 +603,7 @@ class EnergyCalibrator:
         else:
             raise NotImplementedError()
 
+        self.calibration["creation_date"] = datetime.now().timestamp()
         return self.calibration
 
     def view(  # pylint: disable=dangerous-default-value
@@ -771,32 +777,13 @@ class EnergyCalibrator:
 
             pbk.show(fig)
 
-    def get_current_calibration(self) -> dict:
-        """Return the current calibration dictionary.
-
-        If none is present, return the one from the config. If none is present there,
-        return an empty dictionary.
-
-        Returns:
-            dict: Calibration dictionary.
-        """
-        if self.calibration:
-            calibration = deepcopy(self.calibration)
-        else:
-            calibration = deepcopy(
-                self._config["energy"].get(
-                    "calibration",
-                    {},
-                ),
-            )
-        return calibration
-
     def append_energy_axis(
         self,
         df: Union[pd.DataFrame, dask.dataframe.DataFrame],
         tof_column: str = None,
         energy_column: str = None,
         calibration: dict = None,
+        verbose: bool = True,
         **kwds,
     ) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
         """Calculate and append the energy axis to the events dataframe.
@@ -811,6 +798,8 @@ class EnergyCalibrator:
             calibration (dict, optional): Calibration dictionary. If provided,
                 overrides calibration from class or config.
                 Defaults to self.calibration or config["energy"]["calibration"].
+            verbose (bool, optional): Option to print out diagnostic information.
+                Defaults to True.
             **kwds: additional keyword arguments for the energy conversion. They are
                 added to the calibration dictionary.
 
@@ -835,10 +824,18 @@ class EnergyCalibrator:
         binning = kwds.pop("binning", self.binning)
 
         if calibration is None:
-            calibration = self.get_current_calibration()
+            calibration = deepcopy(self.calibration)
 
-        for key, value in kwds.items():
-            calibration[key] = value
+        if len(kwds) > 0:
+            for key, value in kwds.items():
+                calibration[key] = value
+            calibration["creation_date"] = datetime.now().timestamp()
+
+        elif "creation_date" in calibration and verbose:
+            datestring = datetime.fromtimestamp(calibration["creation_date"]).strftime(
+                "%m/%d/%Y, %H:%M:%S",
+            )
+            print(f"Using energy calibration parameters generated on {datestring}")
 
         # try to determine calibration type if not provided
         if "calib_type" not in calibration:
@@ -1021,10 +1018,7 @@ class EnergyCalibrator:
         matplotlib.use("module://ipympl.backend_nbagg")
 
         if correction is None:
-            if self.correction:
-                correction = deepcopy(self.correction)
-            else:
-                correction = deepcopy(self._config["energy"].get("correction", {}))
+            correction = deepcopy(self.correction)
 
         if correction_type is not None:
             correction["correction_type"] = correction_type
@@ -1151,6 +1145,7 @@ class EnergyCalibrator:
             self.correction["amplitude"] = correction["amplitude"]
             self.correction["center"] = correction["center"]
             self.correction["correction_type"] = correction["correction_type"]
+            self.correction["creation_date"] = datetime.now().timestamp()
             amplitude_slider.close()
             x_center_slider.close()
             y_center_slider.close()
@@ -1320,6 +1315,7 @@ class EnergyCalibrator:
         correction_type: str = None,
         amplitude: float = None,
         correction: dict = None,
+        verbose: bool = True,
         **kwds,
     ) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
         """Apply correction to the time-of-flight (TOF) axis of single-event data.
@@ -1345,6 +1341,8 @@ class EnergyCalibrator:
             correction (dict, optional): Correction dictionary containing paramters
                 for the correction. Defaults to self.correction or
                 config["energy"]["correction"].
+            verbose (bool, optional): Option to print out diagnostic information.
+                Defaults to True.
             **kwds: Additional parameters to use for the correction:
 
                 - **x_column** (str): Name of the x column.
@@ -1364,28 +1362,34 @@ class EnergyCalibrator:
             and Energy correction metadata dictionary.
         """
         if correction is None:
-            if self.correction:
-                correction = deepcopy(self.correction)
-            else:
-                correction = deepcopy(self._config["energy"].get("correction", {}))
-
-        if correction_type is not None:
-            correction["correction_type"] = correction_type
-
-        if amplitude is not None:
-            correction["amplitude"] = amplitude
+            correction = deepcopy(self.correction)
 
         x_column = kwds.pop("x_column", self.x_column)
         y_column = kwds.pop("y_column", self.y_column)
-
-        for key, value in kwds.items():
-            correction[key] = value
 
         if tof_column is None:
             tof_column = self.tof_column
 
         if new_tof_column is None:
             new_tof_column = self.corrected_tof_column
+
+        if correction_type is not None or amplitude is not None or len(kwds) > 0:
+            if correction_type is not None:
+                correction["correction_type"] = correction_type
+
+            if amplitude is not None:
+                correction["amplitude"] = amplitude
+
+            for key, value in kwds.items():
+                correction[key] = value
+
+            correction["creation_date"] = datetime.now().timestamp()
+
+        elif "creation_date" in correction and verbose:
+            datestring = datetime.fromtimestamp(correction["creation_date"]).strftime(
+                "%m/%d/%Y, %H:%M:%S",
+            )
+            print(f"Using energy correction parameters generated on {datestring}")
 
         missing_keys = {"correction_type", "center", "amplitude"} - set(correction.keys())
         if missing_keys:
@@ -1469,12 +1473,14 @@ class EnergyCalibrator:
     def add_offsets(
         self,
         df: Union[pd.DataFrame, dask.dataframe.DataFrame] = None,
+        offsets: Dict[str, Any] = None,
         constant: float = None,
         columns: Union[str, Sequence[str]] = None,
         weights: Union[float, Sequence[float]] = None,
         preserve_mean: Union[bool, Sequence[bool]] = False,
         reductions: Union[str, Sequence[str]] = None,
         energy_column: str = None,
+        verbose: bool = True,
     ) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
         """Apply an offset to the energy column by the values of the provided columns.
 
@@ -1482,10 +1488,9 @@ class EnergyCalibrator:
         config file. If parameters are passed, they are used to generate a new offset dictionary
         and the offset is applied using the ``dfops.apply_offset_from_columns()`` function.
 
-        # TODO: This funcion can still be improved and needs testsing
-
         Args:
             df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to use.
+            offset (Dict, optional): Dictionary of energy offset parameters.
             constant (float, optional): The constant to shift the energy axis by.
             columns (Union[str, Sequence[str]]): Name of the column(s) to apply the shift from.
             weights (Union[float, Sequence[float]]): weights to apply to the columns.
@@ -1497,109 +1502,141 @@ class EnergyCalibrator:
                 to the column to generate a single value for the whole dataset. If None, the shift
                 is applied per-dataframe-row. Defaults to None. Currently only "mean" is supported.
             energy_column (str, optional): Name of the column containing the energy values.
+            verbose (bool, optional): Option to print out diagnostic information.
+                Defaults to True.
 
         Returns:
             dask.dataframe.DataFrame: Dataframe with the new columns.
             dict: Metadata dictionary.
         """
+        if offsets is None:
+            offsets = deepcopy(self.offsets)
+
         if energy_column is None:
             energy_column = self.energy_column
 
-        # if no parameters are passed, use config
-        if columns is None and constant is None:
-            # load from config
+        metadata: Dict[str, Any] = {
+            "applied": True,
+        }
+
+        # flip sign for binding energy scale
+        energy_scale = self.calibration.get("energy_scale", None)
+        if energy_scale is None:
+            raise ValueError("Energy scale not set. Cannot interpret the sign of the offset.")
+        if energy_scale not in ["binding", "kinetic"]:
+            raise ValueError(f"Invalid energy scale: {energy_scale}")
+        scale_sign: Literal[-1, 1] = -1 if energy_scale == "binding" else 1
+
+        if columns is not None or constant is not None:
+            # pylint:disable=duplicate-code
+            # use passed parameters, overwrite config
+            offsets = {}
+            offsets["creation_date"] = datetime.now().timestamp()
+            # column-based offsets
+            if columns is not None:
+                if isinstance(weights, (int, float, np.integer, np.floating)):
+                    weights = [weights]
+                if len(weights) == 1:
+                    weights = [weights[0]] * len(columns)
+                if not isinstance(weights, Sequence):
+                    raise TypeError(f"Invalid type for weights: {type(weights)}")
+                if not all(isinstance(s, (int, float, np.integer, np.floating)) for s in weights):
+                    raise TypeError(f"Invalid type for weights: {type(weights)}")
+
+                if isinstance(columns, str):
+                    columns = [columns]
+                if isinstance(preserve_mean, bool):
+                    preserve_mean = [preserve_mean] * len(columns)
+                if not isinstance(reductions, Sequence):
+                    reductions = [reductions]
+                if len(reductions) == 1:
+                    reductions = [reductions[0]] * len(columns)
+
+                # store in offsets dictionary
+                for col, weight, pmean, red in zip(columns, weights, preserve_mean, reductions):
+                    offsets[col] = {
+                        "weight": weight,
+                        "preserve_mean": pmean,
+                        "reduction": red,
+                    }
+
+            # constant offset
+            if isinstance(constant, (int, float, np.integer, np.floating)):
+                offsets["constant"] = constant
+            elif constant is not None:
+                raise TypeError(f"Invalid type for constant: {type(constant)}")
+
+        elif "creation_date" in offsets and verbose:
+            datestring = datetime.fromtimestamp(offsets["creation_date"]).strftime(
+                "%m/%d/%Y, %H:%M:%S",
+            )
+            print(f"Using energy offset parameters generated on {datestring}")
+
+        if len(offsets) > 0:
+            # unpack dictionary
+            # pylint: disable=duplicate-code
             columns = []
             weights = []
             preserve_mean = []
             reductions = []
-            for k, v in self.offsets.items():
+            if verbose:
+                print("Energy offset parameters:")
+            for k, v in offsets.items():
+                if k == "creation_date":
+                    continue
                 if k == "constant":
-                    constant = v
+                    # flip sign if binding energy scale
+                    constant = v * scale_sign
+                    if verbose:
+                        print(f"   Constant: {constant} ")
                 else:
                     columns.append(k)
                     try:
-                        weights.append(v["weight"])
-                    except KeyError as exc:
-                        raise KeyError(f"Missing weight for offset column {k} in config.") from exc
+                        weight = v["weight"]
+                    except KeyError:
+                        weight = 1
+                    if not isinstance(weight, (int, float, np.integer, np.floating)):
+                        raise TypeError(f"Invalid type for weight of column {k}: {type(weight)}")
+                    # flip sign if binding energy scale
+                    weight = weight * scale_sign
+                    weights.append(weight)
                     pm = v.get("preserve_mean", False)
                     if str(pm).lower() in ["false", "0", "no"]:
                         pm = False
                     elif str(pm).lower() in ["true", "1", "yes"]:
                         pm = True
                     preserve_mean.append(pm)
-                    rd = v.get("reduction", None)
-                    if str(rd).lower() == "none":
-                        rd = None
-                    reductions.append(rd)
+                    red = v.get("reduction", None)
+                    if str(red).lower() in ["none", "null"]:
+                        red = None
+                    reductions.append(red)
+                    if verbose:
+                        print(
+                            f"   Column[{k}]: Weight={weight}, Preserve Mean: {pm}, ",
+                            f"Reductions: {red}.",
+                        )
 
-        # flip sign for binding energy scale
-        energy_scale = self.get_current_calibration().get("energy_scale", None)
-        if energy_scale is None:
-            raise ValueError("Energy scale not set. Cannot interpret the sign of the offset.")
-        if energy_scale not in ["binding", "kinetic"]:
-            raise ValueError(f"Invalid energy scale: {energy_scale}")
-        scale_sign: Literal[-1, 1] = -1 if energy_scale == "binding" else 1
-        # initialize metadata container
-        metadata: Dict[str, Any] = {
-            "applied": True,
-        }
-        # apply offset
-        if columns is not None:
-            # use passed parameters
-            if isinstance(weights, int):
-                weights = [weights]
-            elif not isinstance(weights, Sequence):
-                raise TypeError(f"Invalid type for weights: {type(weights)}")
-            if not all(isinstance(s, int) for s in weights):
-                raise TypeError(f"Invalid type for weights: {type(weights)}")
-            # flip weights if binding energy scale
-            weights = [s * scale_sign for s in weights]
-
-            df = dfops.offset_by_other_columns(
-                df=df,
-                target_column=energy_column,
-                offset_columns=columns,
-                weights=weights,
-                preserve_mean=preserve_mean,
-                reductions=reductions,
-                inplace=True,
-            )
-            metadata["energy_column"] = energy_column
-            metadata["columns"] = columns
-            metadata["weights"] = weights
-            metadata["preserve_mean"] = preserve_mean
-            metadata["reductions"] = reductions
-
-            # overwrite the current offset dictionary with the parameters used
-            if not isinstance(columns, Sequence):
-                columns = [columns]
-            if not isinstance(weights, Sequence):
-                weights = [weights]
-            if isinstance(preserve_mean, bool):
-                preserve_mean = [preserve_mean] * len(columns)
-            if not isinstance(reductions, Sequence):
-                reductions = [reductions]
-            if len(reductions) == 1:
-                reductions = [reductions[0]] * len(columns)
-
-            for col, weight, pmean, red in zip(columns, weights, preserve_mean, reductions):
-                self.offsets[col] = {
-                    "weight": weight,
-                    "preserve_mean": pmean,
-                    "reduction": red,
-                }
+            if len(columns) > 0:
+                df = dfops.offset_by_other_columns(
+                    df=df,
+                    target_column=energy_column,
+                    offset_columns=columns,
+                    weights=weights,
+                    preserve_mean=preserve_mean,
+                    reductions=reductions,
+                )
 
         # apply constant
-        if isinstance(constant, (int, float, np.integer, np.floating)):
+        if constant:
+            if not isinstance(constant, (int, float, np.integer, np.floating)):
+                raise TypeError(f"Invalid type for constant: {type(constant)}")
             df[energy_column] = df.map_partitions(
-                # flip sign if binding energy scale
-                lambda x: x[energy_column] + constant * scale_sign,
+                lambda x: x[energy_column] + constant,
                 meta=(energy_column, np.float64),
             )
-            metadata["constant"] = constant
-            self.offsets["constant"] = constant
-        elif constant is not None:
-            raise TypeError(f"Invalid type for constant: {type(constant)}")
+
+        self.offsets = offsets
+        metadata["offsets"] = offsets
 
         return df, metadata
 
@@ -2054,6 +2091,7 @@ def fit_energy_calibation(
     ref_energy: float = None,
     t: Union[List[float], np.ndarray] = None,
     energy_scale: str = "kinetic",
+    verbose: bool = True,
     **kwds,
 ) -> dict:
     """Energy calibration by nonlinear least squares fitting of spectral landmarks on
@@ -2076,12 +2114,16 @@ def fit_energy_calibation(
 
             - **'kinetic'**: increasing energy with decreasing TOF.
             - **'binding'**: increasing energy with increasing TOF.
-        t0 (float, optional): constrains and initial values for the fit parameter t0, corresponding
-            to the time of flight offset. Defaults to 1e-6.
-        E0 (float, optional): constrains and initial values for the fit parameter E0, corresponding
-            to the energy offset. Defaults to min(vals).
-        d (float, optional): constrains and initial values for the fit parameter d, corresponding
-            to the drift distance. Defaults to 1.
+        verbose (bool, optional): Option to print out diagnostic information.
+            Defaults to True.
+        **kwds: keyword arguments:
+
+            - **t0** (float): constrains and initial values for the fit parameter t0,
+              corresponding to the time of flight offset. Defaults to 1e-6.
+            - **E0** (float): constrains and initial values for the fit parameter E0,
+              corresponding to the energy offset. Defaults to min(vals).
+            - **d** (float): constrains and initial values for the fit parameter d,
+              corresponding to the drift distance. Defaults to 1.
 
     Returns:
         dict: A dictionary of fitting parameters including the following,
@@ -2147,7 +2189,8 @@ def fit_energy_calibation(
         fcn_args=(pos, vals, binwidth, binning, energy_scale),
     )
     result = fit.leastsq()
-    report_fit(result)
+    if verbose:
+        report_fit(result)
 
     # Construct the calibrating function
     pfunc = partial(
