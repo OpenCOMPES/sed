@@ -3,6 +3,7 @@ correction. Mostly ported from https://github.com/mpes-kit/mpes.
 """
 import itertools as it
 from copy import deepcopy
+from datetime import datetime
 from typing import Any
 from typing import Dict
 from typing import List
@@ -104,9 +105,9 @@ class MomentumCorrector:
         self.inverse_dfield: np.ndarray = None
         self.dfield_updated: bool = False
         self.transformations: Dict[Any, Any] = {}
-        self.correction: Dict[Any, Any] = {}
+        self.correction: Dict[Any, Any] = self._config["momentum"].get("correction", {})
         self.adjust_params: Dict[Any, Any] = {}
-        self.calibration: Dict[Any, Any] = {}
+        self.calibration: Dict[Any, Any] = self._config["momentum"].get("calibration", {})
 
         self.x_column = self._config["dataframe"]["x_column"]
         self.y_column = self._config["dataframe"]["y_column"]
@@ -314,7 +315,7 @@ class MomentumCorrector:
 
     def add_features(
         self,
-        features: np.ndarray = None,
+        features: np.ndarray,
         direction: str = "ccw",
         rotsym: int = 6,
         symscores: bool = True,
@@ -324,11 +325,10 @@ class MomentumCorrector:
         detects the center of the points and orders the points.
 
         Args:
-            features (np.ndarray, optional):
+            features (np.ndarray):
                 Array of landmarks, possibly including a center peak. Its shape should
                 be (n,2), where n is equal to the rotation symmetry, or the rotation
                 symmetry+1, if the center is included.
-                Defaults to config["momentum"]["correction"]["feature_points"].
             direction (str, optional):
                 Direction for ordering the points. Defaults to "ccw".
             symscores (bool, optional):
@@ -342,21 +342,6 @@ class MomentumCorrector:
         Raises:
             ValueError: Raised if the number of points does not match the rotsym.
         """
-        if features is None:
-            # loading config defauls
-            try:
-                features = np.asarray(
-                    self._config["momentum"]["correction"]["feature_points"],
-                )
-                rotsym = self._config["momentum"]["correction"]["rotation_symmetry"]
-                include_center = self._config["momentum"]["correction"]["include_center"]
-                if not include_center and len(features) > rotsym:
-                    features = features[:rotsym, :]
-            except KeyError as exc:
-                raise ValueError(
-                    "No valid landmarks defined, and no defaults found in configuration!",
-                ) from exc
-
         self.rotsym = int(rotsym)
         self.rotsym_angle = int(360 / self.rotsym)
         self.arot = np.array([0] + [self.rotsym_angle] * (self.rotsym - 1))
@@ -650,13 +635,46 @@ class MomentumCorrector:
         if self.pouter_ord is None:
             if self.pouter is not None:
                 self.pouter_ord = po.pointset_order(self.pouter)
+                self.correction["creation_date"] = datetime.now().timestamp()
             else:
-                print("No landmarks defined, using config defaults.")
-                self.add_features()
+                try:
+                    features = np.asarray(
+                        self.correction["feature_points"],
+                    )
+                    rotsym = self.correction["rotation_symmetry"]
+                    include_center = self.correction["include_center"]
+                    if not include_center and len(features) > rotsym:
+                        features = features[:rotsym, :]
+
+                    if verbose:
+                        if "creation_date" in self.calibration:
+                            datestring = datetime.fromtimestamp(
+                                self.calibration["creation_date"],
+                            ).strftime(
+                                "%m/%d/%Y, %H:%M:%S",
+                            )
+                            print(
+                                "No landmarks defined, using momentum correction parameters "
+                                f"generated on {datestring}",
+                            )
+                        else:
+                            print(
+                                "No landmarks defined, using momentum correction parameters "
+                                "from config.",
+                            )
+                except KeyError as exc:
+                    raise ValueError(
+                        "No valid landmarks defined, and no landmarks found in configuration!",
+                    ) from exc
+
+                self.add_features(features=features, rotsym=rotsym, include_center=include_center)
+
+        else:
+            self.correction["creation_date"] = datetime.now().timestamp()
 
         if use_center is None:
             try:
-                use_center = self._config["momentum"]["correction"]["use_center"]
+                use_center = self.correction["use_center"]
             except KeyError:
                 use_center = True
         self.use_center = use_center
@@ -1565,6 +1583,7 @@ class MomentumCorrector:
 
         # Assemble into return dictionary
         self.calibration = {}
+        self.calibration["creation_date"] = datetime.now().timestamp()
         self.calibration["kx_axis"] = k_row
         self.calibration["ky_axis"] = k_col
         self.calibration["grid"] = (k_rowgrid, k_colgrid)
@@ -1633,8 +1652,7 @@ class MomentumCorrector:
 
         if self.inverse_dfield is None or self.dfield_updated:
             if self.rdeform_field is None and self.cdeform_field is None:
-                # Apply defaults
-                self.add_features()
+                # Generate spline warp from class features or config
                 self.spline_warp_estimate()
 
             self.inverse_dfield = generate_inverse_dfield(
@@ -1672,8 +1690,13 @@ class MomentumCorrector:
             metadata["correction"]["applied"] = True
             metadata["correction"]["cdeform_field"] = self.cdeform_field
             metadata["correction"]["rdeform_field"] = self.rdeform_field
+            try:
+                metadata["correction"]["creation_date"] = self.correction["creation_date"]
+            except KeyError:
+                pass
         if len(self.adjust_params) > 0:
             metadata["registration"] = self.adjust_params
+            metadata["registration"]["creation_date"] = datetime.now().timestamp()
             metadata["registration"]["applied"] = True
             metadata["registration"]["depends_on"] = (
                 "/entry/process/registration/tranformations/rot_z"
@@ -1782,18 +1805,12 @@ class MomentumCorrector:
 
         # pylint: disable=duplicate-code
         if calibration is None:
-            if self.calibration:
-                calibration = deepcopy(self.calibration)
-            else:
-                calibration = deepcopy(
-                    self._config["momentum"].get(
-                        "calibration",
-                        {},
-                    ),
-                )
+            calibration = deepcopy(self.calibration)
 
-        for key, value in kwds.items():
-            calibration[key] = value
+        if len(kwds) > 0:
+            for key, value in kwds.items():
+                calibration[key] = value
+            calibration["creation_date"] = datetime.now().timestamp()
 
         try:
             (df[new_x_column], df[new_y_column]) = detector_coordiantes_2_k_koordinates(
@@ -1830,6 +1847,10 @@ class MomentumCorrector:
         if calibration is None:
             calibration = self.calibration
         metadata: Dict[Any, Any] = {}
+        try:
+            metadata["creation_date"] = calibration["creation_date"]
+        except KeyError:
+            pass
         metadata["applied"] = True
         metadata["calibration"] = calibration
         # create empty calibrated axis entries, if they are not present.

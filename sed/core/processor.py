@@ -549,6 +549,7 @@ class SedProcessor:
     def generate_splinewarp(
         self,
         use_center: bool = None,
+        verbose: bool = None,
         **kwds,
     ):
         """3. Step of the distortion correction workflow: Generate the correction
@@ -557,11 +558,16 @@ class SedProcessor:
         Args:
             use_center (bool, optional): Option to use the position of the
                 center point in the correction. Default is read from config, or set to True.
+            verbose (bool, optional): Option to print out diagnostic information.
+                Defaults to config["core"]["verbose"].
             **kwds: Keyword arguments for MomentumCorrector.spline_warp_estimate().
         """
-        self.mc.spline_warp_estimate(use_center=use_center, **kwds)
+        if verbose is None:
+            verbose = self.verbose
 
-        if self.mc.slice is not None:
+        self.mc.spline_warp_estimate(use_center=use_center, verbose=verbose, **kwds)
+
+        if self.mc.slice is not None and verbose:
             print("Original slice with reference features")
             self.mc.view(annotated=True, backend="bokeh", crosshair=True)
 
@@ -672,7 +678,6 @@ class SedProcessor:
 
         if self.mc.cdeform_field is None or self.mc.rdeform_field is None:
             # Generate distortion correction from config values
-            self.mc.add_features()
             self.mc.spline_warp_estimate()
 
         self.mc.pose_adjustment(
@@ -688,43 +693,67 @@ class SedProcessor:
     def apply_momentum_correction(
         self,
         preview: bool = False,
+        verbose: bool = None,
+        **kwds,
     ):
         """Applies the distortion correction and pose adjustment (optional)
         to the dataframe.
 
         Args:
-            rdeform_field (np.ndarray, optional): Row deformation field.
-                Defaults to None.
-            cdeform_field (np.ndarray, optional): Column deformation field.
-                Defaults to None.
-            inv_dfield (np.ndarray, optional): Inverse deformation field.
-                Defaults to None.
-            preview (bool): Option to preview the first elements of the data frame.
+            preview (bool, optional): Option to preview the first elements of the data frame.
+                Defaults to False.
+            verbose (bool, optional): Option to print out diagnostic information.
+                Defaults to config["core"]["verbose"].
+            **kwds: Keyword parameters for ``MomentumCorrector.apply_correction``:
+
+                - **rdeform_field** (np.ndarray, optional): Row deformation field.
+                - **cdeform_field** (np.ndarray, optional): Column deformation field.
+                - **inv_dfield** (np.ndarray, optional): Inverse deformation field.
+
         """
+        if verbose is None:
+            verbose = self.verbose
+
+        x_column = self._config["dataframe"]["x_column"]
+        y_column = self._config["dataframe"]["y_column"]
+
         if self._dataframe is not None:
-            print("Adding corrected X/Y columns to dataframe:")
-            self._dataframe, metadata = self.mc.apply_corrections(
+            if verbose:
+                print("Adding corrected X/Y columns to dataframe:")
+            df, metadata = self.mc.apply_corrections(
                 df=self._dataframe,
+                **kwds,
             )
-            if self._timed_dataframe is not None:
-                if (
-                    self._config["dataframe"]["x_column"] in self._timed_dataframe.columns
-                    and self._config["dataframe"]["y_column"] in self._timed_dataframe.columns
-                ):
-                    self._timed_dataframe, _ = self.mc.apply_corrections(
-                        self._timed_dataframe,
-                    )
+            if (
+                self._timed_dataframe is not None
+                and x_column in self._timed_dataframe.columns
+                and y_column in self._timed_dataframe.columns
+            ):
+                tdf, _ = self.mc.apply_corrections(
+                    self._timed_dataframe,
+                    **kwds,
+                )
+
             # Add Metadata
             self._attributes.add(
                 metadata,
                 "momentum_correction",
                 duplicate_policy="merge",
             )
-            if preview:
-                print(self._dataframe.head(10))
-            else:
-                if self.verbose:
-                    print(self._dataframe)
+            self._dataframe = df
+            if (
+                self._timed_dataframe is not None
+                and x_column in self._timed_dataframe.columns
+                and y_column in self._timed_dataframe.columns
+            ):
+                self._timed_dataframe = tdf
+        else:
+            raise ValueError("No dataframe loaded!")
+        if preview:
+            print(self._dataframe.head(10))
+        else:
+            if self.verbose:
+                print(self._dataframe)
 
     # Momentum calibration work flow
     # 1. Calculate momentum calibration
@@ -816,6 +845,8 @@ class SedProcessor:
         self,
         calibration: dict = None,
         preview: bool = False,
+        verbose: bool = None,
+        **kwds,
     ):
         """2. step of the momentum calibration work flow: Apply the momentum
         calibration stored in the class to the dataframe. If corrected X/Y axis exist,
@@ -824,23 +855,36 @@ class SedProcessor:
         Args:
             calibration (dict, optional): Optional dictionary with calibration data to
                 use. Defaults to None.
-            preview (bool): Option to preview the first elements of the data frame.
+            preview (bool, optional): Option to preview the first elements of the data frame.
+                Defaults to False.
+            verbose (bool, optional): Option to print out diagnostic information.
+                Defaults to config["core"]["verbose"].
+            **kwds: Keyword args passed to ``DelayCalibrator.append_delay_axis``.
         """
+        if verbose is None:
+            verbose = self.verbose
+
+        x_column = self._config["dataframe"]["x_column"]
+        y_column = self._config["dataframe"]["y_column"]
+
         if self._dataframe is not None:
-            print("Adding kx/ky columns to dataframe:")
-            self._dataframe, metadata = self.mc.append_k_axis(
+            if verbose:
+                print("Adding kx/ky columns to dataframe:")
+            df, metadata = self.mc.append_k_axis(
                 df=self._dataframe,
                 calibration=calibration,
+                **kwds,
             )
-            if self._timed_dataframe is not None:
-                if (
-                    self._config["dataframe"]["x_column"] in self._timed_dataframe.columns
-                    and self._config["dataframe"]["y_column"] in self._timed_dataframe.columns
-                ):
-                    self._timed_dataframe, _ = self.mc.append_k_axis(
-                        df=self._timed_dataframe,
-                        calibration=calibration,
-                    )
+            if (
+                self._timed_dataframe is not None
+                and x_column in self._timed_dataframe.columns
+                and y_column in self._timed_dataframe.columns
+            ):
+                tdf, _ = self.mc.append_k_axis(
+                    df=self._timed_dataframe,
+                    calibration=calibration,
+                    **kwds,
+                )
 
             # Add Metadata
             self._attributes.add(
@@ -848,11 +892,20 @@ class SedProcessor:
                 "momentum_calibration",
                 duplicate_policy="merge",
             )
-            if preview:
-                print(self._dataframe.head(10))
-            else:
-                if self.verbose:
-                    print(self._dataframe)
+            self._dataframe = df
+            if (
+                self._timed_dataframe is not None
+                and x_column in self._timed_dataframe.columns
+                and y_column in self._timed_dataframe.columns
+            ):
+                self._timed_dataframe = tdf
+        else:
+            raise ValueError("No dataframe loaded!")
+        if preview:
+            print(self._dataframe.head(10))
+        else:
+            if self.verbose:
+                print(self._dataframe)
 
     # Energy correction workflow
     # 1. Adjust the energy correction parameters
