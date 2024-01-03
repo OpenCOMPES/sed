@@ -104,10 +104,10 @@ class MomentumCorrector:
         self.cdeform_field_bkp: np.ndarray = None
         self.inverse_dfield: np.ndarray = None
         self.dfield_updated: bool = False
-        self.transformations: Dict[Any, Any] = {}
-        self.correction: Dict[Any, Any] = self._config["momentum"].get("correction", {})
-        self.adjust_params: Dict[Any, Any] = {}
-        self.calibration: Dict[Any, Any] = self._config["momentum"].get("calibration", {})
+        self.transformations: Dict[str, Any] = self._config["momentum"].get("transformations", {})
+        self.correction: Dict[str, Any] = self._config["momentum"].get("correction", {})
+        self.adjust_params: Dict[str, Any] = {}
+        self.calibration: Dict[str, Any] = self._config["momentum"].get("calibration", {})
 
         self.x_column = self._config["dataframe"]["x_column"]
         self.y_column = self._config["dataframe"]["y_column"]
@@ -993,27 +993,19 @@ class MomentumCorrector:
 
     def pose_adjustment(
         self,
-        scale: float = 1,
-        xtrans: float = 0,
-        ytrans: float = 0,
-        angle: float = 0,
+        transformations: Dict[str, Any] = None,
         apply: bool = False,
         reset: bool = True,
         verbose: bool = True,
+        **kwds,
     ):
         """Interactive panel to adjust transformations that are applied to the image.
         Applies first a scaling, next a x/y translation, and last a rotation around
         the center of the image (pixel 256/256).
 
         Args:
-            scale (float, optional):
-                Initial value of the scaling slider. Defaults to 1.
-            xtrans (float, optional):
-                Initial value of the xtrans slider. Defaults to 0.
-            ytrans (float, optional):
-                Initial value of the ytrans slider. Defaults to 0.
-            angle (float, optional):
-                Initial value of the angle slider. Defaults to 0.
+            transformations (dict, optional): Dictionary with transformations.
+                Defaults to self.transformations or config["momentum"]["transformtions"].
             apply (bool, optional):
                 Option to directly apply the provided transformations.
                 Defaults to False.
@@ -1021,9 +1013,22 @@ class MomentumCorrector:
                 Option to reset the correction before transformation. Defaults to True.
             verbose (bool, optional):
                 Option to report the performed transformations. Defaults to True.
+            **kwds: Keyword parameters defining defaults for the transformations:
+
+                - *scale* (float): Initial value of the scaling slider.
+                - *xtrans* (float): Initial value of the xtrans slider.
+                - *ytrans* (float): Initial value of the ytrans slider.
+                - *angle* (float): Initial value of the angle slider.
         """
         matplotlib.use("module://ipympl.backend_nbagg")
-        source_image = self.slice_corrected
+        if self.slice_corrected is None or not self.slice_corrected.any():
+            if self.slice is None or not self.slice.any():
+                self.slice = np.zeros(self._config["momentum"]["bins"][0:2])
+            source_image = self.slice
+            plot = False
+        else:
+            source_image = self.slice_corrected
+            plot = True
 
         transformed_image = source_image
 
@@ -1034,25 +1039,41 @@ class MomentumCorrector:
             else:
                 self.reset_deformation()
 
-        fig, ax = plt.subplots(1, 1)
-        img = ax.imshow(transformed_image.T, origin="lower", cmap="terrain_r")
         center = self._config["momentum"]["center_pixel"]
-        ax.axvline(x=center[0])
-        ax.axhline(y=center[1])
+        if plot:
+            fig, ax = plt.subplots(1, 1)
+            img = ax.imshow(transformed_image.T, origin="lower", cmap="terrain_r")
+            ax.axvline(x=center[0])
+            ax.axhline(y=center[1])
+
+        if transformations is None:
+            transformations = deepcopy(self.transformations)
+
+        if len(kwds) > 0:
+            for key, value in kwds.items():
+                transformations[key] = value
+
+        elif "creation_date" in transformations and verbose:
+            datestring = datetime.fromtimestamp(transformations["creation_date"]).strftime(
+                "%m/%d/%Y, %H:%M:%S",
+            )
+            print(f"Using transformation parameters generated on {datestring}")
 
         def update(scale: float, xtrans: float, ytrans: float, angle: float):
             transformed_image = source_image
             if scale != 1:
-                self.transformations["scale"] = scale
+                transformations["scale"] = scale
                 transformed_image = self.coordinate_transform(
                     image=transformed_image,
                     transform_type="scaling",
                     xscale=scale,
                     yscale=scale,
                 )
+            if xtrans != 0:
+                transformations["xtrans"] = xtrans
+            if ytrans != 0:
+                transformations["ytrans"] = ytrans
             if xtrans != 0 or ytrans != 0:
-                self.transformations["xtrans"] = xtrans
-                self.transformations["ytrans"] = ytrans
                 transformed_image = self.coordinate_transform(
                     image=transformed_image,
                     transform_type="translation",
@@ -1060,41 +1081,52 @@ class MomentumCorrector:
                     ytrans=ytrans,
                 )
             if angle != 0:
-                self.transformations["angle"] = angle
+                transformations["angle"] = angle
                 transformed_image = self.coordinate_transform(
                     image=transformed_image,
                     transform_type="rotation",
                     angle=angle,
                     center=center,
                 )
-            img.set_data(transformed_image.T)
-            axmin = np.min(transformed_image, axis=(0, 1))
-            axmax = np.max(transformed_image, axis=(0, 1))
-            if axmin < axmax:
-                img.set_clim(axmin, axmax)
-            fig.canvas.draw_idle()
+            if plot:
+                img.set_data(transformed_image.T)
+                axmin = np.min(transformed_image, axis=(0, 1))
+                axmax = np.max(transformed_image, axis=(0, 1))
+                if axmin < axmax:
+                    img.set_clim(axmin, axmax)
+                fig.canvas.draw_idle()
 
-        update(scale=scale, xtrans=xtrans, ytrans=ytrans, angle=angle)
+        update(
+            scale=transformations.get("scale", 1),
+            xtrans=transformations.get("xtrans", 0),
+            ytrans=transformations.get("ytrans", 0),
+            angle=transformations.get("angle", 0),
+        )
 
         scale_slider = ipw.FloatSlider(
-            value=scale,
+            value=transformations.get("scale", 1),
             min=0.8,
             max=1.2,
             step=0.01,
         )
         xtrans_slider = ipw.FloatSlider(
-            value=xtrans,
+            value=transformations.get("xtrans", 0),
             min=-200,
             max=200,
             step=1,
         )
         ytrans_slider = ipw.FloatSlider(
-            value=ytrans,
+            value=transformations.get("ytrans", 0),
             min=-200,
             max=200,
             step=1,
         )
-        angle_slider = ipw.FloatSlider(value=angle, min=-180, max=180, step=1)
+        angle_slider = ipw.FloatSlider(
+            value=transformations.get("angle", 0),
+            min=-180,
+            max=180,
+            step=1,
+        )
         results_box = ipw.Output()
         ipw.interact(
             update,
@@ -1105,60 +1137,64 @@ class MomentumCorrector:
         )
 
         def apply_func(apply: bool):  # pylint: disable=unused-argument
-            if self.transformations.get("scale", 1) != 1:
+            if transformations.get("scale", 1) != 1:
                 self.coordinate_transform(
                     transform_type="scaling",
-                    xscale=self.transformations["scale"],
-                    yscale=self.transformations["scale"],
+                    xscale=transformations["scale"],
+                    yscale=transformations["scale"],
                     keep=True,
                 )
                 if verbose:
                     with results_box:
-                        print(f"Applied scaling with scale={self.transformations['scale']}.")
-            if (
-                self.transformations.get("xtrans", 0) != 0
-                or self.transformations.get("ytrans", 0) != 0
-            ):
+                        print(f"Applied scaling with scale={transformations['scale']}.")
+            if transformations.get("xtrans", 0) != 0 or transformations.get("ytrans", 0) != 0:
                 self.coordinate_transform(
                     transform_type="translation",
-                    xtrans=self.transformations["xtrans"],
-                    ytrans=self.transformations["ytrans"],
+                    xtrans=transformations.get("xtrans", 0),
+                    ytrans=transformations.get("ytrans", 0),
                     keep=True,
                 )
                 if verbose:
                     with results_box:
                         print(
-                            f"Applied translation with (xtrans={self.transformations['xtrans']},",
-                            f"ytrans={self.transformations['ytrans']}).",
+                            f"Applied translation with (xtrans={transformations.get('xtrans', 0)},",
+                            f"ytrans={transformations.get('ytrans', 0)}).",
                         )
-            if self.transformations.get("angle", 0) != 0:
+            if transformations.get("angle", 0) != 0:
                 self.coordinate_transform(
                     transform_type="rotation",
-                    angle=self.transformations["angle"],
+                    angle=transformations["angle"],
                     center=center,
                     keep=True,
                 )
                 if verbose:
                     with results_box:
-                        print(f"Applied rotation with angle={self.transformations['angle']}.")
+                        print(f"Applied rotation with angle={transformations['angle']}.")
 
                 display(results_box)
 
-            img.set_data(self.slice_transformed.T)
-            axmin = np.min(self.slice_transformed, axis=(0, 1))
-            axmax = np.max(self.slice_transformed, axis=(0, 1))
-            if axmin < axmax:
-                img.set_clim(axmin, axmax)
-            fig.canvas.draw_idle()
+            if plot:
+                img.set_data(self.slice_transformed.T)
+                axmin = np.min(self.slice_transformed, axis=(0, 1))
+                axmax = np.max(self.slice_transformed, axis=(0, 1))
+                if axmin < axmax:
+                    img.set_clim(axmin, axmax)
+                fig.canvas.draw_idle()
 
-            plt.figure()
-            subs = 20
-            plt.title("Deformation field")
-            plt.scatter(
-                self.rdeform_field[::subs, ::subs].ravel(),
-                self.cdeform_field[::subs, ::subs].ravel(),
-                c="b",
-            )
+            if transformations != self.transformations:
+                transformations["creation_date"] = datetime.now().timestamp()
+                self.transformations = transformations
+
+            if verbose:
+                plt.figure()
+                subs = 20
+                plt.title("Deformation field")
+                plt.scatter(
+                    self.rdeform_field[::subs, ::subs].ravel(),
+                    self.cdeform_field[::subs, ::subs].ravel(),
+                    c="b",
+                )
+                plt.show()
             scale_slider.close()
             xtrans_slider.close()
             ytrans_slider.close()
@@ -1169,7 +1205,8 @@ class MomentumCorrector:
         display(apply_button)
         apply_button.on_click(apply_func)
 
-        plt.show()
+        if plot:
+            plt.show()
 
         if apply:
             apply_func(True)
