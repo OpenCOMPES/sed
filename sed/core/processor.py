@@ -56,8 +56,12 @@ class SedProcessor:
             the config. Defaults to None.
         folder (str, optional): Folder containing files to pass to the loader
             defined in the config. Defaults to None.
+        runs (Sequence[str], optional): List of run identifiers to pass to the loader
+            defined in the config. Defaults to None.
         collect_metadata (bool): Option to collect metadata from files.
             Defaults to False.
+        verbose (bool, optional): Option to print out diagnostic information.
+            Defaults to config["core"]["verbose"] or False.
         **kwds: Keyword arguments passed to the reader.
     """
 
@@ -355,6 +359,8 @@ class SedProcessor:
                 loader. Defaults to None.
             folder (str, optional): Folder path to pass to the loader.
                 Defaults to None.
+            collect_metadata (bool, optional): Option for collecting metadata in the reader.
+            **kwds: Keyword parameters passed to the reader.
 
         Raises:
             ValueError: Raised if no valid input is provided.
@@ -520,8 +526,10 @@ class SedProcessor:
                 Defaults to False.
             include_center (bool, optional): Option to include a point at the center
                 in the feature list. Defaults to True.
-            ***kwds: Keyword arguments for MomentumCorrector.feature_extract() and
-                MomentumCorrector.feature_select()
+            apply (bool, optional): Option to directly apply the values and select the
+                slice. Defaults to False.
+            **kwds: Keyword arguments for ``MomentumCorrector.feature_extract()`` and
+                ``MomentumCorrector.feature_select()``.
         """
         if auto_detect:  # automatic feature selection
             sigma = kwds.pop("sigma", self._config["momentum"]["sigma"])
@@ -664,10 +672,10 @@ class SedProcessor:
                 Defaults to config["core"]["verbose"].
             **kwds: Keyword parameters defining defaults for the transformations:
 
-                - *scale* (float): Initial value of the scaling slider.
-                - *xtrans* (float): Initial value of the xtrans slider.
-                - *ytrans* (float): Initial value of the ytrans slider.
-                - *angle* (float): Initial value of the angle slider.
+                - **scale** (float): Initial value of the scaling slider.
+                - **xtrans** (float): Initial value of the xtrans slider.
+                - **ytrans** (float): Initial value of the ytrans slider.
+                - **angle** (float): Initial value of the angle slider.
         """
         if verbose is None:
             verbose = self.verbose
@@ -974,6 +982,7 @@ class SedProcessor:
                 correction. Defaults to config["energy"]["correction"]["center"].
             apply (bool, optional): Option to directly apply the provided or default
                 correction parameters. Defaults to False.
+            **kwds: Keyword parameters passed to ``EnergyCalibrator.adjust_energy_correction()``.
         """
         if self._pre_binned is None:
             print(
@@ -1198,7 +1207,7 @@ class SedProcessor:
         Args:
             ranges (Union[List[Tuple], Tuple]): Tuple of TOF values indicating a range.
                 Alternatively, a list of ranges for all traces can be given.
-            refid (int, optional): The id of the trace the range refers to.
+            ref_id (int, optional): The id of the trace the range refers to.
                 Defaults to 0.
             infer_others (bool, optional): Whether to determine the range for the other
                 traces. Defaults to True.
@@ -1563,7 +1572,7 @@ class SedProcessor:
                 Defaults to False.
             verbose (bool, optional): Option to print out diagnostic information.
                 Defaults to config["core"]["verbose"].
-            **kwds: additional arguments are passed to ``energy.tof_step_to_ns()``.
+            **kwds: additional arguments are passed to ``EnergyCalibrator.tof_step_to_ns()``.
 
         """
         if verbose is None:
@@ -1618,7 +1627,7 @@ class SedProcessor:
                 Defaults to False.
             verbose (bool, optional): Option to print out diagnostic information.
                 Defaults to config["core"]["verbose"].
-            **kwds: additional arguments are passed to ``energy.align_dld_sectors()``.
+            **kwds: additional arguments are passed to ``EnergyCalibrator.align_dld_sectors()``.
         """
         if verbose is None:
             verbose = self.verbose
@@ -1788,6 +1797,7 @@ class SedProcessor:
 
         Args:
             constant (float, optional): The constant to shift the delay axis by.
+            flip_delay_axis (bool, optional): Option to reverse the direction of the delay axis.
             columns (Union[str, Sequence[str]]): Name of the column(s) to apply the shift from.
             weights (Union[float, Sequence[float]]): weights to apply to the columns.
                 Can also be used to flip the sign (e.g. -1). Defaults to 1.
@@ -1927,7 +1937,7 @@ class SedProcessor:
                 jittering noise. If one number is given, the same is used for all axes.
                 For uniform noise (default) it will cover the interval [-amp, +amp].
                 Defaults to config["dataframe"]["jitter_amps"].
-            **kwds: additional keyword arguments passed to apply_jitter
+            **kwds: additional keyword arguments passed to ``apply_jitter``.
         """
         if cols is None:
             cols = self._config["dataframe"]["jitter_cols"]
@@ -1983,7 +1993,7 @@ class SedProcessor:
                 If omitted, data are retrieved from the epics archiver.
             archiver_channel (str, optional): EPICS archiver channel from which to retrieve data.
                 Either this or data and time_stamps have to be present.
-            **kwds: additional keyword arguments passed to add_time_stamped_data
+            **kwds: additional keyword arguments passed to ``add_time_stamped_data``.
         """
         time_stamp_column = kwds.pop(
             "time_stamp_column",
