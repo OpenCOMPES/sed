@@ -1491,7 +1491,7 @@ class EnergyCalibrator:
 
         Args:
             df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to use.
-            offset (Dict, optional): Dictionary of energy offset parameters.
+            offsets (Dict, optional): Dictionary of energy offset parameters.
             constant (float, optional): The constant to shift the energy axis by.
             columns (Union[str, Sequence[str]]): Name of the column(s) to apply the shift from.
             weights (Union[float, Sequence[float]]): weights to apply to the columns.

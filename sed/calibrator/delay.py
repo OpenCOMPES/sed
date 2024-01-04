@@ -221,7 +221,7 @@ class DelayCalibrator:
 
         Args:
             df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to use.
-            offset (Dict, optional): Dictionary of delay offset parameters.
+            offsets (Dict, optional): Dictionary of delay offset parameters.
             constant (float, optional): The constant to shift the delay axis by.
             flip_delay_axis (bool, optional): Whether to flip the time axis. Defaults to False.
             columns (Union[str, Sequence[str]]): Name of the column(s) to apply the shift from.
@@ -233,6 +233,7 @@ class DelayCalibrator:
                 of dask.dataframe.Series. For example "mean". In this case the function is applied
                 to the column to generate a single value for the whole dataset. If None, the shift
                 is applied per-dataframe-row. Defaults to None. Currently only "mean" is supported.
+            delay_column (str, optional): Name of the column containing the delay values.
             verbose (bool, optional): Option to print out diagnostic information.
                 Defaults to True.
 
@@ -381,13 +382,13 @@ def extract_delay_stage_parameters(
     Read delay stage ranges from hdf5 file
 
     Parameters:
-        file: filename
-        p1_key: hdf5 path to the start of the scan range
-        p2_key: hdf5 path to the end of the scan range
-        t0_key: hdf5 path to the t0 value
+        file (str): filename
+        p1_key (str): hdf5 path to the start of the scan range
+        p2_key (str): hdf5 path to the end of the scan range
+        t0_key (str): hdf5 path to the t0 value
 
     Returns:
-        (p1_value, p2_value, t0_value)
+        tuple: (p1_value, p2_value, t0_value)
     """
     with h5py.File(file, "r") as file_handle:
         values = []
@@ -408,14 +409,11 @@ def mm_to_ps(
     (double pass).
 
     Args:
-        delay_mm (Union[float, Sequence[float]]):
-            Delay stage position in mm
-        time0_mm (_type_):
-            Delay stage position of pump-probe overlap in mm
+        delay_mm (Union[float, Sequence[float]]): Delay stage position in mm
+        time0_mm (float): Delay stage position of pump-probe overlap in mm
 
     Returns:
-        Union[float, Sequence[float]]:
-            Relative delay in picoseconds
+        Union[float, Sequence[float]]: Relative delay in picoseconds
     """
     delay_ps = (delay_mm - time0_mm) / 0.15
     return delay_ps

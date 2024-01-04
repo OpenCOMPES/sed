@@ -1015,10 +1015,10 @@ class MomentumCorrector:
                 Option to report the performed transformations. Defaults to True.
             **kwds: Keyword parameters defining defaults for the transformations:
 
-                - *scale* (float): Initial value of the scaling slider.
-                - *xtrans* (float): Initial value of the xtrans slider.
-                - *ytrans* (float): Initial value of the ytrans slider.
-                - *angle* (float): Initial value of the angle slider.
+                - **scale** (float): Initial value of the scaling slider.
+                - **xtrans** (float): Initial value of the xtrans slider.
+                - **ytrans** (float): Initial value of the ytrans slider.
+                - **angle** (float): Initial value of the angle slider.
         """
         matplotlib.use("module://ipympl.backend_nbagg")
         if self.slice_corrected is None or not self.slice_corrected.any():
