@@ -111,6 +111,8 @@ class SedProcessor:
 
         if verbose is None:
             self.verbose = self._config["core"].get("verbose", False)
+        else:
+            self.verbose = verbose
 
         self._dataframe: Union[pd.DataFrame, ddf.DataFrame] = None
         self._timed_dataframe: Union[pd.DataFrame, ddf.DataFrame] = None
