@@ -1,22 +1,19 @@
 """
-This module contains the DataFrameCreator class which provides functionality for creating pandas
-DataFrames from HDF5 files with multiple channels.
+This module provides functionality for creating pandas DataFrames from HDF5 files with multiple
+channels, found using get_channels method.
 
-The DataFrameCreator class provides methods for getting channels associated with specified formats,
-checking if 'group_name' and converting to 'index_key' and 'dataset_key' if so, returning
-a h5 dataset for a given channel name, computing the index for the 'per_electron' data,
-returning a pandas DataFrame for a given channel name of type [per electron], [per pulse],
-and [per train], validating if the index and dataset keys for all channels in config exist
-in the h5 file, and creating pandas DataFrames for the given file.
-
+The DataFrameCreator class requires a configuration dictionary with only the dataframe key and
+an open h5 file. It validates if provided [index and dataset keys] or [group_name key] has
+groups existing in the h5 file.
+Three formats of channels are supported: [per electron], [per pulse], and [per train].
+These can be accessed using the df_electron, df_pulse, and df_train properties respectively.
+The combined DataFrame can be accessed using the df property.
 Typical usage example:
 
-    df_creator = DataFrameCreator(config_dataframe)
-    dataframe = df_creator.create_dataframe_per_file(file_path)
+    df_creator = DataFrameCreator(cfg_df, h5_file)
+    dataframe = df_creator.df
 """
 from __future__ import annotations
-
-from pathlib import Path
 
 import h5py
 import numpy as np
@@ -34,17 +31,17 @@ class DataFrameCreator:
     Utility class for creating pandas DataFrames from HDF5 files with multiple channels.
     """
 
-    def __init__(self, config_dataframe: dict, h5_path: Path) -> None:
+    def __init__(self, cfg_df: dict, h5_file: h5py.File) -> None:
         """
         Initializes the DataFrameCreator class.
 
         Args:
-            config_dataframe (dict): The configuration dictionary with only the dataframe key.
+            cfg_df (dict): The configuration dictionary with only the dataframe key.
         """
-        self.h5_file: h5py.File = h5py.File(h5_path, "r")
+        self.h5_file: h5py.File = h5_file
         self.failed_files_error: list[str] = []
         self.multi_index = get_channels(index=True)
-        self._config = config_dataframe
+        self._config = cfg_df
 
     def get_index_dataset_key(self, channel: str) -> tuple[str, str]:
         """
