@@ -95,9 +95,6 @@ class BufferFileHandler:
             get_channels(self._config["channels"], formats="all", index=True, extend_aux=True),
         )
 
-        if self._config.get("split_sector_id_from_dld_time", False):
-            config_schema.add(self._config.get("sector_id_column", False))
-
         for i, schema in enumerate(parquet_schemas):
             schema_set = set(schema.names)
             if schema_set != config_schema:
@@ -149,14 +146,14 @@ class BufferFileHandler:
             df_creator_instances = [
                 DataFrameCreator(self._config, h5_path) for h5_path in self.h5_to_create
             ]
-        if debug:
-            dataframes = [df_creator.df for df_creator in df_creator_instances]
-        else:
-            dataframes = Parallel(n_jobs=self.num_files, verbose=10)(
-                delayed(df_creator.df) for df_creator in df_creator_instances
-            )
-        for df, prq in zip(dataframes, self.buffer_to_create):
-            df.to_parquet(prq)
+            if debug:
+                dataframes = [df_creator.df for df_creator in df_creator_instances]
+            else:
+                dataframes = Parallel(n_jobs=self.num_files, verbose=10)(
+                    delayed(df_creator.df) for df_creator in df_creator_instances
+                )
+            for df, prq in zip(dataframes, self.buffer_to_create):
+                df.reset_index().to_parquet(prq)
 
     def get_filled_dataframe(self) -> None:
         """

@@ -9,8 +9,8 @@ core:
 
   # The paths to the raw and parquet data directories.
   paths:
-    data_raw_dir: "tests/data/loader/flash/"
-    data_parquet_dir: "tests/data/loader/flash/parquet"
+    data_raw_dir: "/Users/zain/Documents/Work/sed/tutorial/"
+    data_parquet_dir: "/Users/zain/Documents/Work/sed/tutorial/processed"
 
   # These can be replaced by beamtime_id and year to automatically
   # find the folders on the desy cluster
