@@ -26,7 +26,7 @@ from pandas import Index
 from pandas import MultiIndex
 from pandas import Series
 
-from sed.loader.utils import split_dld_time_from_sector_id
+from sed.loader.fel.utils import get_channels
 
 
 class DataFrameCreator:
@@ -34,78 +34,17 @@ class DataFrameCreator:
     Utility class for creating pandas DataFrames from HDF5 files with multiple channels.
     """
 
-    def __init__(self, config_dataframe: dict) -> None:
+    def __init__(self, config_dataframe: dict, h5_path: Path) -> None:
         """
         Initializes the DataFrameCreator class.
 
         Args:
             config_dataframe (dict): The configuration dictionary with only the dataframe key.
         """
-        super().__init__()
-        self.h5_file: h5py.File = None
+        self.h5_file: h5py.File = h5py.File(h5_path, "r")
         self.failed_files_error: list[str] = []
-        self.multi_index = ["trainId", "pulseId", "electronId"]
+        self.multi_index = get_channels(index=True)
         self._config = config_dataframe
-
-    def get_channels(
-        self,
-        formats: str | list[str] = "",
-        index: bool = False,
-        extend_aux: bool = True,
-    ) -> list[str]:
-        """
-        Returns a list of channels associated with the specified format(s).
-
-        Args:
-            formats (Union[str, List[str]]): The desired format(s)
-            ('per_pulse', 'per_electron', 'per_train', 'all').
-            index (bool): If True, includes channels from the multi_index.
-            extend_aux (bool): If True, includes channels from the 'dldAuxChannels' dictionary,
-                    else includes 'dldAux'.
-
-        Returns:
-            List[str]: A list of channels with the specified format(s).
-        """
-        # Get the available channels excluding 'pulseId'.
-        available_channels = list(self._config["channels"].keys())
-        # raises error if not available, but necessary for pulse_index
-        available_channels.remove("pulseId")
-        # If 'formats' is a single string, convert it to a list for uniform processing.
-        if isinstance(formats, str):
-            formats = [formats]
-
-        # If 'formats' is a string "all", gather all possible formats.
-        if formats == ["all"]:
-            channels = self.get_channels(
-                ["per_pulse", "per_train", "per_electron"],
-                index,
-                extend_aux,
-            )
-            return channels
-
-        channels = []
-        for format_ in formats:
-            # Gather channels based on the specified format(s).
-            channels.extend(
-                key
-                for key in available_channels
-                if self._config["channels"][key]["format"] == format_ and key != "dldAux"
-            )
-            # Include 'dldAuxChannels' if the format is 'per_pulse' and extend_aux is True.
-            # Otherwise, include 'dldAux'.
-            if format_ == "per_train" and "dldAux" in available_channels:
-                if extend_aux:
-                    channels.extend(
-                        self._config["channels"]["dldAux"]["dldAuxChannels"].keys(),
-                    )
-                else:
-                    channels.extend(["dldAux"])
-
-        # Include channels from multi_index if 'index' is True.
-        if index:
-            channels.extend(self.multi_index)
-
-        return channels
 
     def get_index_dataset_key(self, channel: str) -> tuple[str, str]:
         """
@@ -214,7 +153,7 @@ class DataFrameCreator:
         index, indexer = self.pulse_index(offset)
 
         # Data logic
-        channels = self.get_channels("per_electron")
+        channels = get_channels(self._config["channels"], "per_electron")
         slice_index = [self._config["channels"][channel].get("slice", None) for channel in channels]
         dataset_keys = [self.get_index_dataset_key(channel)[1] for channel in channels]
         all_keys_same = all(key == dataset_keys[0] for key in dataset_keys)
@@ -244,7 +183,7 @@ class DataFrameCreator:
             DataFrame: The pandas DataFrame for the 'per_pulse' channel's data.
         """
         series = []
-        channels = self.get_channels("per_pulse")
+        channels = get_channels(self._config["channels"], "per_pulse")
         for channel in channels:
             # get slice
             key, dataset = self.get_dataset_array(channel, slice_=True)
@@ -265,7 +204,8 @@ class DataFrameCreator:
             DataFrame: The pandas DataFrame for the 'per_train' channel's data.
         """
         series = []
-        channels = self.get_channels("per_train", extend_aux=False)
+
+        channels = get_channels(self._config["channels"], "per_train")
 
         for channel in channels:
             key, dataset = self.get_dataset_array(channel, slice_=True)
@@ -282,18 +222,6 @@ class DataFrameCreator:
 
         return concat(series, axis=1)
 
-    @property
-    def df(self) -> DataFrame:
-        """
-        Returns a pandas DataFrame containing data from 'per_electron', 'per_pulse',
-        and 'per_train' channels.
-
-        Returns:
-            DataFrame: The combined pandas DataFrame.
-        """
-        # Use pd.concat to join the data frames into a single DataFrame
-        return concat((self.df_electron, self.df_pulse, self.df_train), axis=1)
-
     def validate_channel_keys(self) -> None:
         """
         Validates if the index and dataset keys for all channels in config exist in the h5 file.
@@ -308,23 +236,19 @@ class DataFrameCreator:
             if dataset_key not in self.h5_file:
                 raise KeyError(f"Dataset key '{dataset_key}' doesn't exist in the file.")
 
-    def create_dataframe_per_file(self, file_path: Path) -> DataFrame:
+    @property
+    def df(self) -> DataFrame:
         """
-        Create pandas DataFrames for the given file.
-
-        Args:
-            file_path (Path): Path to the input HDF5 file.
+        Joins the 'per_electron', 'per_pulse', and 'per_train' using join operation,
+        returning a single dataframe.
 
         Returns:
-            DataFrame: pandas DataFrame
+            DataFrame: The combined pandas DataFrame.
         """
-        # Loads h5 file and creates a dataframe
-        self.h5_file = h5py.File(file_path, "r")
+
         self.validate_channel_keys()
-        df = self.df
-        # TODO: Not sure if this should be here and not at electron df
-        df = df.dropna(subset=self._config.get("tof_column", "dldTimeSteps"))
-        # Correct the 3-bit shift which encodes the detector ID in the 8s time
-        if self._config.get("split_sector_id_from_dld_time", False):
-            df = split_dld_time_from_sector_id(df, config=self._config)
-        return df.reset_index()
+        return (
+            self.df_electron.join(self.df_pulse, on=self.multi_index, how="outer")
+            .join(self.df_train, on=self.multi_index, how="outer")
+            .sort_index()
+        )

@@ -110,11 +110,3 @@ class ParquetHandler:
                 "The Parquet file does not exist. "
                 "If it is in another location, provide the correct path as parquet_path.",
             ) from exc
-
-    def delete_parquet(self) -> None:
-        """
-        Delete the Parquet file.
-        """
-        for parquet_path in self.parquet_paths:
-            parquet_path.unlink()
-            print(f"Parquet file deleted: {parquet_path}")
