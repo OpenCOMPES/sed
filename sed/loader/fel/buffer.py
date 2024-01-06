@@ -57,6 +57,7 @@ class BufferFileHandler:
             suffix (str): Suffix for buffer file names.
             debug (bool): Flag to enable debug mode.
         """
+        self._config = config_dataframe
         self.pq_handler = ParquetHandler(
             [Path(h5_path).stem for h5_path in h5_paths],
             folder,
