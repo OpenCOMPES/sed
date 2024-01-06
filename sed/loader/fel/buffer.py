@@ -1,16 +1,18 @@
 """
-The BufferFileHandler class extends the DataFrameCreator class and uses the ParquetHandler class to
-manage buffer files. It provides methods for initializing paths, checking the schema of Parquet
-files, determining the list of files to read, serializing and parallelizing the creation of buffer
-files, and reading all Parquet files into one Dask DataFrame.
+The BufferFileHandler uses the DataFrameCreator class and uses the ParquetHandler class to
+manage buffer files. It provides methods for initializing paths, checking the schema,
+determining the list of files to read, serializing and parallelizing the creation, and reading
+all files into one Dask DataFrame.
 
-Typical usage example:
+After initialization, the electron and timed dataframes can be accessed as:
 
-    buffer_handler = BufferFileHandler(config_dataframe, h5_paths, folder)
+    buffer_handler = BufferFileHandler(cfg_df, h5_paths, folder)
 
-Combined DataFrames for electrons and pulses are then available as:
     buffer_handler.electron_dataframe
     buffer_handler.pulse_dataframe
+
+Force_recreate flag forces recreation of buffer files. Useful when the schema has changed.
+Debug mode serializes the creation of buffer files.
 """
 from __future__ import annotations
 
@@ -18,6 +20,7 @@ from itertools import compress
 from pathlib import Path
 
 import dask.dataframe as ddf
+import h5py
 import pyarrow.parquet as pq
 from joblib import delayed
 from joblib import Parallel
@@ -37,10 +40,10 @@ class BufferFileHandler:
 
     def __init__(
         self,
-        config_dataframe: dict,
+        cfg_df: dict,
         h5_paths: list[Path],
         folder: Path,
-        force_recreate: bool,
+        force_recreate: bool = False,
         prefix: str = "",
         suffix: str = "",
         debug: bool = False,
@@ -49,7 +52,7 @@ class BufferFileHandler:
         Initializes the BufferFileHandler.
 
         Args:
-            config_dataframe (dict): The configuration dictionary with only the dataframe key.
+            cfg_df (dict): The configuration dictionary with only the dataframe key.
             h5_paths (List[Path]): List of paths to H5 files.
             folder (Path): Path to the folder for buffer files.
             force_recreate (bool): Flag to force recreation of buffer files.
@@ -57,7 +60,7 @@ class BufferFileHandler:
             suffix (str): Suffix for buffer file names.
             debug (bool): Flag to enable debug mode.
         """
-        self._config = config_dataframe
+        self._config = cfg_df
         self.pq_handler = ParquetHandler(
             [Path(h5_path).stem for h5_path in h5_paths],
             folder,
@@ -134,6 +137,25 @@ class BufferFileHandler:
 
         print(f"Reading files: {self.num_files} new files of {len(h5_paths)} total.")
 
+    def _create_buffer_file(self, h5_path: Path, parquet_path: Path) -> None:
+        """
+        Creates a single buffer file. Useful because h5py.File cannot be pickled if left open.
+        """
+        # Open the h5 file in read mode
+        h5_file = h5py.File(h5_path, "r")
+
+        # Create a DataFrameCreator instance with the configuration and the h5 file
+        dfc = DataFrameCreator(self._config, h5_file)
+
+        # Get the DataFrame from the DataFrameCreator instance
+        df = dfc.df
+
+        # Close the h5 file
+        h5_file.close()
+
+        # Reset the index of the DataFrame and save it as a parquet file
+        df.reset_index().to_parquet(parquet_path)
+
     def create_buffer_files(self, debug: bool) -> None:
         """
         Creates the buffer files.
@@ -141,19 +163,15 @@ class BufferFileHandler:
         Args:
             debug (bool): Flag to enable debug mode, which serializes the creation.
         """
-        dataframes: list[ddf.DataFrame] = []
         if self.num_files > 0:
-            df_creator_instances = [
-                DataFrameCreator(self._config, h5_path) for h5_path in self.h5_to_create
-            ]
             if debug:
-                dataframes = [df_creator.df for df_creator in df_creator_instances]
+                for h5_path, parquet_path in zip(self.h5_to_create, self.buffer_to_create):
+                    self._create_buffer_file(h5_path, parquet_path)
             else:
-                dataframes = Parallel(n_jobs=self.num_files, verbose=10)(
-                    delayed(df_creator.df) for df_creator in df_creator_instances
+                Parallel(n_jobs=self.num_files, verbose=10)(
+                    delayed(self._create_buffer_file)(h5_path, parquet_path)
+                    for h5_path, parquet_path in zip(self.h5_to_create, self.buffer_to_create)
                 )
-            for df, prq in zip(dataframes, self.buffer_to_create):
-                df.reset_index().to_parquet(prq)
 
     def get_filled_dataframe(self) -> None:
         """
