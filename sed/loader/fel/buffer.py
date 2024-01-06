@@ -25,9 +25,11 @@ from joblib import Parallel
 from sed.core.dfops import forward_fill_lazy
 from sed.loader.fel.dataframe import DataFrameCreator
 from sed.loader.fel.parquet import ParquetHandler
+from sed.loader.fel.utils import get_channels
+from sed.loader.utils import split_dld_time_from_sector_id
 
 
-class BufferFileHandler(DataFrameCreator):
+class BufferFileHandler:
     """
     A class for handling the creation and manipulation of buffer files using DataFrameCreator
     and ParquetHandler.
@@ -76,10 +78,7 @@ class BufferFileHandler(DataFrameCreator):
 
         self.get_files_to_read(h5_paths, force_recreate)
 
-        if debug:
-            self.serial_buffer_file_creation()
-        else:
-            self.parallel_buffer_file_creation()
+        self.create_buffer_files(debug)
 
         self.get_filled_dataframe()
 
@@ -92,7 +91,10 @@ class BufferFileHandler(DataFrameCreator):
         """
         existing_parquet_filenames = [file for file in self.buffer_paths if file.exists()]
         parquet_schemas = [pq.read_schema(file) for file in existing_parquet_filenames]
-        config_schema = set(self.get_channels(formats="all", index=True, extend_aux=True))
+        config_schema = set(
+            get_channels(self._config["channels"], formats="all", index=True, extend_aux=True),
+        )
+
         if self._config.get("split_sector_id_from_dld_time", False):
             config_schema.add(self._config.get("sector_id_column", False))
 
@@ -135,35 +137,26 @@ class BufferFileHandler(DataFrameCreator):
 
         print(f"Reading files: {self.num_files} new files of {len(h5_paths)} total.")
 
-    def serial_buffer_file_creation(self) -> None:
+    def create_buffer_files(self, debug: bool) -> None:
         """
-        Serializes the creation of buffer files.
+        Creates the buffer files.
 
-        Raises:
-            ValueError: If an error occurs during the conversion process.
+        Args:
+            debug (bool): Flag to enable debug mode, which serializes the creation.
         """
-        dataframes: list[ddf.DataFrame] = None
+        dataframes: list[ddf.DataFrame] = []
         if self.num_files > 0:
-            dataframes = [self.create_dataframe_per_file(h5_path) for h5_path in self.h5_to_create]
-
-            for df, prq in zip(dataframes, self.buffer_to_create):
-                df.to_parquet(prq)
-
-    def parallel_buffer_file_creation(self) -> None:
-        """
-        Parallelizes the creation of buffer files.
-
-        Raises:
-            ValueError: If an error occurs during the conversion process.
-        """
-        dataframes: list[ddf.DataFrame] = None
-        if self.num_files > 0:
+            df_creator_instances = [
+                DataFrameCreator(self._config, h5_path) for h5_path in self.h5_to_create
+            ]
+        if debug:
+            dataframes = [df_creator.df for df_creator in df_creator_instances]
+        else:
             dataframes = Parallel(n_jobs=self.num_files, verbose=10)(
-                delayed(self.create_dataframe_per_file)(h5_path) for h5_path in self.h5_to_create
+                delayed(df_creator.df) for df_creator in df_creator_instances
             )
-
-            for df, prq in zip(dataframes, self.buffer_to_create):
-                df.to_parquet(prq)
+        for df, prq in zip(dataframes, self.buffer_to_create):
+            df.to_parquet(prq)
 
     def get_filled_dataframe(self) -> None:
         """
@@ -172,8 +165,12 @@ class BufferFileHandler(DataFrameCreator):
         dataframe = ddf.read_parquet(self.buffer_paths, calculate_divisions=True)
         metadata = [pq.read_metadata(file) for file in self.buffer_paths]
 
-        channels: list[str] = self.get_channels(["per_pulse", "per_train"], extend_aux=True)
-
+        channels: list[str] = get_channels(
+            self._config["channels"],
+            ["per_pulse", "per_train"],
+            extend_aux=True,
+        )
+        index: list[str] = get_channels(index=True)
         overlap = min(file.num_rows for file in metadata)
 
         print("Filling nan values...")
@@ -184,8 +181,16 @@ class BufferFileHandler(DataFrameCreator):
             iterations=self._config.get("forward_fill_iterations", 2),
         )
 
-        self.dataframe_electron = dataframe.dropna(
-            subset=self.get_channels(["per_electron"]),
-        )
-        self.dataframe_pulse = dataframe[self.multi_index + channels]
-        self.dataframe_pulse = self.dataframe_pulse[(self.dataframe_pulse["electronId"] == 0)]
+        # Drop rows with nan values in the tof column
+        tof_column = self._config.get("tof_column", "dldTimeSteps")
+        dataframe_electron = dataframe.dropna(subset=self._config.get(tof_column))
+
+        # Correct the 3-bit shift which encodes the detector ID in the 8s time
+        if self._config.get("split_sector_id_from_dld_time", False):
+            self.dataframe_electron = split_dld_time_from_sector_id(
+                dataframe_electron,
+                config=self._config,
+            )
+        else:
+            self.dataframe_electron = dataframe_electron
+        self.dataframe_pulse = dataframe[index + channels]
