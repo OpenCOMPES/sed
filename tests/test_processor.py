@@ -8,7 +8,6 @@ import tempfile
 from importlib.util import find_spec
 from pathlib import Path
 from typing import Any
-from typing import cast
 from typing import Dict
 from typing import List
 from typing import Tuple
@@ -20,7 +19,6 @@ import xarray as xr
 
 from sed import SedProcessor
 from sed.core.config import parse_config
-from sed.loader.flash.loader import FlashLoader
 from sed.loader.loader_interface import get_loader
 
 #  pylint: disable=duplicate-code
@@ -335,11 +333,11 @@ def test_pose_adjustment() -> None:
         verbose=True,
     )
     # pose adjustment w/o loaded image
-    processor.pose_adjustment(**adjust_params, use_correction=False, apply=True)  # type: ignore[arg-type]
+    processor.pose_adjustment(**adjust_params, use_correction=False, apply=True)  # type: ignore
 
     processor.bin_and_load_momentum_calibration(apply=True)
     # test pose adjustment
-    processor.pose_adjustment(**adjust_params, use_correction=False, apply=True)  # type: ignore[arg-type]
+    processor.pose_adjustment(**adjust_params, use_correction=False, apply=True)  # type: ignore
 
     processor = SedProcessor(
         folder=df_folder,

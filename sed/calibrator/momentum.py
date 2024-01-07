@@ -73,7 +73,7 @@ class MomentumCorrector:
         self.slice: np.ndarray = None
         self.slice_corrected: np.ndarray = None
         self.slice_transformed: np.ndarray = None
-        self.bin_ranges: List[Tuple] = []
+        self.bin_ranges: List[Tuple] = self._config["momentum"].get("bin_ranges", [])
 
         if data is not None:
             self.load_data(data=data, bin_ranges=bin_ranges)
