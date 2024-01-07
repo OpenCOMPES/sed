@@ -1,7 +1,7 @@
 """
 The ParquetHandler class allows for saving and reading Dask DataFrames to/from Parquet files.
-It also provides methods for initializing paths, deleting Parquet files, and reading Parquet
-files into a Dask DataFrame.
+It also provides methods for initializing paths, saving Parquet files and also reading them
+into a Dask DataFrame.
 
 Typical usage example:
 
@@ -17,17 +17,7 @@ import dask.dataframe as ddf
 
 
 class ParquetHandler:
-    """
-    A handler for saving and reading Dask DataFrames to/from Parquet files.
-
-    Args:
-        parquet_names Union[str, List[str]]: The base name of the Parquet files.
-        folder (Path): The directory where the Parquet file will be stored.
-        subfolder (str): Optional subfolder within the main folder.
-        prefix (str): Optional prefix for the Parquet file name.
-        suffix (str): Optional suffix for the Parquet file name.
-        parquet_path (Path): Optional custom path for the Parquet file.
-    """
+    """A class for handling the creation and manipulation of Parquet files."""
 
     def __init__(
         self,
@@ -39,6 +29,17 @@ class ParquetHandler:
         extension: str = "parquet",
         parquet_paths: Path = None,
     ):
+        """
+        A handler for saving and reading Dask DataFrames to/from Parquet files.
+
+        Args:
+            parquet_names Union[str, List[str]]: The base name of the Parquet files.
+            folder (Path): The directory where the Parquet file will be stored.
+            subfolder (str): Optional subfolder within the main folder.
+            prefix (str): Optional prefix for the Parquet file name.
+            suffix (str): Optional suffix for the Parquet file name.
+            parquet_path (Path): Optional custom path for the Parquet file.
+        """
 
         self.parquet_paths: list[Path] = None
 
@@ -50,6 +51,8 @@ class ParquetHandler:
         if folder and not parquet_names:
             raise ValueError("With folder, please provide parquet_names.")
 
+        # If parquet_paths is provided, use it and ignore the other arguments
+        # Else, initialize the paths
         if parquet_paths:
             self.parquet_paths = (
                 parquet_paths if isinstance(parquet_paths, list) else [parquet_paths]
@@ -73,21 +76,24 @@ class ParquetHandler:
         parquet_dir = folder.joinpath(subfolder)
         parquet_dir.mkdir(parents=True, exist_ok=True)
 
+        if extension:
+            extension = f".{extension}"  # to be backwards compatible
         self.parquet_paths = [
-            parquet_dir.joinpath(Path(f"{prefix}{name}{suffix}.{extension}"))
+            parquet_dir.joinpath(Path(f"{prefix}{name}{suffix}{extension}"))
             for name in parquet_names
         ]
 
     def save_parquet(
         self,
         dfs: list[ddf.DataFrame],
-        drop_index=False,
+        drop_index: bool = False,
     ) -> None:
         """
         Save the DataFrame to a Parquet file.
 
         Args:
             dfs (DataFrame | ddf.DataFrame): The pandas or Dask Dataframe to be saved.
+            drop_index (bool): If True, drops the index before saving.
         """
         # Compute the Dask DataFrame, reset the index, and save to Parquet
         for df, parquet_path in zip(dfs, self.parquet_paths):

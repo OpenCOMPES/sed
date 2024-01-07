@@ -37,6 +37,7 @@ class DataFrameCreator:
 
         Args:
             cfg_df (dict): The configuration dictionary with only the dataframe key.
+            h5_file (h5py.File): The open h5 file.
         """
         self.h5_file: h5py.File = h5_file
         self.failed_files_error: list[str] = []
@@ -85,7 +86,7 @@ class DataFrameCreator:
 
         Args:
             channel (str): The name of the channel.
-            slice (bool): If True, applies slicing on the dataset.
+            slice_ (bool): If True, applies slicing on the dataset.
 
         Returns:
             tuple[Index, h5py.Dataset]: A tuple containing the train ID Index and the numpy array

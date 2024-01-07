@@ -61,15 +61,8 @@ class BufferFileHandler:
             debug (bool): Flag to enable debug mode.
         """
         self._config = cfg_df
-        self.pq_handler = ParquetHandler(
-            [Path(h5_path).stem for h5_path in h5_paths],
-            folder,
-            "buffer",
-            prefix,
-            suffix,
-            extension="",
-        )
-        self.buffer_paths = self.pq_handler.parquet_paths
+
+        self.buffer_paths: list[Path] = []
         self.h5_to_create: list[Path] = []
         self.buffer_to_create: list[Path] = []
 
@@ -79,7 +72,7 @@ class BufferFileHandler:
         if not force_recreate:
             self.schema_check()
 
-        self.get_files_to_read(h5_paths, force_recreate)
+        self.get_files_to_read(h5_paths, folder, prefix, suffix, force_recreate)
 
         self.create_buffer_files(debug)
 
@@ -119,20 +112,43 @@ class BufferFileHandler:
                     "Please check the configuration file or set force_recreate to True.",
                 )
 
-    def get_files_to_read(self, h5_paths: list[Path], force_recreate: bool) -> None:
+    def get_files_to_read(
+        self,
+        h5_paths: list[Path],
+        folder: Path,
+        prefix: str,
+        suffix: str,
+        force_recreate: bool,
+    ) -> None:
         """
-        Determines the list of files to read from the H5 files.
+        Determines the list of files to read and the corresponding buffer files to create.
 
         Args:
             h5_paths (List[Path]): List of paths to H5 files.
+            folder (Path): Path to the folder for buffer files.
+            prefix (str): Prefix for buffer file names.
+            suffix (str): Suffix for buffer file names.
             force_recreate (bool): Flag to force recreation of buffer files.
         """
+        # Getting the paths of the buffer files, with subfolder as buffer and no extension
+        pq_handler = ParquetHandler(
+            [Path(h5_path).stem for h5_path in h5_paths],
+            folder,
+            "buffer",
+            prefix,
+            suffix,
+            extension="",
+        )
+        self.buffer_paths = pq_handler.parquet_paths
+        # read only the files that do not exist or if force_recreate is True
         files_to_read = [
             force_recreate or not parquet_path.exists() for parquet_path in self.buffer_paths
         ]
 
+        # Get the list of H5 files to read and the corresponding buffer files to create
         self.h5_to_create = list(compress(h5_paths, files_to_read))
         self.buffer_to_create = list(compress(self.buffer_paths, files_to_read))
+
         self.num_files = len(self.h5_to_create)
 
         print(f"Reading files: {self.num_files} new files of {len(h5_paths)} total.")
@@ -140,6 +156,10 @@ class BufferFileHandler:
     def _create_buffer_file(self, h5_path: Path, parquet_path: Path) -> None:
         """
         Creates a single buffer file. Useful because h5py.File cannot be pickled if left open.
+
+        Args:
+            h5_path (Path): Path to the H5 file.
+            parquet_path (Path): Path to the buffer file.
         """
         # Open the h5 file in read mode
         h5_file = h5py.File(h5_path, "r")
