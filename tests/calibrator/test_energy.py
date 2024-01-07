@@ -631,7 +631,7 @@ def test_add_offsets_functionality(energy_scale: str) -> None:
         loader=get_loader("flash", config=config),
     )
     t_df = dask.dataframe.from_pandas(df.copy(), npartitions=2)
-    res, meta = ec.add_offsets(t_df, **params)  # type: ignore[arg-type] # pylint disable=unexpected-keyword-arg
+    res, meta = ec.add_offsets(t_df, **params)  # type: ignore
     np.testing.assert_allclose(res["energy"].values, exp_vals.values)
     exp_meta = {}
     exp_meta["applied"] = True
