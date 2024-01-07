@@ -19,7 +19,7 @@ folder = package_dir + "/../tests/data/loader/mpes"
 file = package_dir + "/../tests/data/loader/mpes/Scan0030_2.h5"
 
 
-def test_copy_tool_folder():
+def test_copy_tool_folder() -> None:
     """Test the folder copy functionalty of the CopyTool"""
     dest_folder = tempfile.mkdtemp()
     gid = os.getgid()
@@ -45,7 +45,7 @@ def test_copy_tool_folder():
     shutil.rmtree(dest_folder)
 
 
-def test_copy_tool_file():
+def test_copy_tool_file() -> None:
     """Test the file copy functionality of the copy tool"""
     dest_folder = tempfile.mkdtemp()
     gid = os.getgid()
@@ -64,7 +64,7 @@ def test_copy_tool_file():
     shutil.rmtree(dest_folder)
 
 
-def test_copy_tool_cleanup():
+def test_copy_tool_cleanup() -> None:
     """Test the file cleanup functionality of the copy tool"""
     dest_folder = tempfile.mkdtemp()
     gid = os.getgid()

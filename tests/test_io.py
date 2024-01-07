@@ -28,7 +28,7 @@ binned_arrays = [simulate_binned_data(s, axes_names[: len(s)]) for s in shapes]
     binned_arrays,
     ids=lambda x: f"ndims:{len(x.shape)}",
 )
-def test_save_and_load_tiff_array(_da: xr.DataArray):
+def test_save_and_load_tiff_array(_da: xr.DataArray) -> None:
     """Test the tiff saving/loading function for np.ndarrays.
 
     Args:
@@ -47,7 +47,7 @@ def test_save_and_load_tiff_array(_da: xr.DataArray):
     binned_arrays,
     ids=lambda x: f"ndims:{len(x.shape)}",
 )
-def test_save_xarr_to_tiff(_da: xr.DataArray):
+def test_save_xarr_to_tiff(_da: xr.DataArray) -> None:
     """Test the tiff saving function for xr.DataArrays.
 
     Args:
@@ -63,7 +63,7 @@ def test_save_xarr_to_tiff(_da: xr.DataArray):
     binned_arrays,
     ids=lambda x: f"ndims:{len(x.shape)}",
 )
-def test_save_and_load_tiff_xarray(_da: xr.DataArray):
+def test_save_and_load_tiff_xarray(_da: xr.DataArray) -> None:
     """Test the tiff saving/loading function for xr.DataArrays.
 
     rgs:
@@ -85,7 +85,7 @@ def test_save_and_load_tiff_xarray(_da: xr.DataArray):
     binned_arrays,
     ids=lambda x: f"ndims:{len(x.shape)}",
 )
-def test_save_and_load_hdf5(_da: xr.DataArray):
+def test_save_and_load_hdf5(_da: xr.DataArray) -> None:
     """Test the hdf5 saving/loading function.
 
     Args:

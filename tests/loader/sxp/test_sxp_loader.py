@@ -25,7 +25,7 @@ def fixture_config_file() -> dict:
     return parse_config(config=config_path, folder_config={}, user_config={}, system_config={})
 
 
-def test_get_channels_by_format(config_file: dict):
+def test_get_channels_by_format(config_file: dict) -> None:
     """
     Test function to verify the 'get_channels' method in SXPLoader class for
     retrieving channels based on formats and index inclusion.
@@ -74,10 +74,7 @@ def test_get_channels_by_format(config_file: dict):
     )
 
 
-def test_initialize_paths(
-    config_file: dict,
-    fs,
-):
+def test_initialize_paths(config_file: dict, fs) -> None:
     """
     Test the initialization of paths based on the configuration and directory structures.
 

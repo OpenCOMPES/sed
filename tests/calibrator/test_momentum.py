@@ -33,7 +33,7 @@ with open(
 momentum_map = np.asarray(momentum_map_list).T
 
 
-def test_bin_data_and_slice_image():
+def test_bin_data_and_slice_image() -> None:
     """Test binning the data and slicing of the image"""
     config = parse_config(
         config={"core": {"loader": "mpes"}},
@@ -51,7 +51,7 @@ def test_bin_data_and_slice_image():
     assert sed_processor.mc.slice.shape == (512, 512)
 
 
-def test_feature_extract():
+def test_feature_extract() -> None:
     """Testextracting the feature from a 2D slice"""
     config = parse_config(
         config={"core": {"loader": "mpes"}},
@@ -73,7 +73,7 @@ def test_feature_extract():
     "include_center",
     [True, False],
 )
-def test_splinewarp(include_center: bool):
+def test_splinewarp(include_center: bool) -> None:
     """Test the generation of the splinewarp etimate.
 
     Args:
@@ -109,7 +109,7 @@ def test_splinewarp(include_center: bool):
     assert len(mc.ptargs) == len(mc.prefs)
 
 
-def test_pose_correction():
+def test_pose_correction() -> None:
     """Test the adjustment of the pose correction."""
     config = parse_config(
         config={"core": {"loader": "mpes"}},
@@ -128,7 +128,7 @@ def test_pose_correction():
     assert np.all(np.array([mc.cdeform_field, mc.rdeform_field]) != dfield)
 
 
-def test_apply_correction():
+def test_apply_correction() -> None:
     """Test the application of the distortion correction to the dataframe."""
     config = parse_config(
         config={"core": {"loader": "mpes"}},
@@ -241,7 +241,7 @@ depends_on_list = [
 def test_apply_registration(
     transformations: Dict[Any, Any],
     depends_on: Dict[Any, Any],
-):
+) -> None:
     """Test the application of the distortion correction to the dataframe."""
     config = parse_config(
         config={"core": {"loader": "mpes"}},
@@ -311,7 +311,7 @@ def test_apply_registration(
             )
 
 
-def test_momentum_calibration_equiscale():
+def test_momentum_calibration_equiscale() -> None:
     """Test the calibration using one point and the k-distance,
     and application to the dataframe.
     """
@@ -344,7 +344,7 @@ def test_momentum_calibration_equiscale():
         np.testing.assert_equal(metadata["calibration"][key], value)
 
 
-def test_momentum_calibration_two_points():
+def test_momentum_calibration_two_points() -> None:
     """Test the calibration using two k-points, and application to the dataframe."""
     config = parse_config(
         config={"core": {"loader": "mpes"}},

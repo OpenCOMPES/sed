@@ -38,7 +38,7 @@ with open(folder + "biases.csv", newline="", encoding="utf-8") as csvfile:
     biases = np.asarray(next(reader))
 
 
-def test_bin_data_and_read_biases_from_files():
+def test_bin_data_and_read_biases_from_files() -> None:
     """Test binning the data and extracting the bias values from the files"""
     config = parse_config(
         config={"dataframe": {"tof_binning": 2}, "energy": {"bias_key": "@KTOF:Lens:Sample:V"}},
@@ -77,7 +77,7 @@ def test_bin_data_and_read_biases_from_files():
         ec.bin_data(data_files=files)
 
 
-def test_energy_calibrator_from_arrays_norm():
+def test_energy_calibrator_from_arrays_norm() -> None:
     """Test loading the energy, bias and tof traces into the class"""
     config = parse_config(
         config={"dataframe": {"tof_binning": 2}},
@@ -97,7 +97,7 @@ def test_energy_calibrator_from_arrays_norm():
         assert np.max(ec.traces_normed[i, :]) == 1
 
 
-def test_feature_extract():
+def test_feature_extract() -> None:
     """Test generating the ranges, and extracting the features"""
     config = parse_config(
         config={"dataframe": {"tof_binning": 2}},
@@ -130,7 +130,7 @@ def test_feature_extract():
     )
 
 
-def test_adjust_ranges():
+def test_adjust_ranges() -> None:
     """Test the interactive function for adjusting the feature ranges"""
     config = parse_config(
         config={"dataframe": {"tof_binning": 2}},
@@ -170,7 +170,7 @@ calibration_methods = ["lmfit", "lstsq", "lsqr"]
     "energy_scale, calibration_method",
     itertools.product(energy_scales, calibration_methods),
 )
-def test_calibrate_append(energy_scale: str, calibration_method: str):
+def test_calibrate_append(energy_scale: str, calibration_method: str) -> None:
     """Test if the calibration routines generate the correct slope of energy vs. tof,
     and the application to the data frame.
 
@@ -225,7 +225,7 @@ calib_dicts = [{"d": 1, "t0": 0, "E0": 0}, {"coeffs": [1, 2, 3], "E0": 0}]
     "calib_type, calib_dict",
     zip(calib_types, calib_dicts),
 )
-def test_append_energy_axis_from_dict_kwds(calib_type: str, calib_dict: dict):
+def test_append_energy_axis_from_dict_kwds(calib_type: str, calib_dict: dict) -> None:
     """Function to test if the energy calibration is correctly applied using a dict or
     kwd parameters.
 
@@ -256,7 +256,7 @@ def test_append_energy_axis_from_dict_kwds(calib_type: str, calib_dict: dict):
     assert metadata["calibration"]["calib_type"] == calib_type
 
 
-def test_append_energy_axis_raises():
+def test_append_energy_axis_raises() -> None:
     """Test if apply_correction raises the correct errors"""
     config = parse_config(config={}, folder_config={}, user_config={}, system_config={})
     loader = get_loader(loader_name="mpes", config=config)
@@ -271,7 +271,7 @@ def test_append_energy_axis_raises():
         )
 
 
-def test_append_tof_ns_axis():
+def test_append_tof_ns_axis() -> None:
     """Function to test if the tof_ns calibration is correctly applied.
     TODO: add further tests once the discussion about units is done.
     """
@@ -342,7 +342,7 @@ correction_kwds = [
     "correction_type, correction_kwd",
     zip(correction_types, correction_kwds),
 )
-def test_energy_correction(correction_type: str, correction_kwd: dict):
+def test_energy_correction(correction_type: str, correction_kwd: dict) -> None:
     """Function to test if all energy correction functions generate symmetric curves
     with the maximum at the cetner x/y.
 
@@ -425,9 +425,7 @@ def test_energy_correction(correction_type: str, correction_kwd: dict):
     "correction_type",
     correction_types,
 )
-def test_adjust_energy_correction_raises(
-    correction_type: str,
-):
+def test_adjust_energy_correction_raises(correction_type: str) -> None:
     """Function to test if the adjust_energy_correction function raises the correct errors.
 
     Args:
@@ -469,10 +467,7 @@ def test_adjust_energy_correction_raises(
     "correction_type, correction_kwd",
     zip(correction_types, correction_kwds),
 )
-def test_energy_correction_from_dict_kwds(
-    correction_type: str,
-    correction_kwd: dict,
-):
+def test_energy_correction_from_dict_kwds(correction_type: str, correction_kwd: dict) -> None:
     """Function to test if the energy correction is correctly applied using a dict or
     kwd parameters.
 
@@ -534,9 +529,7 @@ def test_energy_correction_from_dict_kwds(
     "correction_type",
     correction_types,
 )
-def test_apply_energy_correction_raises(
-    correction_type: str,
-):
+def test_apply_energy_correction_raises(correction_type: str) -> None:
     """Function to test if the apply_energy_correction raises the correct errors.
 
     Args:
@@ -572,7 +565,7 @@ def test_apply_energy_correction_raises(
         assert config["dataframe"]["corrected_tof_column"] in df.columns
 
 
-def test_add_offsets_functionality():
+def test_add_offsets_functionality() -> None:
     """test the add_offsets function"""
     config = parse_config(
         config={
@@ -631,7 +624,7 @@ def test_add_offsets_functionality():
         loader=get_loader("flash", config=config),
     )
     t_df = dask.dataframe.from_pandas(df.copy(), npartitions=2)
-    res, meta = ec.add_offsets(t_df, **params)  # pylint disable=unexpected-keyword-arg
+    res, meta = ec.add_offsets(t_df, **params)  # type: ignore[arg-type] # pylint disable=unexpected-keyword-arg
     np.testing.assert_allclose(res["energy"].values, exp_vals.values)
     params["applied"] = True
     assert meta == params
@@ -639,9 +632,9 @@ def test_add_offsets_functionality():
     # test with different energy scale
 
 
-def test_add_offset_raises():
+def test_add_offset_raises() -> None:
     """test if add_offset raises the correct errors"""
-    cfg_dict = {
+    cfg_dict: Dict[str, Any] = {
         "energy": {
             "calibration": {
                 "energy_scale": "kinetic",
@@ -705,9 +698,9 @@ def test_add_offset_raises():
         _ = ec.add_offsets(t_df)
 
 
-def test_align_dld_sectors():
+def test_align_dld_sectors() -> None:
     """test functionality and error handling of align_dld_sectors"""
-    cfg_dict = {
+    cfg_dict: Dict[str, Any] = {
         "dataframe": {
             "tof_column": "dldTimeSteps",
             "sector_id_column": "dldSectorId",
