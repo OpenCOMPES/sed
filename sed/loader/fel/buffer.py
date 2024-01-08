@@ -32,7 +32,7 @@ from sed.loader.fel.utils import get_channels
 from sed.loader.utils import split_dld_time_from_sector_id
 
 
-class BufferFileHandler:
+class BufferHandler:
     """
     A class for handling the creation and manipulation of buffer files using DataFrameCreator
     and ParquetHandler.
@@ -47,6 +47,7 @@ class BufferFileHandler:
         prefix: str = "",
         suffix: str = "",
         debug: bool = False,
+        auto: bool = True,
     ) -> None:
         """
         Initializes the BufferFileHandler.
@@ -59,6 +60,7 @@ class BufferFileHandler:
             prefix (str): Prefix for buffer file names.
             suffix (str): Suffix for buffer file names.
             debug (bool): Flag to enable debug mode.
+            auto (bool): Flag to automatically create buffer files and fill the dataframe.
         """
         self._config = cfg_df
 
@@ -69,14 +71,16 @@ class BufferFileHandler:
         self.dataframe_electron: ddf.DataFrame = None
         self.dataframe_pulse: ddf.DataFrame = None
 
-        if not force_recreate:
-            self.schema_check()
+        # In auto mode, these methods are called automatically
+        if auto:
+            self.get_files_to_read(h5_paths, folder, prefix, suffix, force_recreate)
 
-        self.get_files_to_read(h5_paths, folder, prefix, suffix, force_recreate)
+            if not force_recreate:
+                self.schema_check()
 
-        self.create_buffer_files(debug)
+            self.create_buffer_files(debug)
 
-        self.get_filled_dataframe()
+            self.get_filled_dataframe()
 
     def schema_check(self) -> None:
         """
@@ -218,12 +222,13 @@ class BufferFileHandler:
 
         # Drop rows with nan values in the tof column
         tof_column = self._config.get("tof_column", "dldTimeSteps")
-        dataframe_electron = dataframe.dropna(subset=self._config.get(tof_column))
+        dataframe_electron = dataframe.dropna(subset=tof_column)
 
         # Set the dtypes of the channels here as there should be no null values
         ch_dtypes = get_channels(self._config["channels"], "all")
-        dtypes = {channel: self._config["channels"][channel].get(
-            "dtype") for channel in ch_dtypes if self._config["channels"][channel].get("dtype") is not None}
+        cfg_ch = self._config["channels"]
+        dtypes = {channel: cfg_ch[channel].get(
+            "dtype") for channel in ch_dtypes if cfg_ch[channel].get("dtype") is not None}
 
         # Correct the 3-bit shift which encodes the detector ID in the 8s time
         if self._config.get("split_sector_id_from_dld_time", False):
