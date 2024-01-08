@@ -4,6 +4,7 @@ MULTI_INDEX = ["trainId", "pulseId", "electronId"]
 PULSE_ALIAS = MULTI_INDEX[1]
 DLD_AUX_ALIAS = "dldAux"
 DLDAUX_CHANNELS = "dldAuxChannels"
+FORMATS = ["per_electron", "per_pulse", "per_train"]
 
 
 def get_channels(
@@ -33,7 +34,7 @@ def get_channels(
     if formats == ["all"]:
         channels = get_channels(
             channel_dict,
-            ["per_electron", "per_pulse", "per_train"],
+            FORMATS,
             index,
             extend_aux,
         )
@@ -48,7 +49,7 @@ def get_channels(
     if formats:
         # If 'formats' is a list, check if all elements are valid.
         for format_ in formats:
-            if format_ not in ["per_electron", "per_pulse", "per_train", "all"]:
+            if format_ not in FORMATS + ["all"]:
                 raise ValueError(
                     "Invalid format. Please choose from 'per_electron', 'per_pulse',\
                     'per_train', 'all'.",
@@ -68,7 +69,7 @@ def get_channels(
             )
             # Include 'dldAuxChannels' if the format is 'per_pulse' and extend_aux is True.
             # Otherwise, include 'dldAux'.
-            if format_ == "per_train" and DLD_AUX_ALIAS in available_channels:
+            if format_ == FORMATS[2] and DLD_AUX_ALIAS in available_channels:
                 if extend_aux:
                     channels.extend(
                         channel_dict[DLD_AUX_ALIAS][DLDAUX_CHANNELS].keys(),
