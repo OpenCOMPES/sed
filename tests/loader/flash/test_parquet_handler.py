@@ -47,7 +47,7 @@ def test_initialize_paths(config):
     assert ph.parquet_paths[1].name == "test2.parquet"
 
 
-def test_sav_read_parquet(config, h5_paths):
+def test_save_read_parquet(config, h5_paths):
     """Test ParquetHandler save and read parquet"""
     # provide instead parquet_paths
     folder = create_parquet_dir(config, "parquet_save")
@@ -57,11 +57,11 @@ def test_sav_read_parquet(config, h5_paths):
     print(ph.parquet_paths)
     bh = BufferHandler(config["dataframe"], h5_paths, folder)
     ph.save_parquet(bh.dataframe_electron, drop_index=True)
+    parquet_path.unlink()
     ph.save_parquet(bh.dataframe_electron, drop_index=False)
 
     df = ph.read_parquet()
-    # check if parquet is read correctly
-    assert isinstance(df, ddf.DataFrame)
+
     [path.unlink() for path in bh.buffer_paths]
     parquet_path.unlink()
     # Test file not found

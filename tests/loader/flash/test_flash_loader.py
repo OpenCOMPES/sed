@@ -93,10 +93,14 @@ def test_initialize_paths_filenotfound(config_file: dict) -> None:
 
 def test_save_read_parquet_flash(config):
     """Test ParquetHandler save and read parquet"""
-    fl = FlashLoader(config=config)
-    df1, df_timed1, _ = fl.read_dataframe(runs=[43878, 43879], save_parquet=True)
+    config_ = config
+    config_["core"]["paths"]["data_parquet_dir"] = (
+        config_["core"]["paths"]["data_parquet_dir"] + "_flash_save_read/"
+    )
+    fl = FlashLoader(config=config_)
+    df1, _, _ = fl.read_dataframe(runs=[43878, 43879], save_parquet=True)
 
-    df2, df_timed2, _ = fl.read_dataframe(runs=[43878, 43879], load_parquet=True)
+    df2, _, _ = fl.read_dataframe(runs=[43878, 43879], load_parquet=True)
 
     # check if parquet read is same as parquet saved read correctly
     pd.testing.assert_frame_equal(df1.compute().reset_index(drop=True), df2.compute())
