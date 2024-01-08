@@ -220,12 +220,18 @@ class BufferFileHandler:
         tof_column = self._config.get("tof_column", "dldTimeSteps")
         dataframe_electron = dataframe.dropna(subset=self._config.get(tof_column))
 
+        # Set the dtypes of the channels here as there should be no null values
+        ch_dtypes = get_channels(self._config["channels"], "all")
+        dtypes = {channel: self._config["channels"][channel].get(
+            "dtype") for channel in ch_dtypes if self._config["channels"][channel].get("dtype") is not None}
+
         # Correct the 3-bit shift which encodes the detector ID in the 8s time
         if self._config.get("split_sector_id_from_dld_time", False):
-            self.dataframe_electron = split_dld_time_from_sector_id(
+            dataframe_electron = split_dld_time_from_sector_id(
                 dataframe_electron,
                 config=self._config,
             )
         else:
-            self.dataframe_electron = dataframe_electron
+            dataframe_electron = dataframe_electron
+        self.dataframe_electron = dataframe_electron.astype(dtypes)
         self.dataframe_pulse = dataframe[index + channels]
