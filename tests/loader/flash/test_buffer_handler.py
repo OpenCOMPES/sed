@@ -1,8 +1,9 @@
-
 from pathlib import Path
+
 import numpy as np
-import pytest
 import pandas as pd
+import pytest
+
 from sed.loader.fel import BufferHandler
 from sed.loader.fel.utils import get_channels
 
@@ -27,8 +28,7 @@ def test_get_files_to_read(config, h5_paths):
     assert np.all(bh.h5_to_create == h5_paths)
 
     # create expected paths
-    expected_buffer_paths = [
-        Path(subfolder, f"{Path(path).stem}") for path in h5_paths]
+    expected_buffer_paths = [Path(subfolder, f"{Path(path).stem}") for path in h5_paths]
 
     assert np.all(bh.buffer_to_create == expected_buffer_paths)
 
@@ -45,8 +45,7 @@ def test_get_files_to_read(config, h5_paths):
 
     # expected buffer paths with prefix and suffix
     expected_buffer_paths = [
-        Path(subfolder, f"prefix_{Path(path).stem}_suffix")
-        for path in h5_paths
+        Path(subfolder, f"prefix_{Path(path).stem}_suffix") for path in h5_paths
     ]
     assert np.all(bh.buffer_to_create == expected_buffer_paths)
 
@@ -89,8 +88,14 @@ def test_buffer_schema_mismatch(config, h5_paths):
     assert expected_error[4] == "Please check the configuration file or set force_recreate to True."
 
     # Force recreation of the dataframe, including the added channel 'gmdTunnel2'
-    bh = BufferHandler(config["dataframe"], h5_paths, folder,
-                       auto=True, force_recreate=True, debug=True)
+    bh = BufferHandler(
+        config["dataframe"],
+        h5_paths,
+        folder,
+        auto=True,
+        force_recreate=True,
+        debug=True,
+    )
 
     # Remove 'gmdTunnel2' from the configuration to simulate a missing channel scenario
     del config["dataframe"]["channels"]["gmdTunnel2"]
@@ -125,8 +130,7 @@ def test_create_buffer_files(config, h5_paths):
 
 
 def test_get_filled_dataframe(config, h5_paths):
-    """ Test function to verify the creation of a filled dataframe from the buffer files.
-    """
+    """Test function to verify the creation of a filled dataframe from the buffer files."""
     folder = create_parquet_dir(config, "get_filled_dataframe")
     bh = BufferHandler(config["dataframe"], h5_paths, folder)
 

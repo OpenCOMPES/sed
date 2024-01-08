@@ -140,8 +140,13 @@ class DataFrameCreator:
 
         # Final index constructed here
         index = MultiIndex.from_arrays(
-            (microbunches.get_level_values(0), microbunches.get_level_values(1).astype(int), electrons),
-            names=self.multi_index,)
+            (
+                microbunches.get_level_values(0),
+                microbunches.get_level_values(1).astype(int),
+                electrons,
+            ),
+            names=self.multi_index,
+        )
         return index, indexer
 
     @property
@@ -167,13 +172,17 @@ class DataFrameCreator:
         # If all dataset keys are the same, we can directly use the ndarray to create frame
         if all_keys_same:
             _, dataset = self.get_dataset_array(channels[0])
-            data_dict = {channel: dataset[:, slice_, :].ravel()
-                         for channel, slice_ in zip(channels, slice_index)}
+            data_dict = {
+                channel: dataset[:, slice_, :].ravel()
+                for channel, slice_ in zip(channels, slice_index)
+            }
             dataframe = DataFrame(data_dict)
         # Otherwise, we need to create a Series for each channel and concatenate them
         else:
-            series = {channel: Series(self.get_dataset_array(channel, slice_=True)[
-                                      1].ravel()) for channel in channels}
+            series = {
+                channel: Series(self.get_dataset_array(channel, slice_=True)[1].ravel())
+                for channel in channels
+            }
             dataframe = concat(series, axis=1)
 
         drop_vals = np.arange(-offset, 0)
@@ -183,7 +192,11 @@ class DataFrameCreator:
         # if necessary, the data is sorted with [indexer]
         # MultiIndex is set
         # Finally, the offset values are dropped
-        return dataframe.dropna()[indexer].set_index(index).drop(index=drop_vals, level="pulseId", errors="ignore")
+        return (
+            dataframe.dropna()[indexer]
+            .set_index(index)
+            .drop(index=drop_vals, level="pulseId", errors="ignore")
+        )
 
     @property
     def df_pulse(self) -> DataFrame:

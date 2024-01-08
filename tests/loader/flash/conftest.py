@@ -70,6 +70,7 @@ def fixture_h5_paths():
     """
     return [os.path.join(package_dir, f"../tests/data/loader/flash/{path}") for path in H5_PATHS]
 
+
 # @pytest.fixture(name="pulserSignAdc_channel_array")
 # def get_pulse_channel_from_h5(config_dataframe, h5_file):
 #     df = DataFrameCreator(config_dataframe)
