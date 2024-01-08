@@ -23,9 +23,9 @@ class ParquetHandler:
         self,
         parquet_names: str | list[str] = None,
         folder: Path = None,
-        subfolder: str = None,
-        prefix: str = None,
-        suffix: str = None,
+        subfolder: str = "",
+        prefix: str = "",
+        suffix: str = "",
         extension: str = "parquet",
         parquet_paths: Path = None,
     ):
@@ -64,10 +64,10 @@ class ParquetHandler:
         self,
         parquet_names: list[str],
         folder: Path,
-        subfolder: str = "",
-        prefix: str = "",
-        suffix: str = "",
-        extension: str = "",
+        subfolder: str = None,
+        prefix: str = None,
+        suffix: str = None,
+        extension: str = None,
     ) -> None:
         """
         Create the directory for the Parquet file.
@@ -96,6 +96,7 @@ class ParquetHandler:
             drop_index (bool): If True, drops the index before saving.
         """
         # Compute the Dask DataFrame, reset the index, and save to Parquet
+        dfs = dfs if isinstance(dfs, list) else [dfs]
         for df, parquet_path in zip(dfs, self.parquet_paths):
             df.compute().reset_index(drop=drop_index).to_parquet(parquet_path)
 
