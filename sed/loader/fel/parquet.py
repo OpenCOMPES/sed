@@ -100,7 +100,7 @@ class ParquetHandler:
         for df, parquet_path in zip(dfs, self.parquet_paths):
             df.compute().reset_index(drop=drop_index).to_parquet(parquet_path)
 
-    def read_parquet(self) -> ddf.DataFrame:
+    def read_parquet(self) -> list[ddf.DataFrame]:
         """
         Read a Dask DataFrame from the Parquet file.
 
@@ -110,10 +110,12 @@ class ParquetHandler:
         Raises:
             FileNotFoundError: If the Parquet file does not exist.
         """
-        try:
-            return ddf.read_parquet(self.parquet_paths, calculate_divisions=True)
-        except Exception as exc:
-            raise FileNotFoundError(
-                "The Parquet file does not exist. "
-                "If it is in another location, provide the correct path as parquet_path.",
-            ) from exc
+        dfs = []
+        for parquet_path in self.parquet_paths:
+            if not parquet_path.exists():
+                raise FileNotFoundError(
+                    "The Parquet file does not exist. "
+                    "If it is in another location, provide the correct path as parquet_path.",
+                )
+            dfs.append(ddf.read_parquet(parquet_path))
+        return dfs

@@ -4,6 +4,7 @@ from importlib.util import find_spec
 from pathlib import Path
 from typing import Literal
 
+import pandas as pd
 import pytest
 
 from sed.core.config import parse_config
@@ -65,6 +66,14 @@ def test_initialize_paths(
     assert expected_raw_path == data_raw_dir[0]
     assert expected_processed_path == data_parquet_dir
 
+    # remove breamtimeid, year and daq from config to raise error
+    del config["core"]["beamtime_id"]
+    fl = FlashLoader(config=config)
+    with pytest.raises(ValueError) as e:
+        _, _ = fl.initialize_paths()
+
+    assert "The beamtime_id, year and daq are required." in str(e.value)
+
 
 def test_initialize_paths_filenotfound(config_file: dict) -> None:
     """
@@ -80,3 +89,14 @@ def test_initialize_paths_filenotfound(config_file: dict) -> None:
     fl = FlashLoader(config=config)
     with pytest.raises(FileNotFoundError):
         _, _ = fl.initialize_paths()
+
+
+def test_save_read_parquet_flash(config):
+    """Test ParquetHandler save and read parquet"""
+    fl = FlashLoader(config=config)
+    df1, df_timed1, _ = fl.read_dataframe(runs=[43878, 43879], save_parquet=True)
+
+    df2, df_timed2, _ = fl.read_dataframe(runs=[43878, 43879], load_parquet=True)
+
+    # check if parquet read is same as parquet saved read correctly
+    pd.testing.assert_frame_equal(df1.compute().reset_index(drop=True), df2.compute())
