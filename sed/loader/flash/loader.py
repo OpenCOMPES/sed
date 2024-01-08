@@ -262,7 +262,7 @@ class FlashLoader(BaseLoader):
         filename = "_".join(str(run) for run in self.runs)
         converted_str = "converted" if converted else ""
         # Create parquet paths for saving and loading the parquet files of df and timed_df
-        prq = ParquetHandler(
+        ph = ParquetHandler(
             [filename, filename + "_timed"],
             parquet_path,
             converted_str,
@@ -272,7 +272,9 @@ class FlashLoader(BaseLoader):
 
         # Check if load_parquet is flagged and then load the file if it exists
         if load_parquet:
-            df, df_timed = prq.read_parquet()
+            df_list = ph.read_parquet()
+            df = df_list[0]
+            df_timed = df_list[1]
 
         # Default behavior is to create the buffer files and load them
         else:
@@ -292,7 +294,7 @@ class FlashLoader(BaseLoader):
 
         # Save the dataframe as parquet if requested
         if save_parquet:
-            prq.save_parquet([df, df_timed], drop_index=True)
+            ph.save_parquet([df, df_timed], drop_index=True)
 
         metadata = self.parse_metadata(**kwds) if collect_metadata else {}
         print(f"loading complete in {time.time() - t0: .2f} s")
