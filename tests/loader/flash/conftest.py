@@ -9,11 +9,20 @@ import pytest
 
 from sed.core.config import parse_config
 
-# from sed.loader.fel import DataFrameCreator
-
 package_dir = os.path.dirname(find_spec("sed").origin)
 config_path = os.path.join(package_dir, "../tests/data/loader/flash/config.yaml")
 H5_PATH = "FLASH1_USER3_stream_2_run43878_file1_20230130T153807.1.h5"
+H5_PATHS = [H5_PATH, "FLASH1_USER3_stream_2_run43879_file1_20230130T153807.1.h5"]
+
+
+@pytest.fixture(name="config")
+def fixture_config_file():
+    """Fixture providing a configuration file for FlashLoader tests.
+
+    Returns:
+        dict: The parsed configuration file.
+    """
+    return parse_config(config_path)
 
 
 @pytest.fixture(name="config_dataframe")
@@ -51,6 +60,15 @@ def fixture_h5_file_copy(tmp_path):
     # Open the copy in 'read-write' mode and return it
     return h5py.File(copy_file_path, "r+")
 
+
+@pytest.fixture(name="h5_paths")
+def fixture_h5_paths():
+    """Fixture providing a list of h5 file paths.
+
+    Returns:
+        list: A list of h5 file paths.
+    """
+    return [os.path.join(package_dir, f"../tests/data/loader/flash/{path}") for path in H5_PATHS]
 
 # @pytest.fixture(name="pulserSignAdc_channel_array")
 # def get_pulse_channel_from_h5(config_dataframe, h5_file):

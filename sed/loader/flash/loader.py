@@ -17,7 +17,7 @@ import dask.dataframe as dd
 from natsort import natsorted
 
 from sed.loader.base.loader import BaseLoader
-from sed.loader.fel import BufferFileHandler
+from sed.loader.fel import BufferHandler
 from sed.loader.fel import ParquetHandler
 from sed.loader.flash.metadata import MetadataRetriever
 
@@ -278,7 +278,7 @@ class FlashLoader(BaseLoader):
             # Obtain the parquet filenames, metadata, and schema from the method
             # which handles buffer file creation/reading
             h5_paths = [Path(file) for file in self.files]
-            buffer = BufferFileHandler(
+            buffer = BufferHandler(
                 self._config["dataframe"],
                 h5_paths,
                 parquet_path,
