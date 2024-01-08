@@ -1,9 +1,10 @@
 """Tests for DataFrameCreator functionality"""
-from pandas import Index
 import h5py
-import pytest
-from pandas import Index, MultiIndex, DataFrame
 import numpy as np
+import pytest
+from pandas import DataFrame
+from pandas import Index
+from pandas import MultiIndex
 
 from sed.loader.fel import DataFrameCreator
 from sed.loader.fel.utils import get_channels
@@ -128,11 +129,20 @@ def test_df_electron(config_dataframe, h5_file):
     assert ~result_df.isnull().values.any()
 
     # Check that the values are dropped for pulseId index below 0 (ubid_offset)
-    print(np.all(result_df.values[:5] != np.array([[556., 731., 42888.],
-                                                   [549., 737., 42881.],
-                                                   [671., 577., 39181.],
-                                                   [671., 579., 39196.],
-                                                   [714., 859., 37530.]])))
+    print(
+        np.all(
+            result_df.values[:5]
+            != np.array(
+                [
+                    [556.0, 731.0, 42888.0],
+                    [549.0, 737.0, 42881.0],
+                    [671.0, 577.0, 39181.0],
+                    [671.0, 579.0, 39196.0],
+                    [714.0, 859.0, 37530.0],
+                ],
+            ),
+        ),
+    )
     assert np.all(result_df.index.get_level_values("pulseId") >= 0)
     assert isinstance(result_df, DataFrame)
 
@@ -140,8 +150,7 @@ def test_df_electron(config_dataframe, h5_file):
 
     # check that dataframe contains all subchannels
     assert np.all(
-        set(result_df.columns)
-        == set(get_channels(config_dataframe["channels"], ["per_electron"])),
+        set(result_df.columns) == set(get_channels(config_dataframe["channels"], ["per_electron"])),
     )
 
 
@@ -162,16 +171,16 @@ def test_create_dataframe_per_pulse(config_dataframe, h5_file):
     assert np.all(result_df.index.get_level_values("electronId") == 0)
 
     # pulse ids should span 0-499 on each train
-    assert np.all(result_df.loc[1648851402].index.get_level_values("pulseId").values
-                  == np.arange(500))
+    assert np.all(
+        result_df.loc[1648851402].index.get_level_values("pulseId").values == np.arange(500),
+    )
 
     # assert index uniqueness
     assert result_df.index.is_unique
 
     # assert that dataframe contains all channels
     assert np.all(
-        set(result_df.columns)
-        == set(get_channels(config_dataframe["channels"], ["per_pulse"])),
+        set(result_df.columns) == set(get_channels(config_dataframe["channels"], ["per_pulse"])),
     )
 
 
@@ -219,7 +228,7 @@ def test_create_dataframe_per_train(config_dataframe, h5_file):
     # hence the slicing
     subchannels = config_dataframe["channels"]["dldAux"]["dldAuxChannels"]
     for subchannel, index in subchannels.items():
-        np.all(df.df_train[subchannel].dropna().values == data[:key.size, index])
+        np.all(df.df_train[subchannel].dropna().values == data[: key.size, index])
 
     assert result_df.index.is_unique
 
@@ -248,7 +257,7 @@ def test_create_dataframe_per_file(config_dataframe, h5_file):
     assert result_df.shape[0] == len(all_keys.unique())
 
 
-def test_get_index_dataset_key(config_dataframe, h5_file):
+def test_get_index_dataset_key_error(config_dataframe, h5_file):
     """Test the creation of the index and dataset keys for a given channel."""
     config = config_dataframe
     channel = "dldPosX"
