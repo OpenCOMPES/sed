@@ -96,7 +96,12 @@ def test_delay_parameters_from_delay_range_mm() -> None:
     dc = DelayCalibrator(config=config)
     with pytest.raises(NotImplementedError):
         dc.append_delay_axis(df, delay_range_mm=(1, 15))
-    df, metadata = dc.append_delay_axis(df, delay_range_mm=(1, 15), time0=1)
+    df, metadata = dc.append_delay_axis(
+        df,
+        delay_range_mm=(1, 15),
+        time0=1,
+        adc_range=config["delay"]["adc_range"],
+    )
     assert "delay" in df.columns
     assert "delay_range" in metadata["calibration"]
     assert "adc_range" in metadata["calibration"]
@@ -171,7 +176,7 @@ def test_add_offset_from_args(df=test_dataframe) -> None:
     cfg_ = cfg.copy()
     cfg_.pop("delay")
     config = parse_config(
-        config=cfg,
+        config=cfg_,
         folder_config={},
         user_config={},
         system_config={},
@@ -182,11 +187,33 @@ def test_add_offset_from_args(df=test_dataframe) -> None:
         constant=1,
         flip_delay_axis=True,
         columns="bam",
-        weights=0.001,
     )
     assert "delay" in df.columns
     assert "bam" in dc.offsets.keys()
     expected = -np.array(
-        delay_stage_vals + bam_vals * 0.001 + 1,
+        delay_stage_vals + bam_vals * 1 + 1,
     )
+    np.testing.assert_allclose(expected, df["delay"])
+
+
+def test_add_offset_from_dict(df=test_dataframe) -> None:
+    """test that the timing offset is corrected for correctly from config"""
+    cfg_ = cfg.copy()
+    offsets = cfg["delay"]["offsets"]  # type:ignore
+    offsets["bam"].pop("weight")
+    offsets["flip_delay_axis"] = False
+    cfg_.pop("delay")
+    config = parse_config(
+        config=cfg_,
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+
+    expected = np.asarray(delay_stage_vals + bam_vals * 1 + 1)
+
+    dc = DelayCalibrator(config=config)
+    df, _ = dc.add_offsets(df.copy(), offsets=offsets)
+    assert "delay" in df.columns
+    assert "bam" in dc.offsets.keys()
     np.testing.assert_allclose(expected, df["delay"])
