@@ -363,6 +363,45 @@ def test_pose_adjustment() -> None:
     assert "Ym" in processor.dataframe.columns
 
 
+def test_pose_adjustment_save_load() -> None:
+    """Test for the saving and loading of pose correction and application of momentum correction
+    workflow"""
+    config = {"core": {"loader": "mpes"}}
+    processor = SedProcessor(
+        folder=df_folder,
+        config=config,
+        folder_config={},
+        user_config={},
+        system_config={},
+        verbose=True,
+    )
+    # pose adjustment w/o loaded image
+    processor.bin_and_load_momentum_calibration(apply=True)
+    processor.define_features(
+        features=feature7,
+        rotation_symmetry=6,
+        include_center=True,
+        apply=True,
+    )
+    processor.generate_splinewarp(use_center=True)
+    processor.save_splinewarp(filename="sed_config_pose_adjustments.yaml")
+    processor.pose_adjustment(**adjust_params, apply=True)  # type: ignore[arg-type]
+    processor.save_transformations(filename="sed_config_pose_adjustments.yaml")
+    processor = SedProcessor(
+        folder=df_folder,
+        config=config,
+        folder_config="sed_config_pose_adjustments.yaml",
+        user_config={},
+        system_config={},
+        verbose=True,
+    )
+    processor.apply_momentum_correction()
+    assert "Xm" in processor.dataframe.columns
+    assert "Ym" in processor.dataframe.columns
+    assert "momentum_correction" in processor.attributes
+    os.remove("sed_config_pose_adjustments.yaml")
+
+
 point_a = [308, 345]
 k_distance = 4 / 3 * np.pi / 3.28
 k_coord_a = [k_distance * 0.3, k_distance * 0.8]

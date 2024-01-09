@@ -637,6 +637,20 @@ def test_add_offsets_functionality(energy_scale: str) -> None:
     exp_meta["applied"] = True
     exp_meta["offsets"] = ec.offsets
     assert meta == exp_meta
+    # test with minimal parameters
+    ec = EnergyCalibrator(
+        config=config,
+        loader=get_loader("flash", config=config),
+    )
+    t_df = dask.dataframe.from_pandas(df.copy(), npartitions=2)
+    res, meta = ec.add_offsets(t_df, weights=-1, columns="off1")
+    res, meta = ec.add_offsets(res, columns="off1")
+    exp_vals = df["energy"].copy()
+    np.testing.assert_allclose(res["energy"].values, exp_vals.values)
+    exp_meta = {}
+    exp_meta["applied"] = True
+    exp_meta["offsets"] = ec.offsets
+    assert meta == exp_meta
 
 
 def test_add_offset_raises() -> None:

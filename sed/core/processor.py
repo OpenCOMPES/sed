@@ -769,6 +769,7 @@ class SedProcessor:
                 print("Adding corrected X/Y columns to dataframe:")
             df, metadata = self.mc.apply_corrections(
                 df=self._dataframe,
+                verbose=verbose,
                 **kwds,
             )
             if (
@@ -778,6 +779,7 @@ class SedProcessor:
             ):
                 tdf, _ = self.mc.apply_corrections(
                     self._timed_dataframe,
+                    verbose=False,
                     **kwds,
                 )
 

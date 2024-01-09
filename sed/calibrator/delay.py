@@ -258,6 +258,8 @@ class DelayCalibrator:
             offsets["creation_date"] = datetime.now().timestamp()
             # column-based offsets
             if columns is not None:
+                if weights is None:
+                    weights = 1
                 if isinstance(weights, (int, float, np.integer, np.floating)):
                     weights = [weights]
                 if len(weights) == 1:

@@ -647,9 +647,9 @@ class MomentumCorrector:
                         features = features[:rotsym, :]
 
                     if verbose:
-                        if "creation_date" in self.calibration:
+                        if "creation_date" in self.correction:
                             datestring = datetime.fromtimestamp(
-                                self.calibration["creation_date"],
+                                self.correction["creation_date"],
                             ).strftime(
                                 "%m/%d/%Y, %H:%M:%S",
                             )
@@ -1647,6 +1647,7 @@ class MomentumCorrector:
         y_column: str = None,
         new_x_column: str = None,
         new_y_column: str = None,
+        verbose: bool = True,
         **kwds,
     ) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
         """Calculate and replace the X and Y values with their distortion-corrected
@@ -1665,6 +1666,8 @@ class MomentumCorrector:
             new_y_column (str, optional): Label of the 'Y' column after momentum
                 distortion correction.
                 Defaults to config["momentum"]["corrected_y_column"].
+            verbose (bool, optional): Option to report the used landmarks for correction.
+                Defaults to True.
             **kwds: Keyword arguments:
 
                 - **dfield**: Inverse dfield
@@ -1689,8 +1692,15 @@ class MomentumCorrector:
 
         if self.inverse_dfield is None or self.dfield_updated:
             if self.rdeform_field is None and self.cdeform_field is None:
-                # Generate spline warp from class features or config
-                self.spline_warp_estimate()
+                if self.correction or self.transformations:
+                    if self.correction:
+                        # Generate spline warp from class features or config
+                        self.spline_warp_estimate(verbose=verbose)
+                    if self.transformations:
+                        # Apply config pose adjustments
+                        self.pose_adjustment()
+                else:
+                    raise ValueError("No corrections or transformations defined!")
 
             self.inverse_dfield = generate_inverse_dfield(
                 self.rdeform_field,

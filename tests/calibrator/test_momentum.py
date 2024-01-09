@@ -378,3 +378,19 @@ def test_momentum_calibration_two_points() -> None:
             metadata["calibration"][key],
             value,
         )
+    # Test with passing calibration parameters
+    calibration = mc.calibration.copy()
+    calibration.pop("creation_date")
+    df, _, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
+        folders=df_folder,
+        collect_metadata=False,
+    )
+    mc = MomentumCorrector(config=config)
+    df, metadata = mc.append_k_axis(df, **calibration)
+    assert "kx" in df.columns
+    assert "ky" in df.columns
+    for key, value in mc.calibration.items():
+        np.testing.assert_equal(
+            metadata["calibration"][key],
+            value,
+        )
