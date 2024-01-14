@@ -25,7 +25,7 @@ def test_get_channels_by_format(config_dataframe):
     retrieving channels based on formats and index inclusion.
     """
     # Initialize the FlashLoader instance with the given config_file.
-    ch_dict = config_dataframe["channels"]
+    ch_dict = config_dataframe.channels
 
     # Call get_channels method with different format options.
 
@@ -54,7 +54,7 @@ def test_get_channels_by_format(config_dataframe):
     format_all_index = get_channels(ch_dict, ["all"], index=True)
 
     # Request 'all' formats and include index channels and extend aux channels
-    format_all_index_extend_aux = get_channels(ch_dict, ["all"], index=True, extend_aux=True)
+    format_all_index_extend_aux = get_channels(ch_dict, "all", index=True, extend_aux=True)
 
     # Assert that the obtained channels match the expected channels.
     assert set(ELECTRON_CHANNELS) == set(format_electron)

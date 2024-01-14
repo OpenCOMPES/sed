@@ -9,7 +9,7 @@ from sed.loader.fel import ParquetHandler
 
 
 def create_parquet_dir(config, folder):
-    parquet_path = Path(config["core"]["paths"]["data_parquet_dir"])
+    parquet_path = Path(config.core.paths.data_parquet_dir)
     parquet_path = parquet_path.joinpath(folder)
     parquet_path.mkdir(parents=True, exist_ok=True)
     return parquet_path
@@ -55,7 +55,7 @@ def test_save_read_parquet(config, h5_paths):
 
     ph = ParquetHandler(parquet_paths=parquet_path)
     print(ph.parquet_paths)
-    bh = BufferHandler(config["dataframe"], h5_paths, folder)
+    bh = BufferHandler(config.dataframe, h5_paths, folder)
     ph.save_parquet(bh.dataframe_electron, drop_index=True)
     parquet_path.unlink()
     ph.save_parquet(bh.dataframe_electron, drop_index=False)

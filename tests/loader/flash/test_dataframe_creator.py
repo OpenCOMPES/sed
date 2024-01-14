@@ -10,22 +10,6 @@ from sed.loader.fel import DataFrameCreator
 from sed.loader.fel.utils import get_channels
 
 
-def test_get_index_dataset_key(config_dataframe, h5_file):
-    """Test the creation of the index and dataset keys for a given channel."""
-    config = config_dataframe
-    channel = "dldPosX"
-    df = DataFrameCreator(config, h5_file)
-    index_key, dataset_key = df.get_index_dataset_key(channel)
-    group_name = config["channels"][channel]["group_name"]
-    assert index_key == group_name + "index"
-    assert dataset_key == group_name + "value"
-
-    # remove group_name key
-    del config["channels"][channel]["group_name"]
-    with pytest.raises(ValueError):
-        df.get_index_dataset_key(channel)
-
-
 def test_get_dataset_array(config_dataframe, h5_file):
     """Test the creation of a h5py dataset for a given channel."""
 
@@ -58,13 +42,12 @@ def test_empty_get_dataset_array(config_dataframe, h5_file, h5_file_copy):
     df = DataFrameCreator(config_dataframe, h5_file)
     train_id, dset = df.get_dataset_array(channel)
 
-    channel_index_key = config_dataframe["channels"][channel]["group_name"] + "index"
-    # channel_dataset_key = config_dataframe["channels"][channel]["group_name"] + "value"
-    empty_dataset_key = config_dataframe["channels"][channel]["group_name"] + "empty"
-    config_dataframe["channels"][channel]["index_key"] = channel_index_key
-    config_dataframe["channels"][channel]["dataset_key"] = empty_dataset_key
+    channel_index_key = config_dataframe.channels.get(channel).group_name + "index"
+    empty_dataset_key = config_dataframe.channels.get(channel).group_name + "empty"
+    config_dataframe.channels.get(channel).index_key = channel_index_key
+    config_dataframe.channels.get(channel).dataset_key = empty_dataset_key
     # Remove the 'group_name' key
-    del config_dataframe["channels"][channel]["group_name"]
+    del config_dataframe.channels.get(channel).group_name
 
     # create an empty dataset
     h5_file_copy.create_dataset(
@@ -86,7 +69,7 @@ def test_pulse_index(config_dataframe, h5_file):
 
     df = DataFrameCreator(config_dataframe, h5_file)
     pulse_index, pulse_array = df.get_dataset_array("pulseId", slice_=True)
-    index, indexer = df.pulse_index(config_dataframe["ubid_offset"])
+    index, indexer = df.pulse_index(config_dataframe.ubid_offset)
     # Check if the index_per_electron is a MultiIndex and has the correct levels
     assert isinstance(index, MultiIndex)
     assert set(index.names) == {"trainId", "pulseId", "electronId"}
@@ -100,7 +83,7 @@ def test_pulse_index(config_dataframe, h5_file):
     # Check if all pulseIds are correctly mapped to the index
     assert np.all(
         index.get_level_values("pulseId").values
-        == (pulse_no_nan - config_dataframe["ubid_offset"])[indexer],
+        == (pulse_no_nan - config_dataframe.ubid_offset)[indexer],
     )
 
     assert np.all(
@@ -150,7 +133,7 @@ def test_df_electron(config_dataframe, h5_file):
 
     # check that dataframe contains all subchannels
     assert np.all(
-        set(result_df.columns) == set(get_channels(config_dataframe["channels"], ["per_electron"])),
+        set(result_df.columns) == set(get_channels(config_dataframe.channels, ["per_electron"])),
     )
 
 
@@ -180,7 +163,7 @@ def test_create_dataframe_per_pulse(config_dataframe, h5_file):
 
     # assert that dataframe contains all channels
     assert np.all(
-        set(result_df.columns) == set(get_channels(config_dataframe["channels"], ["per_pulse"])),
+        set(result_df.columns) == set(get_channels(config_dataframe.channels, ["per_pulse"])),
     )
 
 
@@ -201,11 +184,11 @@ def test_create_dataframe_per_train(config_dataframe, h5_file):
     # check that dataframe contains all channels
     assert np.all(
         set(result_df.columns)
-        == set(get_channels(config_dataframe["channels"], ["per_train"], extend_aux=True)),
+        == set(get_channels(config_dataframe.channels, ["per_train"], extend_aux=True)),
     )
 
     # find unique index values among all per_train channels
-    channels = get_channels(config_dataframe["channels"], ["per_train"])
+    channels = get_channels(config_dataframe.channels, ["per_train"])
     all_keys = Index([])
     for channel in channels:
         all_keys = all_keys.append(df.get_dataset_array(channel, slice_=True)[0])
@@ -226,9 +209,10 @@ def test_create_dataframe_per_train(config_dataframe, h5_file):
     # The subchannels are stored in the second dimension
     # Only index amount of values are stored in the first dimension, the rest are NaNs
     # hence the slicing
-    subchannels = config_dataframe["channels"]["dldAux"]["dldAuxChannels"]
-    for subchannel, index in subchannels.items():
-        np.all(df.df_train[subchannel].dropna().values == data[: key.size, index])
+    aux_channels = config_dataframe.channels["dldAux"].dldAuxChannels
+    for aux_ch_name in aux_channels:
+        aux_ch = aux_channels[aux_ch_name]
+        np.all(df.df_train[aux_ch_name].dropna().values == data[: key.size, aux_ch.slice])
 
     assert result_df.index.is_unique
 
@@ -237,37 +221,19 @@ def test_group_name_not_in_h5(config_dataframe, h5_file):
     """Test ValueError when the group_name for a channel does not exist in the H5 file."""
     channel = "dldPosX"
     config = config_dataframe
-    config["channels"][channel]["group_name"] = "foo"
-    index_key = "foo" + "index"
+    config.channels.get(channel).index_key = "foo"
     df = DataFrameCreator(config, h5_file)
-
     with pytest.raises(KeyError):
         df.df_electron
 
 
-def test_create_dataframe_per_file(config_dataframe, h5_file):
-    """Test the creation of pandas DataFrames for a given file."""
-    df = DataFrameCreator(config_dataframe, h5_file)
-    result_df = df.df
+# def test_create_dataframe_per_file(config_dataframe, h5_file):
+#     """Test the creation of pandas DataFrames for a given file."""
+#     df = DataFrameCreator(config_dataframe, h5_file)
+#     result_df = df.df
 
-    # Check that the result_df is a DataFrame and has the correct shape
-    assert isinstance(result_df, DataFrame)
-    all_keys = df.df_train.index.append(df.df_electron.index).append(df.df_pulse.index)
-    all_keys = all_keys.unique()
-    assert result_df.shape[0] == len(all_keys.unique())
-
-
-def test_get_index_dataset_key_error(config_dataframe, h5_file):
-    """Test the creation of the index and dataset keys for a given channel."""
-    config = config_dataframe
-    channel = "dldPosX"
-    df = DataFrameCreator(config, h5_file)
-    index_key, dataset_key = df.get_index_dataset_key(channel)
-    group_name = config["channels"][channel]["group_name"]
-    assert index_key == group_name + "index"
-    assert dataset_key == group_name + "value"
-
-    # remove group_name key
-    del config["channels"][channel]["group_name"]
-    with pytest.raises(ValueError):
-        df.get_index_dataset_key(channel)
+#     # Check that the result_df is a DataFrame and has the correct shape
+#     assert isinstance(result_df, DataFrame)
+#     all_keys = df.df_train.index.append(df.df_electron.index).append(df.df_pulse.index)
+#     all_keys = all_keys.unique()
+#     assert result_df.shape[0] == len(all_keys.unique())

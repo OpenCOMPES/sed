@@ -81,7 +81,9 @@ dataframe:
     # pulse ID is a necessary channel for using the loader.
     pulseId:
       format: per_electron
-      group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
+      # group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
+      index_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/index"
+      dataset_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/value"
       slice: 2
 
     dldPosX:
@@ -105,12 +107,13 @@ dataframe:
     # The auxillary channel has a special structure where the group further contains
     # a multidim structure so further aliases are defined below
     dldAux:
-      format: per_train
+      format: per_pulse
       group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
       slice: 4
       dldAuxChannels:
         sampleBias: 0
-        tofVoltage: 1
+        tofVoltage:
+          slice: 1
         extractorVoltage: 2
         extractorCurrent: 3
         cryoTemperature: 4
