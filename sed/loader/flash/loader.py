@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
+from typing import cast
 from typing import Sequence
 
 import dask.dataframe as dd
@@ -19,6 +20,7 @@ from natsort import natsorted
 from sed.loader.base.loader import BaseLoader
 from sed.loader.fel import BufferHandler
 from sed.loader.fel import ParquetHandler
+from sed.loader.flash.config_model import FlashLoaderConfig
 from sed.loader.flash.metadata import MetadataRetriever
 
 
@@ -33,74 +35,19 @@ class FlashLoader(BaseLoader):
 
     supported_file_types = ["h5"]
 
-    def __init__(self, config: dict) -> None:
+    def __init__(self, config: FlashLoaderConfig) -> None:
         """
         Initializes the FlashLoader.
 
         Args:
-            config (dict): Configuration dictionary.
+            config (dict | FlashLoaderConfig): The configuration dictionary or model.
         """
         super().__init__(config=config)
-
-    def initialize_paths(self) -> tuple[list[Path], Path]:
-        """
-        Initializes the paths based on the configuration.
-
-        Returns:
-            Tuple[List[Path], Path]: A tuple containing a list of raw data directories
-            paths and the parquet data directory path.
-
-        Raises:
-            ValueError: If required values are missing from the configuration.
-            FileNotFoundError: If the raw data directories are not found.
-        """
-        # Parses to locate the raw beamtime directory from config file
-        if "paths" in self._config["core"]:
-            data_raw_dir = [
-                Path(self._config["core"]["paths"].get("data_raw_dir", "")),
-            ]
-            data_parquet_dir = Path(
-                self._config["core"]["paths"].get("data_parquet_dir", ""),
-            )
-
-        else:
-            try:
-                beamtime_id = self._config["core"]["beamtime_id"]
-                year = self._config["core"]["year"]
-                daq = self._config["dataframe"]["daq"]
-            except KeyError as exc:
-                raise ValueError(
-                    "The beamtime_id, year and daq are required.",
-                ) from exc
-
-            beamtime_dir = Path(
-                self._config["dataframe"]["beamtime_dir"][self._config["core"]["beamline"]],
-            )
-            beamtime_dir = beamtime_dir.joinpath(f"{year}/data/{beamtime_id}/")
-
-            # Use pathlib walk to reach the raw data directory
-            data_raw_dir = []
-            raw_path = beamtime_dir.joinpath("raw")
-
-            for path in raw_path.glob("**/*"):
-                if path.is_dir():
-                    dir_name = path.name
-                    if dir_name.startswith("express-") or dir_name.startswith(
-                        "online-",
-                    ):
-                        data_raw_dir.append(path.joinpath(daq))
-                    elif dir_name == daq.upper():
-                        data_raw_dir.append(path)
-
-            if not data_raw_dir:
-                raise FileNotFoundError("Raw data directories not found.")
-
-            parquet_path = "processed/parquet"
-            data_parquet_dir = beamtime_dir.joinpath(parquet_path)
-
-        data_parquet_dir.mkdir(parents=True, exist_ok=True)
-
-        return data_raw_dir, data_parquet_dir
+        self._config: FlashLoaderConfig
+        if isinstance(config, dict):
+            self._config = FlashLoaderConfig(**self._config)
+        elif isinstance(config, FlashLoaderConfig):
+            self._config = config
 
     def get_files_from_run_id(
         self,
@@ -128,15 +75,15 @@ class FlashLoader(BaseLoader):
             FileNotFoundError: If no files are found for the given run in the directory.
         """
         # Define the stream name prefixes based on the data acquisition identifier
-        stream_name_prefixes = self._config["dataframe"]["stream_name_prefixes"]
+        stream_name_prefixes = self._config.dataframe.stream_name_prefixes
 
         if folders is None:
-            folders = self._config["core"]["base_folder"]
+            folders = self._config.core.base_folder
 
         if isinstance(folders, str):
             folders = [folders]
 
-        daq = kwds.pop("daq", self._config.get("dataframe", {}).get("daq"))
+        daq = self._config.dataframe.daq
 
         # Generate the file patterns to search for in the directory
         file_pattern = f"{stream_name_prefixes[daq]}_run{run_id}_*." + extension
@@ -166,9 +113,12 @@ class FlashLoader(BaseLoader):
         Returns:
             dict: Metadata dictionary
         """
-        metadata_retriever = MetadataRetriever(self._config["metadata"])
+        # check if beamtime_id is set
+        if self._config.core.beamtime_id is None:
+            raise ValueError("Beamtime ID is required to fetch metadata.")
+        metadata_retriever = MetadataRetriever(self._config.metadata)
         metadata = metadata_retriever.get_metadata(
-            beamtime_id=self._config["core"]["beamtime_id"],
+            beamtime_id=self._config.core.beamtime_id,
             runs=self.runs,
             metadata=self.metadata,
         )
@@ -227,7 +177,9 @@ class FlashLoader(BaseLoader):
         """
         t0 = time.time()
 
-        data_raw_dir, data_parquet_dir = self.initialize_paths()
+        paths = self._config.core.paths
+        data_raw_dir = paths.data_raw_dir
+        data_parquet_dir = paths.data_parquet_dir
 
         # Prepare a list of names for the runs to read and parquets to write
         if runs is not None:
@@ -237,9 +189,9 @@ class FlashLoader(BaseLoader):
             for run in runs:
                 run_files = self.get_files_from_run_id(
                     run_id=run,
-                    folders=[str(folder.resolve()) for folder in data_raw_dir],
+                    folders=[str(folder.resolve()) for folder in [data_raw_dir]],
                     extension=ftype,
-                    daq=self._config["dataframe"]["daq"],
+                    daq=self._config.dataframe.daq,
                 )
                 files.extend(run_files)
             self.runs = list(runs)
@@ -281,7 +233,7 @@ class FlashLoader(BaseLoader):
             # which handles buffer file creation/reading
             h5_paths = [Path(file) for file in self.files]
             buffer = BufferHandler(
-                self._config["dataframe"],
+                self._config.dataframe,
                 h5_paths,
                 parquet_path,
                 force_recreate,

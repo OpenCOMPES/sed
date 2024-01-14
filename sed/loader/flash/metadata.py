@@ -33,7 +33,7 @@ class MetadataRetriever:
 
     def get_metadata(
         self,
-        beamtime_id: str,
+        beamtime_id: int,
         runs: list,
         metadata: Optional[Dict] = None,
     ) -> Dict:
@@ -41,7 +41,7 @@ class MetadataRetriever:
         Retrieves metadata for a given beamtime ID and list of runs.
 
         Args:
-            beamtime_id (str): The ID of the beamtime.
+            beamtime_id (int): The ID of the beamtime.
             runs (list): A list of run IDs.
             metadata (Dict, optional): The existing metadata dictionary.
             Defaults to None.

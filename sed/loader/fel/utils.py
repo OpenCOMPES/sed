@@ -8,7 +8,7 @@ FORMATS = ["per_electron", "per_pulse", "per_train"]
 
 
 def get_channels(
-    channel_dict: dict = None,
+    channels_dict: dict = None,
     formats: str | list[str] = None,
     index: bool = False,
     extend_aux: bool = False,
@@ -17,6 +17,7 @@ def get_channels(
     Returns a list of channels associated with the specified format(s).
 
     Args:
+        channels_dict (dict): The channels dictionary.
         formats (Union[str, List[str]]): The desired format(s)
         ('per_pulse', 'per_electron', 'per_train', 'all').
         index (bool): If True, includes channels from the multiindex.
@@ -33,7 +34,7 @@ def get_channels(
     # If 'formats' is a string "all", gather all possible formats.
     if formats == ["all"]:
         channels = get_channels(
-            channel_dict,
+            channels_dict,
             FORMATS,
             index,
             extend_aux,
@@ -56,7 +57,7 @@ def get_channels(
                 )
 
         # Get the available channels excluding 'pulseId'.
-        available_channels = list(channel_dict.keys())
+        available_channels = list(channels_dict.keys())
         # raises error if not available, but necessary for pulse_index
         available_channels.remove(PULSE_ALIAS)
 
@@ -65,14 +66,14 @@ def get_channels(
             channels.extend(
                 key
                 for key in available_channels
-                if channel_dict[key]["format"] == format_ and key != DLD_AUX_ALIAS
+                if channels_dict[key].format == format_ and key != DLD_AUX_ALIAS
             )
             # Include 'dldAuxChannels' if the format is 'per_pulse' and extend_aux is True.
             # Otherwise, include 'dldAux'.
             if format_ == FORMATS[2] and DLD_AUX_ALIAS in available_channels:
                 if extend_aux:
                     channels.extend(
-                        channel_dict[DLD_AUX_ALIAS][DLDAUX_CHANNELS].keys(),
+                        channels_dict.get(DLD_AUX_ALIAS).dldAuxChannels.keys(),
                     )
                 else:
                     channels.extend([DLD_AUX_ALIAS])

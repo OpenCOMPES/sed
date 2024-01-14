@@ -10,7 +10,7 @@ These can be accessed using the df_electron, df_pulse, and df_train properties r
 The combined DataFrame can be accessed using the df property.
 Typical usage example:
 
-    df_creator = DataFrameCreator(cfg_df, h5_file)
+    df_creator = DataFrameCreator(config, h5_file)
     dataframe = df_creator.df
 """
 from __future__ import annotations
@@ -24,6 +24,7 @@ from pandas import MultiIndex
 from pandas import Series
 
 from sed.loader.fel.utils import get_channels
+from sed.loader.flash.config_model import DataFrameConfig
 
 
 class DataFrameCreator:
@@ -31,50 +32,18 @@ class DataFrameCreator:
     Utility class for creating pandas DataFrames from HDF5 files with multiple channels.
     """
 
-    def __init__(self, cfg_df: dict, h5_file: h5py.File) -> None:
+    def __init__(self, config: DataFrameConfig, h5_file: h5py.File) -> None:
         """
         Initializes the DataFrameCreator class.
 
         Args:
-            cfg_df (dict): The configuration dictionary with only the dataframe key.
+            config (DataFrameConfig): The dataframe section of the config model.
             h5_file (h5py.File): The open h5 file.
         """
         self.h5_file: h5py.File = h5_file
         self.failed_files_error: list[str] = []
         self.multi_index = get_channels(index=True)
-        self._config = cfg_df
-
-    def get_index_dataset_key(self, channel: str) -> tuple[str, str]:
-        """
-        Checks if 'group_name' and converts to 'index_key' and 'dataset_key' if so.
-
-        Args:
-            channel (str): The name of the channel.
-
-        Returns:
-            tuple[str, str]: Outputs a tuple of 'index_key' and 'dataset_key'.
-
-        Raises:
-            ValueError: If neither 'group_name' nor both 'index_key' and 'dataset_key' are provided.
-        """
-        channel_config = self._config["channels"][channel]
-
-        if "group_name" in channel_config:
-            index_key = channel_config["group_name"] + "index"
-            if channel == "timeStamp":
-                dataset_key = channel_config["group_name"] + "time"
-            else:
-                dataset_key = channel_config["group_name"] + "value"
-            return index_key, dataset_key
-        if "index_key" in channel_config and "dataset_key" in channel_config:
-            return channel_config["index_key"], channel_config["dataset_key"]
-
-        raise ValueError(
-            "For channel:",
-            channel,
-            "Provide either both 'index_key' and 'dataset_key'.",
-            "or 'group_name' (parses only 'index' and 'value' or 'time' keys.)",
-        )
+        self._config = config
 
     def get_dataset_array(
         self,
@@ -93,13 +62,14 @@ class DataFrameCreator:
             for the channel's data.
         """
         # Get the data from the necessary h5 file and channel
-        index_key, dataset_key = self.get_index_dataset_key(channel)
+        index_key = self._config.channels.get(channel).index_key
+        dataset_key = self._config.channels.get(channel).dataset_key
 
         key = Index(self.h5_file[index_key], name="trainId")  # macrobunch
         dataset = self.h5_file[dataset_key]
 
         if slice_:
-            slice_index = self._config["channels"][channel].get("slice", None)
+            slice_index = self._config.channels.get(channel).slice
             if slice_index is not None:
                 dataset = np.take(dataset, slice_index, axis=1)
         # If np_array is size zero, fill with NaNs
@@ -157,16 +127,16 @@ class DataFrameCreator:
         Returns:
             DataFrame: The pandas DataFrame for the 'per_electron' channel's data.
         """
-        offset = self._config["ubid_offset"]
+        offset = self._config.ubid_offset
         # Index
         index, indexer = self.pulse_index(offset)
 
         # Data logic
-        channels = get_channels(self._config["channels"], "per_electron")
-        slice_index = [self._config["channels"][channel].get("slice", None) for channel in channels]
+        channels = get_channels(self._config.channels, "per_electron")
+        slice_index = [self._config.channels.get(channel).slice for channel in channels]
 
         # First checking if dataset keys are the same for all channels
-        dataset_keys = [self.get_index_dataset_key(channel)[1] for channel in channels]
+        dataset_keys = [self._config.channels.get(channel).dataset_key for channel in channels]
         all_keys_same = all(key == dataset_keys[0] for key in dataset_keys)
 
         # If all dataset keys are the same, we can directly use the ndarray to create frame
@@ -207,7 +177,7 @@ class DataFrameCreator:
             DataFrame: The pandas DataFrame for the 'per_pulse' channel's data.
         """
         series = []
-        channels = get_channels(self._config["channels"], "per_pulse")
+        channels = get_channels(self._config.channels, "per_pulse")
         for channel in channels:
             # get slice
             key, dataset = self.get_dataset_array(channel, slice_=True)
@@ -229,7 +199,7 @@ class DataFrameCreator:
         """
         series = []
 
-        channels = get_channels(self._config["channels"], "per_train")
+        channels = get_channels(self._config.channels, "per_train")
 
         for channel in channels:
             key, dataset = self.get_dataset_array(channel, slice_=True)
@@ -238,9 +208,12 @@ class DataFrameCreator:
                 names=self.multi_index,
             )
             if channel == "dldAux":
-                aux_channels = self._config["channels"]["dldAux"]["dldAuxChannels"].items()
-                for name, slice_aux in aux_channels:
-                    series.append(Series(dataset[: key.size, slice_aux], index, name=name))
+                aux_channels = self._config.channels["dldAux"].dldAuxChannels
+                for aux_ch_name in aux_channels:
+                    aux_ch = aux_channels[aux_ch_name]
+                    series.append(
+                        Series(dataset[: key.size, aux_ch.slice], index, name=aux_ch.name),
+                    )
             else:
                 series.append(Series(dataset, index, name=channel))
 
@@ -253,8 +226,9 @@ class DataFrameCreator:
         Raises:
             KeyError: If the index or dataset keys do not exist in the file.
         """
-        for channel in self._config["channels"]:
-            index_key, dataset_key = self.get_index_dataset_key(channel)
+        for channel in self._config.channels:
+            index_key = self._config.channels.get(channel).index_key
+            dataset_key = self._config.channels.get(channel).dataset_key
             if index_key not in self.h5_file:
                 raise KeyError(f"Index key '{index_key}' doesn't exist in the file.")
             if dataset_key not in self.h5_file:

@@ -6,7 +6,7 @@ all files into one Dask DataFrame.
 
 After initialization, the electron and timed dataframes can be accessed as:
 
-    buffer_handler = BufferFileHandler(cfg_df, h5_paths, folder)
+    buffer_handler = BufferFileHandler(config, h5_paths, folder)
 
     buffer_handler.electron_dataframe
     buffer_handler.pulse_dataframe
@@ -29,6 +29,7 @@ from sed.core.dfops import forward_fill_lazy
 from sed.loader.fel.dataframe import DataFrameCreator
 from sed.loader.fel.parquet import ParquetHandler
 from sed.loader.fel.utils import get_channels
+from sed.loader.flash.config_model import DataFrameConfig
 from sed.loader.utils import split_dld_time_from_sector_id
 
 
@@ -40,7 +41,7 @@ class BufferHandler:
 
     def __init__(
         self,
-        cfg_df: dict,
+        config: DataFrameConfig,
         h5_paths: list[Path],
         folder: Path,
         force_recreate: bool = False,
@@ -53,7 +54,7 @@ class BufferHandler:
         Initializes the BufferFileHandler.
 
         Args:
-            cfg_df (dict): The configuration dictionary with only the dataframe key.
+            config (DataFrameConfig): The dataframe section of the config model.
             h5_paths (List[Path]): List of paths to H5 files.
             folder (Path): Path to the folder for buffer files.
             force_recreate (bool): Flag to force recreation of buffer files.
@@ -62,7 +63,7 @@ class BufferHandler:
             debug (bool): Flag to enable debug mode.
             auto (bool): Flag to automatically create buffer files and fill the dataframe.
         """
-        self._config = cfg_df
+        self._config = config
 
         self.buffer_paths: list[Path] = []
         self.h5_to_create: list[Path] = []
@@ -92,7 +93,7 @@ class BufferHandler:
         existing_parquet_filenames = [file for file in self.buffer_paths if file.exists()]
         parquet_schemas = [pq.read_schema(file) for file in existing_parquet_filenames]
         config_schema = set(
-            get_channels(self._config["channels"], formats="all", index=True, extend_aux=True),
+            get_channels(self._config.channels, formats="all", index=True, extend_aux=True),
         )
 
         for i, schema in enumerate(parquet_schemas):
@@ -205,7 +206,7 @@ class BufferHandler:
         metadata = [pq.read_metadata(file) for file in self.buffer_paths]
 
         channels: list[str] = get_channels(
-            self._config["channels"],
+            self._config.channels,
             ["per_pulse", "per_train"],
             extend_aux=True,
         )
@@ -217,27 +218,28 @@ class BufferHandler:
             df=dataframe,
             columns=channels,
             before=overlap,
-            iterations=self._config.get("forward_fill_iterations", 2),
+            iterations=self._config.forward_fill_iterations,
         )
 
         # Drop rows with nan values in the tof column
-        tof_column = self._config.get("tof_column", "dldTimeSteps")
-        dataframe_electron = dataframe.dropna(subset=tof_column)
+        dataframe_electron = dataframe.dropna(subset=self._config.tof_column)
 
         # Set the dtypes of the channels here as there should be no null values
-        ch_dtypes = get_channels(self._config["channels"], "all")
-        cfg_ch = self._config["channels"]
+        ch_names = get_channels(self._config.channels, "all")
+        cfg_ch = self._config.channels
         dtypes = {
-            channel: cfg_ch[channel].get("dtype")
-            for channel in ch_dtypes
-            if cfg_ch[channel].get("dtype") is not None
+            channel: cfg_ch[channel].dtype
+            for channel in ch_names
+            if cfg_ch[channel].dtype is not None
         }
 
         # Correct the 3-bit shift which encodes the detector ID in the 8s time
-        if self._config.get("split_sector_id_from_dld_time", False):
+        if self._config.split_sector_id_from_dld_time:
             dataframe_electron = split_dld_time_from_sector_id(
                 dataframe_electron,
-                config=self._config,
+                self._config.tof_column,
+                self._config.sector_id_column,
+                self._config.sector_id_reserved_bits,
             )
         self.dataframe_electron = dataframe_electron.astype(dtypes)
         self.dataframe_pulse = dataframe[index + channels]
