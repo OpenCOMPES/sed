@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from itertools import compress
 from pathlib import Path
+from typing import Type
 
 import dask.dataframe as ddf
 import h5py
@@ -26,10 +27,10 @@ from joblib import delayed
 from joblib import Parallel
 
 from sed.core.dfops import forward_fill_lazy
+from sed.loader.fel.config_model import DataFrameConfig
 from sed.loader.fel.dataframe import DataFrameCreator
 from sed.loader.fel.parquet import ParquetHandler
 from sed.loader.fel.utils import get_channels
-from sed.loader.flash.config_model import DataFrameConfig
 from sed.loader.utils import split_dld_time_from_sector_id
 
 
@@ -41,6 +42,7 @@ class BufferHandler:
 
     def __init__(
         self,
+        df_creator: type[DataFrameCreator],
         config: DataFrameConfig,
         h5_paths: list[Path],
         folder: Path,
@@ -54,6 +56,7 @@ class BufferHandler:
         Initializes the BufferFileHandler.
 
         Args:
+            df_creator (Type[DataFrameCreator]): Derived class based on DataFrameCreator.
             config (DataFrameConfig): The dataframe section of the config model.
             h5_paths (List[Path]): List of paths to H5 files.
             folder (Path): Path to the folder for buffer files.
@@ -63,6 +66,7 @@ class BufferHandler:
             debug (bool): Flag to enable debug mode.
             auto (bool): Flag to automatically create buffer files and fill the dataframe.
         """
+        self.df_creator = df_creator
         self._config = config
 
         self.buffer_paths: list[Path] = []
@@ -170,7 +174,7 @@ class BufferHandler:
         h5_file = h5py.File(h5_path, "r")
 
         # Create a DataFrameCreator instance with the configuration and the h5 file
-        dfc = DataFrameCreator(self._config, h5_file)
+        dfc = self.df_creator(self._config, h5_file)
 
         # Get the DataFrame from the DataFrameCreator instance
         df = dfc.df

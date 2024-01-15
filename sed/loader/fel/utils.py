@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 MULTI_INDEX = ["trainId", "pulseId", "electronId"]
-PULSE_ALIAS = MULTI_INDEX[1]
 DLD_AUX_ALIAS = "dldAux"
 DLDAUX_CHANNELS = "dldAuxChannels"
 FORMATS = ["per_electron", "per_pulse", "per_train"]
@@ -12,6 +11,7 @@ def get_channels(
     formats: str | list[str] = None,
     index: bool = False,
     extend_aux: bool = False,
+    remove_index_from_format: bool = True,
 ) -> list[str]:
     """
     Returns a list of channels associated with the specified format(s).
@@ -56,10 +56,11 @@ def get_channels(
                     'per_train', 'all'.",
                 )
 
-        # Get the available channels excluding 'pulseId'.
+        # Get the available channels excluding the index
         available_channels = list(channels_dict.keys())
-        # raises error if not available, but necessary for pulse_index
-        available_channels.remove(PULSE_ALIAS)
+        for ch in MULTI_INDEX:
+            if remove_index_from_format and ch in available_channels:
+                available_channels.remove(ch)
 
         for format_ in formats:
             # Gather channels based on the specified format(s).

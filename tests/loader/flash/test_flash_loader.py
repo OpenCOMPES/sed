@@ -21,7 +21,6 @@ H5_PATH = "FLASH1_USER3_stream_2_run43878_file1_20230130T153807.1.h5"
 )
 def test_initialize_paths(
     config_raw,
-    config,
     fs,
     sub_dir: Literal["online-0/fl1user3/", "express-0/fl1user3/", "FL1USER3/"],
 ) -> None:
@@ -69,21 +68,6 @@ def test_initialize_paths(
         "Value error, Either 'paths' or 'beamtime_id' and 'year' must be provided."
         in error_messages
     )
-
-
-# def test_initialize_paths_filenotfound(config) -> None:
-#     """
-#     Test FileNotFoundError during the initialization of paths.
-#     """
-#     config_alt = config
-#     # Test the FileNotFoundError
-#     del config_alt.core.paths
-#     config_alt.core.beamtime_id = "11111111"
-#     config_alt.core.year = "2000"
-
-#     # Instance of class with correct config and call initialize_paths
-#     with pytest.raises(FileNotFoundError):
-#         fl = FlashLoader(config=config_alt)
 
 
 def test_save_read_parquet_flash(config):

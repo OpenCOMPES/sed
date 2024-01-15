@@ -15,6 +15,8 @@ Typical usage example:
 """
 from __future__ import annotations
 
+from functools import reduce
+
 import h5py
 import numpy as np
 from pandas import concat
@@ -23,8 +25,8 @@ from pandas import Index
 from pandas import MultiIndex
 from pandas import Series
 
+from sed.loader.fel.config_model import DataFrameConfig
 from sed.loader.fel.utils import get_channels
-from sed.loader.flash.config_model import DataFrameConfig
 
 
 class DataFrameCreator:
@@ -79,46 +81,6 @@ class DataFrameCreator:
 
         return key, dataset
 
-    def pulse_index(self, offset: int) -> tuple[MultiIndex, slice | np.ndarray]:
-        """
-        Computes the index for the 'per_electron' data.
-
-        Args:
-            offset (int): The offset value.
-
-        Returns:
-            tuple[MultiIndex, np.ndarray]: A tuple containing the computed MultiIndex and
-            the indexer.
-        """
-        # Get the pulseId and the index_train
-        index_train, dataset_pulse = self.get_dataset_array("pulseId", slice_=True)
-        # Repeat the index_train by the number of pulses
-        index_train_repeat = np.repeat(index_train, dataset_pulse.shape[1])
-        # Explode the pulse dataset and subtract by the ubid_offset
-        pulse_ravel = dataset_pulse.ravel() - offset
-        # Create a MultiIndex with the index_train and the pulse
-        microbunches = MultiIndex.from_arrays((index_train_repeat, pulse_ravel)).dropna()
-
-        # Only sort if necessary
-        indexer = slice(None)
-        if not microbunches.is_monotonic_increasing:
-            microbunches, indexer = microbunches.sort_values(return_indexer=True)
-
-        # Count the number of electrons per microbunch and create an array of electrons
-        electron_counts = microbunches.value_counts(sort=False).values
-        electrons = np.concatenate([np.arange(count) for count in electron_counts])
-
-        # Final index constructed here
-        index = MultiIndex.from_arrays(
-            (
-                microbunches.get_level_values(0),
-                microbunches.get_level_values(1).astype(int),
-                electrons,
-            ),
-            names=self.multi_index,
-        )
-        return index, indexer
-
     @property
     def df_electron(self) -> DataFrame:
         """
@@ -127,46 +89,7 @@ class DataFrameCreator:
         Returns:
             DataFrame: The pandas DataFrame for the 'per_electron' channel's data.
         """
-        offset = self._config.ubid_offset
-        # Index
-        index, indexer = self.pulse_index(offset)
-
-        # Data logic
-        channels = get_channels(self._config.channels, "per_electron")
-        slice_index = [self._config.channels.get(channel).slice for channel in channels]
-
-        # First checking if dataset keys are the same for all channels
-        dataset_keys = [self._config.channels.get(channel).dataset_key for channel in channels]
-        all_keys_same = all(key == dataset_keys[0] for key in dataset_keys)
-
-        # If all dataset keys are the same, we can directly use the ndarray to create frame
-        if all_keys_same:
-            _, dataset = self.get_dataset_array(channels[0])
-            data_dict = {
-                channel: dataset[:, slice_, :].ravel()
-                for channel, slice_ in zip(channels, slice_index)
-            }
-            dataframe = DataFrame(data_dict)
-        # Otherwise, we need to create a Series for each channel and concatenate them
-        else:
-            series = {
-                channel: Series(self.get_dataset_array(channel, slice_=True)[1].ravel())
-                for channel in channels
-            }
-            dataframe = concat(series, axis=1)
-
-        drop_vals = np.arange(-offset, 0)
-
-        # Few things happen here:
-        # Drop all NaN values like while creating the multiindex
-        # if necessary, the data is sorted with [indexer]
-        # MultiIndex is set
-        # Finally, the offset values are dropped
-        return (
-            dataframe.dropna()[indexer]
-            .set_index(index)
-            .drop(index=drop_vals, level="pulseId", errors="ignore")
-        )
+        raise NotImplementedError("This method must be implemented in a child class.")
 
     @property
     def df_pulse(self) -> DataFrame:
@@ -178,6 +101,9 @@ class DataFrameCreator:
         """
         series = []
         channels = get_channels(self._config.channels, "per_pulse")
+        if not channels:
+            return DataFrame()
+
         for channel in channels:
             # get slice
             key, dataset = self.get_dataset_array(channel, slice_=True)
@@ -198,8 +124,9 @@ class DataFrameCreator:
             DataFrame: The pandas DataFrame for the 'per_train' channel's data.
         """
         series = []
-
         channels = get_channels(self._config.channels, "per_train")
+        if not channels:
+            return DataFrame()
 
         for channel in channels:
             key, dataset = self.get_dataset_array(channel, slice_=True)
@@ -245,8 +172,25 @@ class DataFrameCreator:
         """
 
         self.validate_channel_keys()
-        return (
-            self.df_electron.join(self.df_pulse, on=self.multi_index, how="outer")
-            .join(self.df_train, on=self.multi_index, how="outer")
-            .sort_index()
-        )
+
+        dfs_to_join = (self.df_electron, self.df_pulse, self.df_train)
+
+        def conditional_join(left_df, right_df):
+            """Performs conditional join of two dataframes.
+            Logic: if both dataframes are empty, return empty dataframe.
+            If one of the dataframes is empty, return the other dataframe.
+            Otherwise, perform outer join on multiindex of the dataframes."""
+            return (
+                DataFrame()
+                if left_df.empty and right_df.empty
+                else right_df
+                if left_df.empty
+                else left_df
+                if right_df.empty
+                else left_df.join(right_df, on=self.multi_index, how="outer")
+            )
+
+        # Perform conditional join for each combination of dataframes using reduce
+        joined_df = reduce(conditional_join, dfs_to_join)
+
+        return joined_df.sort_index()

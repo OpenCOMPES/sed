@@ -6,6 +6,7 @@ import pytest
 
 from sed.loader.fel import BufferHandler
 from sed.loader.fel import ParquetHandler
+from sed.loader.flash.dataframe import FlashDataFrameCreator
 
 
 def create_parquet_dir(config, folder):
@@ -55,7 +56,7 @@ def test_save_read_parquet(config, h5_paths):
 
     ph = ParquetHandler(parquet_paths=parquet_path)
     print(ph.parquet_paths)
-    bh = BufferHandler(config.dataframe, h5_paths, folder)
+    bh = BufferHandler(FlashDataFrameCreator, config.dataframe, h5_paths, folder)
     ph.save_parquet(bh.dataframe_electron, drop_index=True)
     parquet_path.unlink()
     ph.save_parquet(bh.dataframe_electron, drop_index=False)

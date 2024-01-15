@@ -16,16 +16,6 @@ class DataFormat(str, Enum):
     PER_TRAIN = "per_train"
 
 
-class DAQType(str, Enum):
-    PBD = "pbd"
-    PBD2 = "pbd2"
-    FL1USER1 = "fl1user1"
-    FL1USER2 = "fl1user2"
-    FL1USER3 = "fl1user3"
-    FL2USER1 = "fl2user1"
-    FL2USER2 = "fl2user2"
-
-
 class DataPaths(BaseModel):
     """
     Represents paths for raw and parquet data in a beamtime directory.
@@ -37,10 +27,11 @@ class DataPaths(BaseModel):
     @classmethod
     def from_beamtime_dir(
         cls,
+        loader: str,
         beamtime_dir: Path,
         beamtime_id: int,
         year: int,
-        daq: DAQType,
+        daq: str,
     ) -> "DataPaths":
         """
         Create DataPaths instance from a beamtime directory and DAQ type.
@@ -52,26 +43,34 @@ class DataPaths(BaseModel):
         Returns:
         - DataPaths: Instance of DataPaths.
         """
-        beamtime_dir = beamtime_dir.joinpath(f"{year}/data/{beamtime_id}/")
-        raw_path = beamtime_dir.joinpath("raw")
-        data_raw_dir = []
-        for path in raw_path.glob("**/*"):
-            if path.is_dir():
-                dir_name = path.name
-                if dir_name.startswith("express-") or dir_name.startswith(
-                    "online-",
-                ):
-                    data_raw_dir.append(path.joinpath(daq.value))
-                elif dir_name == daq.value.upper():
-                    data_raw_dir.append(path)
-        print(type(data_raw_dir[0]))
-        if not data_raw_dir:
-            raise ValueError(f"Raw data directories for DAQ type '{daq.value}' not found.")
+        data_raw_dir_list = []
+        if loader == "flash":
+            beamtime_dir = beamtime_dir.joinpath(f"{year}/data/{beamtime_id}/")
+            raw_path = beamtime_dir.joinpath("raw")
+
+            for path in raw_path.glob("**/*"):
+                if path.is_dir():
+                    dir_name = path.name
+                    if dir_name.startswith("express-") or dir_name.startswith(
+                        "online-",
+                    ):
+                        data_raw_dir_list.append(path.joinpath(daq))
+                    elif dir_name == daq.upper():
+                        data_raw_dir_list.append(path)
+            data_raw_dir = data_raw_dir_list[0]
+
+        if loader == "sxp":
+            beamtime_dir = beamtime_dir.joinpath(f"{year}/{beamtime_id}/")
+            data_raw_dir = beamtime_dir.joinpath("raw")
+
+        if not data_raw_dir.is_dir():
+            raise FileNotFoundError("Raw data directories not found.")
 
         parquet_path = "processed/parquet"
         data_parquet_dir = beamtime_dir.joinpath(parquet_path)
+        data_parquet_dir.mkdir(parents=True, exist_ok=True)
 
-        return cls(data_raw_dir=data_raw_dir[0], data_parquet_dir=data_parquet_dir)
+        return cls(data_raw_dir=data_raw_dir, data_parquet_dir=data_parquet_dir)
 
 
 class AuxiliaryChannel(BaseModel):
@@ -97,6 +96,8 @@ class Channel(BaseModel):
     slice: Optional[int] = None
     dtype: Optional[str] = None
     dldAuxChannels: Optional[dict] = None
+    max_hits: Optional[int] = None
+    scale: Optional[float] = None
 
     @model_validator(mode="after")
     def set_index_dataset_key(self):
@@ -146,17 +147,21 @@ class DataFrameConfig(BaseModel):
     Represents configuration for DataFrame.
     """
 
-    daq: DAQType
+    daq: str
     ubid_offset: int
     forward_fill_iterations: int = 2
     split_sector_id_from_dld_time: bool = False
     sector_id_reserved_bits: Optional[int] = None
     channels: Dict[str, Any]
     units: Dict[str, str] = None
-    stream_name_prefixes: Dict[str, str]
+    stream_name_prefixes: Dict[str, str] = None
+    stream_name_prefix: str = ""
+    stream_name_postfixes: Dict[str, str] = None
+    stream_name_postfix: str = ""
     beamtime_dir: Dict[str, str]
     sector_id_column: Optional[str] = None
     tof_column: Optional[str] = "dldTimeSteps"
+    num_trains: Optional[int] = None
 
     @field_validator("channels", mode="before")
     @classmethod
@@ -180,9 +185,30 @@ class DataFrameConfig(BaseModel):
                     "'split_sector_id_from_dld_time' is True",
                     "Please provide 'sector_id_reserved_bits'.",
                 )
-        if self.sector_id_column is None:
-            print("No sector_id_column provided. Defaulting to dldSectorID.")
-            self.sector_id_column = "dldSectorID"
+            if self.sector_id_column is None:
+                print("No sector_id_column provided. Defaulting to dldSectorID.")
+                self.sector_id_column = "dldSectorID"
+        return self
+
+    # compute stream_name_prefix and stream_name_postfix
+    @model_validator(mode="after")
+    def set_stream_name_prefix_and_postfix(self):
+        if self.stream_name_prefixes is not None:
+            # check if daq is in stream_name_prefixes
+            if self.daq not in self.stream_name_prefixes:
+                raise ValueError(
+                    f"DAQ type '{self.daq}' not found in stream_name_prefixes.",
+                )
+            self.stream_name_prefix = self.stream_name_prefixes[self.daq]
+
+        if self.stream_name_postfixes is not None:
+            # check if daq is in stream_name_postfixes
+            if self.daq not in self.stream_name_postfixes:
+                raise ValueError(
+                    f"DAQ type '{self.daq}' not found in stream_name_postfixes.",
+                )
+            self.stream_name_postfix = self.stream_name_postfixes[self.daq]
+
         return self
 
 
@@ -191,6 +217,7 @@ class CoreConfig(BaseModel):
     Represents core configuration for Flash.
     """
 
+    loader: str = None
     beamline: str = None
     paths: Optional[DataPaths] = None
     beamtime_id: int = None
@@ -218,7 +245,7 @@ class Metadata(BaseModel):
     scicat_password: str = None
 
 
-class FlashLoaderConfig(BaseModel):
+class LoaderConfig(BaseModel):
     """
     Configuration for the flash loader.
     """
@@ -238,6 +265,7 @@ class FlashLoaderConfig(BaseModel):
             daq = self.dataframe.daq
             beamtime_dir_path = Path(self.dataframe.beamtime_dir[self.core.beamline])
             self.core.paths = DataPaths.from_beamtime_dir(
+                self.core.loader,
                 beamtime_dir_path,
                 self.core.beamtime_id,
                 self.core.year,

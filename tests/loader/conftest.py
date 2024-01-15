@@ -8,8 +8,8 @@ import h5py
 import pytest
 
 from sed.core.config import parse_config
-from sed.loader.flash.config_model import DataFrameConfig
-from sed.loader.flash.config_model import FlashLoaderConfig
+from sed.loader.fel.config_model import DataFrameConfig
+from sed.loader.fel.config_model import LoaderConfig
 
 package_dir = os.path.dirname(find_spec("sed").origin)
 config_path = os.path.join(package_dir, "../tests/data/loader/flash/config.yaml")
@@ -28,13 +28,13 @@ def fixture_config_raw_file() -> dict:
 
 
 @pytest.fixture(name="config")
-def fixture_config_file(config_raw) -> FlashLoaderConfig:
+def fixture_config_file(config_raw) -> LoaderConfig:
     """Fixture providing a configuration file for FlashLoader tests.
 
     Returns:
         dict: The parsed configuration file.
     """
-    return FlashLoaderConfig(**config_raw)
+    return LoaderConfig(**config_raw)
 
 
 @pytest.fixture(name="config_dataframe")

@@ -1,4 +1,4 @@
-"""Tests for DataFrameCreator functionality"""
+"""Tests for FlashDataFrameCreator functionality"""
 import h5py
 import numpy as np
 import pytest
@@ -6,14 +6,14 @@ from pandas import DataFrame
 from pandas import Index
 from pandas import MultiIndex
 
-from sed.loader.fel import DataFrameCreator
 from sed.loader.fel.utils import get_channels
+from sed.loader.flash.dataframe import FlashDataFrameCreator
 
 
 def test_get_dataset_array(config_dataframe, h5_file):
     """Test the creation of a h5py dataset for a given channel."""
 
-    df = DataFrameCreator(config_dataframe, h5_file)
+    df = FlashDataFrameCreator(config_dataframe, h5_file)
     channel = "dldPosX"
 
     train_id, dset = df.get_dataset_array(channel)
@@ -39,7 +39,7 @@ def test_empty_get_dataset_array(config_dataframe, h5_file, h5_file_copy):
     """Test the method when given an empty dataset."""
 
     channel = "gmdTunnel"
-    df = DataFrameCreator(config_dataframe, h5_file)
+    df = FlashDataFrameCreator(config_dataframe, h5_file)
     train_id, dset = df.get_dataset_array(channel)
 
     channel_index_key = config_dataframe.channels.get(channel).group_name + "index"
@@ -55,7 +55,7 @@ def test_empty_get_dataset_array(config_dataframe, h5_file, h5_file_copy):
         shape=(train_id.shape[0], 0),
     )
 
-    df = DataFrameCreator(config_dataframe, h5_file)
+    df = FlashDataFrameCreator(config_dataframe, h5_file)
     df.h5_file = h5_file_copy
     train_id, dset_empty = df.get_dataset_array(channel)
 
@@ -67,7 +67,7 @@ def test_empty_get_dataset_array(config_dataframe, h5_file, h5_file_copy):
 def test_pulse_index(config_dataframe, h5_file):
     """Test the creation of the pulse index for electron resolved data"""
 
-    df = DataFrameCreator(config_dataframe, h5_file)
+    df = FlashDataFrameCreator(config_dataframe, h5_file)
     pulse_index, pulse_array = df.get_dataset_array("pulseId", slice_=True)
     index, indexer = df.pulse_index(config_dataframe.ubid_offset)
     # Check if the index_per_electron is a MultiIndex and has the correct levels
@@ -101,7 +101,7 @@ def test_pulse_index(config_dataframe, h5_file):
 
 def test_df_electron(config_dataframe, h5_file):
     """Test the creation of a pandas DataFrame for a channel of type [per electron]."""
-    df = DataFrameCreator(config_dataframe, h5_file)
+    df = FlashDataFrameCreator(config_dataframe, h5_file)
 
     result_df = df.df_electron
 
@@ -139,7 +139,7 @@ def test_df_electron(config_dataframe, h5_file):
 
 def test_create_dataframe_per_pulse(config_dataframe, h5_file):
     """Test the creation of a pandas DataFrame for a channel of type [per pulse]."""
-    df = DataFrameCreator(config_dataframe, h5_file)
+    df = FlashDataFrameCreator(config_dataframe, h5_file)
     result_df = df.df_pulse
     # Check that the result_df is a DataFrame and has the correct shape
     assert isinstance(result_df, DataFrame)
@@ -169,7 +169,7 @@ def test_create_dataframe_per_pulse(config_dataframe, h5_file):
 
 def test_create_dataframe_per_train(config_dataframe, h5_file):
     """Test the creation of a pandas DataFrame for a channel of type [per train]."""
-    df = DataFrameCreator(config_dataframe, h5_file)
+    df = FlashDataFrameCreator(config_dataframe, h5_file)
     result_df = df.df_train
 
     channel = "delayStage"
@@ -222,14 +222,14 @@ def test_group_name_not_in_h5(config_dataframe, h5_file):
     channel = "dldPosX"
     config = config_dataframe
     config.channels.get(channel).index_key = "foo"
-    df = DataFrameCreator(config, h5_file)
+    df = FlashDataFrameCreator(config, h5_file)
     with pytest.raises(KeyError):
         df.df_electron
 
 
 # def test_create_dataframe_per_file(config_dataframe, h5_file):
 #     """Test the creation of pandas DataFrames for a given file."""
-#     df = DataFrameCreator(config_dataframe, h5_file)
+#     df = FlashDataFrameCreator(config_dataframe, h5_file)
 #     result_df = df.df
 
 #     # Check that the result_df is a DataFrame and has the correct shape

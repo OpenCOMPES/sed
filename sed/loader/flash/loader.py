@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
-from typing import cast
 from typing import Sequence
 
 import dask.dataframe as dd
@@ -20,7 +19,8 @@ from natsort import natsorted
 from sed.loader.base.loader import BaseLoader
 from sed.loader.fel import BufferHandler
 from sed.loader.fel import ParquetHandler
-from sed.loader.flash.config_model import FlashLoaderConfig
+from sed.loader.fel.config_model import LoaderConfig
+from sed.loader.flash.dataframe import FlashDataFrameCreator
 from sed.loader.flash.metadata import MetadataRetriever
 
 
@@ -35,18 +35,18 @@ class FlashLoader(BaseLoader):
 
     supported_file_types = ["h5"]
 
-    def __init__(self, config: FlashLoaderConfig) -> None:
+    def __init__(self, config: LoaderConfig) -> None:
         """
         Initializes the FlashLoader.
 
         Args:
-            config (dict | FlashLoaderConfig): The configuration dictionary or model.
+            config (dict | LoaderConfig): The configuration dictionary or model.
         """
         super().__init__(config=config)
-        self._config: FlashLoaderConfig
+        self._config: LoaderConfig
         if isinstance(config, dict):
-            self._config = FlashLoaderConfig(**self._config)
-        elif isinstance(config, FlashLoaderConfig):
+            self._config = LoaderConfig(**config)
+        elif isinstance(config, LoaderConfig):
             self._config = config
 
     def get_files_from_run_id(
@@ -65,8 +65,6 @@ class FlashLoader(BaseLoader):
             folders (Union[str, Sequence[str]], optional): The directory(ies) where the raw
                 data is located. Defaults to config["core"]["base_folder"].
             extension (str, optional): The file extension. Defaults to "h5".
-            kwds: Keyword arguments:
-                - daq (str): The data acquisition identifier.
 
         Returns:
             List[str]: A list of path strings representing the collected file names.
@@ -75,7 +73,7 @@ class FlashLoader(BaseLoader):
             FileNotFoundError: If no files are found for the given run in the directory.
         """
         # Define the stream name prefixes based on the data acquisition identifier
-        stream_name_prefixes = self._config.dataframe.stream_name_prefixes
+        stream_name_prefix = self._config.dataframe.stream_name_prefix
 
         if folders is None:
             folders = self._config.core.base_folder
@@ -83,10 +81,8 @@ class FlashLoader(BaseLoader):
         if isinstance(folders, str):
             folders = [folders]
 
-        daq = self._config.dataframe.daq
-
         # Generate the file patterns to search for in the directory
-        file_pattern = f"{stream_name_prefixes[daq]}_run{run_id}_*." + extension
+        file_pattern = f"{stream_name_prefix}_run{run_id}_*." + extension
 
         files: list[Path] = []
         # Use pathlib to search for matching files in each directory
@@ -148,7 +144,6 @@ class FlashLoader(BaseLoader):
         save_parquet: bool = False,
         detector: str = "",
         force_recreate: bool = False,
-        parquet_dir: str | Path = None,
         debug: bool = False,
         **kwds,
     ) -> tuple[dd.DataFrame, dd.DataFrame, dict]:
@@ -208,14 +203,12 @@ class FlashLoader(BaseLoader):
             )
 
         # if parquet_dir is None, use data_parquet_dir
-        parquet_dir = parquet_dir or data_parquet_dir
-        parquet_path = Path(parquet_dir)
         filename = "_".join(str(run) for run in self.runs)
         converted_str = "converted" if converted else ""
         # Create parquet paths for saving and loading the parquet files of df and timed_df
         ph = ParquetHandler(
             [filename, filename + "_timed"],
-            parquet_path,
+            data_parquet_dir,
             converted_str,
             "run_",
             detector,
@@ -233,9 +226,10 @@ class FlashLoader(BaseLoader):
             # which handles buffer file creation/reading
             h5_paths = [Path(file) for file in self.files]
             buffer = BufferHandler(
+                FlashDataFrameCreator,
                 self._config.dataframe,
                 h5_paths,
-                parquet_path,
+                data_parquet_dir,
                 force_recreate,
                 suffix=detector,
                 debug=debug,
