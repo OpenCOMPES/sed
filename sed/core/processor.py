@@ -625,7 +625,7 @@ class SedProcessor:
                 continue
             if key in ["use_center", "rotation_symmetry"]:
                 correction[key] = value
-            elif key == "center_point":
+            elif key in ["center_point", "ascale"]:
                 correction[key] = [float(i) for i in value]
             elif key in ["outer_points", "feature_points"]:
                 correction[key] = []
