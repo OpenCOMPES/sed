@@ -35,19 +35,15 @@ class FlashLoader(BaseLoader):
 
     supported_file_types = ["h5"]
 
-    def __init__(self, config: LoaderConfig) -> None:
+    def __init__(self, config: dict) -> None:
         """
         Initializes the FlashLoader.
 
         Args:
-            config (dict | LoaderConfig): The configuration dictionary or model.
+            config (dict): The configuration dictionary or model.
         """
         super().__init__(config=config)
-        self._config: LoaderConfig
-        if isinstance(config, dict):
-            self._config = LoaderConfig(**config)
-        elif isinstance(config, LoaderConfig):
-            self._config = config
+        self.config = LoaderConfig(**self._config)
 
     def get_files_from_run_id(
         self,
@@ -73,10 +69,10 @@ class FlashLoader(BaseLoader):
             FileNotFoundError: If no files are found for the given run in the directory.
         """
         # Define the stream name prefixes based on the data acquisition identifier
-        stream_name_prefix = self._config.dataframe.stream_name_prefix
+        stream_name_prefix = self.config.dataframe.stream_name_prefix
 
         if folders is None:
-            folders = self._config.core.base_folder
+            folders = self.config.core.base_folder
 
         if isinstance(folders, str):
             folders = [folders]
@@ -110,11 +106,11 @@ class FlashLoader(BaseLoader):
             dict: Metadata dictionary
         """
         # check if beamtime_id is set
-        if self._config.core.beamtime_id is None:
+        if self.config.core.beamtime_id is None:
             raise ValueError("Beamtime ID is required to fetch metadata.")
-        metadata_retriever = MetadataRetriever(self._config.metadata)
+        metadata_retriever = MetadataRetriever(self.config.metadata)
         metadata = metadata_retriever.get_metadata(
-            beamtime_id=self._config.core.beamtime_id,
+            beamtime_id=self.config.core.beamtime_id,
             runs=self.runs,
             metadata=self.metadata,
         )
@@ -172,7 +168,7 @@ class FlashLoader(BaseLoader):
         """
         t0 = time.time()
 
-        paths = self._config.core.paths
+        paths = self.config.core.paths
         data_raw_dir = paths.data_raw_dir
         data_parquet_dir = paths.data_parquet_dir
 
@@ -186,7 +182,7 @@ class FlashLoader(BaseLoader):
                     run_id=run,
                     folders=[str(folder.resolve()) for folder in [data_raw_dir]],
                     extension=ftype,
-                    daq=self._config.dataframe.daq,
+                    daq=self.config.dataframe.daq,
                 )
                 files.extend(run_files)
             self.runs = list(runs)
@@ -227,7 +223,7 @@ class FlashLoader(BaseLoader):
             h5_paths = [Path(file) for file in self.files]
             buffer = BufferHandler(
                 FlashDataFrameCreator,
-                self._config.dataframe,
+                self.config.dataframe,
                 h5_paths,
                 data_parquet_dir,
                 force_recreate,

@@ -225,26 +225,6 @@ class CoreConfig(BaseModel):
     base_folder: Optional[str] = None
 
 
-class Nexus(BaseModel):
-    """
-    Represents Nexus configuration.
-    """
-
-    reader: str = None
-    definition: str = None
-    input_files: str = None
-
-
-class Metadata(BaseModel):
-    """
-    Represents metadata configuration.
-    """
-
-    scicat_url: str = None
-    scicat_username: str = None
-    scicat_password: str = None
-
-
 class LoaderConfig(BaseModel):
     """
     Configuration for the flash loader.
@@ -252,8 +232,8 @@ class LoaderConfig(BaseModel):
 
     core: CoreConfig
     dataframe: DataFrameConfig
-    metadata: Optional[Metadata] = None
-    nexus: Optional[Nexus] = None
+    metadata: Optional[Dict] = None
+    nexus: Optional[Dict] = None
 
     @model_validator(mode="after")
     def check_paths(self):

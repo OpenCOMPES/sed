@@ -52,8 +52,8 @@ def test_initialize_paths(
     # Instance of class with correct config and call initialize_paths
     # config_alt = FlashLoaderConfig(**config_dict)
     fl = FlashLoader(config=config_dict)
-    data_raw_dir = fl._config.core.paths.data_raw_dir
-    data_parquet_dir = fl._config.core.paths.data_parquet_dir
+    data_raw_dir = fl.config.core.paths.data_raw_dir
+    data_parquet_dir = fl.config.core.paths.data_parquet_dir
 
     assert expected_raw_path == data_raw_dir
     assert expected_processed_path == data_parquet_dir
@@ -70,13 +70,13 @@ def test_initialize_paths(
     )
 
 
-def test_save_read_parquet_flash(config):
+def test_save_read_parquet_flash(config_raw):
     """Test ParquetHandler save and read parquet"""
-    config_alt = config
-    config_alt.core.paths.data_parquet_dir = config_alt.core.paths.data_parquet_dir.joinpath(
+    config_alt = config_raw
+    fl = FlashLoader(config=config_alt)
+    fl.config.core.paths.data_parquet_dir = fl.config.core.paths.data_parquet_dir.joinpath(
         "_flash_save_read/",
     )
-    fl = FlashLoader(config=config_alt)
     df1, _, _ = fl.read_dataframe(runs=[43878, 43879], save_parquet=True)
 
     df2, _, _ = fl.read_dataframe(runs=[43878, 43879], load_parquet=True)

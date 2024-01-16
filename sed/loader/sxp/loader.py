@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
+from typing import cast
 from typing import Sequence
 
 import dask.dataframe as dd
@@ -19,7 +20,6 @@ from natsort import natsorted
 
 from sed.loader.base.loader import BaseLoader
 from sed.loader.fel import BufferHandler
-from sed.loader.fel import ParquetHandler
 from sed.loader.fel.config_model import LoaderConfig
 from sed.loader.sxp.dataframe import SXPDataFrameCreator
 
@@ -35,19 +35,15 @@ class SXPLoader(BaseLoader):
 
     supported_file_types = ["h5"]
 
-    def __init__(self, config: dict | LoaderConfig) -> None:
+    def __init__(self, config: dict) -> None:
         """
         Initializes the FlashLoader.
 
         Args:
-            config (dict | LoaderConfig): The configuration dictionary or model.
+            config (dict): The configuration dictionary or model.
         """
         super().__init__(config=config)
-        self._config: LoaderConfig
-        if isinstance(config, dict):
-            self._config = LoaderConfig(**config)
-        elif isinstance(config, LoaderConfig):
-            self._config = config
+        self.config = LoaderConfig(**self._config)
 
     def get_files_from_run_id(
         self,
@@ -73,14 +69,14 @@ class SXPLoader(BaseLoader):
             FileNotFoundError: If no files are found for the given run in the directory.
         """
         # Define the stream name prefixes based on the data acquisition identifier
-        stream_name_prefix = self._config.dataframe.stream_name_prefix
-        stream_name_postfix = self._config.dataframe.stream_name_postfix
+        stream_name_prefix = self.config.dataframe.stream_name_prefix
+        stream_name_postfix = self.config.dataframe.stream_name_postfix
 
         if isinstance(run_id, (int, np.integer)):
             run_id = str(run_id).zfill(4)
 
         if folders is None:
-            folders = self._config.core.base_folder
+            folders = self.config.core.base_folder
 
         if isinstance(folders, str):
             folders = [folders]
@@ -168,7 +164,7 @@ class SXPLoader(BaseLoader):
         """
         t0 = time.time()
 
-        paths = self._config.core.paths
+        paths = self.config.core.paths
         data_raw_dir = paths.data_raw_dir
         data_parquet_dir = paths.data_parquet_dir
 
@@ -202,7 +198,7 @@ class SXPLoader(BaseLoader):
         h5_paths = [Path(file) for file in self.files]
         buffer = BufferHandler(
             SXPDataFrameCreator,
-            self._config.dataframe,
+            self.config.dataframe,
             h5_paths,
             data_parquet_dir,
             force_recreate,

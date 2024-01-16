@@ -629,7 +629,7 @@ def test_align_dld_sectors() -> None:
     np.testing.assert_allclose(tof_ref_array, tof_aligned_array + sector_delays[:, np.newaxis])
 
     # cleanup flash inermediaries
-    _, parquet_data_dir = cast(FlashLoader, processor.loader).initialize_paths()
+    parquet_data_dir = cast(FlashLoader, processor.loader).config.core.paths.data_parquet_dir
     for file in os.listdir(Path(parquet_data_dir, "buffer")):
         os.remove(Path(parquet_data_dir, "buffer", file))
 

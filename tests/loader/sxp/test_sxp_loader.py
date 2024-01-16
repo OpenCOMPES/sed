@@ -30,8 +30,8 @@ def test_initialize_paths(config_raw: dict, fs) -> None:
 
     # Instance of class with correct config and call initialize_paths
     sl = SXPLoader(config=config)
-    data_raw_dir = sl._config.core.paths.data_raw_dir
-    data_parquet_dir = sl._config.core.paths.data_parquet_dir
+    data_raw_dir = sl.config.core.paths.data_raw_dir
+    data_parquet_dir = sl.config.core.paths.data_parquet_dir
 
     assert expected_raw_path == data_raw_dir
     assert expected_processed_path == data_parquet_dir
