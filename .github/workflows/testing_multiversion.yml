@@ -1,4 +1,4 @@
-name: unit tests [Python 3.8|3.9|3.10]
+name: unit tests [Python 3.8|3.9|3.10|3.11]
 
 on:
   push:
@@ -9,7 +9,7 @@ jobs:
     # Using matrix strategy
     strategy:
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
     runs-on: ubuntu-latest
     steps:
       # Check out repo and set up Python
