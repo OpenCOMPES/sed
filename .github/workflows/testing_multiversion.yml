@@ -2,8 +2,7 @@ name: unit tests [Python 3.8|3.9|3.10]
 
 on:
   push:
-    paths-ignore:
-      pyproject.toml
+
 
 jobs:
   pytest:
