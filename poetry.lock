@@ -401,25 +401,23 @@ msgpack = "*"
 
 [[package]]
 name = "bokeh"
-version = "3.1.1"
+version = "2.4.3"
 description = "Interactive plots and applications in the browser from Python"
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.7"
 files = [
-    {file = "bokeh-3.1.1-py3-none-any.whl", hash = "sha256:a542a076ce326f81bf6d226355458572d39fe8fc9b547eab9728a2f1d71e4bdb"},
-    {file = "bokeh-3.1.1.tar.gz", hash = "sha256:ba0fc6bae4352d307541293256dee930a42d0acf92e760c72dc0e7397c3a28e9"},
+    {file = "bokeh-2.4.3-py3-none-any.whl", hash = "sha256:104d2f0a4ca7774ee4b11e545aa34ff76bf3e2ad6de0d33944361981b65da420"},
+    {file = "bokeh-2.4.3.tar.gz", hash = "sha256:ef33801161af379665ab7a34684f2209861e3aefd5c803a21fbbb99d94874b03"},
 ]
 
 [package.dependencies]
-contourpy = ">=1"
 Jinja2 = ">=2.9"
-numpy = ">=1.16"
+numpy = ">=1.11.3"
 packaging = ">=16.8"
-pandas = ">=1.2"
 pillow = ">=7.1.0"
 PyYAML = ">=3.10"
 tornado = ">=5.1"
-xyzservices = ">=2021.09.1"
+typing-extensions = ">=3.10.0"
 
 [[package]]
 name = "cattrs"
@@ -6342,17 +6340,6 @@ parallel = ["dask[complete]"]
 viz = ["matplotlib", "nc-time-axis", "seaborn"]
 
 [[package]]
-name = "xyzservices"
-version = "2023.10.1"
-description = "Source of XYZ tiles providers"
-optional = false
-python-versions = ">=3.8"
-files = [
-    {file = "xyzservices-2023.10.1-py3-none-any.whl", hash = "sha256:6a4c38d3a9f89d3e77153eff9414b36a8ee0850c9e8b85796fd1b2a85b8dfd68"},
-    {file = "xyzservices-2023.10.1.tar.gz", hash = "sha256:091229269043bc8258042edbedad4fcb44684b0473ede027b5672ad40dc9fa02"},
-]
-
-[[package]]
 name = "zarr"
 version = "2.16.1"
 description = "An implementation of chunked, compressed, N-dimensional arrays for Python"
@@ -6404,4 +6391,4 @@ notebook = ["ipykernel", "jupyter", "jupyterlab-h5web"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8, <3.12"
-content-hash = "309c36ff3daa01bc6e82345df10795a50c48483bb03d9b8356538a9b61c302ea"
+content-hash = "6bbada2143f07a67d9759e52d15d888d0d65bd7b9042ef55a1c7433e87981765"
