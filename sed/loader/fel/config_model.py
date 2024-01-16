@@ -24,6 +24,14 @@ class DataPaths(BaseModel):
     data_raw_dir: DirectoryPath
     data_parquet_dir: DirectoryPath
 
+    @field_validator("data_parquet_dir", mode="before")
+    @classmethod
+    def check_and_create_parquet_dir(cls, v):
+        v = Path(v)
+        if not v.is_dir():
+            v.mkdir(parents=True, exist_ok=True)
+        return v
+
     @classmethod
     def from_beamtime_dir(
         cls,
