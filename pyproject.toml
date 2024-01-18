@@ -42,6 +42,7 @@ pyarrow = "^14.0.1"
 jupyter = {version = "^1.0.0", extras = ["notebook"], optional = true}
 ipykernel = {version = "^6.9.1", extras = ["notebook"], optional = true}
 jupyterlab-h5web = {version = ">=7.0.0", extras = ["notebook"], optional = true}
+pydantic = "^2.5.3"
 
 
 [tool.poetry.extras]
