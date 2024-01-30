@@ -947,6 +947,7 @@ metadata["entry_title"] = "Title"
 metadata["user0"] = {}
 metadata["user0"]["name"] = "Name"
 metadata["user0"]["email"] = "email"
+metadata["user0"]["affiliation"] = "affiliation"
 # NXinstrument
 metadata["instrument"] = {}
 # analyzer
