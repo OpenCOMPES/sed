@@ -64,7 +64,7 @@ def apply_jitter(
         # jitter sizes that don't match the original bin sizes
         jitter = np.random.standard_normal(size=colsize)
 
-    for (col, col_jittered, amp) in zip(cols, cols_jittered, amps):
+    for col, col_jittered, amp in zip(cols, cols_jittered, amps):
         df[col_jittered] = df[col] + amp * jitter
 
     return df
@@ -98,7 +98,8 @@ def apply_filter(
 
     Args:
         df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to use.
-        col (str): Name of the column to filter.
+        col (str): Name of the column to filter. Passing "index" for col will
+            filter on the index in each dataframe partition.
         lower_bound (float, optional): The lower bound used in the filtering.
             Defaults to -np.inf.
         upper_bound (float, optional): The lower bound used in the filtering.
@@ -107,16 +108,65 @@ def apply_filter(
     Returns:
         Union[pd.DataFrame, dask.dataframe.DataFrame]: The filtered dataframe.
     """
+    df = df.copy()
+    if col == "index":
+        df["index"] = df.index
+
     out_df = df[(df[col] > lower_bound) & (df[col] < upper_bound)]
 
+    if col == "index":
+        out_df = drop_column(out_df, "index")
+
     return out_df
+
+
+def add_time_stamped_data(
+    df: dask.dataframe.DataFrame,
+    time_stamps: np.ndarray,
+    data: np.ndarray,
+    dest_column: str,
+    time_stamp_column: str,
+    **kwds,
+) -> dask.dataframe.DataFrame:
+    """Add data in form of timestamp/value pairs to the dataframe using interpolation to the
+    timestamps in the dataframe.
+
+    Args:
+        df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to use.
+        time_stamps (np.ndarray): Time stamps of the values to add
+        data (np.ndarray): Values corresponding at the time stamps in time_stamps
+        dest_column (str): destination column name
+        time_stamp_column (str): Time stamp column name
+
+    Returns:
+        Union[pd.DataFrame, dask.dataframe.DataFrame]: Dataframe with added column
+    """
+    if time_stamp_column not in df.columns:
+        raise ValueError(f"{time_stamp_column} not found in dataframe!")
+
+    if len(time_stamps) != len(data):
+        raise ValueError("time_stamps and data have to be of same length!")
+
+    def interpolate_timestamps(
+        df: dask.dataframe.DataFrame,
+    ) -> dask.dataframe.DataFrame:
+        df_timestamps = df[time_stamp_column]
+        df[dest_column] = np.interp(df_timestamps, time_stamps, data)
+        return df
+
+    if not isinstance(df, dask.dataframe.DataFrame):
+        raise ValueError("This function only works for Dask Dataframes!")
+
+    df = df.map_partitions(interpolate_timestamps, **kwds)
+
+    return df
 
 
 def map_columns_2d(
     df: Union[pd.DataFrame, dask.dataframe.DataFrame],
     map_2d: Callable,
-    x_column: np.ndarray,
-    y_column: np.ndarray,
+    x_column: str,
+    y_column: str,
     **kwds,
 ) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
     """Apply a 2-dimensional mapping simultaneously to two dimensions.
@@ -124,8 +174,8 @@ def map_columns_2d(
     Args:
         df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to use.
         map_2d (Callable): 2D mapping function.
-        x_column (np.ndarray): The X column of the dataframe to apply mapping to.
-        y_column (np.ndarray): The Y column of the dataframe to apply mapping to.
+        x_column (str): The X column of the dataframe to apply mapping to.
+        y_column (str): The Y column of the dataframe to apply mapping to.
         **kwds: Additional arguments for the 2D mapping function.
 
     Returns:

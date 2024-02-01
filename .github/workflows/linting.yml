@@ -1,7 +1,12 @@
 name: linting
 
 # Triggers the workflow on push for all branches
-on: [push]
+on:
+  push:
+    branches:
+      - '*'
+    paths-ignore:
+      pyproject.toml
 
 jobs:
   lint:
@@ -20,14 +25,14 @@ jobs:
           poetry-version: 1.2.2
 
       # Linting steps, excute all linters even if one fails
-      - name: pycodestyle
+      - name: ruff
         run:
-          poetry run pycodestyle --ignore=E203,E501,W503 sed tests
-      - name: pylint
+          poetry run ruff sed tests
+      - name: ruff formating
         if: ${{ always() }}
         run:
-          poetry run pylint -j 0 --good-names=i,j,k,ex,x,y,t,k,v,ax,df,ec,mc,dc,ct --disable=fixme,too-many-branches,too-many-locals,too-many-statements,too-many-arguments,too-many-lines,too-many-public-methods,too-many-instance-attributes,too-few-public-methods sed tests
+          poetry run ruff format --check sed tests
       - name: mypy
         if: ${{ always() }}
         run:
-          poetry run mypy --ignore-missing-imports --follow-imports=silent --no-strict-optional sed tests
+          poetry run mypy sed tests

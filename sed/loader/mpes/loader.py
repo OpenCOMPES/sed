@@ -7,12 +7,14 @@ import datetime
 import glob
 import json
 import os
-import urllib
 from typing import Dict
 from typing import List
 from typing import Sequence
 from typing import Tuple
 from typing import Union
+from urllib.error import HTTPError
+from urllib.error import URLError
+from urllib.request import urlopen
 
 import dask
 import dask.array as da
@@ -255,7 +257,6 @@ def hdf5_to_array(
     # Read out groups:
     data_list = []
     for group in group_names:
-
         g_dataset = np.asarray(h5file[group])
         if bool(data_type):
             g_dataset = g_dataset.astype(data_type)
@@ -341,7 +342,6 @@ def hdf5_to_timed_array(
     data_list = []
     ms_marker = np.asarray(h5file[ms_markers_group])
     for group in group_names:
-
         g_dataset = np.asarray(h5file[group])
         if bool(data_type):
             g_dataset = g_dataset.astype(data_type)
@@ -369,7 +369,7 @@ def hdf5_to_timed_array(
             # need to correct for the time it took to write the file
             start_time -= len(ms_marker) / 1000
 
-        time_stamp_data = start_time + ms_marker / 1000
+        time_stamp_data = start_time + np.arange(len(ms_marker)) / 1000
 
         data_list.append(time_stamp_data)
 
@@ -439,6 +439,34 @@ def get_elapsed_time(
     secs = h5file[ms_markers_group].len() / 1000
 
     return secs
+
+
+def get_archiver_data(
+    archiver_url: str,
+    archiver_channel: str,
+    ts_from: float,
+    ts_to: float,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Extract time stamps and corresponding data from and EPICS archiver instance
+
+    Args:
+        archiver_url (str): URL of the archiver data extraction interface
+        archiver_channel (str): EPICS channel to extract data for
+        ts_from (float): starting time stamp of the range of interest
+        ts_to (float): ending time stamp of the range of interest
+
+    Returns:
+        Tuple[List, List]: The extracted time stamps and corresponding data
+    """
+    iso_from = datetime.datetime.utcfromtimestamp(ts_from).isoformat()
+    iso_to = datetime.datetime.utcfromtimestamp(ts_to).isoformat()
+    req_str = archiver_url + archiver_channel + "&from=" + iso_from + "Z&to=" + iso_to + "Z"
+    with urlopen(req_str) as req:
+        data = json.load(req)
+        secs = [x["secs"] + x["nanos"] * 1e-9 for x in data[0]["data"]]
+        vals = [x["val"] for x in data[0]["data"]]
+
+    return (np.asarray(secs), np.asarray(vals))
 
 
 class MpesLoader(BaseLoader):
@@ -645,6 +673,28 @@ class MpesLoader(BaseLoader):
         # Return the list of found files
         return files
 
+    def get_start_and_end_time(self) -> Tuple[float, float]:
+        """Extract the start and end time stamps from the loaded files
+
+        Returns:
+            Tuple[float, float]: A tuple containing the start and end time stamps
+        """
+        h5file = h5py.File(self.files[0])
+        timestamps = hdf5_to_array(
+            h5file,
+            group_names=self._config["dataframe"]["hdf5_groupnames"],
+            time_stamps=True,
+        )
+        ts_from = timestamps[-1][1]
+        h5file = h5py.File(self.files[-1])
+        timestamps = hdf5_to_array(
+            h5file,
+            group_names=self._config["dataframe"]["hdf5_groupnames"],
+            time_stamps=True,
+        )
+        ts_to = timestamps[-1][-1]
+        return (ts_from, ts_to)
+
     def gather_metadata(
         self,
         files: Sequence[str],
@@ -666,21 +716,7 @@ class MpesLoader(BaseLoader):
         print("Gathering metadata from different locations")
         # Read events in with ms time stamps
         print("Collecting time stamps...")
-
-        h5file = h5py.File(files[0])
-        timestamps = hdf5_to_array(
-            h5file,
-            group_names=self._config["dataframe"]["hdf5_groupnames"],
-            time_stamps=True,
-        )
-        ts_from = timestamps[-1][1]
-        h5file = h5py.File(files[-1])
-        timestamps = hdf5_to_array(
-            h5file,
-            group_names=self._config["dataframe"]["hdf5_groupnames"],
-            time_stamps=True,
-        )
-        ts_to = timestamps[-1][-1]
+        (ts_from, ts_to) = self.get_start_and_end_time()
 
         metadata["timing"] = {
             "acquisition_start": datetime.datetime.utcfromtimestamp(ts_from)
@@ -709,42 +745,36 @@ class MpesLoader(BaseLoader):
 
         print("Collecting data from the EPICS archive...")
         # Get metadata from Epics archive if not present already
-        start = datetime.datetime.utcfromtimestamp(ts_from).isoformat()
-        end = datetime.datetime.utcfromtimestamp(ts_to).isoformat()
         epics_channels = self._config["metadata"]["epics_pvs"]
+
+        start = datetime.datetime.utcfromtimestamp(ts_from).isoformat()
 
         channels_missing = set(epics_channels) - set(
             metadata["file"].keys(),
         )
         for channel in channels_missing:
             try:
-                req_str = (
-                    "http://aa0.fhi-berlin.mpg.de:17668/retrieval/data/getData.json?pv="
-                    + channel
-                    + "&from="
-                    + start
-                    + "Z&to="
-                    + end
-                    + "Z"
+                _, vals = get_archiver_data(
+                    archiver_url=self._config["metadata"].get("archiver_url"),
+                    archiver_channel=channel,
+                    ts_from=ts_from,
+                    ts_to=ts_to,
                 )
-                with urllib.request.urlopen(req_str) as req:
-                    data = json.load(req)
-                    vals = [x["val"] for x in data[0]["data"]]
-                    metadata["file"][f"{channel}"] = np.mean(vals)
+                metadata["file"][f"{channel}"] = np.mean(vals)
 
             except IndexError:
                 metadata["file"][f"{channel}"] = np.nan
                 print(
                     f"Data for channel {channel} doesn't exist for time {start}",
                 )
-            except urllib.error.HTTPError as exc:
+            except HTTPError as exc:
                 print(
                     f"Incorrect URL for the archive channel {channel}. "
                     "Make sure that the channel name and file start and end times are "
                     "correct.",
                 )
                 print("Error code: ", exc)
-            except urllib.error.URLError as exc:
+            except URLError as exc:
                 print(
                     f"Cannot access the archive URL for channel {channel}. "
                     f"Make sure that you are within the FHI network."
@@ -832,8 +862,10 @@ class MpesLoader(BaseLoader):
             lens_mode = metadata["instrument"]["analyzer"]["lens_mode"]
             if "spatial" in lens_mode.split("_")[1]:
                 metadata["instrument"]["analyzer"]["projection"] = "real"
+                metadata["instrument"]["analyzer"]["scheme"] = "momentum dispersive"
             else:
                 metadata["instrument"]["analyzer"]["projection"] = "reciprocal"
+                metadata["instrument"]["analyzer"]["scheme"] = "spatial dispersive"
         except IndexError:
             print(
                 "Lens mode must have the form, '6kV_kmodem4.0_20VTOF_v3.sav'. "

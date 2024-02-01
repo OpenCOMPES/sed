@@ -86,7 +86,6 @@ def grid_histogram(
     figsz = kwds.pop("figsize", (14, 8))
 
     if backend == "matplotlib":
-
         nrv = len(rvs)
         nrow = int(np.ceil(nrv / ncol))
         histtype = kwds.pop("histtype", "step")
@@ -94,7 +93,6 @@ def grid_histogram(
         fig, ax = plt.subplots(nrow, ncol, figsize=figsz)
         otherax = ax.copy()
         for i, zipped in enumerate(zip(rvs, rvbins, rvranges)):
-
             # Make each histogram plot
             rvname, rvbin, rvrg = zipped
             try:
@@ -131,12 +129,10 @@ def grid_histogram(
                 fig.delaxes(oax)
 
     elif backend == "bokeh":
-
         output_notebook(hide_banner=True)
 
         plots = []
         for i, zipped in enumerate(zip(rvs, rvbins, rvranges)):
-
             rvname, rvbin, rvrg = zipped
             histvals, edges = np.histogram(dct[rvname], bins=rvbin, range=rvrg)
 

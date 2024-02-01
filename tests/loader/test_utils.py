@@ -14,7 +14,7 @@ test_df = pd.DataFrame(
 )
 
 
-def test_split_channel_bitwise():
+def test_split_channel_bitwise() -> None:
     """Test split_channel_bitwise function"""
     output_columns = ["b", "c"]
     bit_mask = 2
@@ -30,7 +30,7 @@ def test_split_channel_bitwise():
     pd.testing.assert_frame_equal(result.compute(), expected_output)
 
 
-def test_split_channel_bitwise_raises():
+def test_split_channel_bitwise_raises() -> None:
     """Test split_channel_bitwise function raises"""
     pytest.raises(
         KeyError,

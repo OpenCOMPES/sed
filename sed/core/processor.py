@@ -25,6 +25,8 @@ from sed.calibrator import EnergyCalibrator
 from sed.calibrator import MomentumCorrector
 from sed.core.config import parse_config
 from sed.core.config import save_config
+from sed.core.dfops import add_time_stamped_data
+from sed.core.dfops import apply_filter
 from sed.core.dfops import apply_jitter
 from sed.core.metadata import MetaHandler
 from sed.diagnostics import grid_histogram
@@ -33,6 +35,8 @@ from sed.io import to_nexus
 from sed.io import to_tiff
 from sed.loader import CopyTool
 from sed.loader import get_loader
+from sed.loader.mpes.loader import get_archiver_data
+from sed.loader.mpes.loader import MpesLoader
 
 N_CPU = psutil.cpu_count()
 
@@ -118,7 +122,10 @@ class SedProcessor:
         )
 
         self.ec = EnergyCalibrator(
-            loader=self.loader,
+            loader=get_loader(
+                loader_name=loader_name,
+                config=self._config,
+            ),
             config=self._config,
         )
 
@@ -402,11 +409,51 @@ class SedProcessor:
                 duplicate_policy="merge",
             )
 
+    def filter_column(
+        self,
+        column: str,
+        min_value: float = -np.inf,
+        max_value: float = np.inf,
+    ) -> None:
+        """Filter values in a column which are outside of a given range
+
+        Args:
+            column (str): Name of the column to filter
+            min_value (float, optional): Minimum value to keep. Defaults to None.
+            max_value (float, optional): Maximum value to keep. Defaults to None.
+        """
+        if column != "index" and column not in self._dataframe.columns:
+            raise KeyError(f"Column {column} not found in dataframe!")
+        if min_value >= max_value:
+            raise ValueError("min_value has to be smaller than max_value!")
+        if self._dataframe is not None:
+            self._dataframe = apply_filter(
+                self._dataframe,
+                col=column,
+                lower_bound=min_value,
+                upper_bound=max_value,
+            )
+        if self._timed_dataframe is not None and column in self._timed_dataframe.columns:
+            self._timed_dataframe = apply_filter(
+                self._timed_dataframe,
+                column,
+                lower_bound=min_value,
+                upper_bound=max_value,
+            )
+        metadata = {
+            "filter": {
+                "column": column,
+                "min_value": min_value,
+                "max_value": max_value,
+            },
+        }
+        self._attributes.add(metadata, "filter", duplicate_policy="merge")
+
     # Momentum calibration workflow
     # 1. Bin raw detector data for distortion correction
     def bin_and_load_momentum_calibration(
         self,
-        df_partitions: int = 100,
+        df_partitions: Union[int, Sequence[int]] = 100,
         axes: List[str] = None,
         bins: List[int] = None,
         ranges: Sequence[Tuple[float, float]] = None,
@@ -420,8 +467,8 @@ class SedProcessor:
         interactive view, and load it into the momentum corrector class.
 
         Args:
-            df_partitions (int, optional): Number of dataframe partitions to use for
-                the initial binning. Defaults to 100.
+            df_partitions (Union[int, Sequence[int]], optional): Number of dataframe partitions
+                to use for the initial binning. Defaults to 100.
             axes (List[str], optional): Axes to bin.
                 Defaults to config["momentum"]["axes"].
             bins (List[int], optional): Bin numbers to use for binning.
@@ -780,7 +827,6 @@ class SedProcessor:
             preview (bool): Option to preview the first elements of the data frame.
         """
         if self._dataframe is not None:
-
             print("Adding kx/ky columns to dataframe:")
             self._dataframe, metadata = self.mc.append_k_axis(
                 df=self._dataframe,
@@ -1002,7 +1048,6 @@ class SedProcessor:
             self.ec.load_data(biases=biases, traces=traces, tof=tof)
 
         elif data_files is not None:
-
             self.ec.bin_data(
                 data_files=cast(List[str], self.cpy(data_files)),
                 axes=axes,
@@ -1203,7 +1248,7 @@ class SedProcessor:
             filename = "sed_config.yaml"
         calibration = {}
         try:
-            for (key, value) in self.ec.calibration.items():
+            for key, value in self.ec.calibration.items():
                 if key in ["axis", "refid", "Tmat", "bvec"]:
                     continue
                 if key == "energy_scale":
@@ -1674,9 +1719,78 @@ class SedProcessor:
             metadata.append(col)
         self._attributes.add(metadata, "jittering", duplicate_policy="append")
 
+    def add_time_stamped_data(
+        self,
+        dest_column: str,
+        time_stamps: np.ndarray = None,
+        data: np.ndarray = None,
+        archiver_channel: str = None,
+        **kwds,
+    ):
+        """Add data in form of timestamp/value pairs to the dataframe using interpolation to the
+        timestamps in the dataframe. The time-stamped data can either be provided, or fetched from
+        an EPICS archiver instance.
+
+        Args:
+            dest_column (str): destination column name
+            time_stamps (np.ndarray, optional): Time stamps of the values to add. If omitted,
+                time stamps are retrieved from the epics archiver
+            data (np.ndarray, optional): Values corresponding at the time stamps in time_stamps.
+                If omitted, data are retrieved from the epics archiver.
+            archiver_channel (str, optional): EPICS archiver channel from which to retrieve data.
+                Either this or data and time_stamps have to be present.
+            **kwds: additional keyword arguments passed to add_time_stamped_data
+        """
+        time_stamp_column = kwds.pop(
+            "time_stamp_column",
+            self._config["dataframe"].get("time_stamp_alias", ""),
+        )
+
+        if time_stamps is None and data is None:
+            if archiver_channel is None:
+                raise ValueError(
+                    "Either archiver_channel or both time_stamps and data have to be present!",
+                )
+            if self.loader.__name__ != "mpes":
+                raise NotImplementedError(
+                    "This function is currently only implemented for the mpes loader!",
+                )
+            ts_from, ts_to = cast(MpesLoader, self.loader).get_start_and_end_time()
+            # get channel data with +-5 seconds safety margin
+            time_stamps, data = get_archiver_data(
+                archiver_url=self._config["metadata"].get("archiver_url", ""),
+                archiver_channel=archiver_channel,
+                ts_from=ts_from - 5,
+                ts_to=ts_to + 5,
+            )
+
+        self._dataframe = add_time_stamped_data(
+            self._dataframe,
+            time_stamps=time_stamps,
+            data=data,
+            dest_column=dest_column,
+            time_stamp_column=time_stamp_column,
+            **kwds,
+        )
+        if self._timed_dataframe is not None:
+            if time_stamp_column in self._timed_dataframe:
+                self._timed_dataframe = add_time_stamped_data(
+                    self._timed_dataframe,
+                    time_stamps=time_stamps,
+                    data=data,
+                    dest_column=dest_column,
+                    time_stamp_column=time_stamp_column,
+                    **kwds,
+                )
+        metadata: List[Any] = []
+        metadata.append(dest_column)
+        metadata.append(time_stamps)
+        metadata.append(data)
+        self._attributes.add(metadata, "time_stamped_data", duplicate_policy="append")
+
     def pre_binning(
         self,
-        df_partitions: int = 100,
+        df_partitions: Union[int, Sequence[int]] = 100,
         axes: List[str] = None,
         bins: List[int] = None,
         ranges: Sequence[Tuple[float, float]] = None,
@@ -1685,8 +1799,8 @@ class SedProcessor:
         """Function to do an initial binning of the dataframe loaded to the class.
 
         Args:
-            df_partitions (int, optional): Number of dataframe partitions to use for
-                the initial binning. Defaults to 100.
+            df_partitions (Union[int, Sequence[int]], optional): Number of dataframe partitions to
+                use for the initial binning. Defaults to 100.
             axes (List[str], optional): Axes to bin.
                 Defaults to config["momentum"]["axes"].
             bins (List[int], optional): Bin numbers to use for binning.
@@ -1779,8 +1893,11 @@ class SedProcessor:
                 - **threadpool_api**: The API to use for multiprocessing. "blas",
                   "openmp" or None. See ``threadpool_limit`` for details. Defaults to
                   config["binning"]["threadpool_API"].
-                - **df_partitions**: A range or list of dataframe partitions, or the
+                - **df_partitions**: A sequence of dataframe partitions, or the
                   number of the dataframe partitions to use. Defaults to all partitions.
+                - **filter**: A Sequence of Dictionaries with entries "col", "lower_bound",
+                  "upper_bound" to apply as filter to the dataframe before binning. The
+                  dataframe in the class remains unmodified by this.
 
                 Additional kwds are passed to ``bin_dataframe``.
 
@@ -1805,16 +1922,31 @@ class SedProcessor:
             "threadpool_API",
             self._config["binning"]["threadpool_API"],
         )
-        df_partitions = kwds.pop("df_partitions", None)
+        df_partitions: Union[int, Sequence[int]] = kwds.pop("df_partitions", None)
         if isinstance(df_partitions, int):
-            df_partitions = slice(
-                0,
-                min(df_partitions, self._dataframe.npartitions),
-            )
+            df_partitions = list(range(0, min(df_partitions, self._dataframe.npartitions)))
         if df_partitions is not None:
             dataframe = self._dataframe.partitions[df_partitions]
         else:
             dataframe = self._dataframe
+
+        filter_params = kwds.pop("filter", None)
+        if filter_params is not None:
+            try:
+                for param in filter_params:
+                    if "col" not in param:
+                        raise ValueError(
+                            "'col' needs to be defined for each filter entry! ",
+                            f"Not present in {param}.",
+                        )
+                    assert set(param.keys()).issubset({"col", "lower_bound", "upper_bound"})
+                    dataframe = apply_filter(dataframe, **param)
+            except AssertionError as exc:
+                invalid_keys = set(param.keys()) - {"lower_bound", "upper_bound"}
+                raise ValueError(
+                    "Only 'col', 'lower_bound' and 'upper_bound' allowed as filter entries. ",
+                    f"Parameters {invalid_keys} not valid in {param}.",
+                ) from exc
 
         self._binned = bin_dataframe(
             df=dataframe,
@@ -1893,8 +2025,8 @@ class SedProcessor:
                 dataframe, rather than the timed dataframe. Defaults to False.
             **kwds: Keyword arguments:
 
-                -df_partitions (int, optional): Number of dataframe partitions to use.
-                  Defaults to all.
+                - **df_partitions**: A sequence of dataframe partitions, or the
+                  number of the dataframe partitions to use. Defaults to all partitions.
 
         Raises:
             ValueError: Raised if no data are binned.
@@ -1912,13 +2044,9 @@ class SedProcessor:
         if axis not in self._binned.coords:
             raise ValueError(f"Axis '{axis}' not found in binned data!")
 
-        df_partitions: Union[int, slice] = kwds.pop("df_partitions", None)
+        df_partitions: Union[int, Sequence[int]] = kwds.pop("df_partitions", None)
         if isinstance(df_partitions, int):
-            df_partitions = slice(
-                0,
-                min(df_partitions, self._dataframe.npartitions),
-            )
-
+            df_partitions = list(range(0, min(df_partitions, self._dataframe.npartitions)))
         if use_time_stamps or self._timed_dataframe is None:
             if df_partitions is not None:
                 self._normalization_histogram = normalization_histogram_from_timestamps(

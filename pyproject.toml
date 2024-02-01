@@ -1,8 +1,16 @@
 [tool.poetry]
-name = "sed"
-version = "0.1.0"
+name = "sed-processor"
+packages = [
+    {include = "sed"}
+]
+version = "0.1.8a6"
 description = "Single Event Data Frame Processor: Backend to handle photoelectron resolved datastreams"
-authors = ["Muhammad Zain Sohail <zainsohail04@gmail.com>"]
+authors = ["OpenCOMPES team <sed-processor@mpes.science>"]
+readme = "README.md"
+repository = "https://github.com/OpenCOMPES/sed"
+documentation = "https://opencompes.github.io/sed/"
+keywords = ["sed", "mpes", "flash", "arpes"]
+license = "MIT"
 
 [tool.poetry.dependencies]
 python = ">=3.8,<3.11"
@@ -34,27 +42,32 @@ pyarrow = "^14.0.1"
 jupyter = {version = "^1.0.0", extras = ["notebook"], optional = true}
 ipykernel = {version = "^6.9.1", extras = ["notebook"], optional = true}
 jupyterlab-h5web = {version = ">=7.0.0", extras = ["notebook"], optional = true}
-sphinx = {version = ">4.4.0", extras = ["docs"], optional = true}
-sphinx-rtd-theme = {version = ">1.0.0", extras = ["docs"], optional = true}
-tomlkit = {version = ">0.10.0", extras = ["docs"], optional = true}
-sphinx-autodoc-typehints = {version = ">1.17.0", extras = ["docs"], optional = true}
-nbsphinx = {version = "^0.9.3", extras = ["docs"], optional = true}
 
 
 [tool.poetry.extras]
 notebook = ["jupyter", "ipykernel", "jupyterlab-h5web"]
-docs = ["Sphinx", "sphinx-rtd-theme", "tomlkit", "sphinx-autodoc-typehints", "nbsphinx"]
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.0.1"
 pytest-cov = "^3.0.0"
 pytest-xdist = "^2.5.0"
 pytest-clarity = "^1.0.1"
-pylint = "^3.0.1"
+ruff = "^0.1.7"
 mypy = "^1.6.0"
-pycodestyle = "^2.11.1"
 types-pyyaml = "^6.0.12.12"
 types-requests = "^2.31.0.9"
+pyfakefs = "^5.3.0"
+
+[tool.poetry.group.docs]
+optional = true
+
+[tool.poetry.group.docs.dependencies]
+sphinx = "^7.1.2"
+sphinx-rtd-theme = "^1.0.0"
+tomlkit = "^0.12.0"
+sphinx-autodoc-typehints = "^1.17.0"
+nbsphinx = "^0.9.3"
+myst-parser = "^2.0.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -65,3 +78,30 @@ omit = [
     "config.py",
     "config-3.py",
 ]
+
+[tool.ruff]
+include = ["sed/*.py", "tests/*.py"]
+select = [
+    "E", # pycodestyle
+    "W", # pycodestyle
+    "PL", # pylint
+]
+ignore = [
+    "E701", # Multiple statements on one line (colon)
+    "PLR0911", # Too many return statements
+    "PLR0912", # Too many branches
+    "PLR0913", # Too many arguments in function definition
+    "PLR0915", # Too many statements
+    "PLR2004", # Magic value used instead of constant
+    "PLR5501", # else-if-used
+    "PLW2901", # redefined-loop-name
+]
+fixable = ["ALL"]
+line-length = 100 # change the default line length number or characters.
+
+[tool.mypy]
+strict = false
+ignore_missing_imports = true
+follow_imports = "silent"
+no_strict_optional = true
+disable_error_code = "import, annotation-unchecked"
