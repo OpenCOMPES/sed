@@ -1552,6 +1552,86 @@ class SedProcessor:
         }
         save_config(config, filename, overwrite)
 
+    def calibrate_k_division_model(
+        self,
+        warp_params: Sequence[float] = None,
+        **kwargs,
+    ) -> None:
+        """Use the division model to calibrate the momentum axis.
+
+        This function returns the distorted coordinates given the undistorted ones
+        a little complicated by the fact that gamma needs to go to (0,0).
+        it uses a radial distortion model called division model
+        (https://en.wikipedia.org/wiki/Distortion_(optics)#Software_correction)
+        commonly used to correct for lens artifacts.
+
+        The radial distortion parameters k0, k1, k2 are defined as follows:
+        .. math::
+            K_n; rk = rpx/(K_0 + K_1*rpx^2 + K_2*rpx^4)
+        where rpx is the distance from the center of distortion in pixels and rk is the
+        distance from the center of distortion in k space.
+
+        Args:
+            df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to apply the
+                distotion correction to.
+            warp_params (Sequence[float], optional): Parameters of the division model.
+                Either a dictionary containing the parameters or a sequence of the
+                parameters in the order ['center','k0','k1','k2','gamma'].
+                center and gamma are both 2D vectors, k0, k1 and k2 are scalars.
+                Center is the center of distortion in pixels, gamma is the center of
+                the image in k space. k0, k1 and k2 are the radial distortion parameters.
+                Defaults to config["momentum"]["division_model_params"].
+            kwargs: Keyword arguments passed to ``calibrate_k_division_model``:
+                x_column (str, optional): Label of the source 'X' column.
+                   Defaults to config["momentum"]["x_column"].
+                y_column (str, optional): Label of the source 'Y' column.
+                    Defaults to config["momentum"]["y_column"].
+                kx_column (str, optional): Label of the destination 'X' column after
+                    momentum calibration. Defaults to config["momentum"]["kx_column"].
+                ky_column (str, optional): Label of the destination 'Y' column after
+                    momentum calibration. Defaults to config["momentum"]["ky_column"].
+        """
+        self._dataframe, metadata = self.mc.calibrate_k_division_model(
+            df=self._dataframe,
+            warp_params=warp_params,
+            **kwargs,
+        )
+        self._attributes.add(
+            metadata,
+            "k_division_model",
+            duplicate_policy="raise",
+        )
+
+    def save_k_division_model(
+        self,
+        filename: str = None,
+        overwrite: bool = False,
+    ) -> None:
+        """save the generated k division model parameters to the folder config file.
+
+
+
+        Args:
+            filename (str, optional): Filename of the config dictionary to save to.
+                Defaults to "sed_config.yaml" in the current folder.
+            overwrite (bool, optional): Option to overwrite the present dictionary.
+                Defaults to False.
+        """
+        if filename is None:
+            filename = "sed_config.yaml"
+        params = {}
+        try:
+            for key in ["center", "k0", "k1", "k2", "gamma"]:
+                params[key] = self.mc.division_model_params[key]
+        except KeyError as exc:
+            raise KeyError(
+                "k division model parameters not found, need to generate parameters first!",
+            ) from exc
+
+        config: Dict[str, Any] = {"momentum": {"k_division_model": params}}
+        save_config(config, filename, overwrite)
+        print(f"Saved k division model parameters to {filename}")
+
     def add_delay_offset(
         self,
         constant: float = None,
@@ -1574,7 +1654,6 @@ class SedProcessor:
                 of dask.dataframe.Series. For example "mean". In this case the function is applied
                 to the column to generate a single value for the whole dataset. If None, the shift
                 is applied per-dataframe-row. Defaults to None. Currently only "mean" is supported.
-
         Returns:
             None
         """
@@ -1663,6 +1742,7 @@ class SedProcessor:
             self.save_energy_offset,
             self.save_delay_calibration,
             self.save_delay_offsets,
+            self.save_k_division_model,
         ]:
             try:
                 method(filename, overwrite)
