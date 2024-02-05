@@ -408,12 +408,6 @@ class MomentumCorrector:
             feature_type (str, optional):
                 The type of features to extract. Defaults to "points".
             rotsym (int, optional): Rotational symmetry of the data. Defaults to 6.
-            ascale: (Union[float, np.ndarray], optional): Scale parameter determining a realtive
-                scale for each symmetry feature. If provided as single float, rotsym has to be 4.
-                This parameter describes the relative scaling between the two orthorgonal symmetry
-                directions (for an orthorhombic system). Otherwise, an array with ``rotsym``
-                elements is expected, containing relative scales for each feature.
-                Defaults to an array of equal scales.
             symscores (bool, optional):
                 Option for calculating symmetry scores. Defaults to True.
             **kwds:
@@ -437,7 +431,6 @@ class MomentumCorrector:
                 features=self.peaks,
                 direction=direction,
                 rotsym=rotsym,
-                ascale=ascale,
                 symscores=symscores,
                 **kwds,
             )
@@ -619,12 +612,13 @@ class MomentumCorrector:
             interp_order (int, optional):
                 Order of interpolation (see ``scipy.ndimage.map_coordinates()``).
                 Defaults to 1.
-            ascale: (Union[float, list, tuple, np.ndarray], optional): Scale parameter determining
-                a realtive scale for each symmetry feature. If provided as single float, rotsym
-                has to be 4. This parameter describes the relative scaling between the two
-                orthorgonal symmetry directions (for an orthorhombic system). Otherwise, an array
-                with ``rotsym`` elements is expected, containing relative scales for each feature.
-                Defaults to an array of equal scales.
+            ascale: (Union[float, np.ndarray], optional): Scale parameter determining a realtive
+                scale for each symmetry feature. If provided as single float, rotsym has to be 4.
+                This parameter describes the relative scaling between the two orthogonal symmetry
+                directions (for an orthorhombic system). This requires the correction points to be
+                located along the principal axes (X/Y points of the Brillouin zone). Otherwise, an
+                array with ``rotsym`` elements is expected, containing relative scales for each
+                feature. Defaults to an array of equal scales.
             verbose (bool, optional): Option to report the used landmarks for correction.
                 Defaults to True.
             **kwds: keyword arguments:
