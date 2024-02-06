@@ -139,7 +139,7 @@ def test_ascale() -> None:
     with pytest.raises(ValueError):
         mc.spline_warp_estimate(ascale=[1.3, 1, 1.3, 1])
     with pytest.raises(TypeError):
-        mc.spline_warp_estimate(ascale="invalid type")
+        mc.spline_warp_estimate(ascale="invalid type")  # type:ignore
     mc.spline_warp_estimate(ascale=[1.3, 1, 1.3, 1, 1.3, 1])
     assert mc.cdeform_field.shape == mc.rdeform_field.shape == mc.image.shape
     assert len(mc.ptargs) == len(mc.prefs)
