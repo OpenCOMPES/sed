@@ -1,17 +1,17 @@
-name: unit tests [Python 3.8|3.9|3.10|3.11]
+name: unit tests [3.8|3.9|3.10|3.11|3.12]
 
 on:
   push:
-    branches: [ main ]
-    paths-ignore:
-      pyproject.toml
+#    branches: [ main ]
+#    paths-ignore:
+#      pyproject.toml
 
 jobs:
   pytest:
     # Using matrix strategy
     strategy:
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11"]
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
     runs-on: ubuntu-latest
     steps:
       # Check out repo and set up Python
