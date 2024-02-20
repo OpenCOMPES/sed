@@ -16,7 +16,7 @@ def plot_single_hist(
     edges: np.ndarray,
     legend: str = None,
     **kwds,
-) -> pbk.Figure:
+) -> pbk.figure:
     """Bokeh-based plotting of a single histogram with legend and tooltips.
 
     Args:
@@ -26,7 +26,7 @@ def plot_single_hist(
         **kwds: Keyword arguments for ``bokeh.plotting.figure().quad()``.
 
     Returns:
-        pbk.Figure: An instance of 'bokeh.plotting.Figure' as a plot handle.
+        pbk.figure: An instance of 'bokeh.plotting.figure' as a plot handle.
     """
     ttp = kwds.pop("tooltip", [("(x, y)", "($x, $y)")])
 
