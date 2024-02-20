@@ -36,6 +36,7 @@ class MetadataRetriever:
             "Content-Type": "application/json",
             "Accept": "application/json",
         }
+        self.token = metadata_config["scicat_token"]
 
     def get_metadata(
         self,
@@ -87,7 +88,7 @@ class MetadataRetriever:
             Exception: If the request to retrieve metadata fails.
         """
         headers2 = dict(self.headers)
-        headers2["Authorization"] = f"Bearer {self.token}"
+        headers2["Authorization"] = "Bearer {}".format(self.token)
         try:
             # Create the dataset URL using the PID
             dataset_response = requests.get(
