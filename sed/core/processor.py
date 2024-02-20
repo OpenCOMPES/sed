@@ -16,6 +16,7 @@ import numpy as np
 import pandas as pd
 import psutil
 import xarray as xr
+from dask.diagnostics import ProgressBar
 
 from sed.binning import bin_dataframe
 from sed.binning.binning import normalization_histogram_from_timed_dataframe
@@ -164,13 +165,80 @@ class SedProcessor:
             )
 
     def __repr__(self):
+        info = self.get_run_info()
         if self._dataframe is None:
             df_str = "Data Frame: No Data loaded"
         else:
-            df_str = self._dataframe.__repr__()
-        attributes_str = f"Metadata: {self._attributes.metadata}"
-        pretty_str = df_str + "\n" + attributes_str
+            df_str = f"Data Frame: {len(info['dataframe']['columns'])} columns.\n"
+            df_str += f"{' '*11} {info['dataframe']['num_electrons']:,.0f} electrons.\n"
+            df_str += f"{' '*11} {info['dataframe']['num_trains']:,.0f} trains.\n"
+            df_str += f"{' '*11} {info['dataframe']['electrons_per_train']:,.1f} electrons/train.\n"
+            if "num_pulses" in info["dataframe"]:
+                df_str += f"{' '*11} {info['dataframe']['num_pulses']:,.0f} pulses.\n"
+                df_str += (
+                    f"{' '*11} {info['dataframe']['electrons_per_pulse']} " "electrons/pulse.\n"
+                )
+            df_str += f"{' '*11} {info['dataframe']['timestamp_duration']:,.0f} seconds.\n"
+            df_str += f"{' '*11} {info['dataframe']['duration']}.\n"
+            df_str += (
+                f"{' '*11} {info['dataframe']['start_time']} to {info['dataframe']['end_time']}.\n"
+            )
+
+            # df_str = self._dataframe.__repr__()
+        # attributes_str = f"Metadata: {self._attributes.metadata}"
+        pretty_str = df_str  # + "\n" + attributes_str
         return pretty_str
+
+    def get_run_info(self, compute=False) -> dict:
+        """Function to return a dict of information about the loaded data.
+
+        TODO: add dtypes from dataframe. add columns per pulse/per electron/per train
+
+        Returns:
+            dict: Dictionary with information about the loaded data.
+        """
+        info: Dict[str, Any] = {}
+        head = self.dataframe.head(1)
+        tail = self.dataframe.tail(1)
+        info["dataframe"] = {}
+        info["dataframe"]["columns"] = self.dataframe.columns
+        if hasattr(self.loader, "num_electrons"):
+            n_el: int = self.loader.num_electrons
+        else:
+            n_el = None
+        if n_el is None and compute:
+            with ProgressBar():
+                print("computing number of electrons")
+                n_el = len(self.dataframe)
+        info["dataframe"]["num_electrons"] = n_el
+        if hasattr(self.loader, "num_pulses"):
+            n_pulses: int = self.loader.num_pulses
+        else:
+            n_pulses = None
+        if n_pulses is None and compute:
+            with ProgressBar():
+                print("computing number of pulses")
+                n_pulses = len(self.dataframe[self.dataframe["electronId"] == 0])
+        train_range: tuple = int(head["trainId"]), int(tail["trainId"])
+        n_trains = train_range[1] - train_range[0]
+        info["dataframe"]["trainId_min"] = train_range[0]
+        info["dataframe"]["trainId_max"] = train_range[1]
+        info["dataframe"]["num_trains"] = n_trains
+        if n_pulses is not None:
+            info["dataframe"]["electrons_per_pulse"] = n_el / n_pulses
+        if n_trains is not None:
+            info["dataframe"]["electrons_per_train"] = n_el / n_trains
+        tsr = float(head["timeStamp"]), float(tail["timeStamp"])
+        info["dataframe"]["timestamp_min"] = tsr[0]
+        info["dataframe"]["timestamp_max"] = tsr[1]
+        info["dataframe"]["timestamp_duration"] = tsr[1] - tsr[0]
+        info["dataframe"]["start_time"] = pd.to_datetime(tsr[0], unit="s")
+        info["dataframe"]["end_time"] = pd.to_datetime(tsr[1], unit="s")
+        info["dataframe"]["duration"] = pd.to_timedelta(tsr[1] - tsr[0], unit="s")
+
+        info["metadata"] = self._attributes.metadata
+        info["config"] = self._config
+        return info
 
     @property
     def dataframe(self) -> Union[pd.DataFrame, ddf.DataFrame]:
@@ -1947,20 +2015,29 @@ class SedProcessor:
                     "Only 'col', 'lower_bound' and 'upper_bound' allowed as filter entries. ",
                     f"Parameters {invalid_keys} not valid in {param}.",
                 ) from exc
-
-        self._binned = bin_dataframe(
-            df=dataframe,
-            bins=bins,
-            axes=axes,
-            ranges=ranges,
-            hist_mode=hist_mode,
-            mode=mode,
-            pbar=pbar,
-            n_cores=num_cores,
-            threads_per_worker=threads_per_worker,
-            threadpool_api=threadpool_api,
-            **kwds,
-        )
+                
+        try:
+            self._binned = bin_dataframe(
+                df=dataframe,
+                bins=bins,
+                axes=axes,
+                ranges=ranges,
+                hist_mode=hist_mode,
+                mode=mode,
+                pbar=pbar,
+                n_cores=num_cores,
+                threads_per_worker=threads_per_worker,
+                threadpool_api=threadpool_api,
+                **kwds,
+            )
+        except Exception as ex:
+            if type(ex).__name__ == "TypingError":
+                raise TypeError(
+                    "Numba TypingError during binning. One of the axes probably has invalid types."
+                    " Could one of the axes be all nans?",
+                ) from ex
+            else:
+                raise ex
 
         for dim in self._binned.dims:
             try:

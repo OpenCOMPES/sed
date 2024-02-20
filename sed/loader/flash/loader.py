@@ -10,6 +10,7 @@ sed funtionality.
 import time
 from functools import reduce
 from pathlib import Path
+from typing import Any
 from typing import List
 from typing import Sequence
 from typing import Tuple
@@ -25,10 +26,12 @@ from natsort import natsorted
 from pandas import DataFrame
 from pandas import MultiIndex
 from pandas import Series
+from tqdm.auto import tqdm
 
 from sed.core import dfops
 from sed.loader.base.loader import BaseLoader
 from sed.loader.flash.metadata import MetadataRetriever
+from sed.loader.utils import calculate_monochromator_photon_energy
 from sed.loader.utils import parse_h5_keys
 from sed.loader.utils import split_dld_time_from_sector_id
 
@@ -50,6 +53,12 @@ class FlashLoader(BaseLoader):
         self.index_per_electron: MultiIndex = None
         self.index_per_pulse: MultiIndex = None
         self.failed_files_error: List[str] = []
+
+        self.prq_metadata: List[Any] = None
+        self.num_electrons: int = None
+        self.num_electrons_per_part: List[int] = None
+        self.num_pulses: int = None
+        self.parallel_loader: bool = True
 
     def initialize_paths(self) -> Tuple[List[Path], Path]:
         """
@@ -340,11 +349,17 @@ class FlashLoader(BaseLoader):
         # Use predefined axis and slice from the json file
         # to choose correct dimension for necessary channel
         if "slice" in channel_dict:
-            np_array = np.take(
-                np_array,
-                channel_dict["slice"],
-                axis=1,
-            )
+            try:
+                np_array = np.take(
+                    np_array,
+                    channel_dict["slice"],
+                    axis=1,
+                )
+            except np.AxisError:
+                raise np.AxisError(
+                    f"AxisError: {channel}, looking for slice {channel_dict['slice']}, "
+                    f"when shape is  {np_array.shape}",
+                )
         return train_id, np_array
 
     def create_dataframe_per_electron(
@@ -430,7 +445,15 @@ class FlashLoader(BaseLoader):
             # Macrobunch resolved data is exploded to a DataFrame and the MultiIndex is set
 
             # Creates the index_per_pulse for the given channel
-            self.create_multi_index_per_pulse(train_id, np_array)
+            if np_array.ndim != 2:
+                np_array = np.empty((train_id.size, 0))
+                np_array[:, :] = np.nan
+            try:
+                self.create_multi_index_per_pulse(train_id, np_array)
+            except IndexError:
+                raise IndexError(
+                    f"IndexError: {channel} seems to be empty.",
+                )
             data = (
                 Series((np_array[i] for i in train_id.index), name=channel)
                 .explode()
@@ -519,6 +542,8 @@ class FlashLoader(BaseLoader):
         # Pulse resolved data is treated here
         elif channel_dict["format"] == "per_pulse":
             # Create a DataFrame for pulse-resolved data
+            if np_array.ndim != 2:
+                np_array = np_array.reshape((np_array.size, 1))
             data = self.create_dataframe_per_pulse(
                 np_array,
                 train_id,
@@ -612,6 +637,33 @@ class FlashLoader(BaseLoader):
             # correct the 3 bit shift which encodes the detector ID in the 8s time
             if self._config["dataframe"].get("split_sector_id_from_dld_time", False):
                 df = split_dld_time_from_sector_id(df, config=self._config)
+            mono_settings = self._config["dataframe"].get("monochromator", None)
+            if mono_settings is not None:
+                mono_vals = {}
+                for k, v in mono_settings.items():
+                    if k == "channel":
+                        if not isinstance(v, str):
+                            raise ValueError(
+                                f"Invalid channel name {k} in mono_settings. Name must be a string",
+                            )
+                        mono_vals[k] = v
+                    elif isinstance(v, str) and v in df.columns:
+                        mono_vals[k] = df[v].values
+                    elif isinstance(v, int):
+                        mono_vals[k] = v
+                    else:
+                        raise ValueError(f"Invalid value for {k} in mono_settings")
+
+                name = mono_vals.pop("channel")
+                df[name] = calculate_monochromator_photon_energy(
+                    delta1=mono_vals["delta1"],
+                    delta2=mono_vals["delta2"],
+                    grating_density=mono_vals["grating_density"],
+                    grating_order=mono_vals["grating_order"],
+                )
+
+            else:
+                print("no monochromator settings found in config")
             return df
 
     def create_buffer_file(self, h5_path: Path, parquet_path: Path) -> Union[bool, Exception]:
@@ -645,6 +697,7 @@ class FlashLoader(BaseLoader):
         data_parquet_dir: Path,
         detector: str,
         force_recreate: bool,
+        parallel_loader=True,
     ) -> Tuple[List[Path], List, List]:
         """
         Handles the conversion of buffer files (h5 to parquet) and returns the filenames.
@@ -719,12 +772,23 @@ class FlashLoader(BaseLoader):
 
         # Convert the remaining h5 files to parquet in parallel if there are any
         if len(files_to_read) > 0:
-            error = Parallel(n_jobs=len(files_to_read), verbose=10)(
-                delayed(self.create_buffer_file)(h5_path, parquet_path)
-                for h5_path, parquet_path in files_to_read
-            )
-            if any(error):
-                raise RuntimeError(f"Conversion failed for some files. {error}")
+            if parallel_loader:
+                error = Parallel(n_jobs=len(files_to_read), verbose=10)(
+                    delayed(self.create_buffer_file)(h5_path, parquet_path)
+                    for h5_path, parquet_path in files_to_read
+                )
+                if any(error):
+                    raise RuntimeError(f"Conversion failed for some files. {error}") from error[0]
+            else:
+                for h5_path, parquet_path in tqdm(
+                    files_to_read,
+                    desc="Converting h5 files to parquet",
+                ):
+                    error: Exception = self.create_buffer_file(h5_path, parquet_path)
+                    if error:
+                        raise RuntimeError(
+                            f"Conversion failed for some file {h5_path}.\n {error}",
+                        ) from error
 
         # Raise an error if the conversion failed for any files
         # TODO: merge this and the previous error trackings
@@ -736,10 +800,12 @@ class FlashLoader(BaseLoader):
         print("All files converted successfully!")
 
         # read all parquet metadata and schema
-        metadata = [pq.read_metadata(file) for file in parquet_filenames]
+        self.prq_metadata = [pq.read_metadata(file) for file in parquet_filenames]
+        self.num_electrons_per_part = [metadata.num_rows for metadata in self.prq_metadata]
+        self.num_electrons = sum(self.num_electrons_per_part)
         schema = [pq.read_schema(file) for file in parquet_filenames]
 
-        return parquet_filenames, metadata, schema
+        return parquet_filenames, self.prq_metadata, schema
 
     def parquet_handler(
         self,
@@ -750,6 +816,7 @@ class FlashLoader(BaseLoader):
         load_parquet: bool = False,
         save_parquet: bool = False,
         force_recreate: bool = False,
+        parallel_loader: bool = True,
     ) -> Tuple[dd.DataFrame, dd.DataFrame]:
         """
         Handles loading and saving of parquet files based on the provided parameters.
@@ -800,6 +867,7 @@ class FlashLoader(BaseLoader):
                 data_parquet_dir,
                 detector,
                 force_recreate,
+                parallel_loader,
             )
 
             # Read all parquet files into one dataframe using dask
