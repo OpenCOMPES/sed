@@ -100,7 +100,7 @@ def parse_config(
                 )
             elif platform.system() == "Windows":
                 system_config = str(
-                    Path(os.environ["ALLUSERPROFILE"]).joinpath("sed").joinpath("config.yaml"),
+                    Path(os.environ["ALLUSERSPROFILE"]).joinpath("sed").joinpath("config.yaml"),
                 )
         if Path(system_config).exists():
             system_dict = load_config(system_config)

@@ -3,7 +3,7 @@ name = "sed-processor"
 packages = [
     {include = "sed"}
 ]
-version = "0.1.8a4"
+version = "0.1.8a6"
 description = "Single Event Data Frame Processor: Backend to handle photoelectron resolved datastreams"
 authors = ["OpenCOMPES team <sed-processor@mpes.science>"]
 readme = "README.md"
@@ -13,34 +13,34 @@ keywords = ["sed", "mpes", "flash", "arpes"]
 license = "MIT"
 
 [tool.poetry.dependencies]
-python = ">=3.8,<3.11"
+python = ">=3.8, <3.12"
 bokeh = "^2.4.2"
-dask = ">=2021.12.0, <2023.0.0"
-fastdtw = "^0.3.4"
-fastparquet = "^0.8.0"
-h5py = "^3.6.0"
+dask = ">=2021.12.0"
+fastdtw = ">=0.3.4"
+fastparquet = ">=0.8.0"
+h5py = ">=3.6.0"
 ipympl = ">=0.9.1"
 ipywidgets = ">=7.7.1"
-lmfit = "^1.0.3"
-matplotlib = "^3.5.1"
-natsort = "^8.1.0"
-numba = "^0.55.1"
-numpy = ">=1.18,<1.23"
+lmfit = ">=1.0.3"
+matplotlib = ">=3.5.1"
+natsort = ">=8.1.0"
+numba = ">=0.55.1"
+numpy = ">=1.18"
 opencv-python = "<=4.8.0.74"
-pandas = "^1.4.1"
-psutil = "^5.9.0"
+pandas = ">=1.4.1"
+psutil = ">=5.9.0"
 pynxtools = ">=0.0.2"
-pyyaml = "^6.0.0"
-scipy = "^1.8.0"
-symmetrize = "^0.5.5"
-threadpoolctl = "^3.1.0"
-tifffile = ">=2022.2.9, <2023.0.0"
-tqdm = "^4.62.3"
-xarray = "^0.20.2"
-joblib = "^1.2.0"
-pyarrow = "^14.0.1"
-jupyter = {version = "^1.0.0", extras = ["notebook"], optional = true}
-ipykernel = {version = "^6.9.1", extras = ["notebook"], optional = true}
+pyyaml = ">=6.0.0"
+scipy = ">=1.8.0"
+symmetrize = ">=0.5.5"
+threadpoolctl = ">=3.1.0"
+tifffile = ">=2022.2.9"
+tqdm = ">=4.62.3"
+xarray = ">=0.20.2"
+joblib = ">=1.2.0"
+pyarrow = ">=14.0.1"
+jupyter = {version = ">=1.0.0", extras = ["notebook"], optional = true}
+ipykernel = {version = ">=6.9.1", extras = ["notebook"], optional = true}
 jupyterlab-h5web = {version = ">=7.0.0", extras = ["notebook"], optional = true}
 
 
@@ -48,26 +48,26 @@ jupyterlab-h5web = {version = ">=7.0.0", extras = ["notebook"], optional = true}
 notebook = ["jupyter", "ipykernel", "jupyterlab-h5web"]
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^7.0.1"
-pytest-cov = "^3.0.0"
-pytest-xdist = "^2.5.0"
-pytest-clarity = "^1.0.1"
-ruff = "^0.1.7"
-mypy = "^1.6.0"
-types-pyyaml = "^6.0.12.12"
-types-requests = "^2.31.0.9"
-pyfakefs = "^5.3.0"
+pytest = ">=7.0.1"
+pytest-cov = ">=3.0.0"
+pytest-xdist = ">=2.5.0"
+pytest-clarity = ">=1.0.1"
+ruff = ">=0.1.7"
+mypy = ">=1.6.0"
+types-pyyaml = ">=6.0.12.12"
+types-requests = ">=2.31.0.9"
+pyfakefs = ">=5.3.0"
 
 [tool.poetry.group.docs]
 optional = true
 
 [tool.poetry.group.docs.dependencies]
-sphinx = "^7.1.2"
-sphinx-rtd-theme = "^1.0.0"
-tomlkit = "^0.12.0"
-sphinx-autodoc-typehints = "^1.17.0"
-nbsphinx = "^0.9.3"
-myst-parser = "^2.0.0"
+sphinx = ">=7.1.2"
+sphinx-rtd-theme = ">=1.0.0"
+tomlkit = ">=0.12.0"
+sphinx-autodoc-typehints = ">=1.17.0"
+nbsphinx = ">=0.9.3"
+myst-parser = ">=2.0.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

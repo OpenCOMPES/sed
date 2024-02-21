@@ -862,8 +862,10 @@ class MpesLoader(BaseLoader):
             lens_mode = metadata["instrument"]["analyzer"]["lens_mode"]
             if "spatial" in lens_mode.split("_")[1]:
                 metadata["instrument"]["analyzer"]["projection"] = "real"
+                metadata["instrument"]["analyzer"]["scheme"] = "momentum dispersive"
             else:
                 metadata["instrument"]["analyzer"]["projection"] = "reciprocal"
+                metadata["instrument"]["analyzer"]["scheme"] = "spatial dispersive"
         except IndexError:
             print(
                 "Lens mode must have the form, '6kV_kmodem4.0_20VTOF_v3.sav'. "
