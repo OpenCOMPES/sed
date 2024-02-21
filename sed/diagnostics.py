@@ -42,7 +42,7 @@ def plot_single_hist(
         **kwds,
     )
 
-    fig.y_range.start = 0
+    fig.y_range.start = 0  # type: ignore
     fig.legend.location = "top_right"
     fig.grid.grid_line_color = "lightgrey"
 
@@ -153,7 +153,7 @@ def grid_histogram(
         # Make grid plot
         pbk.show(
             gridplot(
-                plots,
+                plots,  # type: ignore
                 ncols=ncol,
                 width=figsz[0] * 30,
                 height=figsz[1] * 28,
