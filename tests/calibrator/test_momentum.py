@@ -162,7 +162,7 @@ def test_apply_correction() -> None:
     assert "Xm" in df.columns
     assert "Ym" in df.columns
     assert metadata["correction"]["applied"] is True
-    np.testing.assert_equal(metadata["correction"]["prefs"], features)
+    np.testing.assert_equal(metadata["correction"]["reference_points"], features)
     assert metadata["correction"]["cdeform_field"].shape == momentum_map.shape
     assert metadata["correction"]["rdeform_field"].shape == momentum_map.shape
 
@@ -371,6 +371,22 @@ def test_momentum_calibration_two_points() -> None:
         equiscale=False,
     )
     df, metadata = mc.append_k_axis(df, x_column="X", y_column="Y")
+    assert "kx" in df.columns
+    assert "ky" in df.columns
+    for key, value in mc.calibration.items():
+        np.testing.assert_equal(
+            metadata["calibration"][key],
+            value,
+        )
+    # Test with passing calibration parameters
+    calibration = mc.calibration.copy()
+    calibration.pop("creation_date")
+    df, _, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
+        folders=df_folder,
+        collect_metadata=False,
+    )
+    mc = MomentumCorrector(config=config)
+    df, metadata = mc.append_k_axis(df, **calibration)
     assert "kx" in df.columns
     assert "ky" in df.columns
     for key, value in mc.calibration.items():
