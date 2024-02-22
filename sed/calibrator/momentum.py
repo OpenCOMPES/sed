@@ -1320,8 +1320,8 @@ class MomentumCorrector:
             figsize = kwds.pop("figsize", (320, 300))
             palette = cm2palette(cmap)  # Retrieve palette colors
             fig = pbk.figure(
-                plot_width=figsize[0],
-                plot_height=figsize[1],
+                width=figsize[0],
+                height=figsize[1],
                 tooltips=ttp,
                 x_range=(0, num_rows),
                 y_range=(0, num_cols),

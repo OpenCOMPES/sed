@@ -715,8 +715,8 @@ class EnergyCalibrator:
             figsize = kwds.pop("figsize", (800, 300))
             fig = pbk.figure(
                 title=ttl,
-                plot_width=figsize[0],
-                plot_height=figsize[1],
+                width=figsize[0],
+                height=figsize[1],
                 tooltips=ttp,
             )
             # Plotting the main traces
