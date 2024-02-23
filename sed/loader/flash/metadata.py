@@ -31,7 +31,7 @@ class MetadataRetriever:
 
         if not self.token or not self.url:
             raise ValueError("No URL or token provided for fetching metadata from scicat.")
-        
+
         self.headers = {
             "Content-Type": "application/json",
             "Accept": "application/json",
