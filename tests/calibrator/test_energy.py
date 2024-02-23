@@ -8,6 +8,7 @@ from copy import deepcopy
 from importlib.util import find_spec
 from typing import Any
 from typing import Dict
+from typing import Literal
 
 import dask.dataframe
 import numpy as np
@@ -565,13 +566,18 @@ def test_apply_energy_correction_raises(correction_type: str) -> None:
         assert config["dataframe"]["corrected_tof_column"] in df.columns
 
 
-def test_add_offsets_functionality() -> None:
+@pytest.mark.parametrize(
+    "energy_scale",
+    ["kinetic", "binding"],
+)
+def test_add_offsets_functionality(energy_scale: str) -> None:
     """test the add_offsets function"""
+    scale_sign: Literal[-1, 1] = -1 if energy_scale == "binding" else 1
     config = parse_config(
         config={
             "energy": {
                 "calibration": {
-                    "energy_scale": "kinetic",
+                    "energy_scale": energy_scale,
                 },
                 "offsets": {
                     "constant": 1,
@@ -610,13 +616,14 @@ def test_add_offsets_functionality() -> None:
         loader=get_loader("flash", config=config),
     )
     res, meta = ec.add_offsets(t_df)
-    exp_vals = df["energy"].copy() + 1
-    exp_vals += df["off1"] - df["off1"].mean()
-    exp_vals -= df["off2"]
-    exp_vals += df["off3"].mean()
+    exp_vals = df["energy"].copy() + 1 * scale_sign
+    exp_vals += (df["off1"] - df["off1"].mean()) * scale_sign
+    exp_vals -= df["off2"] * scale_sign
+    exp_vals += df["off3"].mean() * scale_sign
     np.testing.assert_allclose(res["energy"].values, exp_vals.values)
-    exp_meta = params.copy()
+    exp_meta: Dict[str, Any] = {}
     exp_meta["applied"] = True
+    exp_meta["offsets"] = ec.offsets
     assert meta == exp_meta
     # test with explicit params
     ec = EnergyCalibrator(
@@ -624,12 +631,26 @@ def test_add_offsets_functionality() -> None:
         loader=get_loader("flash", config=config),
     )
     t_df = dask.dataframe.from_pandas(df.copy(), npartitions=2)
-    res, meta = ec.add_offsets(t_df, **params)  # type: ignore[arg-type] # pylint disable=unexpected-keyword-arg
+    res, meta = ec.add_offsets(t_df, **params)  # type: ignore
     np.testing.assert_allclose(res["energy"].values, exp_vals.values)
-    params["applied"] = True
-    assert meta == params
-
-    # test with different energy scale
+    exp_meta = {}
+    exp_meta["applied"] = True
+    exp_meta["offsets"] = ec.offsets
+    assert meta == exp_meta
+    # test with minimal parameters
+    ec = EnergyCalibrator(
+        config=config,
+        loader=get_loader("flash", config=config),
+    )
+    t_df = dask.dataframe.from_pandas(df.copy(), npartitions=2)
+    res, meta = ec.add_offsets(t_df, weights=-1, columns="off1")
+    res, meta = ec.add_offsets(res, columns="off1")
+    exp_vals = df["energy"].copy()
+    np.testing.assert_allclose(res["energy"].values, exp_vals.values)
+    exp_meta = {}
+    exp_meta["applied"] = True
+    exp_meta["offsets"] = ec.offsets
+    assert meta == exp_meta
 
 
 def test_add_offset_raises() -> None:
@@ -657,13 +678,6 @@ def test_add_offset_raises() -> None:
         },
     )
     t_df = dask.dataframe.from_pandas(df.copy(), npartitions=2)
-    # no sign in config
-    with pytest.raises(KeyError):
-        cfg = deepcopy(cfg_dict)
-        cfg["energy"]["offsets"]["off1"].pop("weight")
-        config = parse_config(config=cfg, folder_config={}, user_config={}, system_config={})
-        ec = EnergyCalibrator(config=cfg, loader=get_loader("flash", config=config))
-        _ = ec.add_offsets(t_df)
 
     # no energy scale
     with pytest.raises(ValueError):
