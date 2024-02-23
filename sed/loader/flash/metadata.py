@@ -15,20 +15,27 @@ class MetadataRetriever:
     on beamtime and run IDs.
     """
 
-    def __init__(self, metadata_config: Dict) -> None:
+    def __init__(self, metadata_config: Dict, scicat_token: str = None) -> None:
         """
         Initializes the MetadataRetriever class.
 
         Args:
             metadata_config (dict): Takes a dict containing
-            at least url, username and password
+            at least url, and optionally token for the scicat instance.
+            scicat_token (str, optional): The token to use for fetching metadata.
         """
-        self.url = metadata_config["scicat_url"]
+        self.token = metadata_config.get("scicat_token", None)
+        if scicat_token:
+            self.token = scicat_token
+        self.url = metadata_config.get("scicat_url", None)
+
+        if not self.token or not self.url:
+            raise ValueError("No URL or token provided for fetching metadata from scicat.")
+        
         self.headers = {
             "Content-Type": "application/json",
             "Accept": "application/json",
         }
-        self.token = metadata_config["scicat_token"]
 
     def get_metadata(
         self,
