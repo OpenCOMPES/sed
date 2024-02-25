@@ -15,17 +15,23 @@ class MetadataRetriever:
     on beamtime and run IDs.
     """
 
-    def __init__(self, metadata_config: Dict) -> None:
+    def __init__(self, metadata_config: Dict, scicat_token: str = None) -> None:
         """
         Initializes the MetadataRetriever class.
 
         Args:
             metadata_config (dict): Takes a dict containing
-            at least url, username and password
+            at least url, and optionally token for the scicat instance.
+            scicat_token (str, optional): The token to use for fetching metadata.
         """
-        self.url = metadata_config["scicat_url"]
-        self.username = metadata_config["scicat_username"]
-        self.password = metadata_config["scicat_password"]
+        self.token = metadata_config.get("scicat_token", None)
+        if scicat_token:
+            self.token = scicat_token
+        self.url = metadata_config.get("scicat_url", None)
+
+        if not self.token or not self.url:
+            raise ValueError("No URL or token provided for fetching metadata from scicat.")
+
         self.headers = {
             "Content-Type": "application/json",
             "Accept": "application/json",
@@ -80,9 +86,16 @@ class MetadataRetriever:
         Raises:
             Exception: If the request to retrieve metadata fails.
         """
+        headers2 = dict(self.headers)
+        headers2["Authorization"] = f"Bearer {self.token}"
         try:
             # Create the dataset URL using the PID
-            dataset_response = requests.get(self._create_dataset_url_by_PID(pid), timeout=10)
+            dataset_response = requests.get(
+                self._create_dataset_url_by_PID(pid),
+                params={"access_token": self.token},
+                headers=headers2,
+                timeout=10,
+            )
             dataset_response.raise_for_status()  # Raise HTTPError if request fails
             # If the dataset request is successful, return the retrieved metadata
             # as a JSON object
@@ -105,37 +118,9 @@ class MetadataRetriever:
         Raises:
             Exception: If the token request fails.
         """
-        npid = ("/" + pid).replace(
+        npid = pid.replace(
             "/",
             "%2F",
         )  # Replace slashes in the PID with URL-encoded slashes
-        url = f"{self.url}/RawDatasets/{npid}?access_token={self._get_token()}"
+        url = f"{self.url}/Datasets/{npid}"
         return url
-
-    def _get_token(self) -> str:
-        """
-        Retrieves the access token for authentication.
-
-        Returns:
-            str: The access token.
-
-        Raises:
-            Exception: If the token request fails.
-        """
-        try:
-            token_url = f"{self.url}/Users/login"
-            # Send a POST request to the token URL with the username and password
-            token_response = requests.post(
-                token_url,
-                headers=self.headers,
-                json={"username": self.username, "password": self.password},
-                timeout=10,
-            )
-            token_response.raise_for_status()
-            # If the token request is successful, return the access token from the response
-            return token_response.json()["id"]
-
-            # Otherwise issue warning
-        except requests.exceptions.RequestException as exception:
-            warnings.warn(f"Failed to retrieve authentication token: {str(exception)}")
-            return ""  # Return an empty string if token retrieval fails
