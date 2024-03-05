@@ -89,39 +89,32 @@ class MetadataRetriever:
         """
         headers2 = dict(self.headers)
         headers2["Authorization"] = "Bearer {}".format(self.token)
+        
         try:
-            # Create the dataset URL using the PID
             dataset_response = requests.get(
-                self._create_dataset_url_by_PID(pid),
-                params={"access_token": self.token},
+                self._create_new_dataset_url(pid),
                 headers=headers2,
                 timeout=10,
             )
-            dataset_response.raise_for_status()  # Raise HTTPError if request fails
+            dataset_response.raise_for_status()
+            # Check if response is an empty object because wrong url for older implementation
+            if not dataset_response.content:
+                dataset_response = requests.get(self._create_old_dataset_url(pid),
+                                                headers=headers2, timeout=10)
             # If the dataset request is successful, return the retrieved metadata
             # as a JSON object
-            return dataset_response.json()
+            return dataset_response.json() 
         except requests.exceptions.RequestException as exception:
             # If the request fails, raise warning
-            warnings.warn(f"Failed to retrieve metadata for PID {pid}: {str(exception)}")
+            print(warnings.warn(f"Failed to retrieve metadata for PID {pid}: {str(exception)}"))
             return {}  # Return an empty dictionary for this run
+    
+    def _create_old_dataset_url(self, pid: str) -> str:
+        return "{burl}/{url}/%2F{npid}".format(burl=self.url, url="Datasets", npid=self._reformat_pid(pid))
 
-    def _create_dataset_url_by_PID(self, pid: str) -> str:  # pylint: disable=invalid-name
-        """
-        Creates the dataset URL based on the PID.
+    def _create_new_dataset_url(self, pid: str) -> str:
+        return "{burl}/{url}/{npid}".format(burl=self.url, url="Datasets", npid=self._reformat_pid(pid))
 
-        Args:
-            pid (str): The PID of the run.
-
-        Returns:
-            str: The dataset URL.
-
-        Raises:
-            Exception: If the token request fails.
-        """
-        npid = pid.replace(
-            "/",
-            "%2F",
-        )  # Replace slashes in the PID with URL-encoded slashes
-        url = f"{self.url}/Datasets/{npid}"
-        return url
+    def _reformat_pid(self, pid: str) -> str:
+        """ SciCat adds a pid-prefix + "/"  but at DESY prefix = "" """
+        return (pid).replace("/", "%2F")
