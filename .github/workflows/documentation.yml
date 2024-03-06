@@ -90,6 +90,11 @@ jobs:
           rm Gd_W110_flash.zip
           touch Gd_W110_flash.zip
 
+      - name: build Flash parquet files
+        run: |
+          cd $GITHUB_WORKSPACE/docs
+          poetry run python build_flash_parquets.py
+
       - name: build Sphinx docs
         run: poetry run sphinx-build -b html $GITHUB_WORKSPACE/docs $GITHUB_WORKSPACE/_build
 
