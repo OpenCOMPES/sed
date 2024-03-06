@@ -345,9 +345,9 @@
     }
   },
   "/ENTRY[entry]/PROCESS[process]/DISTORTION[distortion]": {
-    "symmetry": "@attrs:metadata/momentum_correction/correction/rotsym",
-    "original_centre": "@attrs:metadata/momentum_correction/correction/pcent",
-    "original_points": "@attrs:metadata/momentum_correction/correction/pouter",
+    "symmetry": "@attrs:metadata/momentum_correction/correction/rotation_symmetry",
+    "original_centre": "@attrs:metadata/momentum_correction/correction/center_point",
+    "original_points": "@attrs:metadata/momentum_correction/correction/outer_points",
     "cdeform_field": "@attrs:metadata/momentum_correction/correction/cdeform_field",
     "rdeform_field": "@attrs:metadata/momentum_correction/correction/rdeform_field"
   },

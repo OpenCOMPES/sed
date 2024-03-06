@@ -29,7 +29,7 @@ numpy = ">=1.18"
 opencv-python = ">=4.8.0.74"
 pandas = ">=1.4.1"
 psutil = ">=5.9.0"
-pynxtools = ">=0.0.2"
+pynxtools-mpes = ">=0.0.1"
 pyyaml = ">=6.0.0"
 scipy = ">=1.8.0"
 symmetrize = ">=0.5.5"
@@ -52,7 +52,7 @@ pytest = ">=7.0.1"
 pytest-cov = ">=3.0.0"
 pytest-xdist = ">=2.5.0"
 pytest-clarity = ">=1.0.1"
-ruff = ">=0.1.7"
+ruff = ">=0.1.7, <0.3.0"
 mypy = ">=1.6.0"
 types-pyyaml = ">=6.0.12.12"
 types-requests = ">=2.31.0.9"
@@ -83,12 +83,12 @@ omit = [
 
 [tool.ruff]
 include = ["sed/*.py", "tests/*.py"]
-select = [
+lint.select = [
     "E", # pycodestyle
     "W", # pycodestyle
     "PL", # pylint
 ]
-ignore = [
+lint.ignore = [
     "E701", # Multiple statements on one line (colon)
     "PLR0911", # Too many return statements
     "PLR0912", # Too many branches
@@ -98,7 +98,7 @@ ignore = [
     "PLR5501", # else-if-used
     "PLW2901", # redefined-loop-name
 ]
-fixable = ["ALL"]
+lint.fixable = ["ALL"]
 line-length = 100 # change the default line length number or characters.
 
 [tool.mypy]
