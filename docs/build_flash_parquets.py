@@ -29,9 +29,11 @@ config_override = {
     },
 }
 
-sp = SedProcessor(
-    runs=["44762", "44797", "44798", "44799", "44824", "44825", "44826", "44827"],
-    config=config_override,
-    system_config=config_file,
-    collect_metadata=False,
-)
+runs = ["44762", "44797", "44798", "44799", "44824", "44825", "44826", "44827"]
+for run in runs:
+    sp = SedProcessor(
+        runs=run,
+        config=config_override,
+        system_config=config_file,
+        collect_metadata=False,
+    )
