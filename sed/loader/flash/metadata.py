@@ -89,7 +89,7 @@ class MetadataRetriever:
         """
         headers2 = dict(self.headers)
         headers2["Authorization"] = "Bearer {}".format(self.token)
-        
+
         try:
             dataset_response = requests.get(
                 self._create_new_dataset_url(pid),
@@ -103,17 +103,19 @@ class MetadataRetriever:
                                                 headers=headers2, timeout=10)
             # If the dataset request is successful, return the retrieved metadata
             # as a JSON object
-            return dataset_response.json() 
+            return dataset_response.json()
         except requests.exceptions.RequestException as exception:
             # If the request fails, raise warning
             print(warnings.warn(f"Failed to retrieve metadata for PID {pid}: {str(exception)}"))
             return {}  # Return an empty dictionary for this run
-    
+
     def _create_old_dataset_url(self, pid: str) -> str:
-        return "{burl}/{url}/%2F{npid}".format(burl=self.url, url="Datasets", npid=self._reformat_pid(pid))
+        return "{burl}/{url}/%2F{npid}".format(burl=self.url, url="Datasets",
+                                                npid=self._reformat_pid(pid))
 
     def _create_new_dataset_url(self, pid: str) -> str:
-        return "{burl}/{url}/{npid}".format(burl=self.url, url="Datasets", npid=self._reformat_pid(pid))
+        return "{burl}/{url}/{npid}".format(burl=self.url, url="Datasets",
+                                            npid=self._reformat_pid(pid))
 
     def _reformat_pid(self, pid: str) -> str:
         """ SciCat adds a pid-prefix + "/"  but at DESY prefix = "" """
