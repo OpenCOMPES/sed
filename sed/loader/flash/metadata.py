@@ -1,7 +1,8 @@
 """
 The module provides a MetadataRetriever class for retrieving metadata
-from a Scicatinstance based on beamtime and run IDs.
+from a Scicat Instance based on beamtime and run IDs.
 """
+
 import warnings
 from typing import Dict
 from typing import Optional
@@ -99,8 +100,9 @@ class MetadataRetriever:
             dataset_response.raise_for_status()
             # Check if response is an empty object because wrong url for older implementation
             if not dataset_response.content:
-                dataset_response = requests.get(self._create_old_dataset_url(pid),
-                                                headers=headers2, timeout=10)
+                dataset_response = requests.get(
+                    self._create_old_dataset_url(pid), headers=headers2, timeout=10
+                )
             # If the dataset request is successful, return the retrieved metadata
             # as a JSON object
             return dataset_response.json()
@@ -110,13 +112,15 @@ class MetadataRetriever:
             return {}  # Return an empty dictionary for this run
 
     def _create_old_dataset_url(self, pid: str) -> str:
-        return "{burl}/{url}/%2F{npid}".format(burl=self.url, url="Datasets",
-                                                npid=self._reformat_pid(pid))
+        return "{burl}/{url}/%2F{npid}".format(
+            burl=self.url, url="Datasets", npid=self._reformat_pid(pid)
+        )
 
     def _create_new_dataset_url(self, pid: str) -> str:
-        return "{burl}/{url}/{npid}".format(burl=self.url, url="Datasets",
-                                            npid=self._reformat_pid(pid))
+        return "{burl}/{url}/{npid}".format(
+            burl=self.url, url="Datasets", npid=self._reformat_pid(pid)
+        )
 
     def _reformat_pid(self, pid: str) -> str:
-        """ SciCat adds a pid-prefix + "/"  but at DESY prefix = "" """
+        """SciCat adds a pid-prefix + "/"  but at DESY prefix = "" """
         return (pid).replace("/", "%2F")
