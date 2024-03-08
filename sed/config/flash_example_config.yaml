@@ -5,8 +5,6 @@ core:
   loader: flash
   # the beamline where experiment took place
   beamline: pg2
-  # the instrument used
-  instrument: hextof
   # the ID number of the beamtimme
   beamtime_id: 11013410
   # the year of the beamtime
