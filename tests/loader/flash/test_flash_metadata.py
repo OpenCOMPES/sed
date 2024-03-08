@@ -51,6 +51,10 @@ def test_create_dataset_url_by_PID():
         "scicat_token": "fake_token",
     }
     retriever = MetadataRetriever(metadata_config)
-    url = retriever._create_dataset_url_by_PID("11013410/43878")
+    # Assuming the dataset follows the new format
+    pid = "11013410/43878"
+    url = retriever._create_new_dataset_url(pid)
+    expected_url = "https://example.com/Datasets/11013410/43878"
     assert isinstance(url, str)
-    assert url == "https://example.com/Datasets/11013410%2F43878"
+    assert url == expected_url
+
