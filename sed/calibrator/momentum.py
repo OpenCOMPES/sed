@@ -27,7 +27,7 @@ from IPython.display import display
 from matplotlib import cm
 from numpy.linalg import norm
 from scipy.interpolate import griddata
-from scipy.interpolate import RegularGridInterpolator
+from scipy.ndimage import map_coordinates
 from symmetrize import pointops as po
 from symmetrize import sym
 from symmetrize import tps
@@ -2027,34 +2027,12 @@ def apply_dfield(
     x = df[x_column]
     y = df[y_column]
 
-    r_axis = np.linspace(
-        detector_ranges[0][0],
-        dfield[0].shape[0],
-        detector_ranges[0][1],
-        endpoint=False,
-    )
-
-    c_axis = np.linspace(
-        detector_ranges[1][0],
-        dfield[0].shape[1],
-        detector_ranges[1][1],
-        endpoint=False,
-    )
-
-    interp_x = RegularGridInterpolator(
-        (r_axis, c_axis),
-        dfield[0],
-        bounds_error=False,
-    )
-    interp_y = RegularGridInterpolator(
-        (r_axis, c_axis),
-        dfield[1],
-        bounds_error=False,
-    )
+    r_axis_steps = (detector_ranges[0][1] - detector_ranges[0][0]) / dfield[0].shape[0]
+    c_axis_steps = (detector_ranges[1][1] - detector_ranges[1][0]) / dfield[0].shape[1]
 
     df[new_x_column], df[new_y_column] = (
-        interp_x((x, y)),
-        interp_y((x, y)),
+        map_coordinates(dfield[0], (x, y), order=1) * r_axis_steps,
+        map_coordinates(dfield[1], (x, y), order=1) * c_axis_steps,
     )
     return df
 
