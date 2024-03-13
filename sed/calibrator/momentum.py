@@ -4,6 +4,7 @@ correction. Mostly ported from https://github.com/mpes-kit/mpes.
 import itertools as it
 from copy import deepcopy
 from datetime import datetime
+from multiprocessing import Pool
 from typing import Any
 from typing import Dict
 from typing import List
@@ -2102,21 +2103,30 @@ def generate_inverse_dfield(
                     bin_step[1] * j + bin_ranges[1][0],
                 )
 
-    inv_rdeform_field = griddata(
-        np.asarray(rc_position),
-        r_dest,
-        (r_mesh, c_mesh),
-    )
+    with Pool(2) as p:
+        ret = p.map(
+            griddata_,
+            [
+                (np.asarray(rc_position), np.asarray(r_dest), (r_mesh, c_mesh)),
+                (np.asarray(rc_position), np.asarray(c_dest), (r_mesh, c_mesh)),
+            ],
+        )
 
-    inv_cdeform_field = griddata(
-        np.asarray(rc_position),
-        c_dest,
-        (r_mesh, c_mesh),
-    )
-
-    inverse_dfield = np.asarray([inv_rdeform_field, inv_cdeform_field])
+    inverse_dfield = np.asarray([ret[0], ret[1]])
 
     return inverse_dfield
+
+
+def griddata_(args):
+    """Wrapper for griddata to use with multiprocessing.Pool.map
+
+    Args:
+        args: argument tuple to griddata
+
+    Returns:
+        return value of griddata
+    """
+    return griddata(*args)
 
 
 def load_dfield(file: str) -> Tuple[np.ndarray, np.ndarray]:
