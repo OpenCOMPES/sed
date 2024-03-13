@@ -44,7 +44,7 @@ def parse_config(
         system_config (Union[ dict, str, ], optional): system-wide config dictionary
             or file path. The loaded dictionary is completed with the system-wide values,
             taking preference over default values. Defaults to the file "/etc/sed/config.yaml"
-            on linux, and "%ALLUSERPROFILE%/sed/config.yaml" on windows.
+            on linux, and "%ALLUSERSPROFILE%/sed/config.yaml" on windows.
         default_config (Union[ dict, str, ], optional): default config dictionary
             or file path. The loaded dictionary is completed with the default values.
             Defaults to *package_dir*/config/default.yaml".
@@ -210,18 +210,20 @@ def complete_dictionary(dictionary: dict, base_dictionary: dict) -> dict:
     Returns:
         dict: the completed (merged) dictionary
     """
-    for k, v in base_dictionary.items():
-        if isinstance(v, dict):
-            if k not in dictionary.keys():
-                dictionary[k] = v
+    if base_dictionary:
+        for k, v in base_dictionary.items():
+            if isinstance(v, dict):
+                if k not in dictionary.keys():
+                    dictionary[k] = v
+                else:
+                    if not isinstance(dictionary[k], dict):
+                        raise ValueError(
+                            "Cannot merge dictionaries. "
+                            f"Mismatch on Key {k}: {dictionary[k]}, {v}.",
+                        )
+                    dictionary[k] = complete_dictionary(dictionary[k], v)
             else:
-                if not isinstance(dictionary[k], dict):
-                    raise ValueError(
-                        f"Cannot merge dictionaries. Mismatch on Key {k}: {dictionary[k]}, {v}.",
-                    )
-                dictionary[k] = complete_dictionary(dictionary[k], v)
-        else:
-            if k not in dictionary.keys():
-                dictionary[k] = v
+                if k not in dictionary.keys():
+                    dictionary[k] = v
 
     return dictionary
