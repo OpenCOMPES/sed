@@ -2105,10 +2105,10 @@ def generate_inverse_dfield(
     with Pool(num_cores) as p:
         ret = p.map(generate_lists, data)
 
-    for elem in ret:
-        rc_position.extend(elem[0])
-        r_dest.extend(elem[1])
-        c_dest.extend(elem[2])
+    for pos, rd, cd in ret:
+        rc_position += pos
+        r_dest += rd
+        c_dest += cd
 
     with Pool(2) as p:
         ret = p.map(
