@@ -19,6 +19,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import psutil
 import scipy.ndimage as ndi
 import xarray as xr
 from bokeh.colors import RGB
@@ -32,6 +33,8 @@ from scipy.ndimage import map_coordinates
 from symmetrize import pointops as po
 from symmetrize import sym
 from symmetrize import tps
+
+N_CPU = psutil.cpu_count()
 
 
 class MomentumCorrector:
@@ -68,6 +71,10 @@ class MomentumCorrector:
             config = {}
 
         self._config = config
+
+        self.num_cores = self._config.get("binning", {}).get("num_cores", N_CPU - 1)
+        if self.num_cores >= N_CPU:
+            self.num_cores = N_CPU - 1
 
         self.image: np.ndarray = None
         self.img_ndim: int = None
@@ -1219,7 +1226,7 @@ class MomentumCorrector:
             self.cdeform_field,
             self.bin_ranges,
             self.detector_ranges,
-            self._config["binning"]["num_cores"],
+            self.num_cores,
         )
 
         return self.inverse_dfield
@@ -1709,7 +1716,7 @@ class MomentumCorrector:
                 self.cdeform_field,
                 self.bin_ranges,
                 self.detector_ranges,
-                self._config["binning"]["num_cores"],
+                self.num_cores,
             )
             self.dfield_updated = False
 
