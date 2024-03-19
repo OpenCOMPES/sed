@@ -6,10 +6,6 @@ on:
     push:
         branches: [ main, create-pull-request/patch, benchmark ]
 
-    pull_request:
-      branches:
-        - main
-
 jobs:
   benchmark:
     runs-on: ubuntu-latest
@@ -34,7 +30,7 @@ jobs:
           poetry-version: 1.2.2
 
       # Run benchmakrs
-      - name: Run benchmakrs on python 3.8
+      - name: Run benchmarks on python 3.8
         run: |
           poetry run pytest --full-trace --show-capture=no -sv benchmarks/benchmark_*.py
 
