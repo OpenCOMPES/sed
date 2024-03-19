@@ -4,7 +4,7 @@ name: benchmark
 on:
     workflow_dispatch:
     push:
-        branches: [ main, create-pull-request/patch, benchmark ]
+        branches: [ main, create-pull-request/patch ]
 
 jobs:
   benchmark:
