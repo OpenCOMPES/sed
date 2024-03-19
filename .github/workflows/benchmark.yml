@@ -45,11 +45,12 @@ jobs:
 
       # create pull request if necessary
       - name: "Create Pull Request"
-        uses: peter-evans/create-pull-request@v5
+        uses: peter-evans/create-pull-request@v6
         if: ${{ contains(steps.status.outputs.STATUS, 'benchmark_targets.yaml')}}
         with:
           token: ${{ steps.generate-token.outputs.token }}
           commit-message: Update benchmark targets
           title: "Update benchmark targets"
+          branch: "update_benchmark_targets"
           body: |
             Generated new benchmark targets.

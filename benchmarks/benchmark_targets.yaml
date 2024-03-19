@@ -1,5 +1,5 @@
-binning_1d: 2.68
-binning_4d: 8.15
-inv_dfield: 6.1
-workflow_1d: 16.6
-workflow_4d: 22.0
+binning_1d: 20.68
+binning_4d: 80.15
+inv_dfield: 60.1
+workflow_1d: 160.6
+workflow_4d: 220.0
