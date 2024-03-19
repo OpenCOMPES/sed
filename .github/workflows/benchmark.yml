@@ -4,7 +4,11 @@ name: benchmark
 on:
     workflow_dispatch:
     push:
-        branches: [ main, create-pull-request/patch ]
+        branches: [ main, create-pull-request/patch, benchmark ]
+
+    pull_request:
+      branches:
+        - main
 
 jobs:
   benchmark:
@@ -15,6 +19,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           lfs: true
+
+      - uses: tibdex/github-app-token@v1
+        id: generate-token
+        with:
+          app_id: ${{ secrets.APP_ID }}
+          private_key: ${{ secrets.APP_PRIVATE_KEY }}
 
       # Use cached python and dependencies, install poetry
       - name: "Setup Python, Poetry and Dependencies"
@@ -27,3 +37,23 @@ jobs:
       - name: Run benchmakrs on python 3.8
         run: |
           poetry run pytest --full-trace --show-capture=no -sv benchmarks/benchmark_*.py
+
+      - name: Obtain git status
+        id: status
+        run: |
+          exec 5>&1
+          STATUS=$(git status|tee >(cat - >&5))
+          echo "STATUS<<EOF" >> $GITHUB_OUTPUT
+          echo "$STATUS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      # create pull request if necessary
+      - name: "Create Pull Request"
+        uses: peter-evans/create-pull-request@v5
+        if: ${{ contains(steps.status.outputs.STATUS, 'benchmark_targets.yaml')}}
+        with:
+          token: ${{ steps.generate-token.outputs.token }}
+          commit-message: Update benchmark targets
+          title: "Update benchmark targets"
+          body: |
+            Generated new benchmark targets.

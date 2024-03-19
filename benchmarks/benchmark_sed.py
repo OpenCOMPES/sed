@@ -10,6 +10,8 @@ import psutil
 
 from sed import SedProcessor
 from sed.binning.binning import bin_dataframe
+from sed.core.config import load_config
+from sed.core.config import save_config
 
 package_dir = os.path.dirname(find_spec("sed").origin)
 
@@ -27,14 +29,10 @@ array = (
 dataframe = dask.dataframe.from_dask_array(array, columns=axes)
 
 
-target_artificial_1d = 2.68
-target_artificial_4d = 8.15
-target_inv_dfield = 6.1
-target_binning_1d = 16.6
-target_binning_4d = 22.0
+targets = load_config(package_dir + "/../benchmarks/benchmark_targets.yaml")
 
 
-def test_artificial_1d() -> None:
+def test_binning_1d() -> None:
     """Run a benchmark for 1d binning of artificial data"""
     bins_ = [1000]
     axes_ = ["t"]
@@ -50,10 +48,14 @@ def test_artificial_1d() -> None:
     )
     result = timer.repeat(5, number=1)
     print(result)
-    assert min(result) < target_artificial_1d
+    assert min(result) < targets["binning_1d"]
+    # update targets if substantial improvement occurs
+    if np.mean(result) < 0.9 * targets["binning_1d"]:
+        targets["binning_1d"] = float(np.mean(result) * 1.1)
+        save_config(targets, package_dir + "/../benchmarks/benchmark_targets.yaml")
 
 
-def test_artificial_4d() -> None:
+def test_binning_4d() -> None:
     """Run a benchmark for 4d binning of artificial data"""
     bins_ = [100, 100, 100, 100]
     axes_ = axes
@@ -69,7 +71,11 @@ def test_artificial_4d() -> None:
     )
     result = timer.repeat(5, number=1)
     print(result)
-    assert min(result) < target_artificial_4d
+    assert min(result) < targets["binning_4d"]
+    # update targets if substantial improvement occurs
+    if np.mean(result) < 0.9 * targets["binning_4d"]:
+        targets["binning_4d"] = float(np.mean(result) * 1.1)
+        save_config(targets, package_dir + "/../benchmarks/benchmark_targets.yaml")
 
 
 def test_splinewarp() -> None:
@@ -89,7 +95,11 @@ def test_splinewarp() -> None:
     )
     result = timer.repeat(5, number=1)
     print(result)
-    assert min(result) < target_inv_dfield
+    assert min(result) < targets["inv_dfield"]
+    # update targets if substantial improvement occurs
+    if np.mean(result) < 0.9 * targets["inv_dfield"]:
+        targets["inv_dfield"] = float(np.mean(result) * 1.1)
+        save_config(targets, package_dir + "/../benchmarks/benchmark_targets.yaml")
 
 
 def test_workflow_1d() -> None:
@@ -118,7 +128,11 @@ def test_workflow_1d() -> None:
     )
     result = timer.repeat(5, number=1)
     print(result)
-    assert min(result) < target_binning_1d
+    assert min(result) < targets["workflow_1d"]
+    # update targets if substantial improvement occurs
+    if np.mean(result) < 0.9 * targets["workflow_1d"]:
+        targets["workflow_1d"] = float(np.mean(result) * 1.1)
+        save_config(targets, package_dir + "/../benchmarks/benchmark_targets.yaml")
 
 
 def test_workflow_4d() -> None:
@@ -147,4 +161,8 @@ def test_workflow_4d() -> None:
     )
     result = timer.repeat(5, number=1)
     print(result)
-    assert min(result) < target_binning_4d
+    assert min(result) < targets["workflow_4d"]
+    # update targets if substantial improvement occurs
+    if np.mean(result) < 0.9 * targets["workflow_4d"]:
+        targets["workflow_4d"] = float(np.mean(result) * 1.1)
+        save_config(targets, package_dir + "/../benchmarks/benchmark_targets.yaml")
