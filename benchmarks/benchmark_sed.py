@@ -30,8 +30,8 @@ dataframe = dask.dataframe.from_dask_array(array, columns=axes)
 target_artificial_1d = 2.68
 target_artificial_4d = 8.15
 target_inv_dfield = 6.1
-target_binning_4d = 16.6
-target_binning_1d = 20.5
+target_binning_1d = 16.6
+target_binning_4d = 20.0
 
 
 def test_artificial_1d() -> None:
