@@ -1,0 +1,29 @@
+name: benchmark
+
+# Triggers the workflow on push to the pullrequest-token branches, and to main
+on:
+    workflow_dispatch:
+    push:
+        branches: [ main, create-pull-request/patch, benchmark ]
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      # Check out repo and set up Python
+      - name: Check out the repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      # Use cached python and dependencies, install poetry
+      - name: "Setup Python, Poetry and Dependencies"
+        uses: packetcoders/action-setup-cache-python-poetry@main
+        with:
+          python-version: 3.8
+          poetry-version: 1.2.2
+
+      # Run benchmakrs
+      - name: Run benchmakrs on python 3.8
+        run: |
+          poetry run pytest --full-trace --show-capture=no -sv benchmarks/benchmark_*.py
