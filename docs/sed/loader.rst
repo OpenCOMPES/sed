@@ -1,12 +1,15 @@
 Data loader
 ===================================================
 
+.. _loader_interface:
+
 Loader Interface
 ###################################################
 .. automodule:: sed.loader.loader_interface
    :members:
    :undoc-members:
 
+.. _base_loader:
 Abstract BaseLoader
 ###################################################
 .. automodule:: sed.loader.base.loader
