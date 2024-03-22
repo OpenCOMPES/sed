@@ -258,7 +258,7 @@ class MomentumCorrector:
             width=width_slider,
         )
 
-        def apply_fun(apply: bool):  # pylint: disable=unused-argument
+        def apply_fun(apply: bool):  # noqa: ARG001
             start = plane_slider.value
             stop = plane_slider.value + width_slider.value
 
@@ -541,7 +541,7 @@ class MomentumCorrector:
 
         cid = fig.canvas.mpl_connect("button_press_event", onclick)
 
-        def apply_func(apply: bool):  # pylint: disable=unused-argument
+        def apply_func(apply: bool):  # noqa: ARG001
             fig.canvas.mpl_disconnect(cid)
 
             point_no_input.close()
@@ -1144,7 +1144,7 @@ class MomentumCorrector:
             angle=angle_slider,
         )
 
-        def apply_func(apply: bool):  # pylint: disable=unused-argument
+        def apply_func(apply: bool):  # noqa: ARG001
             if transformations.get("scale", 1) != 1:
                 self.coordinate_transform(
                     transform_type="scaling",
@@ -1457,7 +1457,7 @@ class MomentumCorrector:
             point_a_y: int,
             point_b_x: int,
             point_b_y: int,
-            k_distance: float,  # pylint: disable=unused-argument
+            k_distance: float,  # noqa: ARG001
         ):
             fig.canvas.draw_idle()
             marker_a.set_xdata(point_a_x)
@@ -1493,7 +1493,7 @@ class MomentumCorrector:
 
         cid = fig.canvas.mpl_connect("button_press_event", onclick)
 
-        def apply_func(apply: bool):  # pylint: disable=unused-argument
+        def apply_func(apply: bool):  # noqa: ARG001
             point_a = [point_a_input_x.value, point_a_input_y.value]
             point_b = [point_b_input_x.value, point_b_input_y.value]
             calibration = self.calibrate(

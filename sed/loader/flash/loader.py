@@ -750,7 +750,6 @@ class FlashLoader(BaseLoader):
         load_parquet: bool = False,
         save_parquet: bool = False,
         force_recreate: bool = False,
-        **kwds,
     ) -> Tuple[dd.DataFrame, dd.DataFrame]:
         """
         Handles loading and saving of parquet files based on the provided parameters.
@@ -836,7 +835,7 @@ class FlashLoader(BaseLoader):
 
         return dataframe_electron, dataframe_pulse
 
-    def parse_metadata(self, scicat_token: str = None, **kwds) -> dict:
+    def parse_metadata(self, scicat_token: str = None) -> dict:
         """Uses the MetadataRetriever class to fetch metadata from scicat for each run.
 
         Returns:
@@ -854,12 +853,12 @@ class FlashLoader(BaseLoader):
 
     def get_count_rate(
         self,
-        fids: Sequence[int] = None,
-        **kwds,
+        fids: Sequence[int] = None,  # noqa: ARG002
+        **kwds,  # noqa: ARG002
     ):
         return None, None
 
-    def get_elapsed_time(self, fids=None, **kwds):
+    def get_elapsed_time(self, fids=None, **kwds):  # noqa: ARG002
         return None
 
     def read_dataframe(
