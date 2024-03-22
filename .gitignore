@@ -7,7 +7,7 @@
 *.nx
 *.nxs
 *.zip
-**/parquet/*
+**/processed/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
