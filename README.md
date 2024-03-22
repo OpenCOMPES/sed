@@ -1,5 +1,3 @@
-Backend to handle photoelectron resolved datastreams.
-
 [![Documentation Status](https://github.com/OpenCOMPES/sed/actions/workflows/documentation.yml/badge.svg)](https://opencompes.github.io/sed/)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 ![](https://github.com/OpenCOMPES/sed/actions/workflows/linting.yml/badge.svg?branch=main)
@@ -9,10 +7,11 @@ Backend to handle photoelectron resolved datastreams.
 [![](https://img.shields.io/pypi/v/sed-processor)](https://pypi.org/project/sed-processor)
 [![Coverage Status](https://coveralls.io/repos/github/OpenCOMPES/sed/badge.svg?branch=main&kill_cache=1)](https://coveralls.io/github/OpenCOMPES/sed?branch=main)
 
+Backend to handle photoelectron resolved datastreams.
 
-## Installation
+# Installation
 
-### Pip (for users)
+## Pip (for users)
 
 - Create a new virtual environment using either venv, pyenv, conda, etc. See below for an example.
 
@@ -39,7 +38,7 @@ pip install sed-processor
 ```bash
 python -m ipykernel install --user --name=sed_kernel
 ```
-### For Contributors
+## For Contributors
 
 To contribute to the development of `sed`, you can follow these steps:
 
@@ -58,7 +57,7 @@ pip install -e .
 
 Now you have the development version of `sed` installed in your local environment. Feel free to make changes and submit pull requests.
 
-### Poetry (for maintainers)
+## Poetry (for maintainers)
 
 - Prerequisites:
   + Poetry: https://python-poetry.org/docs/

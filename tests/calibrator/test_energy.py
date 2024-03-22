@@ -684,7 +684,7 @@ def test_add_offset_raises() -> None:
         cfg = deepcopy(cfg_dict)
         cfg["energy"]["calibration"].pop("energy_scale")
         config = parse_config(config=cfg, folder_config={}, user_config={}, system_config={})
-        ec = EnergyCalibrator(config=cfg, loader=get_loader("flash", config=config))
+        ec = EnergyCalibrator(config=config, loader=get_loader("flash", config=config))
         _ = ec.add_offsets(t_df)
 
     # invalid energy scale
@@ -692,7 +692,7 @@ def test_add_offset_raises() -> None:
         cfg = deepcopy(cfg_dict)
         cfg["energy"]["calibration"]["energy_scale"] = "wrong_value"
         config = parse_config(config=cfg, folder_config={}, user_config={}, system_config={})
-        ec = EnergyCalibrator(config=cfg, loader=get_loader("flash", config=config))
+        ec = EnergyCalibrator(config=config, loader=get_loader("flash", config=config))
         _ = ec.add_offsets(t_df)
 
     # invalid sign
@@ -700,7 +700,7 @@ def test_add_offset_raises() -> None:
         cfg = deepcopy(cfg_dict)
         cfg["energy"]["offsets"]["off1"]["weight"] = "wrong_type"
         config = parse_config(config=cfg, folder_config={}, user_config={}, system_config={})
-        ec = EnergyCalibrator(config=cfg, loader=get_loader("flash", config=config))
+        ec = EnergyCalibrator(config=config, loader=get_loader("flash", config=config))
         _ = ec.add_offsets(t_df)
 
         # invalid constant
@@ -708,7 +708,7 @@ def test_add_offset_raises() -> None:
         cfg = deepcopy(cfg_dict)
         cfg["energy"]["offsets"]["constant"] = "wrong_type"
         config = parse_config(config=cfg, folder_config={}, user_config={}, system_config={})
-        ec = EnergyCalibrator(config=cfg, loader=get_loader("flash", config=config))
+        ec = EnergyCalibrator(config=config, loader=get_loader("flash", config=config))
         _ = ec.add_offsets(t_df)
 
 
@@ -741,10 +741,11 @@ def test_align_dld_sectors() -> None:
 
     # from kwds
     config = parse_config(config={}, folder_config={}, user_config={}, system_config={})
-    ec = EnergyCalibrator(config=cfg_dict, loader=get_loader("flash", config=config))
+    ec = EnergyCalibrator(config=config, loader=get_loader("flash", config=config))
     t_df = dask.dataframe.from_pandas(df.copy(), npartitions=2)
     res, meta = ec.align_dld_sectors(
         t_df,
+        tof_column=cfg_dict["dataframe"]["tof_column"],
         sector_delays=cfg_dict["dataframe"]["sector_delays"],
         sector_id_column="dldSectorId",
     )
