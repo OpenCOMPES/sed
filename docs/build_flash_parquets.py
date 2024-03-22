@@ -24,7 +24,7 @@ config_override = {
     "core": {
         "paths": {
             "data_raw_dir": data_path + "/flash_data/",
-            "data_parquet_dir": data_path + "/parquet/",
+            "data_parquet_dir": data_path + "/processed/",
         },
     },
 }
