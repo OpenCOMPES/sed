@@ -8,7 +8,6 @@ from multiprocessing import Pool
 from typing import Any
 from typing import Dict
 from typing import List
-from typing import Sequence
 from typing import Tuple
 from typing import Union
 
@@ -399,7 +398,6 @@ class MomentumCorrector:
         direction: str = "ccw",
         feature_type: str = "points",
         rotsym: int = 6,
-        ascale: Union[float, np.ndarray] = None,
         symscores: bool = True,
         **kwds,
     ):
