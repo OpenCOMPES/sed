@@ -51,13 +51,13 @@ jobs:
           poetry build
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: dist
           path: sed-processor/dist
 
       - name: Upload pyproject.toml
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: pyproject
           path: sed-processor/pyproject.toml
@@ -95,13 +95,13 @@ jobs:
           poetry build
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: dist
           path: sed-processor/dist
 
       - name: Upload pyproject.toml
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: pyproject
           path: sed-processor/pyproject.toml
