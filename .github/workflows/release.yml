@@ -11,7 +11,7 @@ on:
     branches:
       - main
     tags:
-      - '*'
+      - v[0-9]+.[0-9]+.[0-9]+
     paths:
       - sed/**/*
       - .github/workflows/release.yml
@@ -25,7 +25,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           lfs: true
           path: 'sed-processor'
@@ -51,13 +51,13 @@ jobs:
           poetry build
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: dist
           path: sed-processor/dist
 
       - name: Upload pyproject.toml
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: pyproject
           path: sed-processor/pyproject.toml
@@ -68,7 +68,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           lfs: true
           path: 'sed-processor'
@@ -95,13 +95,13 @@ jobs:
           poetry build
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: dist
           path: sed-processor/dist
 
       - name: Upload pyproject.toml
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: pyproject
           path: sed-processor/pyproject.toml
@@ -120,11 +120,11 @@ jobs:
 
     steps:
       - name: Download a single artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: dist
 
-      - name: Publish package distributions to PyPI Test
+      - name: Publish package distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: .
@@ -141,13 +141,13 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           lfs: true
           token: ${{ steps.generate_token.outputs.token }}
 
       - name: Download pyproject.toml
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: pyproject
 

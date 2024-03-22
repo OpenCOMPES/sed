@@ -3,8 +3,6 @@ name: linting
 # Triggers the workflow on push for all branches
 on:
   push:
-    branches:
-      - '*'
     paths-ignore:
       pyproject.toml
 
@@ -13,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # Check out repo and set up Python
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           lfs: true
 

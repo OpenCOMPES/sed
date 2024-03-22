@@ -1705,7 +1705,7 @@ class SedProcessor:
             if verbose:
                 print("Adding delay column to dataframe:")
 
-            if datafile is None:
+            if delay_range is None and datafile is None:
                 if len(self.dc.calibration) == 0:
                     try:
                         datafile = self._files[0]

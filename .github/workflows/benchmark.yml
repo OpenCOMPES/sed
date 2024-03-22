@@ -1,20 +1,20 @@
-name: Update depencies in poetry lockfile
+name: benchmark
 
+# Triggers the workflow on push to the pullrequest-token branches, and to main
 on:
-  schedule:
-    - cron:  '0 1 * * 1'
-  workflow_dispatch:
-  push:
-    branches: main
-    paths:
-      - .github/workflows/update_dependencies.yml
+    workflow_dispatch:
+    push:
+        branches: [ main, create-pull-request/patch ]
+        paths-ignore:
+          pyproject.toml
 
 jobs:
-  update_dependencies:
+  benchmark:
     runs-on: ubuntu-latest
     steps:
       # Check out repo and set up Python
-      - uses: actions/checkout@v4
+      - name: Check out the repository
+        uses: actions/checkout@v4
         with:
           lfs: true
 
@@ -31,16 +31,10 @@ jobs:
           python-version: 3.8
           poetry-version: 1.2.2
 
-      # update poetry lockfile
-      - name: "Update poetry lock file"
-        id: update
+      # Run benchmakrs
+      - name: Run benchmarks on python 3.8
         run: |
-          poetry self update
-          exec 5>&1
-          UPDATE_OUTPUT=$(poetry update|tee >(cat - >&5))
-          echo "UPDATE_OUTPUT<<EOF" >> $GITHUB_OUTPUT
-          echo "$UPDATE_OUTPUT" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          poetry run pytest --full-trace --show-capture=no -sv benchmarks/benchmark_*.py
 
       - name: Obtain git status
         id: status
@@ -53,12 +47,12 @@ jobs:
 
       # create pull request if necessary
       - name: "Create Pull Request"
-        uses: peter-evans/create-pull-request@v5
-        if: ${{ contains(steps.status.outputs.STATUS, 'poetry.lock') || contains(steps.status.outputs.STATUS, 'requirements.txt')}}
+        uses: peter-evans/create-pull-request@v6
+        if: ${{ contains(steps.status.outputs.STATUS, 'benchmark_targets.yaml')}}
         with:
           token: ${{ steps.generate-token.outputs.token }}
-          commit-message: Update dependencies
-          title: "Update dependencies"
+          commit-message: Update benchmark targets
+          title: "Update benchmark targets"
+          branch: "update_benchmark_targets"
           body: |
-            Dependency updates using Poetry:
-            ${{ steps.update.outputs.UPDATE_OUTPUT }}
+            Generated new benchmark targets.

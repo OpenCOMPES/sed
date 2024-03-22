@@ -750,6 +750,7 @@ class FlashLoader(BaseLoader):
         load_parquet: bool = False,
         save_parquet: bool = False,
         force_recreate: bool = False,
+        **kwds,
     ) -> Tuple[dd.DataFrame, dd.DataFrame]:
         """
         Handles loading and saving of parquet files based on the provided parameters.
@@ -835,13 +836,14 @@ class FlashLoader(BaseLoader):
 
         return dataframe_electron, dataframe_pulse
 
-    def parse_metadata(self) -> dict:
+    def parse_metadata(self, scicat_token: str = None, **kwds) -> dict:
         """Uses the MetadataRetriever class to fetch metadata from scicat for each run.
 
         Returns:
             dict: Metadata dictionary
+            scicat_token (str, optional):: The scicat token to use for fetching metadata
         """
-        metadata_retriever = MetadataRetriever(self._config["metadata"])
+        metadata_retriever = MetadataRetriever(self._config["metadata"], scicat_token)
         metadata = metadata_retriever.get_metadata(
             beamtime_id=self._config["core"]["beamtime_id"],
             runs=self.runs,
@@ -924,7 +926,7 @@ class FlashLoader(BaseLoader):
 
         df, df_timed = self.parquet_handler(data_parquet_dir, **kwds)
 
-        metadata = self.parse_metadata() if collect_metadata else {}
+        metadata = self.parse_metadata(**kwds) if collect_metadata else {}
         print(f"loading complete in {time.time() - t0: .2f} s")
 
         return df, df_timed, metadata
