@@ -109,6 +109,47 @@ def test_splinewarp(include_center: bool) -> None:
     assert len(mc.ptargs) == len(mc.prefs)
 
 
+def test_ascale() -> None:
+    """Test the generation of the splinewarp etimate with ascale parameter."""
+    config = parse_config(
+        config={"core": {"loader": "mpes"}},
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+    mc = MomentumCorrector(config=config)
+    mc.load_data(
+        data=momentum_map,
+        bin_ranges=[(-256, 1792), (-256, 1792)],
+    )
+    features = np.array(
+        [
+            [203.2, 341.96],
+            [299.16, 345.32],
+            [350.25, 243.70],
+            [304.38, 149.88],
+            [199.52, 152.48],
+            [154.28, 242.27],
+            [248.29, 248.62],
+        ],
+    )
+    mc.add_features(features=features, rotsym=6)
+    with pytest.raises(ValueError):
+        mc.spline_warp_estimate(ascale=1.3)
+    with pytest.raises(ValueError):
+        mc.spline_warp_estimate(ascale=[1.3, 1, 1.3, 1])
+    with pytest.raises(TypeError):
+        mc.spline_warp_estimate(ascale="invalid type")  # type:ignore
+    mc.spline_warp_estimate(ascale=[1.3, 1, 1.3, 1, 1.3, 1])
+    assert mc.cdeform_field.shape == mc.rdeform_field.shape == mc.image.shape
+    assert len(mc.ptargs) == len(mc.prefs)
+    # test single value case
+    with pytest.raises(ValueError):
+        mc.add_features(features=features, rotsym=4)
+    mc.add_features(features=features[:5, :], rotsym=4)
+    mc.spline_warp_estimate(ascale=1.3)
+
+
 def test_pose_correction() -> None:
     """Test the adjustment of the pose correction."""
     config = parse_config(

@@ -11,6 +11,7 @@ Single-Event DataFrame (SED) documentation
    tutorial/3_metadata_collection_and_export_to_NeXus
    tutorial/4_hextof_workflow.ipynb
    tutorial/6_binning_with_time-stamped_data
+   tutorial/7_correcting_orthorhombic_symmetry
    tutorial/8_jittering_tutorial
 
 .. toctree::

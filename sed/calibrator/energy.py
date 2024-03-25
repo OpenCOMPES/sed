@@ -578,7 +578,7 @@ class EnergyCalibrator:
         binning = kwds.pop("binning", self.binning)
 
         if method == "lmfit":
-            self.calibration = fit_energy_calibation(
+            self.calibration = fit_energy_calibration(
                 landmarks,
                 sign * biases,
                 binwidth,
@@ -2085,7 +2085,7 @@ def peakdetect1d(
     return (np.asarray(max_peaks), np.asarray(min_peaks))
 
 
-def fit_energy_calibation(
+def fit_energy_calibration(
     pos: Union[List[float], np.ndarray],
     vals: Union[List[float], np.ndarray],
     binwidth: float,
