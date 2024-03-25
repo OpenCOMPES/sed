@@ -634,7 +634,7 @@ class MpesLoader(BaseLoader):
         run_id: str,
         folders: Union[str, Sequence[str]] = None,
         extension: str = "h5",
-        **kwds,
+        **kwds,  # noqa: ARG002
     ) -> List[str]:
         """Locate the files for a given run identifier.
 
