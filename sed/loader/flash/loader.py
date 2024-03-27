@@ -653,15 +653,16 @@ class BufferHandler:
             force_recreate (bool): Flag to force recreation of buffer files.
         """
         # Getting the paths of the buffer files, with subfolder as buffer and no extension
-        pq_handler = ParquetHandler(
-            [Path(h5_path).stem for h5_path in h5_paths],
-            folder,
-            "buffer",
-            prefix,
-            suffix,
+        ph = ParquetHandler(
+            parquet_names=[Path(h5_path).stem for h5_path in h5_paths],
+            folder=folder,
+            subfolder="buffer",
+            prefix=prefix,
+            suffix=suffix,
             extension="",
         )
-        self.buffer_paths = pq_handler.parquet_paths
+        ph.initialize_paths()
+        self.buffer_paths = ph.parquet_paths
         # read only the files that do not exist or if force_recreate is True
         files_to_read = [
             force_recreate or not parquet_path.exists() for parquet_path in self.buffer_paths
@@ -746,12 +747,12 @@ class BufferHandler:
         dataframe_electron = dataframe.dropna(subset=tof_column)
 
         # Set the dtypes of the channels here as there should be no null values
-        ch_dtypes = get_channels(self._config["channels"], "all")
-        cfg_ch = self._config["channels"]
+        channel_dtypes = get_channels(self._config["channels"], "all")
+        config_channels = self._config["channels"]
         dtypes = {
-            channel: cfg_ch[channel].get("dtype")
-            for channel in ch_dtypes
-            if cfg_ch[channel].get("dtype") is not None
+            channel: config_channels[channel].get("dtype")
+            for channel in channel_dtypes
+            if config_channels[channel].get("dtype") is not None
         }
 
         # Correct the 3-bit shift which encodes the detector ID in the 8s time
@@ -805,10 +806,9 @@ class ParquetHandler:
         prefix: str = "",
         suffix: str = "",
         extension: str = "parquet",
-        parquet_paths: list[Path] = None,
     ):
         """
-        A handler for saving and reading Dask DataFrames to/from Parquet files.
+        Initialize the ParquetHandler.
 
         Args:
             parquet_names Union[str, List[str]]: The base name of the Parquet files.
@@ -816,75 +816,97 @@ class ParquetHandler:
             subfolder (str): Optional subfolder within the main folder.
             prefix (str): Optional prefix for the Parquet file name.
             suffix (str): Optional suffix for the Parquet file name.
-            parquet_paths (List[Path]): Optional custom path for the Parquet file.
+            extension (str): Optional extension for the Parquet file names.
         """
-
         self.parquet_paths: list[Path] = None
 
         if isinstance(parquet_names, str):
             parquet_names = [parquet_names]
 
-        if not folder and not parquet_paths:
-            raise ValueError("Please provide folder or parquet_paths.")
-        if folder and not parquet_names:
-            raise ValueError("With folder, please provide parquet_names.")
+        self.parquet_names = parquet_names
+        self.folder = folder
+        self.subfolder = subfolder
+        self.prefix = prefix
+        self.suffix = suffix
+        self.extension = extension
 
-        # If parquet_paths is provided, use it and ignore the other arguments
-        # Else, initialize the paths
-        if parquet_paths:
-            self.parquet_paths = parquet_paths
-        else:
-            self._initialize_paths(parquet_names, folder, subfolder, prefix, suffix, extension)
-
-    def _initialize_paths(
+    def initialize_paths(
         self,
-        parquet_names: list[str],
-        folder: Path,
-        subfolder: str = None,
-        prefix: str = None,
-        suffix: str = None,
-        extension: str = None,
+        parquet_paths: list[Path] = None,
     ) -> None:
         """
-        Create the directory for the Parquet file.
+        Initialize the paths for the Parquet files.
+
+        If custom paths are provided, they will be used. Otherwise, paths will be generated based on
+        the specified parameters during initialization.
+
+        Args:
+            parquet_paths (List[Path]): Optional custom paths for the Parquet files.
         """
-        # Create the full path for the Parquet file
-        parquet_dir = folder.joinpath(subfolder)
+        # If parquet_paths is provided, use it and return
+        if parquet_paths:
+            self.parquet_paths = parquet_paths
+            return
+
+        if self.parquet_paths:
+            return
+
+        if not self.folder and not parquet_paths:
+            raise ValueError("Please provide folder or parquet_paths.")
+        if self.folder and not self.parquet_names:
+            raise ValueError("With folder, please provide parquet_names.")
+
+        # Otherwise create the full path for the Parquet file
+        parquet_dir = self.folder.joinpath(self.subfolder)
         parquet_dir.mkdir(parents=True, exist_ok=True)
 
-        if extension:
-            extension = f".{extension}"  # to be backwards compatible
+        if self.extension:
+            self.extension = f".{self.extension}"  # to be backwards compatible
         self.parquet_paths = [
-            parquet_dir.joinpath(Path(f"{prefix}{name}{suffix}{extension}"))
-            for name in parquet_names
+            parquet_dir.joinpath(Path(f"{self.prefix}{name}{self.suffix}{self.extension}"))
+            for name in self.parquet_names
         ]
 
     def save_parquet(
         self,
         dfs: list[dd.DataFrame],
+        parquet_paths: list[Path] = None,
         drop_index: bool = False,
     ) -> None:
         """
-        Saves the DataFrames to Parquet files.
+        Save the Dask DataFrames to Parquet files.
 
         Args:
-            dfs (dd.DataFrame): The Dask Dataframes to be saved.
+            dfs (list[dd.DataFrame]): The list of Dask DataFrames to be saved.
+            parquet_paths (List[Path]): Optional custom paths for the Parquet files.
             drop_index (bool): If True, drops the index before saving.
         """
+        self.initialize_paths(parquet_paths)
+
+        if len(dfs) != len(self.parquet_paths):
+            raise ValueError("Number of DataFrames provided does not match the number of paths.")
+
         # Compute the Dask DataFrame, reset the index, and save to Parquet
         for df, parquet_path in zip(dfs, self.parquet_paths):
             df.compute().reset_index(drop=drop_index).to_parquet(parquet_path)
 
-    def read_parquet(self) -> list[dd.DataFrame]:
+    def read_parquet(
+        self,
+        parquet_paths: list[Path] = None,
+    ) -> list[dd.DataFrame]:
         """
-        Creates a list of Dask DataFrames from a list of Parquet files.
+        Read Dask DataFrames from Parquet files.
+
+        Args:
+            parquet_paths (List[Path]): Optional custom paths for the Parquet files.
 
         Returns:
-            dd.DataFrame: The Dask DataFrame read from the Parquet file.
+            List[dd.DataFrame]: The list of Dask DataFrames read from the Parquet files.
 
         Raises:
-            FileNotFoundError: If the Parquet file does not exist.
+            FileNotFoundError: If any of the specified Parquet files do not exist.
         """
+        self.initialize_paths(parquet_paths)
         dfs = []
         for parquet_path in self.parquet_paths:
             if not parquet_path.exists():
