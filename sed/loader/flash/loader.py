@@ -275,11 +275,11 @@ class FlashLoader(BaseLoader):
         converted_str = "converted" if converted else ""
         # Create parquet paths for saving and loading the parquet files of df and timed_df
         ph = ParquetHandler(
-            [filename, filename + "_timed"],
-            parquet_path,
-            converted_str,
-            "run_",
-            detector,
+            parquet_names=[filename, filename + "_timed"],
+            folder=parquet_path,
+            subfolder=converted_str,
+            prefix="run_",
+            suffix=detector,
         )
 
         # Check if load_parquet is flagged and then load the file if it exists
@@ -294,10 +294,12 @@ class FlashLoader(BaseLoader):
             # which handles buffer file creation/reading
             h5_paths = [Path(file) for file in self.files]
             buffer = BufferHandler(
-                self._config["dataframe"],
-                h5_paths,
-                parquet_path,
-                force_recreate,
+                config_dataframe=self._config["dataframe"],
+            )
+            buffer.run(
+                h5_paths=h5_paths,
+                folder=parquet_path,
+                force_recreate=force_recreate,
                 suffix=detector,
                 debug=debug,
             )
@@ -319,18 +321,18 @@ class DataFrameCreator:
     Utility class for creating pandas DataFrames from HDF5 files with multiple channels.
     """
 
-    def __init__(self, cfg_df: dict, h5_file: h5py.File) -> None:
+    def __init__(self, config_dataframe: dict, h5_file: h5py.File) -> None:
         """
         Initializes the DataFrameCreator class.
 
         Args:
-            cfg_df (dict): The configuration dictionary with only the dataframe key.
+            config_dataframe (dict): The configuration dictionary with only the dataframe key.
             h5_file (h5py.File): The open h5 file.
         """
         self.h5_file: h5py.File = h5_file
         self.failed_files_error: list[str] = []
         self.multi_index = get_channels(index=True)
-        self._config = cfg_df
+        self._config = config_dataframe
 
     def get_index_dataset_key(self, channel: str) -> tuple[str, str]:
         """
@@ -574,47 +576,28 @@ class BufferHandler:
 
     def __init__(
         self,
-        cfg_df: dict,
-        h5_paths: list[Path],
-        folder: Path,
-        force_recreate: bool = False,
-        prefix: str = "",
-        suffix: str = "",
-        debug: bool = False,
-        auto: bool = True,
+        config_dataframe: dict,
     ) -> None:
         """
         Initializes the BufferFileHandler.
 
         Args:
-            cfg_df (dict): The configuration dictionary with only the dataframe key.
+            config_dataframe (dict): The configuration dictionary with only the dataframe key.
             h5_paths (List[Path]): List of paths to H5 files.
             folder (Path): Path to the folder for buffer files.
             force_recreate (bool): Flag to force recreation of buffer files.
             prefix (str): Prefix for buffer file names.
             suffix (str): Suffix for buffer file names.
             debug (bool): Flag to enable debug mode.
-            auto (bool): Flag to automatically create buffer files and fill the dataframe.
         """
-        self._config = cfg_df
+        self._config = config_dataframe
 
         self.buffer_paths: list[Path] = []
-        self.h5_to_create: list[Path] = []
-        self.buffer_to_create: list[Path] = []
+        self.missing_h5_files: list[Path] = []
+        self.save_paths: list[Path] = []
 
         self.dataframe_electron: dd.DataFrame = None
         self.dataframe_pulse: dd.DataFrame = None
-
-        # In auto mode, these methods are called automatically
-        if auto:
-            self.get_files_to_read(h5_paths, folder, prefix, suffix, force_recreate)
-
-            if not force_recreate:
-                self.schema_check()
-
-            self.create_buffer_files(debug)
-
-            self.get_filled_dataframe()
 
     def schema_check(self) -> None:
         """
@@ -684,10 +667,10 @@ class BufferHandler:
         ]
 
         # Get the list of H5 files to read and the corresponding buffer files to create
-        self.h5_to_create = list(compress(h5_paths, files_to_read))
-        self.buffer_to_create = list(compress(self.buffer_paths, files_to_read))
+        self.missing_h5_files = list(compress(h5_paths, files_to_read))
+        self.save_paths = list(compress(self.buffer_paths, files_to_read))
 
-        self.num_files = len(self.h5_to_create)
+        self.num_files = len(self.missing_h5_files)
 
         print(f"Reading files: {self.num_files} new files of {len(h5_paths)} total.")
 
@@ -703,7 +686,7 @@ class BufferHandler:
         h5_file = h5py.File(h5_path, "r")
 
         # Create a DataFrameCreator instance with the configuration and the h5 file
-        dfc = DataFrameCreator(self._config, h5_file)
+        dfc = DataFrameCreator(config_dataframe=self._config, h5_file=h5_file)
 
         # Get the DataFrame from the DataFrameCreator instance
         df = dfc.df
@@ -723,15 +706,15 @@ class BufferHandler:
         """
         if self.num_files > 0:
             if debug:
-                for h5_path, parquet_path in zip(self.h5_to_create, self.buffer_to_create):
+                for h5_path, parquet_path in zip(self.missing_h5_files, self.save_paths):
                     self._create_buffer_file(h5_path, parquet_path)
             else:
                 Parallel(n_jobs=self.num_files, verbose=10)(
                     delayed(self._create_buffer_file)(h5_path, parquet_path)
-                    for h5_path, parquet_path in zip(self.h5_to_create, self.buffer_to_create)
+                    for h5_path, parquet_path in zip(self.missing_h5_files, self.save_paths)
                 )
 
-    def get_filled_dataframe(self) -> None:
+    def fill_dataframes(self) -> None:
         """
         Reads all parquet files into one dataframe using dask and fills NaN values.
         """
@@ -776,6 +759,36 @@ class BufferHandler:
         self.dataframe_electron = dataframe_electron.astype(dtypes)
         self.dataframe_pulse = dataframe[index + channels]
 
+    def run(
+        self,
+        h5_paths: list[Path],
+        folder: Path,
+        force_recreate: bool = False,
+        prefix: str = "",
+        suffix: str = "",
+        debug: bool = False,
+    ) -> None:
+        """
+        Runs the buffer file creation process.
+
+        Args:
+            h5_paths (List[Path]): List of paths to H5 files.
+            folder (Path): Path to the folder for buffer files.
+            force_recreate (bool): Flag to force recreation of buffer files.
+            prefix (str): Prefix for buffer file names.
+            suffix (str): Suffix for buffer file names.
+            debug (bool): Flag to enable debug mode.):
+        """
+
+        self.get_files_to_read(h5_paths, folder, prefix, suffix, force_recreate)
+
+        if not force_recreate:
+            self.schema_check()
+
+        self.create_buffer_files(debug)
+
+        self.fill_dataframes()
+
 
 class ParquetHandler:
     """A class for handling the creation and manipulation of Parquet files."""
@@ -788,7 +801,7 @@ class ParquetHandler:
         prefix: str = "",
         suffix: str = "",
         extension: str = "parquet",
-        parquet_paths: Path = None,
+        parquet_paths: list[Path] = None,
     ):
         """
         A handler for saving and reading Dask DataFrames to/from Parquet files.
@@ -799,7 +812,7 @@ class ParquetHandler:
             subfolder (str): Optional subfolder within the main folder.
             prefix (str): Optional prefix for the Parquet file name.
             suffix (str): Optional suffix for the Parquet file name.
-            parquet_path (Path): Optional custom path for the Parquet file.
+            parquet_paths (List[Path]): Optional custom path for the Parquet file.
         """
 
         self.parquet_paths: list[Path] = None
@@ -815,9 +828,7 @@ class ParquetHandler:
         # If parquet_paths is provided, use it and ignore the other arguments
         # Else, initialize the paths
         if parquet_paths:
-            self.parquet_paths = (
-                parquet_paths if isinstance(parquet_paths, list) else [parquet_paths]
-            )
+            self.parquet_paths = parquet_paths
         else:
             self._initialize_paths(parquet_names, folder, subfolder, prefix, suffix, extension)
 
@@ -846,24 +857,23 @@ class ParquetHandler:
 
     def save_parquet(
         self,
-        dfs: dd.DataFrame | list[dd.DataFrame],
+        dfs: list[dd.DataFrame],
         drop_index: bool = False,
     ) -> None:
         """
-        Save the DataFrame to a Parquet file.
+        Saves the DataFrames to Parquet files.
 
         Args:
-            dfs (DataFrame | dd.DataFrame): The pandas or Dask Dataframe to be saved.
+            dfs (dd.DataFrame): The Dask Dataframes to be saved.
             drop_index (bool): If True, drops the index before saving.
         """
         # Compute the Dask DataFrame, reset the index, and save to Parquet
-        dfs = dfs if isinstance(dfs, list) else [dfs]
         for df, parquet_path in zip(dfs, self.parquet_paths):
             df.compute().reset_index(drop=drop_index).to_parquet(parquet_path)
 
     def read_parquet(self) -> list[dd.DataFrame]:
         """
-        Read a Dask DataFrame from the Parquet file.
+        Creates a list of Dask DataFrames from a list of Parquet files.
 
         Returns:
             dd.DataFrame: The Dask DataFrame read from the Parquet file.

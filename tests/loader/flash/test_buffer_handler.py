@@ -19,18 +19,18 @@ def test_get_files_to_read(config, h5_paths):
     folder = create_parquet_dir(config, "get_files_to_read")
     subfolder = folder.joinpath("buffer")
     # set to false to avoid creating buffer files unnecessarily
-    bh = BufferHandler(config["dataframe"], h5_paths, folder, auto=False)
+    bh = BufferHandler(config["dataframe"])
     bh.get_files_to_read(h5_paths, folder, "", "", False)
 
     assert bh.num_files == len(h5_paths)
-    assert len(bh.buffer_to_create) == len(h5_paths)
+    assert len(bh.save_paths) == len(h5_paths)
 
-    assert np.all(bh.h5_to_create == h5_paths)
+    assert np.all(bh.missing_h5_files == h5_paths)
 
     # create expected paths
     expected_buffer_paths = [Path(subfolder, f"{Path(path).stem}") for path in h5_paths]
 
-    assert np.all(bh.buffer_to_create == expected_buffer_paths)
+    assert np.all(bh.save_paths == expected_buffer_paths)
 
     # create only one buffer file
     bh._create_buffer_file(h5_paths[0], expected_buffer_paths[0])
@@ -47,7 +47,7 @@ def test_get_files_to_read(config, h5_paths):
     expected_buffer_paths = [
         Path(subfolder, f"prefix_{Path(path).stem}_suffix") for path in h5_paths
     ]
-    assert np.all(bh.buffer_to_create == expected_buffer_paths)
+    assert np.all(bh.save_paths == expected_buffer_paths)
 
 
 def test_buffer_schema_mismatch(config, h5_paths):
@@ -67,7 +67,8 @@ def test_buffer_schema_mismatch(config, h5_paths):
     - Clean up created buffer files after the test.
     """
     folder = create_parquet_dir(config, "schema_mismatch")
-    bh = BufferHandler(config["dataframe"], h5_paths, folder, auto=True, debug=True)
+    bh = BufferHandler(config["dataframe"])
+    bh.run(h5_paths=h5_paths, folder=folder, debug=True)
 
     # Manipulate the configuration to introduce a new channel 'gmdTunnel2'
     config_dict = config
@@ -79,7 +80,8 @@ def test_buffer_schema_mismatch(config, h5_paths):
 
     # Reread the dataframe with the modified configuration, expecting a schema mismatch error
     with pytest.raises(ValueError) as e:
-        bh = BufferHandler(config["dataframe"], h5_paths, folder, auto=True, debug=True)
+        bh = BufferHandler(config["dataframe"])
+        bh.run(h5_paths=h5_paths, folder=folder, debug=True)
     expected_error = e.value.args
 
     # Validate the specific error messages for schema mismatch
@@ -88,21 +90,16 @@ def test_buffer_schema_mismatch(config, h5_paths):
     assert expected_error[4] == "Please check the configuration file or set force_recreate to True."
 
     # Force recreation of the dataframe, including the added channel 'gmdTunnel2'
-    bh = BufferHandler(
-        config["dataframe"],
-        h5_paths,
-        folder,
-        auto=True,
-        force_recreate=True,
-        debug=True,
-    )
+    bh = BufferHandler(config["dataframe"])
+    bh.run(h5_paths=h5_paths, folder=folder, force_recreate=True, debug=True)
 
     # Remove 'gmdTunnel2' from the configuration to simulate a missing channel scenario
     del config["dataframe"]["channels"]["gmdTunnel2"]
     # also results in error but different from before
     with pytest.raises(ValueError) as e:
         # Attempt to read the dataframe again to check for the missing channel error
-        bh = BufferHandler(config["dataframe"], h5_paths, folder, auto=True, debug=True)
+        bh = BufferHandler(config["dataframe"])
+        bh.run(h5_paths=h5_paths, folder=folder, debug=True)
 
     expected_error = e.value.args
     # Check for the specific error message indicating a missing channel in the configuration
@@ -114,10 +111,12 @@ def test_buffer_schema_mismatch(config, h5_paths):
 
 def test_create_buffer_files(config, h5_paths):
     folder_serial = create_parquet_dir(config, "create_buffer_files_serial")
-    bh_serial = BufferHandler(config["dataframe"], h5_paths, folder_serial, debug=True)
+    bh_serial = BufferHandler(config["dataframe"])
+    bh_serial.run(h5_paths, folder_serial, debug=True)
 
     folder_parallel = create_parquet_dir(config, "create_buffer_files_parallel")
-    bh_parallel = BufferHandler(config["dataframe"], h5_paths, folder_parallel)
+    bh_parallel = BufferHandler(config["dataframe"])
+    bh_parallel.run(h5_paths, folder_parallel)
 
     df_serial = pd.read_parquet(folder_serial)
     df_parallel = pd.read_parquet(folder_parallel)
@@ -132,7 +131,8 @@ def test_create_buffer_files(config, h5_paths):
 def test_get_filled_dataframe(config, h5_paths):
     """Test function to verify the creation of a filled dataframe from the buffer files."""
     folder = create_parquet_dir(config, "get_filled_dataframe")
-    bh = BufferHandler(config["dataframe"], h5_paths, folder)
+    bh = BufferHandler(config["dataframe"])
+    bh.run(h5_paths, folder)
 
     df = pd.read_parquet(folder)
 

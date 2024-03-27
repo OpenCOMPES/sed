@@ -51,12 +51,13 @@ def test_save_read_parquet(config, h5_paths):
     folder = create_parquet_dir(config, "parquet_save")
     parquet_path = folder.joinpath("test.parquet")
 
-    ph = ParquetHandler(parquet_paths=parquet_path)
+    ph = ParquetHandler(parquet_paths=[parquet_path])
     print(ph.parquet_paths)
-    bh = BufferHandler(config["dataframe"], h5_paths, folder)
-    ph.save_parquet(bh.dataframe_electron, drop_index=True)
+    bh = BufferHandler(config["dataframe"])
+    bh.run(h5_paths=h5_paths, folder=folder)
+    ph.save_parquet([bh.dataframe_electron], drop_index=True)
     parquet_path.unlink()
-    ph.save_parquet(bh.dataframe_electron, drop_index=False)
+    ph.save_parquet([bh.dataframe_electron], drop_index=False)
 
     df = ph.read_parquet()
 
