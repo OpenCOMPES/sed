@@ -1,5 +1,5 @@
 """Tests for utils functionality"""
-from sed.loader.fel.utils import get_channels
+from sed.loader.flash.utils import get_channels
 
 # Define expected channels for each format.
 ELECTRON_CHANNELS = ["dldPosX", "dldPosY", "dldTimeSteps"]

@@ -10,16 +10,596 @@ sed functionality.
 from __future__ import annotations
 
 import time
+from itertools import compress
 from pathlib import Path
 from typing import Sequence
 
 import dask.dataframe as dd
+import h5py
+import numpy as np
+import pyarrow.parquet as pq
+from joblib import delayed
+from joblib import Parallel
 from natsort import natsorted
+from pandas import concat
+from pandas import DataFrame
+from pandas import Index
+from pandas import MultiIndex
+from pandas import Series
 
+from sed.core.dfops import forward_fill_lazy
 from sed.loader.base.loader import BaseLoader
-from sed.loader.fel import BufferHandler
-from sed.loader.fel import ParquetHandler
 from sed.loader.flash.metadata import MetadataRetriever
+from sed.loader.flash.utils import get_channels
+from sed.loader.utils import split_dld_time_from_sector_id
+
+
+class DataFrameCreator:
+    """
+    Utility class for creating pandas DataFrames from HDF5 files with multiple channels.
+    """
+
+    def __init__(self, cfg_df: dict, h5_file: h5py.File) -> None:
+        """
+        Initializes the DataFrameCreator class.
+
+        Args:
+            cfg_df (dict): The configuration dictionary with only the dataframe key.
+            h5_file (h5py.File): The open h5 file.
+        """
+        self.h5_file: h5py.File = h5_file
+        self.failed_files_error: list[str] = []
+        self.multi_index = get_channels(index=True)
+        self._config = cfg_df
+
+    def get_index_dataset_key(self, channel: str) -> tuple[str, str]:
+        """
+        Checks if 'group_name' and converts to 'index_key' and 'dataset_key' if so.
+
+        Args:
+            channel (str): The name of the channel.
+
+        Returns:
+            tuple[str, str]: Outputs a tuple of 'index_key' and 'dataset_key'.
+
+        Raises:
+            ValueError: If neither 'group_name' nor both 'index_key' and 'dataset_key' are provided.
+        """
+        channel_config = self._config["channels"][channel]
+
+        if "group_name" in channel_config:
+            index_key = channel_config["group_name"] + "index"
+            if channel == "timeStamp":
+                dataset_key = channel_config["group_name"] + "time"
+            else:
+                dataset_key = channel_config["group_name"] + "value"
+            return index_key, dataset_key
+        if "index_key" in channel_config and "dataset_key" in channel_config:
+            return channel_config["index_key"], channel_config["dataset_key"]
+
+        raise ValueError(
+            "For channel:",
+            channel,
+            "Provide either both 'index_key' and 'dataset_key'.",
+            "or 'group_name' (parses only 'index' and 'value' or 'time' keys.)",
+        )
+
+    def get_dataset_array(
+        self,
+        channel: str,
+        slice_: bool = False,
+    ) -> tuple[Index, h5py.Dataset]:
+        """
+        Returns a numpy array for a given channel name.
+
+        Args:
+            channel (str): The name of the channel.
+            slice_ (bool): If True, applies slicing on the dataset.
+
+        Returns:
+            tuple[Index, h5py.Dataset]: A tuple containing the train ID Index and the numpy array
+            for the channel's data.
+        """
+        # Get the data from the necessary h5 file and channel
+        index_key, dataset_key = self.get_index_dataset_key(channel)
+
+        key = Index(self.h5_file[index_key], name="trainId")  # macrobunch
+        dataset = self.h5_file[dataset_key]
+
+        if slice_:
+            slice_index = self._config["channels"][channel].get("slice", None)
+            if slice_index is not None:
+                dataset = np.take(dataset, slice_index, axis=1)
+        # If np_array is size zero, fill with NaNs
+        if dataset.shape[0] == 0:
+            # Fill the np_array with NaN values of the same shape as train_id
+            dataset = np.full_like(key, np.nan, dtype=np.double)
+
+        return key, dataset
+
+    def pulse_index(self, offset: int) -> tuple[MultiIndex, slice | np.ndarray]:
+        """
+        Computes the index for the 'per_electron' data.
+
+        Args:
+            offset (int): The offset value.
+
+        Returns:
+            tuple[MultiIndex, np.ndarray]: A tuple containing the computed MultiIndex and
+            the indexer.
+        """
+        # Get the pulseId and the index_train
+        index_train, dataset_pulse = self.get_dataset_array("pulseId", slice_=True)
+        # Repeat the index_train by the number of pulses
+        index_train_repeat = np.repeat(index_train, dataset_pulse.shape[1])
+        # Explode the pulse dataset and subtract by the ubid_offset
+        pulse_ravel = dataset_pulse.ravel() - offset
+        # Create a MultiIndex with the index_train and the pulse
+        microbunches = MultiIndex.from_arrays((index_train_repeat, pulse_ravel)).dropna()
+
+        # Only sort if necessary
+        indexer = slice(None)
+        if not microbunches.is_monotonic_increasing:
+            microbunches, indexer = microbunches.sort_values(return_indexer=True)
+
+        # Count the number of electrons per microbunch and create an array of electrons
+        electron_counts = microbunches.value_counts(sort=False).values
+        electrons = np.concatenate([np.arange(count) for count in electron_counts])
+
+        # Final index constructed here
+        index = MultiIndex.from_arrays(
+            (
+                microbunches.get_level_values(0),
+                microbunches.get_level_values(1).astype(int),
+                electrons,
+            ),
+            names=self.multi_index,
+        )
+        return index, indexer
+
+    @property
+    def df_electron(self) -> DataFrame:
+        """
+        Returns a pandas DataFrame for a given channel name of type [per electron].
+
+        Returns:
+            DataFrame: The pandas DataFrame for the 'per_electron' channel's data.
+        """
+        offset = self._config["ubid_offset"]
+        # Index
+        index, indexer = self.pulse_index(offset)
+
+        # Data logic
+        channels = get_channels(self._config["channels"], "per_electron")
+        slice_index = [self._config["channels"][channel].get("slice", None) for channel in channels]
+
+        # First checking if dataset keys are the same for all channels
+        dataset_keys = [self.get_index_dataset_key(channel)[1] for channel in channels]
+        all_keys_same = all(key == dataset_keys[0] for key in dataset_keys)
+
+        # If all dataset keys are the same, we can directly use the ndarray to create frame
+        if all_keys_same:
+            _, dataset = self.get_dataset_array(channels[0])
+            data_dict = {
+                channel: dataset[:, slice_, :].ravel()
+                for channel, slice_ in zip(channels, slice_index)
+            }
+            dataframe = DataFrame(data_dict)
+        # Otherwise, we need to create a Series for each channel and concatenate them
+        else:
+            series = {
+                channel: Series(self.get_dataset_array(channel, slice_=True)[1].ravel())
+                for channel in channels
+            }
+            dataframe = concat(series, axis=1)
+
+        drop_vals = np.arange(-offset, 0)
+
+        # Few things happen here:
+        # Drop all NaN values like while creating the multiindex
+        # if necessary, the data is sorted with [indexer]
+        # MultiIndex is set
+        # Finally, the offset values are dropped
+        return (
+            dataframe.dropna()[indexer]
+            .set_index(index)
+            .drop(index=drop_vals, level="pulseId", errors="ignore")
+        )
+
+    @property
+    def df_pulse(self) -> DataFrame:
+        """
+        Returns a pandas DataFrame for a given channel name of type [per pulse].
+
+        Returns:
+            DataFrame: The pandas DataFrame for the 'per_pulse' channel's data.
+        """
+        series = []
+        channels = get_channels(self._config["channels"], "per_pulse")
+        for channel in channels:
+            # get slice
+            key, dataset = self.get_dataset_array(channel, slice_=True)
+            index = MultiIndex.from_product(
+                (key, np.arange(0, dataset.shape[1]), [0]),
+                names=self.multi_index,
+            )
+            series.append(Series(dataset[()].ravel(), index=index, name=channel))
+
+        return concat(series, axis=1)  # much faster when concatenating similarly indexed data first
+
+    @property
+    def df_train(self) -> DataFrame:
+        """
+        Returns a pandas DataFrame for a given channel name of type [per train].
+
+        Returns:
+            DataFrame: The pandas DataFrame for the 'per_train' channel's data.
+        """
+        series = []
+
+        channels = get_channels(self._config["channels"], "per_train")
+
+        for channel in channels:
+            key, dataset = self.get_dataset_array(channel, slice_=True)
+            index = MultiIndex.from_product(
+                (key, [0], [0]),
+                names=self.multi_index,
+            )
+            if channel == "dldAux":
+                aux_channels = self._config["channels"]["dldAux"]["dldAuxChannels"].items()
+                for name, slice_aux in aux_channels:
+                    series.append(Series(dataset[: key.size, slice_aux], index, name=name))
+            else:
+                series.append(Series(dataset, index, name=channel))
+
+        return concat(series, axis=1)
+
+    def validate_channel_keys(self) -> None:
+        """
+        Validates if the index and dataset keys for all channels in config exist in the h5 file.
+
+        Raises:
+            KeyError: If the index or dataset keys do not exist in the file.
+        """
+        for channel in self._config["channels"]:
+            index_key, dataset_key = self.get_index_dataset_key(channel)
+            if index_key not in self.h5_file:
+                raise KeyError(f"Index key '{index_key}' doesn't exist in the file.")
+            if dataset_key not in self.h5_file:
+                raise KeyError(f"Dataset key '{dataset_key}' doesn't exist in the file.")
+
+    @property
+    def df(self) -> DataFrame:
+        """
+        Joins the 'per_electron', 'per_pulse', and 'per_train' using join operation,
+        returning a single dataframe.
+
+        Returns:
+            DataFrame: The combined pandas DataFrame.
+        """
+
+        self.validate_channel_keys()
+        return (
+            self.df_electron.join(self.df_pulse, on=self.multi_index, how="outer")
+            .join(self.df_train, on=self.multi_index, how="outer")
+            .sort_index()
+        )
+
+
+class BufferHandler:
+    """
+    A class for handling the creation and manipulation of buffer files using DataFrameCreator
+    and ParquetHandler.
+    """
+
+    def __init__(
+        self,
+        cfg_df: dict,
+        h5_paths: list[Path],
+        folder: Path,
+        force_recreate: bool = False,
+        prefix: str = "",
+        suffix: str = "",
+        debug: bool = False,
+        auto: bool = True,
+    ) -> None:
+        """
+        Initializes the BufferFileHandler.
+
+        Args:
+            cfg_df (dict): The configuration dictionary with only the dataframe key.
+            h5_paths (List[Path]): List of paths to H5 files.
+            folder (Path): Path to the folder for buffer files.
+            force_recreate (bool): Flag to force recreation of buffer files.
+            prefix (str): Prefix for buffer file names.
+            suffix (str): Suffix for buffer file names.
+            debug (bool): Flag to enable debug mode.
+            auto (bool): Flag to automatically create buffer files and fill the dataframe.
+        """
+        self._config = cfg_df
+
+        self.buffer_paths: list[Path] = []
+        self.h5_to_create: list[Path] = []
+        self.buffer_to_create: list[Path] = []
+
+        self.dataframe_electron: dd.DataFrame = None
+        self.dataframe_pulse: dd.DataFrame = None
+
+        # In auto mode, these methods are called automatically
+        if auto:
+            self.get_files_to_read(h5_paths, folder, prefix, suffix, force_recreate)
+
+            if not force_recreate:
+                self.schema_check()
+
+            self.create_buffer_files(debug)
+
+            self.get_filled_dataframe()
+
+    def schema_check(self) -> None:
+        """
+        Checks the schema of the Parquet files.
+
+        Raises:
+            ValueError: If the schema of the Parquet files does not match the configuration.
+        """
+        existing_parquet_filenames = [file for file in self.buffer_paths if file.exists()]
+        parquet_schemas = [pq.read_schema(file) for file in existing_parquet_filenames]
+        config_schema = set(
+            get_channels(self._config["channels"], formats="all", index=True, extend_aux=True),
+        )
+
+        for i, schema in enumerate(parquet_schemas):
+            schema_set = set(schema.names)
+            if schema_set != config_schema:
+                missing_in_parquet = config_schema - schema_set
+                missing_in_config = schema_set - config_schema
+
+                missing_in_parquet_str = (
+                    f"Missing in parquet: {missing_in_parquet}" if missing_in_parquet else ""
+                )
+                missing_in_config_str = (
+                    f"Missing in config: {missing_in_config}" if missing_in_config else ""
+                )
+
+                raise ValueError(
+                    "The available channels do not match the schema of file",
+                    f"{existing_parquet_filenames[i]}",
+                    f"{missing_in_parquet_str}",
+                    f"{missing_in_config_str}",
+                    "Please check the configuration file or set force_recreate to True.",
+                )
+
+    def get_files_to_read(
+        self,
+        h5_paths: list[Path],
+        folder: Path,
+        prefix: str,
+        suffix: str,
+        force_recreate: bool,
+    ) -> None:
+        """
+        Determines the list of files to read and the corresponding buffer files to create.
+
+        Args:
+            h5_paths (List[Path]): List of paths to H5 files.
+            folder (Path): Path to the folder for buffer files.
+            prefix (str): Prefix for buffer file names.
+            suffix (str): Suffix for buffer file names.
+            force_recreate (bool): Flag to force recreation of buffer files.
+        """
+        # Getting the paths of the buffer files, with subfolder as buffer and no extension
+        pq_handler = ParquetHandler(
+            [Path(h5_path).stem for h5_path in h5_paths],
+            folder,
+            "buffer",
+            prefix,
+            suffix,
+            extension="",
+        )
+        self.buffer_paths = pq_handler.parquet_paths
+        # read only the files that do not exist or if force_recreate is True
+        files_to_read = [
+            force_recreate or not parquet_path.exists() for parquet_path in self.buffer_paths
+        ]
+
+        # Get the list of H5 files to read and the corresponding buffer files to create
+        self.h5_to_create = list(compress(h5_paths, files_to_read))
+        self.buffer_to_create = list(compress(self.buffer_paths, files_to_read))
+
+        self.num_files = len(self.h5_to_create)
+
+        print(f"Reading files: {self.num_files} new files of {len(h5_paths)} total.")
+
+    def _create_buffer_file(self, h5_path: Path, parquet_path: Path) -> None:
+        """
+        Creates a single buffer file. Useful because h5py.File cannot be pickled if left open.
+
+        Args:
+            h5_path (Path): Path to the H5 file.
+            parquet_path (Path): Path to the buffer file.
+        """
+        # Open the h5 file in read mode
+        h5_file = h5py.File(h5_path, "r")
+
+        # Create a DataFrameCreator instance with the configuration and the h5 file
+        dfc = DataFrameCreator(self._config, h5_file)
+
+        # Get the DataFrame from the DataFrameCreator instance
+        df = dfc.df
+
+        # Close the h5 file
+        h5_file.close()
+
+        # Reset the index of the DataFrame and save it as a parquet file
+        df.reset_index().to_parquet(parquet_path)
+
+    def create_buffer_files(self, debug: bool) -> None:
+        """
+        Creates the buffer files.
+
+        Args:
+            debug (bool): Flag to enable debug mode, which serializes the creation.
+        """
+        if self.num_files > 0:
+            if debug:
+                for h5_path, parquet_path in zip(self.h5_to_create, self.buffer_to_create):
+                    self._create_buffer_file(h5_path, parquet_path)
+            else:
+                Parallel(n_jobs=self.num_files, verbose=10)(
+                    delayed(self._create_buffer_file)(h5_path, parquet_path)
+                    for h5_path, parquet_path in zip(self.h5_to_create, self.buffer_to_create)
+                )
+
+    def get_filled_dataframe(self) -> None:
+        """
+        Reads all parquet files into one dataframe using dask and fills NaN values.
+        """
+        dataframe = dd.read_parquet(self.buffer_paths, calculate_divisions=True)
+        metadata = [pq.read_metadata(file) for file in self.buffer_paths]
+
+        channels: list[str] = get_channels(
+            self._config["channels"],
+            ["per_pulse", "per_train"],
+            extend_aux=True,
+        )
+        index: list[str] = get_channels(index=True)
+        overlap = min(file.num_rows for file in metadata)
+
+        print("Filling nan values...")
+        dataframe = forward_fill_lazy(
+            df=dataframe,
+            columns=channels,
+            before=overlap,
+            iterations=self._config.get("forward_fill_iterations", 2),
+        )
+
+        # Drop rows with nan values in the tof column
+        tof_column = self._config.get("tof_column", "dldTimeSteps")
+        dataframe_electron = dataframe.dropna(subset=tof_column)
+
+        # Set the dtypes of the channels here as there should be no null values
+        ch_dtypes = get_channels(self._config["channels"], "all")
+        cfg_ch = self._config["channels"]
+        dtypes = {
+            channel: cfg_ch[channel].get("dtype")
+            for channel in ch_dtypes
+            if cfg_ch[channel].get("dtype") is not None
+        }
+
+        # Correct the 3-bit shift which encodes the detector ID in the 8s time
+        if self._config.get("split_sector_id_from_dld_time", False):
+            dataframe_electron = split_dld_time_from_sector_id(
+                dataframe_electron,
+                config=self._config,
+            )
+        self.dataframe_electron = dataframe_electron.astype(dtypes)
+        self.dataframe_pulse = dataframe[index + channels]
+
+
+class ParquetHandler:
+    """A class for handling the creation and manipulation of Parquet files."""
+
+    def __init__(
+        self,
+        parquet_names: str | list[str] = None,
+        folder: Path = None,
+        subfolder: str = "",
+        prefix: str = "",
+        suffix: str = "",
+        extension: str = "parquet",
+        parquet_paths: Path = None,
+    ):
+        """
+        A handler for saving and reading Dask DataFrames to/from Parquet files.
+
+        Args:
+            parquet_names Union[str, List[str]]: The base name of the Parquet files.
+            folder (Path): The directory where the Parquet file will be stored.
+            subfolder (str): Optional subfolder within the main folder.
+            prefix (str): Optional prefix for the Parquet file name.
+            suffix (str): Optional suffix for the Parquet file name.
+            parquet_path (Path): Optional custom path for the Parquet file.
+        """
+
+        self.parquet_paths: list[Path] = None
+
+        if isinstance(parquet_names, str):
+            parquet_names = [parquet_names]
+
+        if not folder and not parquet_paths:
+            raise ValueError("Please provide folder or parquet_paths.")
+        if folder and not parquet_names:
+            raise ValueError("With folder, please provide parquet_names.")
+
+        # If parquet_paths is provided, use it and ignore the other arguments
+        # Else, initialize the paths
+        if parquet_paths:
+            self.parquet_paths = (
+                parquet_paths if isinstance(parquet_paths, list) else [parquet_paths]
+            )
+        else:
+            self._initialize_paths(parquet_names, folder, subfolder, prefix, suffix, extension)
+
+    def _initialize_paths(
+        self,
+        parquet_names: list[str],
+        folder: Path,
+        subfolder: str = None,
+        prefix: str = None,
+        suffix: str = None,
+        extension: str = None,
+    ) -> None:
+        """
+        Create the directory for the Parquet file.
+        """
+        # Create the full path for the Parquet file
+        parquet_dir = folder.joinpath(subfolder)
+        parquet_dir.mkdir(parents=True, exist_ok=True)
+
+        if extension:
+            extension = f".{extension}"  # to be backwards compatible
+        self.parquet_paths = [
+            parquet_dir.joinpath(Path(f"{prefix}{name}{suffix}{extension}"))
+            for name in parquet_names
+        ]
+
+    def save_parquet(
+        self,
+        dfs: dd.DataFrame | list[dd.DataFrame],
+        drop_index: bool = False,
+    ) -> None:
+        """
+        Save the DataFrame to a Parquet file.
+
+        Args:
+            dfs (DataFrame | dd.DataFrame): The pandas or Dask Dataframe to be saved.
+            drop_index (bool): If True, drops the index before saving.
+        """
+        # Compute the Dask DataFrame, reset the index, and save to Parquet
+        dfs = dfs if isinstance(dfs, list) else [dfs]
+        for df, parquet_path in zip(dfs, self.parquet_paths):
+            df.compute().reset_index(drop=drop_index).to_parquet(parquet_path)
+
+    def read_parquet(self) -> list[dd.DataFrame]:
+        """
+        Read a Dask DataFrame from the Parquet file.
+
+        Returns:
+            dd.DataFrame: The Dask DataFrame read from the Parquet file.
+
+        Raises:
+            FileNotFoundError: If the Parquet file does not exist.
+        """
+        dfs = []
+        for parquet_path in self.parquet_paths:
+            if not parquet_path.exists():
+                raise FileNotFoundError(
+                    "The Parquet file does not exist. "
+                    "If it is in another location, provide the correct path as parquet_path.",
+                )
+            dfs.append(dd.read_parquet(parquet_path))
+        return dfs
 
 
 class FlashLoader(BaseLoader):

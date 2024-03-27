@@ -4,8 +4,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from sed.loader.fel import BufferHandler
-from sed.loader.fel.utils import get_channels
+from sed.loader.flash.loader import BufferHandler
+from sed.loader.flash.utils import get_channels
 
 
 def create_parquet_dir(config, folder):

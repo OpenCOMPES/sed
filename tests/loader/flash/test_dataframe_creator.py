@@ -6,8 +6,8 @@ from pandas import DataFrame
 from pandas import Index
 from pandas import MultiIndex
 
-from sed.loader.fel import DataFrameCreator
-from sed.loader.fel.utils import get_channels
+from sed.loader.flash.loader import DataFrameCreator
+from sed.loader.flash.utils import get_channels
 
 
 def test_get_index_dataset_key(config_dataframe, h5_file):

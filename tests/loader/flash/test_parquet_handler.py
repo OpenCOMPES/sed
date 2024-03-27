@@ -1,11 +1,9 @@
 from pathlib import Path
 
-import dask.dataframe as ddf
-import pandas as pd
 import pytest
 
-from sed.loader.fel import BufferHandler
-from sed.loader.fel import ParquetHandler
+from sed.loader.flash.loader import BufferHandler
+from sed.loader.flash.loader import ParquetHandler
 
 
 def create_parquet_dir(config, folder):
