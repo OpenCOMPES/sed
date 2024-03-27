@@ -160,7 +160,7 @@ class FlashLoader(BaseLoader):
         # Return the list of found files
         return [str(file.resolve()) for file in files]
 
-    def parse_metadata(self) -> dict:
+    def parse_metadata(self, scicat_token: str = None, **kwds) -> dict:
         """Uses the MetadataRetriever class to fetch metadata from scicat for each run.
 
         Returns:
