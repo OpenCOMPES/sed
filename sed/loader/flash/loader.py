@@ -9,6 +9,7 @@ sed functionality.
 """
 from __future__ import annotations
 
+import os
 import time
 from itertools import compress
 from pathlib import Path
@@ -704,12 +705,15 @@ class BufferHandler:
         Args:
             debug (bool): Flag to enable debug mode, which serializes the creation.
         """
-        if self.num_files > 0:
+        # make sure to not create more jobs than cores available
+        # TODO: This value should be taken from the configuration
+        n_cores = min(self.num_files, os.cpu_count() - 1)
+        if n_cores > 0:
             if debug:
                 for h5_path, parquet_path in zip(self.missing_h5_files, self.save_paths):
                     self._create_buffer_file(h5_path, parquet_path)
             else:
-                Parallel(n_jobs=self.num_files, verbose=10)(
+                Parallel(n_jobs=n_cores, verbose=10)(
                     delayed(self._create_buffer_file)(h5_path, parquet_path)
                     for h5_path, parquet_path in zip(self.missing_h5_files, self.save_paths)
                 )
