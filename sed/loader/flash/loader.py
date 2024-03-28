@@ -484,7 +484,8 @@ class DataFrameCreator:
         # MultiIndex is set
         # Finally, the offset values are dropped
         return (
-            dataframe.dropna()[indexer]
+            dataframe.dropna()
+            .iloc[indexer]
             .set_index(index)
             .drop(index=drop_vals, level="pulseId", errors="ignore")
         )
