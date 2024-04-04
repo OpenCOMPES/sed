@@ -408,7 +408,7 @@ class EnergyCalibrator:
             ranges=ranges_slider,
         )
 
-        def apply_func(apply: bool):  # pylint: disable=unused-argument
+        def apply_func(apply: bool):  # noqa: ARG001
             self.add_ranges(
                 ranges_slider.value,
                 refid_slider.value,
@@ -1141,7 +1141,7 @@ class EnergyCalibrator:
 
             fig.canvas.draw_idle()
 
-        def common_apply_func(apply: bool):  # pylint: disable=unused-argument
+        def common_apply_func(apply: bool):  # noqa: ARG001
             self.correction = {}
             self.correction["amplitude"] = correction["amplitude"]
             self.correction["center"] = correction["center"]
