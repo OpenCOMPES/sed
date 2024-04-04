@@ -341,11 +341,10 @@ class MomentumCorrector:
                 Direction for ordering the points. Defaults to "ccw".
             symscores (bool, optional):
                 Option to calculate symmetry scores. Defaults to False.
-            rotsym (int, optional): Rotational symmetry of the data. Defaults to 6.
             **kwds: Keyword arguments.
 
                 - **symtype** (str): Type of symmetry scores to calculte
-                  if symscores is True.
+                  if symscores is True. Defaults to "rotation".
 
         Raises:
             ValueError: Raised if the number of points does not match the rotsym.
@@ -601,6 +600,7 @@ class MomentumCorrector:
         use_center: bool = None,
         fixed_center: bool = True,
         interp_order: int = 1,
+        ascale: Union[float, list, tuple, np.ndarray] = None,
         verbose: bool = True,
         **kwds,
     ) -> np.ndarray:
@@ -618,6 +618,13 @@ class MomentumCorrector:
             interp_order (int, optional):
                 Order of interpolation (see ``scipy.ndimage.map_coordinates()``).
                 Defaults to 1.
+            ascale: (Union[float, np.ndarray], optional): Scale parameter determining a realtive
+                scale for each symmetry feature. If provided as single float, rotsym has to be 4.
+                This parameter describes the relative scaling between the two orthogonal symmetry
+                directions (for an orthorhombic system). This requires the correction points to be
+                located along the principal axes (X/Y points of the Brillouin zone). Otherwise, an
+                array with ``rotsym`` elements is expected, containing relative scales for each
+                feature. Defaults to an array of equal scales.
             verbose (bool, optional): Option to report the used landmarks for correction.
                 Defaults to True.
             **kwds: keyword arguments:
@@ -644,6 +651,7 @@ class MomentumCorrector:
             if self.pouter is not None:
                 self.pouter_ord = po.pointset_order(self.pouter)
                 self.correction["creation_date"] = datetime.now().timestamp()
+                self.correction["creation_date"] = datetime.now().timestamp()
             else:
                 try:
                     features = np.asarray(
@@ -653,6 +661,9 @@ class MomentumCorrector:
                     include_center = self.correction["include_center"]
                     if not include_center and len(features) > rotsym:
                         features = features[:rotsym, :]
+                    ascale = self.correction.get("ascale", None)
+                    if ascale is not None:
+                        ascale = np.asarray(ascale)
 
                     if verbose:
                         if "creation_date" in self.correction:
@@ -679,6 +690,27 @@ class MomentumCorrector:
 
         else:
             self.correction["creation_date"] = datetime.now().timestamp()
+
+        if ascale is not None:
+            if isinstance(ascale, (int, float, np.floating, np.integer)):
+                if self.rotsym != 4:
+                    raise ValueError(
+                        "Providing ascale as scalar number is only valid for 'rotsym'==4.",
+                    )
+                self.ascale = np.array([1.0, ascale, 1.0, ascale])
+            elif isinstance(ascale, (tuple, list, np.ndarray)):
+                if len(ascale) != len(self.ascale):
+                    raise ValueError(
+                        f"ascale needs to be of length 'rotsym', but has length {len(ascale)}.",
+                    )
+                self.ascale = np.asarray(ascale)
+            else:
+                raise TypeError(
+                    (
+                        "ascale needs to be a single number or a list/tuple/np.ndarray of length ",
+                        f"'rotsym' ({self.rotsym})!",
+                    ),
+                )
 
         if use_center is None:
             try:
@@ -753,6 +785,7 @@ class MomentumCorrector:
             )
         else:
             self.correction["feature_points"] = self.pouter_ord
+        self.correction["ascale"] = self.ascale
 
         if self.slice is not None:
             self.slice_corrected = corrected_image
