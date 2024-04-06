@@ -256,6 +256,7 @@ class SXPLoader(BaseLoader):
         for i in train_id.index:
             # removing broken trailing hit copies
             num_trains = self._config["dataframe"].get("num_trains", 0)
+            num_pulses = self._config["dataframe"].get("num_pulses", 0)
             if num_trains:
                 try:
                     num_valid_hits = np.where(np.diff(mib_array[i].astype(np.int32)) < 0)[0][
@@ -270,7 +271,10 @@ class SXPLoader(BaseLoader):
             index = 0
             for train, train_end in enumerate(train_ends):
                 macrobunch_index.append(train_id[i] + np.uint(train))
-                microbunch_ids.append(mib_array[i, index:train_end])
+                if num_pulses:
+                    microbunch_ids.append(mib_array[i, index:train_end] % num_pulses)
+                else:
+                    microbunch_ids.append(mib_array[i, index:train_end])
                 indices.append(slice(index, train_end))
                 index = train_end + 1
             macrobunch_indices.append(indices)
