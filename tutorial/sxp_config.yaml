@@ -16,7 +16,7 @@ dataframe:
   ubid_offset: 0
   daq: DA03
   forward_fill_iterations: 2
-  num_trains: 10
+  num_trains: 1
   x_column: dldPosX
   corrected_x_column: "X"
   kx_column: "kx"
@@ -51,39 +51,50 @@ dataframe:
 
   channels:
     timeStamp:
+      daq: "DA03"
       format: per_train
       dataset_key: "/INDEX/timestamp"
       index_key: "/INDEX/trainId"
       scale: 1000000000
     pulseId:
+      daq: "DA03"
       format: per_electron
-      dataset_key: "/INSTRUMENT/SXP_TR_XPES/DET/MCP_DETECTOR:output/data/starterCounter"
-      index_key: "/INSTRUMENT/SXP_TR_XPES/DET/MCP_DETECTOR:output/data/trainId"
+      dataset_key: "/INSTRUMENT/SXP_TR_XPES/DET/MCP_CPP_TEST:daqOutput/daqOutput/starterCounter"
+      index_key: "/INSTRUMENT/SXP_TR_XPES/DET/MCP_CPP_TEST:daqOutput/daqOutput/trainId"
       max_hits: 10000
     trainId:
+      daq: "DA03"
       format: per_electron
-      dataset_key: "/INSTRUMENT/SXP_TR_XPES/DET/MCP_DETECTOR:output/data/masterCounter"
-      index_key: "/INSTRUMENT/SXP_TR_XPES/DET/MCP_DETECTOR:output/data/trainId"
+      dataset_key: "/INSTRUMENT/SXP_TR_XPES/DET/MCP_CPP_TEST:daqOutput/daqOutput/masterCounter"
+      index_key: "/INSTRUMENT/SXP_TR_XPES/DET/MCP_CPP_TEST:daqOutput/daqOutput/trainId"
       max_hits: 10000
     dldPosX:
+      daq: "DA03"
       format: per_electron
-      dataset_key: "/INSTRUMENT/SXP_TR_XPES/DET/MCP_DETECTOR:output/data/x"
-      index_key: "/INSTRUMENT/SXP_TR_XPES/DET/MCP_DETECTOR:output/data/trainId"
+      dataset_key: "/INSTRUMENT/SXP_TR_XPES/DET/MCP_CPP_TEST:daqOutput/daqOutput/x"
+      index_key: "/INSTRUMENT/SXP_TR_XPES/DET/MCP_CPP_TEST:daqOutput/daqOutput/trainId"
       max_hits: 10000
     dldPosY:
+      daq: "DA03"
       format: per_electron
-      dataset_key: "/INSTRUMENT/SXP_TR_XPES/DET/MCP_DETECTOR:output/data/y"
-      index_key: "/INSTRUMENT/SXP_TR_XPES/DET/MCP_DETECTOR:output/data/trainId"
+      dataset_key: "/INSTRUMENT/SXP_TR_XPES/DET/MCP_CPP_TEST:daqOutput/daqOutput/y"
+      index_key: "/INSTRUMENT/SXP_TR_XPES/DET/MCP_CPP_TEST:daqOutput/daqOutput/trainId"
       max_hits: 10000
     dldTimeSteps:
+      daq: "DA03"
       format: per_electron
-      dataset_key: "/INSTRUMENT/SXP_TR_XPES/DET/MCP_DETECTOR:output/data/t"
-      index_key: "/INSTRUMENT/SXP_TR_XPES/DET/MCP_DETECTOR:output/data/trainId"
+      dataset_key: "/INSTRUMENT/SXP_TR_XPES/DET/MCP_CPP_TEST:daqOutput/daqOutput/t"
+      index_key: "/INSTRUMENT/SXP_TR_XPES/DET/MCP_CPP_TEST:daqOutput/daqOutput/trainId"
       max_hits: 10000
-    delayStage:
-      format: per_train
-      dataset_key: "/CONTROL/SCS_ILH_LAS/MDL/OPTICALDELAY_PP800/actualPosition/value"
-      index_key: "/INDEX/trainId"
+#    delayStage:
+#      format: per_train
+#      dataset_key: "/CONTROL/SCS_ILH_LAS/MDL/OPTICALDELAY_PP800/actualPosition/value"
+#      index_key: "/INDEX/trainId"
+    test:
+      daq: DA02
+      format: per_pulse
+      dataset_key: "/INSTRUMENT/SA3_XTD10_XGM/XGM/DOOCS:output/data/intensitySa3TD"
+      index_key: "/INSTRUMENT/SA3_XTD10_XGM/XGM/DOOCS:output/data/trainId"
 
   stream_name_prefixes:
     DA03: "RAW-R"
