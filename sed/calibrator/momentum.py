@@ -5,9 +5,6 @@ import itertools as it
 from copy import deepcopy
 from datetime import datetime
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Tuple
 from typing import Union
 
 import bokeh.palettes as bp
@@ -51,7 +48,7 @@ class MomentumCorrector:
     def __init__(
         self,
         data: Union[xr.DataArray, np.ndarray] = None,
-        bin_ranges: List[Tuple] = None,
+        bin_ranges: list[tuple] = None,
         rotsym: int = 6,
         config: dict = None,
     ):
@@ -75,7 +72,7 @@ class MomentumCorrector:
         self.slice: np.ndarray = None
         self.slice_corrected: np.ndarray = None
         self.slice_transformed: np.ndarray = None
-        self.bin_ranges: List[Tuple] = self._config["momentum"].get("bin_ranges", [])
+        self.bin_ranges: list[tuple] = self._config["momentum"].get("bin_ranges", [])
 
         if data is not None:
             self.load_data(data=data, bin_ranges=bin_ranges)
@@ -90,7 +87,7 @@ class MomentumCorrector:
         self.include_center: bool = False
         self.use_center: bool = False
         self.pouter: np.ndarray = None
-        self.pcent: Tuple[float, ...] = None
+        self.pcent: tuple[float, ...] = None
         self.pouter_ord: np.ndarray = None
         self.prefs: np.ndarray = None
         self.ptargs: np.ndarray = None
@@ -106,10 +103,10 @@ class MomentumCorrector:
         self.cdeform_field_bkp: np.ndarray = None
         self.inverse_dfield: np.ndarray = None
         self.dfield_updated: bool = False
-        self.transformations: Dict[str, Any] = self._config["momentum"].get("transformations", {})
-        self.correction: Dict[str, Any] = self._config["momentum"].get("correction", {})
-        self.adjust_params: Dict[str, Any] = {}
-        self.calibration: Dict[str, Any] = self._config["momentum"].get("calibration", {})
+        self.transformations: dict[str, Any] = self._config["momentum"].get("transformations", {})
+        self.correction: dict[str, Any] = self._config["momentum"].get("correction", {})
+        self.adjust_params: dict[str, Any] = {}
+        self.calibration: dict[str, Any] = self._config["momentum"].get("calibration", {})
 
         self.x_column = self._config["dataframe"]["x_column"]
         self.y_column = self._config["dataframe"]["y_column"]
@@ -154,7 +151,7 @@ class MomentumCorrector:
     def load_data(
         self,
         data: Union[xr.DataArray, np.ndarray],
-        bin_ranges: List[Tuple] = None,
+        bin_ranges: list[tuple] = None,
     ):
         """Load binned data into the momentum calibrator class
 
@@ -267,9 +264,7 @@ class MomentumCorrector:
             axmax = np.max(self.slice, axis=(0, 1))
             if axmin < axmax:
                 img.set_clim(axmin, axmax)
-            ax.set_title(
-                f"Plane[{start}:{stop}]",
-            )
+            ax.set_title(f"Plane[{start}:{stop}]")
             fig.canvas.draw_idle()
 
             plane_slider.close()
@@ -287,7 +282,7 @@ class MomentumCorrector:
 
     def select_slice(
         self,
-        selector: Union[slice, List[int], int],
+        selector: Union[slice, list[int], int],
         axis: int = 2,
     ):
         """Select (hyper)slice from a (hyper)volume.
@@ -1028,7 +1023,7 @@ class MomentumCorrector:
 
     def pose_adjustment(
         self,
-        transformations: Dict[str, Any] = None,
+        transformations: dict[str, Any] = None,
         apply: bool = False,
         reset: bool = True,
         verbose: bool = True,
@@ -1262,7 +1257,7 @@ class MomentumCorrector:
         image: np.ndarray = None,
         origin: str = "lower",
         cmap: str = "terrain_r",
-        figsize: Tuple[int, int] = (4, 4),
+        figsize: tuple[int, int] = (4, 4),
         points: dict = None,
         annotated: bool = False,
         backend: str = "matplotlib",
@@ -1270,7 +1265,7 @@ class MomentumCorrector:
         scatterkwds: dict = {},
         cross: bool = False,
         crosshair: bool = False,
-        crosshair_radii: List[int] = [50, 100, 150],
+        crosshair_radii: list[int] = [50, 100, 150],
         crosshair_thickness: int = 1,
         **kwds,
     ):
@@ -1317,7 +1312,7 @@ class MomentumCorrector:
             txtsize = kwds.pop("textsize", 12)
 
         if backend == "matplotlib":
-            fig, ax = plt.subplots(figsize=figsize)
+            fig_plt, ax = plt.subplots(figsize=figsize)
             ax.imshow(image.T, origin=origin, cmap=cmap, **imkwds)
 
             if cross:
@@ -1409,11 +1404,11 @@ class MomentumCorrector:
 
     def select_k_range(
         self,
-        point_a: Union[np.ndarray, List[int]] = None,
-        point_b: Union[np.ndarray, List[int]] = None,
+        point_a: Union[np.ndarray, list[int]] = None,
+        point_b: Union[np.ndarray, list[int]] = None,
         k_distance: float = None,
-        k_coord_a: Union[np.ndarray, List[float]] = None,
-        k_coord_b: Union[np.ndarray, List[float]] = np.array([0.0, 0.0]),
+        k_coord_a: Union[np.ndarray, list[float]] = None,
+        k_coord_b: Union[np.ndarray, list[float]] = np.array([0.0, 0.0]),
         equiscale: bool = True,
         apply: bool = False,
     ):
@@ -1560,11 +1555,11 @@ class MomentumCorrector:
 
     def calibrate(
         self,
-        point_a: Union[np.ndarray, List[int]],
-        point_b: Union[np.ndarray, List[int]],
+        point_a: Union[np.ndarray, list[int]],
+        point_b: Union[np.ndarray, list[int]],
         k_distance: float = None,
-        k_coord_a: Union[np.ndarray, List[float]] = None,
-        k_coord_b: Union[np.ndarray, List[float]] = np.array([0.0, 0.0]),
+        k_coord_a: Union[np.ndarray, list[float]] = None,
+        k_coord_b: Union[np.ndarray, list[float]] = np.array([0.0, 0.0]),
         equiscale: bool = True,
         image: np.ndarray = None,
     ) -> dict:
@@ -1684,7 +1679,7 @@ class MomentumCorrector:
         new_y_column: str = None,
         verbose: bool = True,
         **kwds,
-    ) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
+    ) -> tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
         """Calculate and replace the X and Y values with their distortion-corrected
         version.
 
@@ -1766,7 +1761,7 @@ class MomentumCorrector:
         Returns:
             dict: generated correction metadata dictionary.
         """
-        metadata: Dict[Any, Any] = {}
+        metadata: dict[Any, Any] = {}
         if len(self.correction) > 0:
             metadata["correction"] = self.correction
             metadata["correction"]["applied"] = True
@@ -1843,7 +1838,7 @@ class MomentumCorrector:
         new_y_column: str = None,
         calibration: dict = None,
         **kwds,
-    ) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
+    ) -> tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
         """Calculate and append the k axis coordinates (kx, ky) to the events dataframe.
 
         Args:
@@ -1928,7 +1923,7 @@ class MomentumCorrector:
         """
         if calibration is None:
             calibration = self.calibration
-        metadata: Dict[Any, Any] = {}
+        metadata: dict[Any, Any] = {}
         try:
             metadata["creation_date"] = calibration["creation_date"]
         except KeyError:
@@ -1967,7 +1962,7 @@ def cm2palette(cmap_name: str) -> list:
 
 def dictmerge(
     main_dict: dict,
-    other_entries: Union[List[dict], Tuple[dict], dict],
+    other_entries: Union[list[dict], tuple[dict], dict],
 ) -> dict:
     """Merge a dictionary with other dictionaries.
 
@@ -2006,7 +2001,7 @@ def detector_coordiantes_2_k_koordinates(
     c_conversion: float,
     r_step: float,
     c_step: float,
-) -> Tuple[float, float]:
+) -> tuple[float, float]:
     """Conversion from detector coordinates (rdet, cdet) to momentum coordinates
     (kr, kc).
 
@@ -2040,7 +2035,7 @@ def apply_dfield(
     y_column: str,
     new_x_column: str,
     new_y_column: str,
-    detector_ranges: List[Tuple],
+    detector_ranges: list[tuple],
 ) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
     """Application of the inverse displacement-field to the dataframe coordinates.
 
@@ -2075,8 +2070,8 @@ def apply_dfield(
 def generate_inverse_dfield(
     rdeform_field: np.ndarray,
     cdeform_field: np.ndarray,
-    bin_ranges: List[Tuple],
-    detector_ranges: List[Tuple],
+    bin_ranges: list[tuple],
+    detector_ranges: list[tuple],
 ) -> np.ndarray:
     """Generate inverse deformation field using inperpolation with griddata.
     Assuming the binning range of the input ``rdeform_field`` and ``cdeform_field``
@@ -2147,7 +2142,7 @@ def generate_inverse_dfield(
     return inverse_dfield
 
 
-def load_dfield(file: str) -> Tuple[np.ndarray, np.ndarray]:
+def load_dfield(file: str) -> tuple[np.ndarray, np.ndarray]:
     """Load inverse dfield from file
 
     Args:

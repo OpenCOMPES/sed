@@ -3,16 +3,13 @@ correction. Mostly ported from https://github.com/mpes-kit/mpes.
 """
 import itertools as it
 import warnings as wn
+from collections.abc import Sequence
 from copy import deepcopy
 from datetime import datetime
 from functools import partial
 from typing import Any
 from typing import cast
-from typing import Dict
-from typing import List
 from typing import Literal
-from typing import Sequence
-from typing import Tuple
 from typing import Union
 
 import bokeh.plotting as pbk
@@ -93,9 +90,9 @@ class EnergyCalibrator:
 
         self._config = config
 
-        self.featranges: List[Tuple] = []  # Value ranges for feature detection
+        self.featranges: list[tuple] = []  # Value ranges for feature detection
         self.peaks: np.ndarray = np.asarray([])
-        self.calibration: Dict[str, Any] = self._config["energy"].get("calibration", {})
+        self.calibration: dict[str, Any] = self._config["energy"].get("calibration", {})
 
         self.tof_column = self._config["dataframe"]["tof_column"]
         self.tof_ns_column = self._config["dataframe"].get("tof_ns_column", None)
@@ -114,8 +111,8 @@ class EnergyCalibrator:
         self.color_clip = self._config["energy"]["color_clip"]
         self.sector_delays = self._config["dataframe"].get("sector_delays", None)
         self.sector_id_column = self._config["dataframe"].get("sector_id_column", None)
-        self.offsets: Dict[str, Any] = self._config["energy"].get("offsets", {})
-        self.correction: Dict[str, Any] = self._config["energy"].get("correction", {})
+        self.offsets: dict[str, Any] = self._config["energy"].get("offsets", {})
+        self.correction: dict[str, Any] = self._config["energy"].get("correction", {})
 
     @property
     def ntraces(self) -> int:
@@ -177,10 +174,10 @@ class EnergyCalibrator:
 
     def bin_data(
         self,
-        data_files: List[str],
-        axes: List[str] = None,
-        bins: List[int] = None,
-        ranges: Sequence[Tuple[float, float]] = None,
+        data_files: list[str],
+        axes: list[str] = None,
+        bins: list[int] = None,
+        ranges: Sequence[tuple[float, float]] = None,
         biases: np.ndarray = None,
         bias_key: str = None,
         **kwds,
@@ -209,7 +206,7 @@ class EnergyCalibrator:
             ranges_ = [
                 np.array(self._config["energy"]["ranges"]) / 2 ** (self.binning - 1),
             ]
-            ranges = [cast(Tuple[float, float], tuple(v)) for v in ranges_]
+            ranges = [cast(tuple[float, float], tuple(v)) for v in ranges_]
         # pylint: disable=duplicate-code
         hist_mode = kwds.pop("hist_mode", self._config["binning"]["hist_mode"])
         mode = kwds.pop("mode", self._config["binning"]["mode"])
@@ -289,7 +286,7 @@ class EnergyCalibrator:
 
     def adjust_ranges(
         self,
-        ranges: Tuple,
+        ranges: tuple,
         ref_id: int = 0,
         traces: np.ndarray = None,
         peak_window: int = 7,
@@ -429,7 +426,7 @@ class EnergyCalibrator:
 
     def add_ranges(
         self,
-        ranges: Union[List[Tuple], Tuple],
+        ranges: Union[list[tuple], tuple],
         ref_id: int = 0,
         traces: np.ndarray = None,
         infer_others: bool = True,
@@ -459,7 +456,7 @@ class EnergyCalibrator:
         # Infer the corresponding feature detection range of other traces by alignment
         if infer_others:
             assert isinstance(ranges, tuple)
-            newranges: List[Tuple] = []
+            newranges: list[tuple] = []
 
             for i in range(self.ntraces):
                 pathcorr = find_correspondence(
@@ -482,7 +479,7 @@ class EnergyCalibrator:
 
     def feature_extract(
         self,
-        ranges: List[Tuple] = None,
+        ranges: list[tuple] = None,
         traces: np.ndarray = None,
         peak_window: int = 7,
     ):
@@ -609,7 +606,7 @@ class EnergyCalibrator:
     def view(  # pylint: disable=dangerous-default-value
         self,
         traces: np.ndarray,
-        segs: List[Tuple] = None,
+        segs: list[tuple] = None,
         peaks: np.ndarray = None,
         show_legend: bool = True,
         backend: str = "matplotlib",
@@ -657,7 +654,7 @@ class EnergyCalibrator:
 
         if backend == "matplotlib":
             figsize = kwds.pop("figsize", (12, 4))
-            fig, ax = plt.subplots(figsize=figsize)
+            fig_plt, ax = plt.subplots(figsize=figsize)
             for itr, trace in enumerate(traces):
                 if align:
                     ax.plot(
@@ -785,7 +782,7 @@ class EnergyCalibrator:
         calibration: dict = None,
         verbose: bool = True,
         **kwds,
-    ) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
+    ) -> tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
         """Calculate and append the energy axis to the events dataframe.
 
         Args:
@@ -896,7 +893,7 @@ class EnergyCalibrator:
         tof_column: str = None,
         tof_ns_column: str = None,
         **kwds,
-    ) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
+    ) -> tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
         """Converts the time-of-flight time from steps to time in ns.
 
         Args:
@@ -930,7 +927,7 @@ class EnergyCalibrator:
             binning,
             df[tof_column].astype("float64"),
         )
-        metadata: Dict[str, Any] = {
+        metadata: dict[str, Any] = {
             "applied": True,
             "binwidth": binwidth,
             "binning": binning,
@@ -949,7 +946,7 @@ class EnergyCalibrator:
         """
         if calibration is None:
             calibration = self.calibration
-        metadata: Dict[Any, Any] = {}
+        metadata: dict[Any, Any] = {}
         metadata["applied"] = True
         metadata["calibration"] = deepcopy(calibration)
         metadata["tof"] = deepcopy(self.tof)
@@ -964,7 +961,7 @@ class EnergyCalibrator:
         image: xr.DataArray,
         correction_type: str = None,
         amplitude: float = None,
-        center: Tuple[float, float] = None,
+        center: tuple[float, float] = None,
         correction: dict = None,
         apply: bool = False,
         **kwds,
@@ -1318,7 +1315,7 @@ class EnergyCalibrator:
         correction: dict = None,
         verbose: bool = True,
         **kwds,
-    ) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
+    ) -> tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
         """Apply correction to the time-of-flight (TOF) axis of single-event data.
 
         Args:
@@ -1417,7 +1414,7 @@ class EnergyCalibrator:
         """
         if correction is None:
             correction = self.correction
-        metadata: Dict[Any, Any] = {}
+        metadata: dict[Any, Any] = {}
         metadata["applied"] = True
         metadata["correction"] = deepcopy(correction)
 
@@ -1429,7 +1426,7 @@ class EnergyCalibrator:
         tof_column: str = None,
         sector_id_column: str = None,
         sector_delays: np.ndarray = None,
-    ) -> Tuple[dask.dataframe.DataFrame, dict]:
+    ) -> tuple[dask.dataframe.DataFrame, dict]:
         """Aligns the time-of-flight axis of the different sections of a detector.
 
         Args:
@@ -1465,7 +1462,7 @@ class EnergyCalibrator:
             return val.astype(np.float32)
 
         df[tof_column] = df.map_partitions(align_sector, meta=(tof_column, np.float32))
-        metadata: Dict[str, Any] = {
+        metadata: dict[str, Any] = {
             "applied": True,
             "sector_delays": sector_delays,
         }
@@ -1474,7 +1471,7 @@ class EnergyCalibrator:
     def add_offsets(
         self,
         df: Union[pd.DataFrame, dask.dataframe.DataFrame] = None,
-        offsets: Dict[str, Any] = None,
+        offsets: dict[str, Any] = None,
         constant: float = None,
         columns: Union[str, Sequence[str]] = None,
         weights: Union[float, Sequence[float]] = None,
@@ -1482,7 +1479,7 @@ class EnergyCalibrator:
         reductions: Union[str, Sequence[str]] = None,
         energy_column: str = None,
         verbose: bool = True,
-    ) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
+    ) -> tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
         """Apply an offset to the energy column by the values of the provided columns.
 
         If no parameter is passed to this function, the offset is applied as defined in the
@@ -1516,7 +1513,7 @@ class EnergyCalibrator:
         if energy_column is None:
             energy_column = self.energy_column
 
-        metadata: Dict[str, Any] = {
+        metadata: dict[str, Any] = {
             "applied": True,
         }
 
@@ -1644,7 +1641,7 @@ class EnergyCalibrator:
         return df, metadata
 
 
-def extract_bias(files: List[str], bias_key: str) -> np.ndarray:
+def extract_bias(files: list[str], bias_key: str) -> np.ndarray:
     """Read bias values from hdf5 files
 
     Args:
@@ -1654,7 +1651,7 @@ def extract_bias(files: List[str], bias_key: str) -> np.ndarray:
     Returns:
         np.ndarray: Array of bias values.
     """
-    bias_list: List[float] = []
+    bias_list: list[float] = []
     for file in files:
         with h5py.File(file, "r") as file_handle:
             if bias_key[0] == "@":
@@ -1669,7 +1666,7 @@ def correction_function(
     x: Union[float, np.ndarray],
     y: Union[float, np.ndarray],
     correction_type: str,
-    center: Tuple[float, float],
+    center: tuple[float, float],
     amplitude: float,
     **kwds,
 ) -> Union[float, np.ndarray]:
@@ -1846,9 +1843,9 @@ def find_correspondence(
 
 def range_convert(
     x: np.ndarray,
-    xrng: Tuple,
+    xrng: tuple,
     pathcorr: np.ndarray,
-) -> Tuple:
+) -> tuple:
     """Convert value range using a pairwise path correspondence (e.g. obtained
     from time warping algorithm).
 
@@ -1890,7 +1887,7 @@ def find_nearest(val: float, narray: np.ndarray) -> int:
 def peaksearch(
     traces: np.ndarray,
     tof: np.ndarray,
-    ranges: List[Tuple] = None,
+    ranges: list[tuple] = None,
     pkwindow: int = 3,
     plot: bool = False,
 ) -> np.ndarray:
@@ -1938,7 +1935,7 @@ def peaksearch(
 def _datacheck_peakdetect(
     x_axis: np.ndarray,
     y_axis: np.ndarray,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """Input format checking for 1D peakdtect algorithm
 
     Args:
@@ -1972,7 +1969,7 @@ def peakdetect1d(
     x_axis: np.ndarray = None,
     lookahead: int = 200,
     delta: int = 0,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """Function for detecting local maxima and minima in a signal.
     Discovers peaks by searching for values which are surrounded by lower
     or larger values for maxima and minima respectively
@@ -2086,13 +2083,13 @@ def peakdetect1d(
 
 
 def fit_energy_calibration(
-    pos: Union[List[float], np.ndarray],
-    vals: Union[List[float], np.ndarray],
+    pos: Union[list[float], np.ndarray],
+    vals: Union[list[float], np.ndarray],
     binwidth: float,
     binning: int,
     ref_id: int = 0,
     ref_energy: float = None,
-    t: Union[List[float], np.ndarray] = None,
+    t: Union[list[float], np.ndarray] = None,
     energy_scale: str = "kinetic",
     verbose: bool = True,
     **kwds,
@@ -2222,12 +2219,12 @@ def fit_energy_calibration(
 
 
 def poly_energy_calibration(
-    pos: Union[List[float], np.ndarray],
-    vals: Union[List[float], np.ndarray],
+    pos: Union[list[float], np.ndarray],
+    vals: Union[list[float], np.ndarray],
     order: int = 3,
     ref_id: int = 0,
     ref_energy: float = None,
-    t: Union[List[float], np.ndarray] = None,
+    t: Union[list[float], np.ndarray] = None,
     aug: int = 1,
     method: str = "lstsq",
     energy_scale: str = "kinetic",
@@ -2373,7 +2370,7 @@ def tof2ev(
 
 
 def tof2evpoly(
-    poly_a: Union[List[float], np.ndarray],
+    poly_a: Union[list[float], np.ndarray],
     energy_offset: float,
     t: float,
 ) -> float:
