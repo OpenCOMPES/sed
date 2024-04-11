@@ -343,6 +343,7 @@ def test_offset_by_other_columns_functionality() -> None:
         offset_columns=["off1"],
         weights=[1],
     )
+    res = res.compute()
     expected: List[Any] = [11, 22, 33, 44, 55, 66]
     np.testing.assert_allclose(res["target"].values, expected)
 
@@ -352,6 +353,7 @@ def test_offset_by_other_columns_functionality() -> None:
         offset_columns=["off1", "off2"],
         weights=[1, -1],
     )
+    res = res.compute()
     expected = [10.9, 21.8, 32.7, 43.6, 54.5, 65.4]
     np.testing.assert_allclose(res["target"].values, expected)
 
