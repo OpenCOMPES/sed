@@ -364,6 +364,7 @@ def test_offset_by_other_columns_functionality() -> None:
         weights=[1],
         preserve_mean=True,
     )
+    res = res.compute()
     expected = [9.75, 19.85, 29.95, 40.05, 50.15, 60.25]
     np.testing.assert_allclose(res["target"].values, expected)
 
@@ -374,6 +375,7 @@ def test_offset_by_other_columns_functionality() -> None:
         weights=[1],
         reductions="mean",
     )
+    res = res.compute()
     expected = [20, 30, 40, 50, 60, 70]
     np.testing.assert_allclose(res["target"].values, expected)
 
