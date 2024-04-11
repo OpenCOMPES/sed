@@ -27,7 +27,7 @@ jobs:
           poetry-version: 1.2.2
 
       # Run pytest with coverage report, saving to xml
-      - name: Run tests on python 3.8
+      - name: Run tests on python 3.9
         run: |
           poetry run pytest --cov --cov-report xml:cobertura.xml --full-trace --show-capture=no -sv -n auto tests/
 
