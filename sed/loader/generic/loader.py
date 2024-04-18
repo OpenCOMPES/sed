@@ -101,10 +101,10 @@ class GenericLoader(BaseLoader):
 
     def get_files_from_run_id(
         self,
-        run_id: str,
-        folders: Union[str, Sequence[str]] = None,
-        extension: str = None,
-        **kwds,
+        run_id: str,  # noqa: ARG002
+        folders: Union[str, Sequence[str]] = None,  # noqa: ARG002
+        extension: str = None,  # noqa: ARG002
+        **kwds,  # noqa: ARG002
     ) -> List[str]:
         """Locate the files for a given run identifier.
 
@@ -120,10 +120,10 @@ class GenericLoader(BaseLoader):
         """
         raise NotImplementedError
 
-    def get_count_rate(  # Pylint: disable=unused_parameter
+    def get_count_rate(
         self,
-        fids: Sequence[int] = None,
-        **kwds,
+        fids: Sequence[int] = None,  # noqa: ARG002
+        **kwds,  # noqa: ARG002
     ) -> Tuple[np.ndarray, np.ndarray]:
         """Create count rate data for the files specified in ``fids``.
 
@@ -139,10 +139,10 @@ class GenericLoader(BaseLoader):
         # TODO
         return None, None
 
-    def get_elapsed_time(  # Pylint: disable=unused_parameter
+    def get_elapsed_time(
         self,
-        fids: Sequence[int] = None,
-        **kwds,
+        fids: Sequence[int] = None,  # noqa: ARG002
+        **kwds,  # noqa: ARG002
     ) -> float:
         """Return the elapsed time in the files specified in ``fids``.
 

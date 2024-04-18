@@ -4,7 +4,6 @@ correction. Mostly ported from https://github.com/mpes-kit/mpes.
 import itertools as it
 from copy import deepcopy
 from datetime import datetime
-from multiprocessing import Pool
 from typing import Any
 from typing import Dict
 from typing import List
@@ -19,13 +18,14 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import psutil
 import scipy.ndimage as ndi
 import xarray as xr
 from bokeh.colors import RGB
 from bokeh.io import output_notebook
 from bokeh.palettes import Category10 as ColorCycle
 from IPython.display import display
+from joblib import delayed
+from joblib import Parallel
 from matplotlib import cm
 from numpy.linalg import norm
 from scipy.interpolate import griddata
@@ -33,8 +33,6 @@ from scipy.ndimage import map_coordinates
 from symmetrize import pointops as po
 from symmetrize import sym
 from symmetrize import tps
-
-N_CPU = psutil.cpu_count()
 
 
 class MomentumCorrector:
@@ -71,10 +69,6 @@ class MomentumCorrector:
             config = {}
 
         self._config = config
-
-        self.num_cores = self._config.get("binning", {}).get("num_cores", N_CPU - 1)
-        if self.num_cores >= N_CPU:
-            self.num_cores = N_CPU - 1
 
         self.image: np.ndarray = None
         self.img_ndim: int = None
@@ -258,7 +252,7 @@ class MomentumCorrector:
             width=width_slider,
         )
 
-        def apply_fun(apply: bool):  # pylint: disable=unused-argument
+        def apply_fun(apply: bool):  # noqa: ARG001
             start = plane_slider.value
             stop = plane_slider.value + width_slider.value
 
@@ -341,11 +335,10 @@ class MomentumCorrector:
                 Direction for ordering the points. Defaults to "ccw".
             symscores (bool, optional):
                 Option to calculate symmetry scores. Defaults to False.
-            rotsym (int, optional): Rotational symmetry of the data. Defaults to 6.
             **kwds: Keyword arguments.
 
                 - **symtype** (str): Type of symmetry scores to calculte
-                  if symscores is True.
+                  if symscores is True. Defaults to "rotation".
 
         Raises:
             ValueError: Raised if the number of points does not match the rotsym.
@@ -541,7 +534,7 @@ class MomentumCorrector:
 
         cid = fig.canvas.mpl_connect("button_press_event", onclick)
 
-        def apply_func(apply: bool):  # pylint: disable=unused-argument
+        def apply_func(apply: bool):  # noqa: ARG001
             fig.canvas.mpl_disconnect(cid)
 
             point_no_input.close()
@@ -601,6 +594,7 @@ class MomentumCorrector:
         use_center: bool = None,
         fixed_center: bool = True,
         interp_order: int = 1,
+        ascale: Union[float, list, tuple, np.ndarray] = None,
         verbose: bool = True,
         **kwds,
     ) -> np.ndarray:
@@ -618,6 +612,13 @@ class MomentumCorrector:
             interp_order (int, optional):
                 Order of interpolation (see ``scipy.ndimage.map_coordinates()``).
                 Defaults to 1.
+            ascale: (Union[float, np.ndarray], optional): Scale parameter determining a realtive
+                scale for each symmetry feature. If provided as single float, rotsym has to be 4.
+                This parameter describes the relative scaling between the two orthogonal symmetry
+                directions (for an orthorhombic system). This requires the correction points to be
+                located along the principal axes (X/Y points of the Brillouin zone). Otherwise, an
+                array with ``rotsym`` elements is expected, containing relative scales for each
+                feature. Defaults to an array of equal scales.
             verbose (bool, optional): Option to report the used landmarks for correction.
                 Defaults to True.
             **kwds: keyword arguments:
@@ -644,6 +645,7 @@ class MomentumCorrector:
             if self.pouter is not None:
                 self.pouter_ord = po.pointset_order(self.pouter)
                 self.correction["creation_date"] = datetime.now().timestamp()
+                self.correction["creation_date"] = datetime.now().timestamp()
             else:
                 try:
                     features = np.asarray(
@@ -653,6 +655,9 @@ class MomentumCorrector:
                     include_center = self.correction["include_center"]
                     if not include_center and len(features) > rotsym:
                         features = features[:rotsym, :]
+                    ascale = self.correction.get("ascale", None)
+                    if ascale is not None:
+                        ascale = np.asarray(ascale)
 
                     if verbose:
                         if "creation_date" in self.correction:
@@ -679,6 +684,27 @@ class MomentumCorrector:
 
         else:
             self.correction["creation_date"] = datetime.now().timestamp()
+
+        if ascale is not None:
+            if isinstance(ascale, (int, float, np.floating, np.integer)):
+                if self.rotsym != 4:
+                    raise ValueError(
+                        "Providing ascale as scalar number is only valid for 'rotsym'==4.",
+                    )
+                self.ascale = np.array([1.0, ascale, 1.0, ascale])
+            elif isinstance(ascale, (tuple, list, np.ndarray)):
+                if len(ascale) != len(self.ascale):
+                    raise ValueError(
+                        f"ascale needs to be of length 'rotsym', but has length {len(ascale)}.",
+                    )
+                self.ascale = np.asarray(ascale)
+            else:
+                raise TypeError(
+                    (
+                        "ascale needs to be a single number or a list/tuple/np.ndarray of length ",
+                        f"'rotsym' ({self.rotsym})!",
+                    ),
+                )
 
         if use_center is None:
             try:
@@ -753,6 +779,7 @@ class MomentumCorrector:
             )
         else:
             self.correction["feature_points"] = self.pouter_ord
+        self.correction["ascale"] = self.ascale
 
         if self.slice is not None:
             self.slice_corrected = corrected_image
@@ -1144,7 +1171,7 @@ class MomentumCorrector:
             angle=angle_slider,
         )
 
-        def apply_func(apply: bool):  # pylint: disable=unused-argument
+        def apply_func(apply: bool):  # noqa: ARG001
             if transformations.get("scale", 1) != 1:
                 self.coordinate_transform(
                     transform_type="scaling",
@@ -1226,7 +1253,6 @@ class MomentumCorrector:
             self.cdeform_field,
             self.bin_ranges,
             self.detector_ranges,
-            self.num_cores,
         )
 
         return self.inverse_dfield
@@ -1457,7 +1483,7 @@ class MomentumCorrector:
             point_a_y: int,
             point_b_x: int,
             point_b_y: int,
-            k_distance: float,  # pylint: disable=unused-argument
+            k_distance: float,  # noqa: ARG001
         ):
             fig.canvas.draw_idle()
             marker_a.set_xdata(point_a_x)
@@ -1493,7 +1519,7 @@ class MomentumCorrector:
 
         cid = fig.canvas.mpl_connect("button_press_event", onclick)
 
-        def apply_func(apply: bool):  # pylint: disable=unused-argument
+        def apply_func(apply: bool):  # noqa: ARG001
             point_a = [point_a_input_x.value, point_a_input_y.value]
             point_b = [point_b_input_x.value, point_b_input_y.value]
             calibration = self.calibrate(
@@ -1716,7 +1742,6 @@ class MomentumCorrector:
                 self.cdeform_field,
                 self.bin_ranges,
                 self.detector_ranges,
-                self.num_cores,
             )
             self.dfield_updated = False
 
@@ -2052,7 +2077,6 @@ def generate_inverse_dfield(
     cdeform_field: np.ndarray,
     bin_ranges: List[Tuple],
     detector_ranges: List[Tuple],
-    num_cores: int,
 ) -> np.ndarray:
     """Generate inverse deformation field using inperpolation with griddata.
     Assuming the binning range of the input ``rdeform_field`` and ``cdeform_field``
@@ -2063,7 +2087,6 @@ def generate_inverse_dfield(
         cdeform_field (np.ndarray): Column-wise deformation field.
         bin_ranges (List[Tuple]): Detector ranges of the binned coordinates.
         detector_ranges (List[Tuple]): Ranges of detector coordinates to interpolate to.
-        num_cores (int): number of cores to use for parallelization.
 
     Returns:
         np.ndarray: The calculated inverse deformation field (row/column)
@@ -2096,49 +2119,7 @@ def generate_inverse_dfield(
     rc_position = []  # row/column position in c/rdeform_field
     r_dest = []  # destination pixel row position
     c_dest = []  # destination pixel column position
-    compute_i0 = [(cdeform_field.shape[0] * i) // num_cores for i in np.arange(0, num_cores)]
-    compute_i1 = [(cdeform_field.shape[0] * i) // num_cores for i in np.arange(1, num_cores + 1)]
-    data = [
-        (rdeform_field, cdeform_field, bin_ranges, bin_step, i0, i1)
-        for (i0, i1) in zip(compute_i0, compute_i1)
-    ]
-    with Pool(num_cores) as p:
-        ret = p.map(generate_lists, data)
-
-    for pos, rd, cd in ret:
-        rc_position += pos
-        r_dest += rd
-        c_dest += cd
-
-    with Pool(2) as p:
-        ret = p.map(
-            griddata_,
-            [
-                (np.asarray(rc_position), np.asarray(r_dest), (r_mesh, c_mesh)),
-                (np.asarray(rc_position), np.asarray(c_dest), (r_mesh, c_mesh)),
-            ],
-        )
-
-    inverse_dfield = np.asarray([ret[0], ret[1]])
-
-    return inverse_dfield
-
-
-def generate_lists(args):
-    """Function for paralellizing code with multiprocessing.Pool.map
-
-    Args:
-        args: argument tuple containing (rdeform_field, cdeform_field, bin_ranges, bin_step, i0, i1)
-
-    Returns:
-        return tuple of lists (rc_position, r_dest, c_dest)
-    """
-    (rdeform_field, cdeform_field, bin_ranges, bin_step, i0, i1) = args
-    rc_position = []  # row/column position in c/rdeform_field
-    r_dest = []  # destination pixel row position
-    c_dest = []  # destination pixel column position
-
-    for i in np.arange(i0, i1):
+    for i in np.arange(cdeform_field.shape[0]):
         for j in np.arange(cdeform_field.shape[1]):
             if not np.isnan(rdeform_field[i, j]) and not np.isnan(
                 cdeform_field[i, j],
@@ -2155,19 +2136,15 @@ def generate_lists(args):
                 c_dest.append(
                     bin_step[1] * j + bin_ranges[1][0],
                 )
-    return (rc_position, r_dest, c_dest)
 
+    ret = Parallel(n_jobs=2)(
+        delayed(griddata)(np.asarray(rc_position), np.asarray(arg), (r_mesh, c_mesh))
+        for arg in [r_dest, c_dest]
+    )
 
-def griddata_(args):
-    """Wrapper for griddata to use with multiprocessing.Pool.map
+    inverse_dfield = np.asarray([ret[0], ret[1]])
 
-    Args:
-        args: argument tuple to griddata
-
-    Returns:
-        return value of griddata
-    """
-    return griddata(*args)
+    return inverse_dfield
 
 
 def load_dfield(file: str) -> Tuple[np.ndarray, np.ndarray]:

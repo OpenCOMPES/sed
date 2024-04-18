@@ -11,7 +11,7 @@ def mock_requests(requests_mock):
 
 
 # Test cases for MetadataRetriever
-def test_get_metadata(mock_requests):
+def test_get_metadata(mock_requests):  # noqa: ARG001
     metadata_config = {
         "scicat_url": "https://example.com",
         "scicat_token": "fake_token",
@@ -22,7 +22,7 @@ def test_get_metadata(mock_requests):
     assert metadata == {"fake": "data"}
 
 
-def test_get_metadata_with_existing_metadata(mock_requests):
+def test_get_metadata_with_existing_metadata(mock_requests):  # noqa: ARG001
     metadata_config = {
         "scicat_url": "https://example.com",
         "scicat_token": "fake_token",
@@ -34,7 +34,7 @@ def test_get_metadata_with_existing_metadata(mock_requests):
     assert metadata == {"existing": "metadata", "fake": "data"}
 
 
-def test_get_metadata_per_run(mock_requests):
+def test_get_metadata_per_run(mock_requests):  # noqa: ARG001
     metadata_config = {
         "scicat_url": "https://example.com",
         "scicat_token": "fake_token",
