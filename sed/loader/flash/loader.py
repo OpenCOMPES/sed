@@ -786,7 +786,8 @@ class FlashLoader(BaseLoader):
         # Check if load_parquet is flagged and then load the file if it exists
         if load_parquet:
             try:
-                dataframe = dd.read_parquet(parquet_path)
+                dataframe_electron = dd.read_parquet(parquet_path)
+                dataframe_pulse = dataframe_electron
             except Exception as exc:
                 raise FileNotFoundError(
                     "The final parquet for this run(s) does not exist yet. "
