@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 MULTI_INDEX = ["trainId", "pulseId", "electronId"]
 PULSE_ALIAS = MULTI_INDEX[1]
 DLD_AUX_ALIAS = "dldAux"
@@ -78,3 +80,44 @@ def get_channels(
                     channels.extend([DLD_AUX_ALIAS])
 
     return channels
+
+
+def initialize_parquet_paths(
+    parquet_names: str | list[str] = None,
+    folder: Path = None,
+    subfolder: str = "",
+    prefix: str = "",
+    suffix: str = "",
+    extension: str = "parquet",
+    parquet_paths: list[Path] = None,
+) -> list[Path]:
+    """
+    Initialize the paths for the Parquet files.
+
+    If custom paths are provided, they will be used. Otherwise, paths will be generated based on
+    the specified parameters during initialization.
+
+    Args:
+        parquet_paths (List[Path]): Optional custom paths for the Parquet files.
+    """
+    # if parquet_names is string, convert it to a list
+    if isinstance(parquet_names, str):
+        parquet_names = [parquet_names]
+
+    # Check if the folder and Parquet paths are provided
+    if not folder and not parquet_paths:
+        raise ValueError("Please provide folder or parquet_paths.")
+    if folder and not parquet_names:
+        raise ValueError("With folder, please provide parquet_names.")
+
+    # Otherwise create the full path for the Parquet file
+    parquet_dir = folder.joinpath(subfolder)
+    parquet_dir.mkdir(parents=True, exist_ok=True)
+
+    if extension:
+        extension = f".{extension}"  # to be backwards compatible
+    parquet_paths = [
+        parquet_dir.joinpath(Path(f"{prefix}{name}{suffix}{extension}")) for name in parquet_names
+    ]
+
+    return parquet_paths
