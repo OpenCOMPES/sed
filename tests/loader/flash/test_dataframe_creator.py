@@ -238,7 +238,6 @@ def test_group_name_not_in_h5(config_dataframe, h5_file):
     channel = "dldPosX"
     config = config_dataframe
     config["channels"][channel]["group_name"] = "foo"
-    index_key = "foo" + "index"
     df = DataFrameCreator(config, h5_file)
 
     with pytest.raises(KeyError):
