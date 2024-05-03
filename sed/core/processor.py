@@ -274,7 +274,7 @@ class SedProcessor:
         """Accessor to the metadata dict.
 
         Returns:
-            dict: The metadata dict.
+            MetaHandler: The metadata object
         """
         return self._attributes
 
