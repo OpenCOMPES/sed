@@ -192,10 +192,9 @@ class SedProcessor:
         html += f"<details><summary>Dask</summary>{self.dataframe._repr_html_()}</details>"
 
         # Add expandable section for attributes
-        html += "<details><summary>Attributes</summary>"
-        html += "<ul>"
-        html += f"<li>{self.attributes}</li>"
-        html += "</ul></details>"
+        html += "<details><summary>Metadata</summary>"
+        html += self.attributes._repr_html_()
+        html += "</details>"
 
         # Add expandable section for plots
         html += "<details><summary>Plots</summary>"

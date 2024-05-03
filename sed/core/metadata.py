@@ -22,6 +22,30 @@ class MetaHandler:
     def __repr__(self) -> str:
         return yaml.dump(self._m, allow_unicode=True, default_flow_style=False)
 
+    def _format_attributes(self, attributes, indent=0):
+        html = ""
+        for key, value in attributes.items():
+            # Format key
+            formatted_key = key.replace("_", " ").title()
+            formatted_key = f"<b>{formatted_key}</b>"
+
+            if isinstance(value, dict):
+                html += f"<div style='padding-left: {indent * 10}px;'><details>"
+                html += f"<summary>{formatted_key}</summary>"
+                html += self._format_attributes(value, indent + 1)
+                html += "</details></div>"
+            else:
+                html += (
+                    f"<div style='padding-left: {indent * 10}px;'>{formatted_key}: {value}</div>"
+                )
+        return html
+
+    def _repr_html_(self) -> str:
+        html = "<div>"
+        html += self._format_attributes(self._m)
+        html += "</div>"
+        return html
+
     @property
     def metadata(self) -> dict:
         """Property returning the metadata dict.
