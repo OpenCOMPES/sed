@@ -170,8 +170,13 @@ def bin_partition(
                 apply_jitter_on_column(sel_part, amp * binsize, col, mode)
         vals = sel_part.values
     else:
-        vals = part.values[:, col_id]
+        vals = part.iloc[:, col_id].values
     if hist_mode == "numba":
+        if vals.dtype == "object":
+            raise ValueError(
+                "Numba binning requires all axes data to be of the same type. "
+                "Please make sure all axes data are of the same type, or use numpy binning. ",
+            )
         hist_partition, edges = numba_histogramdd(
             vals,
             bins=bins,
