@@ -5,6 +5,8 @@ from copy import deepcopy
 from typing import Any
 from typing import Dict
 
+import yaml
+
 from sed.core.config import complete_dictionary
 
 
@@ -18,8 +20,7 @@ class MetaHandler:
         return self._m[val]
 
     def __repr__(self) -> str:
-        # TODO: #35 add pretty print, possibly to HTML
-        return str(self._m)
+        return yaml.dump(self._m, allow_unicode=True, default_flow_style=False)
 
     @property
     def metadata(self) -> dict:

@@ -178,9 +178,41 @@ class SedProcessor:
             df_str = "Data Frame: No Data loaded"
         else:
             df_str = self._dataframe.__repr__()
-        attributes_str = f"Metadata: {self._attributes.metadata}"
-        pretty_str = df_str + "\n" + attributes_str
+        pretty_str = df_str + "\n" + "Metadata: " + "\n" + self._attributes.__repr__()
         return pretty_str
+
+    def _repr_html_(self):
+        html = "<div>"
+
+        html += (
+            f"<details><summary>Dataframe</summary>{self.dataframe.head()._repr_html_()}</details>"
+        )
+
+        # Add expandable section for dataframe
+        html += f"<details><summary>Dask</summary>{self.dataframe._repr_html_()}</details>"
+
+        # Add expandable section for attributes
+        html += "<details><summary>Attributes</summary>"
+        html += "<ul>"
+        html += f"<li>{self.attributes}</li>"
+        html += "</ul></details>"
+
+        # Add expandable section for plots
+        html += "<details><summary>Plots</summary>"
+        # Add your plot generating code here
+        plt.figure()
+        # plot random data
+        plt.plot(np.random.rand(10))
+        plt.xlabel("X-axis label")
+        plt.ylabel("Y-axis label")
+        plt.title("Plot Title")
+        html += "<img src='plot.png' alt='Plot'>"
+        plt.close()
+        html += "</details>"
+
+        html += "</div>"
+
+        return html
 
     @property
     def dataframe(self) -> Union[pd.DataFrame, ddf.DataFrame]:
@@ -238,13 +270,13 @@ class SedProcessor:
         self._timed_dataframe = timed_dataframe
 
     @property
-    def attributes(self) -> dict:
+    def attributes(self) -> MetaHandler:
         """Accessor to the metadata dict.
 
         Returns:
             dict: The metadata dict.
         """
-        return self._attributes.metadata
+        return self._attributes
 
     def add_attribute(self, attributes: dict, name: str, **kwds):
         """Function to add element to the attributes dict.
