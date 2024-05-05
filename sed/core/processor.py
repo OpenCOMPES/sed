@@ -198,15 +198,9 @@ class SedProcessor:
 
         # Add expandable section for plots
         html += "<details><summary>Plots</summary>"
-        # Add your plot generating code here
-        plt.figure()
-        # plot random data
-        plt.plot(np.random.rand(10))
-        plt.xlabel("X-axis label")
-        plt.ylabel("Y-axis label")
-        plt.title("Plot Title")
-        html += "<img src='plot.png' alt='Plot'>"
-        plt.close()
+        # Something like the event histogram can be added here,
+        # but the method needs to output image/html
+        # self.view_event_histogram(dfpid=2, backend="matplotlib")
         html += "</details>"
 
         html += "</div>"
