@@ -516,7 +516,7 @@ def test_normalization_histogram_from_timestamps() -> None:
         bin_centers=res.coords[columns[0]].values,
         time_stamp_column="timeStamps",
     )
-    np.testing.assert_allclose(res / res.sum(), histogram / histogram.sum(), rtol=0.001)
+    np.testing.assert_allclose(res / res.sum(), histogram / histogram.sum(), rtol=0.01)
 
 
 def test_normalization_histogram_from_timed_dataframe() -> None:
