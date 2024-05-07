@@ -1,5 +1,4 @@
 """This is a metadata handler class from the sed package
-
 """
 import json
 from copy import deepcopy
@@ -10,7 +9,8 @@ from sed.core.config import complete_dictionary
 
 
 class MetaHandler:
-    """[summary]"""
+    """This class provides methods to manipulate metadata dictionaries,
+    and give a nice representation of them."""
 
     def __init__(self, meta: Dict = None) -> None:
         self._m = deepcopy(meta) if meta is not None else {}
@@ -22,13 +22,14 @@ class MetaHandler:
         return json.dumps(self._m, default=str, indent=4)
 
     def _format_attributes(self, attributes, indent=0):
+        INDENT_FACTOR = 20
         html = ""
         for key, value in attributes.items():
             # Format key
             formatted_key = key.replace("_", " ").title()
             formatted_key = f"<b>{formatted_key}</b>"
 
-            html += f"<div style='padding-left: {indent * 10}px;'>"
+            html += f"<div style='padding-left: {indent * INDENT_FACTOR}px;'>"
             if isinstance(value, dict):
                 html += f"<details><summary>{formatted_key} [{key}]</summary>"
                 html += self._format_attributes(value, indent + 1)
@@ -107,83 +108,17 @@ class MetaHandler:
                 f"Please choose between overwrite,append or raise.",
             )
 
-    def add_processing(self, method: str, **kwds: Any) -> None:
-        """docstring
-
-        Args:
-
-        Returns:
-
-        """
-        # TODO: #36 Add processing metadata validation tests
-        self._m["processing"][method] = kwds
-
-    def from_nexus(self, val: Any) -> None:
-        """docstring
-
-        Args:
-
-        Returns:
-
-        """
-        raise NotImplementedError()
-
-    def to_nexus(self, val: Any) -> None:
-        """docstring
-
-        Args:
-
-        Returns:
-
-        """
-        raise NotImplementedError()
-
-    def from_json(self, val: Any) -> None:
-        """docstring
-
-        Args:
-
-        Returns:
-
-        """
-        raise NotImplementedError()
-
-    def to_json(self, val: Any) -> None:
-        """docstring
-
-        Args:
-
-        Returns:
-
-        """
-        raise NotImplementedError()
-
-    def from_dict(self, val: Any) -> None:
-        """docstring
-
-        Args:
-
-        Returns:
-
-        """
-        raise NotImplementedError()
-
-    def to_dict(self, val: Any) -> None:
-        """docstring
-
-        Args:
-
-        Returns:
-
-        """
-        raise NotImplementedError()
-
 
 class DuplicateEntryError(Exception):
-    """[summary]"""
+    """Exception raised when attempting to add a duplicate entry to the metadata container.
 
+    Attributes:
+        message -- explanation of the error
+    """
 
-if __name__ == "__main__":
-    m = MetaHandler()
-    m.add({"start": 0, "stop": 1}, name="test")
-    print(m)
+    def __init__(self, message: str = "An entry already exists in metadata"):
+        self.message = message
+        super().__init__(self.message)
+
+    def __str__(self):
+        return f"{self.__class__.__name__}: {self.message}"
