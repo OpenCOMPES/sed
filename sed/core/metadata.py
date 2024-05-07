@@ -1,11 +1,10 @@
 """This is a metadata handler class from the sed package
 
 """
+import json
 from copy import deepcopy
 from typing import Any
 from typing import Dict
-
-import yaml
 
 from sed.core.config import complete_dictionary
 
@@ -20,7 +19,7 @@ class MetaHandler:
         return self._m[val]
 
     def __repr__(self) -> str:
-        return yaml.dump(self._m, allow_unicode=True, default_flow_style=False)
+        return json.dumps(self._m, default=str, indent=4)
 
     def _format_attributes(self, attributes, indent=0):
         html = ""
@@ -44,15 +43,6 @@ class MetaHandler:
     def _repr_html_(self) -> str:
         html = self._format_attributes(self._m)
         return html
-
-    @property
-    def metadata(self) -> dict:
-        """Property returning the metadata dict.
-
-        Returns:
-            dict: Dictionary of metadata.
-        """
-        return self._m
 
     def add(
         self,
