@@ -44,6 +44,14 @@ class MetaHandler:
         html = self._format_attributes(self._m)
         return html
 
+    @property
+    def metadata(self) -> Dict:
+        """Property returning the metadata dict.
+        Returns:
+            dict: Dictionary of metadata.
+        """
+        return self._m
+
     def add(
         self,
         entry: Any,
