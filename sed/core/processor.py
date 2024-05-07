@@ -175,7 +175,7 @@ class SedProcessor:
 
     def __repr__(self):
         if self._dataframe is None:
-            df_str = "Data Frame: No Data loaded"
+            df_str = "Dataframe: No Data loaded"
         else:
             df_str = self._dataframe.__repr__()
         pretty_str = df_str + "\n" + "Metadata: " + "\n" + self._attributes.__repr__()
@@ -184,28 +184,28 @@ class SedProcessor:
     def _repr_html_(self):
         html = "<div>"
 
-        html += (
-            f"<details><summary>Dataframe</summary>{self.dataframe.head()._repr_html_()}</details>"
-        )
+        if self._dataframe is None:
+            df_html = "Dataframe: No Data loaded"
+        else:
+            df_html = self._dataframe._repr_html_()
 
-        # Add expandable section for dataframe
-        html += f"<details><summary>Dask</summary>{self.dataframe._repr_html_()}</details>"
+        html += f"<details><summary>Dataframe</summary>{df_html}</details>"
 
         # Add expandable section for attributes
         html += "<details><summary>Metadata</summary>"
-        html += self.attributes._repr_html_()
-        html += "</details>"
-
-        # Add expandable section for plots
-        html += "<details><summary>Plots</summary>"
-        # Something like the event histogram can be added here,
-        # but the method needs to output image/html
-        # self.view_event_histogram(dfpid=2, backend="matplotlib")
-        html += "</details>"
+        html += "<div style='padding-left: 10px;'>"
+        html += self._attributes._repr_html_()
+        html += "</div></details>"
 
         html += "</div>"
 
         return html
+
+    ## Suggestion:
+    # @property
+    # def overview_panel(self):
+    #     """Provides an overview panel with plots of different data attributes."""
+    #     self.view_event_histogram(dfpid=2, backend="matplotlib")
 
     @property
     def dataframe(self) -> Union[pd.DataFrame, ddf.DataFrame]:

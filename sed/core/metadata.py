@@ -29,21 +29,20 @@ class MetaHandler:
             formatted_key = key.replace("_", " ").title()
             formatted_key = f"<b>{formatted_key}</b>"
 
+            html += f"<div style='padding-left: {indent * 10}px;'>"
             if isinstance(value, dict):
-                html += f"<div style='padding-left: {indent * 10}px;'><details>"
-                html += f"<summary>{formatted_key}</summary>"
+                html += f"<details><summary>{formatted_key} [{key}]</summary>"
                 html += self._format_attributes(value, indent + 1)
-                html += "</details></div>"
+                html += "</details>"
+            elif hasattr(value, "shape"):
+                html += f"{formatted_key} [{key}]: {value.shape}"
             else:
-                html += (
-                    f"<div style='padding-left: {indent * 10}px;'>{formatted_key}: {value}</div>"
-                )
+                html += f"{formatted_key} [{key}]: {value}"
+            html += "</div>"
         return html
 
     def _repr_html_(self) -> str:
-        html = "<div>"
-        html += self._format_attributes(self._m)
-        html += "</div>"
+        html = self._format_attributes(self._m)
         return html
 
     @property
