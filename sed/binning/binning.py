@@ -171,12 +171,14 @@ def bin_partition(
         vals = sel_part.values
     else:
         vals = part.iloc[:, col_id].values
+    if vals.dtype == "object":
+        raise ValueError(
+            "Numba binning requires all binned dataframe columns to be of the same type. "
+            "Encountered data types where "
+            f"{[part.columns[id] + ': ' + str(part.iloc[:, id].dtype) for id in col_id]}. "
+            "Please make sure all axes data are of numeric type.",
+        )
     if hist_mode == "numba":
-        if vals.dtype == "object":
-            raise ValueError(
-                "Numba binning requires all axes data to be of the same type. "
-                "Please make sure all axes data are of the same type, or use numpy binning. ",
-            )
         hist_partition, edges = numba_histogramdd(
             vals,
             bins=bins,
