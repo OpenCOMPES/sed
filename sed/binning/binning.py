@@ -173,8 +173,8 @@ def bin_partition(
         vals = part.iloc[:, col_id].values
     if vals.dtype == "object":
         raise ValueError(
-            "Numba binning requires all binned dataframe columns to be of the same type. "
-            "Encountered data types where "
+            "Binning requires all binned dataframe columns to be of numeric type. "
+            "Encountered data types were "
             f"{[part.columns[id] + ': ' + str(part.iloc[:, id].dtype) for id in col_id]}. "
             "Please make sure all axes data are of numeric type.",
         )
