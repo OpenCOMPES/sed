@@ -1,0 +1,24 @@
+{
+    "WSe2": {
+        "url": "https://zenodo.org/record/6369728/files/WSe2.zip",
+        "subdirs": [
+            "Scan049_1",
+            "energycal_2019_01_08"
+        ]
+    },
+    "Gd/W(110)": {
+        "url": "https://zenodo.org/records/10658470/files/single_event_data.zip",
+        "subdirs": [
+            "analysis_data",
+            "calibration_data"
+        ],
+        "rearrange_files": true
+    },
+    "test": {
+        "url": "https://syncandshare.desy.de/index.php/s/58y44ncLFWpggTS/download",
+        "subdirs": [
+            "PR_393"
+        ],
+        "rearrange_files": true
+    }
+}
