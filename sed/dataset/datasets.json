@@ -6,13 +6,20 @@
             "energycal_2019_01_08"
         ]
     },
-    "Gd/W(110)": {
+    "Gd_W(110)": {
         "url": "https://zenodo.org/records/10658470/files/single_event_data.zip",
         "subdirs": [
             "analysis_data",
             "calibration_data"
         ],
         "rearrange_files": true
+    },
+    "TaS2": {
+        "url": "https://zenodo.org/records/10160182/files/TaS2.zip",
+        "subdirs": [
+            "Scan0121_1",
+            "energycal_2020_07_20"
+        ]
     },
     "test": {
         "url": "https://syncandshare.desy.de/index.php/s/58y44ncLFWpggTS/download",
