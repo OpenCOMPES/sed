@@ -175,12 +175,37 @@ class SedProcessor:
 
     def __repr__(self):
         if self._dataframe is None:
-            df_str = "Data Frame: No Data loaded"
+            df_str = "Dataframe: No Data loaded"
         else:
             df_str = self._dataframe.__repr__()
-        attributes_str = f"Metadata: {self._attributes.metadata}"
-        pretty_str = df_str + "\n" + attributes_str
+        pretty_str = df_str + "\n" + "Metadata: " + "\n" + self._attributes.__repr__()
         return pretty_str
+
+    def _repr_html_(self):
+        html = "<div>"
+
+        if self._dataframe is None:
+            df_html = "Dataframe: No Data loaded"
+        else:
+            df_html = self._dataframe._repr_html_()
+
+        html += f"<details><summary>Dataframe</summary>{df_html}</details>"
+
+        # Add expandable section for attributes
+        html += "<details><summary>Metadata</summary>"
+        html += "<div style='padding-left: 10px;'>"
+        html += self._attributes._repr_html_()
+        html += "</div></details>"
+
+        html += "</div>"
+
+        return html
+
+    ## Suggestion:
+    # @property
+    # def overview_panel(self):
+    #     """Provides an overview panel with plots of different data attributes."""
+    #     self.view_event_histogram(dfpid=2, backend="matplotlib")
 
     @property
     def dataframe(self) -> Union[pd.DataFrame, ddf.DataFrame]:
@@ -238,13 +263,13 @@ class SedProcessor:
         self._timed_dataframe = timed_dataframe
 
     @property
-    def attributes(self) -> dict:
+    def attributes(self) -> MetaHandler:
         """Accessor to the metadata dict.
 
         Returns:
-            dict: The metadata dict.
+            MetaHandler: The metadata object
         """
-        return self._attributes.metadata
+        return self._attributes
 
     def add_attribute(self, attributes: dict, name: str, **kwds):
         """Function to add element to the attributes dict.
