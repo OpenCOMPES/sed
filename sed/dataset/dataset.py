@@ -34,6 +34,63 @@ def available_datasets() -> list:
     return list(DATASETS.keys())
 
 
+def check_dataset_availability(data_name: str) -> dict:
+    """
+    Checks if the specified dataset is available in the predefined list of datasets.
+
+    Args:
+        data_name (str): The name of the dataset to check.
+
+    Returns:
+        dict: The dataset information if available.
+
+    Raises:
+        ValueError: If the dataset is not found in the predefined list.
+    """
+    if data_name not in DATASETS:
+        error_message = f"Data '{data_name}' is not available for fetching.\
+            Available datasets are: {available_datasets()}"
+        logger.error(error_message)
+        raise ValueError(error_message)
+    return DATASETS.get(data_name)
+
+
+def set_data_path(data_name: str, data_path: str, existing_data_path: str) -> str:
+    """
+    Determines and sets the data path for a dataset. If a data path is not provided,
+    it uses the existing data path or creates a new one. It also notifies the user
+    if the specified data path differs from an existing data path.
+
+    Args:
+        data_name (str): The name of the dataset.
+        data_path (str, optional): The desired path where the dataset should be stored.
+        existing_data_path (str, optional): The path where the dataset currently exists.
+
+    Returns:
+        str: The final data path for the dataset.
+    """
+    # Notify the user if data might already exist
+    if existing_data_path and data_path and existing_data_path != data_path:
+        logger.info(
+            f'{data_name} data might already exists at "{existing_data_path}", '
+            "unless deleted manually.",
+        )
+
+    # Set data path if not provided
+    if data_path is None:
+        data_path = existing_data_path or os.path.join(
+            user_dirs.user_data_dir,
+            "datasets",
+            data_name,
+        )
+        path_source = "existing" if existing_data_path else "default"
+        logger.info(f'Using {path_source} data path for "{data_name}": "{data_path}"')
+
+        if not os.path.exists(data_path):
+            os.makedirs(data_path)
+    return data_path
+
+
 def get_file_list(directory: str, ignore_zip: bool = True) -> dict:
     """
     Returns a dictionary containing lists of files in each subdirectory
@@ -75,7 +132,7 @@ def get_file_list(directory: str, ignore_zip: bool = True) -> dict:
     return result
 
 
-def download_data(data_name: str, data_path: str, data_url: str) -> None:
+def download_data(data_name: str, data_path: str, data_url: str) -> bool:
     """
     Downloads data from the specified URL.
 
@@ -83,6 +140,10 @@ def download_data(data_name: str, data_path: str, data_url: str) -> None:
         data_name (str): Name of the data.
         data_path (str): Path where the data should be stored.
         data_url (str): URL of the data.
+
+    Returns:
+        bool: True if the data was downloaded successfully,
+                False if the data is already downloaded.
     """
     zip_file_path = os.path.join(data_path, f"{data_name}.zip")
 
@@ -93,11 +154,15 @@ def download_data(data_name: str, data_path: str, data_url: str) -> None:
         with open(zip_file_path, "wb") as f:
             f.write(response.content)
         logger.info("Download complete.")
+        downloaded = True
     else:
         logger.info(f"{data_name} data is already downloaded.")
+        downloaded = False
+
+    return downloaded
 
 
-def extract_data(data_name: str, data_path: str, subdirs: list) -> None:
+def extract_data(data_name: str, data_path: str, subdirs: list) -> bool:
     """
     Extracts data from a ZIP file.
 
@@ -105,9 +170,13 @@ def extract_data(data_name: str, data_path: str, subdirs: list) -> None:
         data_name (str): Name of the data.
         data_path (str): Path where the data should be stored.
         subdirs (list): List of subdirectories.
+
+    Returns:
+        bool: True if the data was extracted successfully,
+                False if the data is already extracted.
     """
     zip_file_path = os.path.join(data_path, f"{data_name}.zip")
-    # Set Extract data flag to true, if not already extracted
+    # Very basic check. Looks if subdirs are empty
     extract = True
     for subdir in subdirs:
         if os.path.isdir(os.path.join(data_path, subdir)):
@@ -118,11 +187,15 @@ def extract_data(data_name: str, data_path: str, subdirs: list) -> None:
         with zipfile.ZipFile(zip_file_path, "r") as zip_ref:
             zip_ref.extractall(data_path)
         logger.info("Extraction complete.")
+        extracted = True
     else:
         logger.info(f"{data_name} data is already extracted.")
+        extracted = False
+
+    return extracted
 
 
-def rearrange_data(data_path: str, subdirs: list, rearrange_files: bool) -> None:
+def rearrange_data(data_path: str, subdirs: list) -> None:
     """
     Moves files to the main directory if specified.
 
@@ -131,19 +204,18 @@ def rearrange_data(data_path: str, subdirs: list, rearrange_files: bool) -> None
         subdirs (list): List of subdirectories.
         rearrange_files (bool): Whether to rearrange files.
     """
-    if rearrange_files:
-        for subdir in subdirs:
-            source_path = os.path.join(data_path, subdir)
-            if os.path.isdir(source_path):
-                logger.info(f"Rearranging files...")
-                for root, dirs, files in os.walk(source_path):
-                    for file in files:
-                        shutil.move(os.path.join(root, file), data_path)
-                logger.info("File movement complete.")
-                shutil.rmtree(source_path)
-            else:
-                logger.error(f"Subdirectory {subdir} not found.")
-        logger.info("Rearranging complete.")
+    for subdir in subdirs:
+        source_path = os.path.join(data_path, subdir)
+        if os.path.isdir(source_path):
+            logger.info(f"Rearranging files...")
+            for root, dirs, files in os.walk(source_path):
+                for file in files:
+                    shutil.move(os.path.join(root, file), data_path)
+            logger.info("File movement complete.")
+            shutil.rmtree(source_path)
+        else:
+            logger.error(f"Subdirectory {subdir} not found.")
+    logger.info("Rearranging complete.")
 
 
 def load_dataset(data_name: str, data_path: str = None) -> str | tuple[str, list[str]]:
@@ -158,38 +230,18 @@ def load_dataset(data_name: str, data_path: str = None) -> str | tuple[str, list
         str | tuple[str, list[str]]: Path to the dataset or a tuple containing the path to the
         dataset and subdirectories.
     """
-    # Check if the data is available
-    if data_name not in DATASETS:
-        error_message = f"Data '{data_name}' is not available for fetching.\
-                Available datasets are: {available_datasets()}"
-        logger.error(error_message)
-        raise ValueError(error_message)
-
-    dataset = DATASETS.get(data_name)
+    dataset = check_dataset_availability(data_name)
     subdirs = dataset.get("subdirs", [])
-    url = dataset.get("url")
     rearrange_files = dataset.get("rearrange_files", False)
+    if rearrange_files and not subdirs:
+        raise ValueError(
+            f"Rearrange_files is set to True but no subdirectories are defined for {data_name}.",
+        )
+    url = dataset.get("url")
     existing_data_path = dataset.get("data_path", None)
     existing_files = dataset.get("files", {})
 
-    # Notify the user if data might already exist
-    if existing_data_path and data_path and existing_data_path != data_path:
-        logger.info(
-            f'{data_name} data might already exists at "{existing_data_path}", '
-            "unless deleted manually.",
-        )
-
-    # Set data path if not provided
-    if data_path is None:
-        if existing_data_path:
-            data_path = existing_data_path
-        else:
-            # create a new dir in user_dirs.user_data_dir with data_name
-            data_path = os.path.join(user_dirs.user_data_dir, "datasets", data_name)
-        logger.info(f'Data path not provided. Using path: "{data_path}"')
-
-        if not os.path.exists(data_path):
-            os.makedirs(data_path)
+    data_path = set_data_path(data_name, data_path, existing_data_path)
 
     files_in_dir = get_file_list(data_path)
 
@@ -197,9 +249,10 @@ def load_dataset(data_name: str, data_path: str = None) -> str | tuple[str, list
     if existing_files == files_in_dir:
         logger.info(f"{data_name} data is already downloaded and extracted.")
     else:
-        download_data(data_name, data_path, url)
-        extract_data(data_name, data_path, subdirs)
-        rearrange_data(data_path, subdirs, rearrange_files)
+        downloaded = download_data(data_name, data_path, url)
+        extracted = extract_data(data_name, data_path, subdirs)
+        if rearrange_files and downloaded and extracted:
+            rearrange_data(data_path, subdirs)
 
         # Update datasets JSON
         dataset["files"] = get_file_list(data_path)
