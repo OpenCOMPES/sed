@@ -1,9 +1,30 @@
+"""
+This module provides a function to set up logging for the application. It configures
+both console and file logging handlers, allowing different log levels for each. The
+log files are stored in a user-specific log directory.
+
+"""
 import logging
 
 from sed.core.user_dirs import USER_LOG_PATH
 
 
-def setup_logging(name, verbose=False, debug=False):
+def setup_logging(name: str, verbose: bool = False, debug: bool = False) -> logging.Logger:
+    """
+    Configures and returns a logger with specified log levels for console and file handlers.
+
+    Args:
+        name (str): The name of the logger.
+        verbose (bool): If True, sets the console log level to INFO. Defaults to False.
+        debug (bool): If True, sets the console log level to DEBUG. Defaults to False.
+
+    Returns:
+        logging.Logger: The configured logger instance.
+
+    The logger will always write DEBUG level messages to a file located in the user's log
+    directory, while the console log level can be adjusted based on the 'verbose' and 'debug'
+    flags.
+    """
     # Create logger
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)  # Set the minimum log level for the logger
