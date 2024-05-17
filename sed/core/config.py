@@ -2,7 +2,6 @@
 """
 import copy
 import json
-import logging
 import os
 import platform
 from importlib.util import find_spec
@@ -10,31 +9,8 @@ from pathlib import Path
 from typing import Union
 
 import yaml
-from platformdirs import PlatformDirs
-
-user_dirs = PlatformDirs(appname="sed", appauthor="OpenCOMPES", ensure_exists=True)
 
 package_dir = os.path.dirname(find_spec("sed").origin)
-
-
-def setup_logging():
-    # Create logger
-    logger = logging.getLogger(__name__)
-    logger.setLevel(logging.DEBUG)  # Set the minimum log level
-
-    # Create console handler and set level to debug
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.DEBUG)
-
-    # Create formatter
-    # formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    formatter = logging.Formatter("%(message)s")
-    console_handler.setFormatter(formatter)
-
-    # Add console handler to logger
-    logger.addHandler(console_handler)
-
-    return logger
 
 
 def parse_config(

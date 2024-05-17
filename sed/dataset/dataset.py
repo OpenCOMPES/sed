@@ -8,14 +8,15 @@ import zipfile
 
 import requests
 
-from sed.core.config import setup_logging
-from sed.core.config import user_dirs
+from sed.core.logging import setup_logging
+from sed.core.user_dirs import USER_CONFIG_PATH
+from sed.core.user_dirs import USER_DATA_PATH
 
 # Configure logging
-logger = setup_logging()
+logger = setup_logging(__name__)
 
 # check if datasets.json exists in user_config_dir
-json_path = os.path.join(user_dirs.user_config_dir, "datasets", "datasets.json")
+json_path = USER_CONFIG_PATH.joinpath("datasets", "datasets.json")
 if not os.path.exists(json_path):
     shutil.copy(
         os.path.join(os.path.dirname(__file__), "datasets.json"),
@@ -71,15 +72,14 @@ def set_data_path(data_name: str, data_path: str, existing_data_path: str) -> st
     """
     # Notify the user if data might already exist
     if existing_data_path and data_path and existing_data_path != data_path:
-        logger.info(
+        logger.warning(
             f'{data_name} data might already exists at "{existing_data_path}", '
             "unless deleted manually.",
         )
 
     # Set data path if not provided
     if data_path is None:
-        data_path = existing_data_path or os.path.join(
-            user_dirs.user_data_dir,
+        data_path = existing_data_path or USER_DATA_PATH.joinpath(
             "datasets",
             data_name,
         )
@@ -207,7 +207,7 @@ def rearrange_data(data_path: str, subdirs: list) -> None:
     for subdir in subdirs:
         source_path = os.path.join(data_path, subdir)
         if os.path.isdir(source_path):
-            logger.info(f"Rearranging files...")
+            logger.info(f"Rearranging files.")
             for root, dirs, files in os.walk(source_path):
                 for file in files:
                     shutil.move(os.path.join(root, file), data_path)
@@ -234,9 +234,9 @@ def load_dataset(data_name: str, data_path: str = None) -> str | tuple[str, list
     subdirs = dataset.get("subdirs", [])
     rearrange_files = dataset.get("rearrange_files", False)
     if rearrange_files and not subdirs:
-        raise ValueError(
-            f"Rearrange_files is set to True but no subdirectories are defined for {data_name}.",
-        )
+        err = f"Rearrange_files is set to True but no subdirectories are defined for {data_name}."
+        logger.error(err)
+        raise ValueError(err)
     url = dataset.get("url")
     existing_data_path = dataset.get("data_path", None)
     existing_files = dataset.get("files", {})
@@ -247,11 +247,11 @@ def load_dataset(data_name: str, data_path: str = None) -> str | tuple[str, list
 
     # if existing_files is same as files_in_dir, then don't download/extract data
     if existing_files == files_in_dir:
-        logger.info(f"{data_name} data is already downloaded and extracted.")
+        logger.info(f"{data_name} data is already present.")
     else:
-        downloaded = download_data(data_name, data_path, url)
+        _ = download_data(data_name, data_path, url)
         extracted = extract_data(data_name, data_path, subdirs)
-        if rearrange_files and downloaded and extracted:
+        if rearrange_files and extracted:
             rearrange_data(data_path, subdirs)
 
         # Update datasets JSON
