@@ -56,7 +56,6 @@ class FlashLoader(BaseLoader):
         """
         super().__init__(config=config)
         self.instrument = self._config["core"].get("instrument", "hextof")  # default is hextof
-        self.daq = self._config["dataframe"]["daq"]
 
     def initialize_dirs(self) -> tuple[list[Path], Path]:
         """
@@ -106,8 +105,8 @@ class FlashLoader(BaseLoader):
                     if dir_name.startswith("express-") or dir_name.startswith(
                         "online-",
                     ):
-                        data_raw_dir.append(path.joinpath(self.daq))
-                    elif dir_name == self.daq.upper():
+                        data_raw_dir.append(path.joinpath(self._config["dataframe"]["daq"]))
+                    elif dir_name == self._config["dataframe"]["daq"].upper():
                         data_raw_dir.append(path)
 
             if not data_raw_dir:
@@ -145,7 +144,6 @@ class FlashLoader(BaseLoader):
         Raises:
             FileNotFoundError: If no files are found for the given run in the directory.
         """
-        _ = kwds  # not used
         # Define the stream name prefixes based on the data acquisition identifier
         stream_name_prefixes = self._config["dataframe"]["stream_name_prefixes"]
 
@@ -155,8 +153,10 @@ class FlashLoader(BaseLoader):
         if isinstance(folders, str):
             folders = [folders]
 
+        daq = kwds.pop("daq", self._config.get("dataframe", {}).get("daq"))
+
         # Generate the file patterns to search for in the directory
-        file_pattern = f"{stream_name_prefixes[self.daq]}_run{run_id}_*." + extension
+        file_pattern = f"{stream_name_prefixes[daq]}_run{run_id}_*." + extension
 
         files: list[Path] = []
         # Use pathlib to search for matching files in each directory
