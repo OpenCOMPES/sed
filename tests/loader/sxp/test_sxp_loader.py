@@ -74,7 +74,7 @@ def test_get_channels_by_format(config_file: dict) -> None:
     )
 
 
-def test_initialize_paths(config_file: dict, fs) -> None:
+def test_initialize_dirs(config_file: dict, fs) -> None:
     """
     Test the initialization of paths based on the configuration and directory structures.
 
@@ -97,15 +97,15 @@ def test_initialize_paths(config_file: dict, fs) -> None:
     fs.create_dir(expected_raw_path)
     fs.create_dir(expected_processed_path)
 
-    # Instance of class with correct config and call initialize_paths
+    # Instance of class with correct config and call initialize_dirs
     sl = SXPLoader(config=config)
-    data_raw_dir, data_parquet_dir = sl.initialize_paths()
+    data_raw_dir, data_parquet_dir = sl.initialize_dirs()
 
     assert expected_raw_path == data_raw_dir[0]
     assert expected_processed_path == data_parquet_dir
 
 
-def test_initialize_paths_filenotfound(config_file: dict):
+def test_initialize_dirs_filenotfound(config_file: dict):
     """
     Test FileNotFoundError during the initialization of paths.
     """
@@ -115,10 +115,10 @@ def test_initialize_paths_filenotfound(config_file: dict):
     config["core"]["beamtime_id"] = "11111111"
     config["core"]["year"] = "2000"
 
-    # Instance of class with correct config and call initialize_paths
+    # Instance of class with correct config and call initialize_dirs
     sl = SXPLoader(config=config)
     with pytest.raises(FileNotFoundError):
-        _, _ = sl.initialize_paths()
+        _, _ = sl.initialize_dirs()
 
 
 def test_invalid_channel_format(config_file: dict):
@@ -209,6 +209,6 @@ def test_buffer_schema_mismatch(config_file: dict):
     assert expected_error[3] == "Missing in config: {'delayStage2'}"
 
     # Clean up created buffer files after the test
-    _, parquet_data_dir = sl.initialize_paths()
+    _, parquet_data_dir = sl.initialize_dirs()
     for file in os.listdir(Path(parquet_data_dir, "buffer")):
         os.remove(Path(parquet_data_dir, "buffer", file))
