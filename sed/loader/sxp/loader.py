@@ -53,7 +53,7 @@ class SXPLoader(BaseLoader):
         self.failed_files_error: List[str] = []
         self.array_indices: List[List[slice]] = None
 
-    def initialize_paths(self) -> Tuple[List[Path], Path]:
+    def initialize_dirs(self) -> Tuple[List[Path], Path]:
         """
         Initializes the paths based on the configuration.
 
@@ -940,7 +940,7 @@ class SXPLoader(BaseLoader):
         """
         t0 = time.time()
 
-        data_raw_dir, data_parquet_dir = self.initialize_paths()
+        data_raw_dir, data_parquet_dir = self.initialize_dirs()
 
         # Prepare a list of names for the runs to read and parquets to write
         if runs is not None:
