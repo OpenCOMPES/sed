@@ -55,6 +55,8 @@ class FlashLoader(BaseLoader):
             config (dict): Configuration dictionary.
         """
         super().__init__(config=config)
+        self.instrument = self._config["core"].get("instrument", "hextof")  # default is hextof
+        self.daq = self._config["dataframe"]["daq"]
 
     def initialize_dirs(self) -> tuple[list[Path], Path]:
         """
@@ -83,10 +85,10 @@ class FlashLoader(BaseLoader):
             try:
                 beamtime_id = self._config["core"]["beamtime_id"]
                 year = self._config["core"]["year"]
-                daq = self._config["dataframe"]["daq"]
+
             except KeyError as exc:
                 raise ValueError(
-                    "The beamtime_id, year and daq are required.",
+                    "The beamtime_id and year are required.",
                 ) from exc
 
             beamtime_dir = Path(
@@ -104,8 +106,8 @@ class FlashLoader(BaseLoader):
                     if dir_name.startswith("express-") or dir_name.startswith(
                         "online-",
                     ):
-                        data_raw_dir.append(path.joinpath(daq))
-                    elif dir_name == daq.upper():
+                        data_raw_dir.append(path.joinpath(self.daq))
+                    elif dir_name == self.daq.upper():
                         data_raw_dir.append(path)
 
             if not data_raw_dir:
@@ -143,6 +145,7 @@ class FlashLoader(BaseLoader):
         Raises:
             FileNotFoundError: If no files are found for the given run in the directory.
         """
+        _ = kwds  # not used
         # Define the stream name prefixes based on the data acquisition identifier
         stream_name_prefixes = self._config["dataframe"]["stream_name_prefixes"]
 
@@ -152,10 +155,8 @@ class FlashLoader(BaseLoader):
         if isinstance(folders, str):
             folders = [folders]
 
-        daq = kwds.pop("daq", self._config.get("dataframe", {}).get("daq"))
-
         # Generate the file patterns to search for in the directory
-        file_pattern = f"{stream_name_prefixes[daq]}_run{run_id}_*." + extension
+        file_pattern = f"{stream_name_prefixes[self.daq]}_run{run_id}_*." + extension
 
         files: list[Path] = []
         # Use pathlib to search for matching files in each directory
@@ -254,7 +255,6 @@ class FlashLoader(BaseLoader):
                     run_id=run,
                     folders=[str(folder.resolve()) for folder in data_raw_dir],
                     extension=ftype,
-                    daq=self._config["dataframe"]["daq"],
                 )
                 run_files_dict[str(run)] = run_files
                 files.extend(run_files)
@@ -291,6 +291,9 @@ class FlashLoader(BaseLoader):
         )
         df = bh.dataframe_electron
         df_timed = bh.dataframe_pulse
+
+        if self.instrument == "wespe":
+            df, df_timed = wespe_convert(df, df_timed)
 
         metadata = self.parse_metadata(**kwds) if collect_metadata else {}
         print(f"loading complete in {time.time() - t0: .2f} s")
@@ -761,6 +764,12 @@ class BufferHandler:
         self.save_buffer_files(debug)
 
         self.dataframe_electron, self.dataframe_pulse = self.fill_dataframes(self.buffer_paths)
+
+
+def wespe_convert(df: dd.DataFrame, df_timed: dd.DataFrame) -> tuple[dd.DataFrame, dd.DataFrame]:
+    df
+    df_timed
+    raise NotImplementedError("This function is not implemented yet.")
 
 
 LOADER = FlashLoader
