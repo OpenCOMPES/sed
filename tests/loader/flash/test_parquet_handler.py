@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from sed.loader.flash.utils import initialize_parquet_paths
+from sed.loader.flash.utils import initialize_paths
 
 
 def create_parquet_dir(config, folder):
@@ -15,30 +15,30 @@ def create_parquet_dir(config, folder):
 def test_parquet_init_error():
     """Test ParquetHandler initialization error"""
     with pytest.raises(ValueError) as e:
-        _ = initialize_parquet_paths(parquet_names="test")
+        _ = initialize_paths(filenames="test")
 
-    assert "Please provide folder or parquet_paths." in str(e.value)
+    assert "Please provide folder or paths." in str(e.value)
 
     with pytest.raises(ValueError) as e:
-        _ = initialize_parquet_paths(folder="test")
+        _ = initialize_paths(folder="test")
 
-    assert "With folder, please provide parquet_names." in str(e.value)
+    assert "With folder, please provide filenames." in str(e.value)
 
 
 def test_initialize_paths(config):
     """Test ParquetHandler initialization"""
     folder = create_parquet_dir(config, "parquet_init")
 
-    ph = initialize_parquet_paths("test", folder, extension="xyz")
+    ph = initialize_paths("test", folder, extension="xyz")
     assert ph[0].suffix == ".xyz"
     assert ph[0].name == "test.xyz"
 
     # test prefix and suffix
-    ph = initialize_parquet_paths("test", folder, prefix="prefix_", suffix="_suffix")
+    ph = initialize_paths("test", folder, prefix="prefix", suffix="suffix")
     assert ph[0].name == "prefix_test_suffix.parquet"
 
     # test with list of parquet_names and subfolder
-    ph = initialize_parquet_paths(["test1", "test2"], folder, subfolder="subfolder")
+    ph = initialize_paths(["test1", "test2"], folder, subfolder="subfolder")
     assert ph[0].parent.name == "subfolder"
     assert ph[0].name == "test1.parquet"
     assert ph[1].name == "test2.parquet"

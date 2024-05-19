@@ -29,7 +29,7 @@ def fixture_config_file() -> dict:
     "sub_dir",
     ["online-0/fl1user3/", "express-0/fl1user3/", "FL1USER3/"],
 )
-def test_initialize_dir(
+def test_initialize_dirs(
     config_file: dict,
     fs,
     sub_dir: Literal["online-0/fl1user3/", "express-0/fl1user3/", "FL1USER3/"],
@@ -59,9 +59,9 @@ def test_initialize_dir(
     fs.create_dir(expected_raw_path)
     fs.create_dir(expected_processed_path)
 
-    # Instance of class with correct config and call initialize_dir
+    # Instance of class with correct config and call initialize_dirs
     fl = FlashLoader(config=config)
-    data_raw_dir, data_parquet_dir = fl.initialize_dir()
+    data_raw_dir, data_parquet_dir = fl.initialize_dirs()
 
     assert expected_raw_path == data_raw_dir[0]
     assert expected_processed_path == data_parquet_dir
@@ -70,12 +70,12 @@ def test_initialize_dir(
     del config["core"]["beamtime_id"]
     fl = FlashLoader(config=config)
     with pytest.raises(ValueError) as e:
-        _, _ = fl.initialize_dir()
+        _, _ = fl.initialize_dirs()
 
-    assert "The beamtime_id, year and daq are required." in str(e.value)
+    assert "The beamtime_id and year are required." in str(e.value)
 
 
-def test_initialize_dir_filenotfound(config_file: dict) -> None:
+def test_initialize_dirs_filenotfound(config_file: dict) -> None:
     """
     Test FileNotFoundError during the initialization of paths.
     """
@@ -85,10 +85,10 @@ def test_initialize_dir_filenotfound(config_file: dict) -> None:
     config["core"]["beamtime_id"] = "11111111"
     config["core"]["year"] = "2000"
 
-    # Instance of class with correct config and call initialize_dir
+    # Instance of class with correct config and call initialize_dirs
     fl = FlashLoader(config=config)
     with pytest.raises(FileNotFoundError):
-        _, _ = fl.initialize_dir()
+        _, _ = fl.initialize_dirs()
 
 
 def test_save_read_parquet_flash(config):
@@ -103,4 +103,7 @@ def test_save_read_parquet_flash(config):
     df2, _, _ = fl.read_dataframe(runs=[43878, 43879], load_parquet=True)
 
     # check if parquet read is same as parquet saved read correctly
-    pd.testing.assert_frame_equal(df1.compute().reset_index(drop=True), df2.compute())
+    pd.testing.assert_frame_equal(
+        df1.compute().reset_index(drop=True),
+        df2.compute().reset_index(drop=True),
+    )
