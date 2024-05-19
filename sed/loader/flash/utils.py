@@ -82,42 +82,44 @@ def get_channels(
     return channels
 
 
-def initialize_parquet_paths(
-    parquet_names: str | list[str] = None,
+def initialize_paths(
+    filenames: str | list[str] = None,
     folder: Path = None,
     subfolder: str = "",
     prefix: str = "",
     suffix: str = "",
     extension: str = "parquet",
-    parquet_paths: list[Path] = None,
+    paths: list[Path] = None,
 ) -> list[Path]:
     """
-    Initialize the paths for the Parquet files.
+    Initialize the paths for files to be saved/loaded.
 
     If custom paths are provided, they will be used. Otherwise, paths will be generated based on
     the specified parameters during initialization.
 
     Args:
-        parquet_paths (List[Path]): Optional custom paths for the Parquet files.
+        paths (List[Path]): Optional custom paths for the Parquet files.
     """
-    # if parquet_names is string, convert it to a list
-    if isinstance(parquet_names, str):
-        parquet_names = [parquet_names]
+    # if filenames is string, convert it to a list
+    if isinstance(filenames, str):
+        filenames = [filenames]
 
     # Check if the folder and Parquet paths are provided
-    if not folder and not parquet_paths:
-        raise ValueError("Please provide folder or parquet_paths.")
-    if folder and not parquet_names:
-        raise ValueError("With folder, please provide parquet_names.")
+    if not folder and not paths:
+        raise ValueError("Please provide folder or paths.")
+    if folder and not filenames:
+        raise ValueError("With folder, please provide filenames.")
 
     # Otherwise create the full path for the Parquet file
-    parquet_dir = folder.joinpath(subfolder)
-    parquet_dir.mkdir(parents=True, exist_ok=True)
+    directory = folder.joinpath(subfolder)
+    directory.mkdir(parents=True, exist_ok=True)
 
     if extension:
-        extension = f".{extension}"  # to be backwards compatible
-    parquet_paths = [
-        parquet_dir.joinpath(Path(f"{prefix}{name}{suffix}{extension}")) for name in parquet_names
-    ]
+        extension = f".{extension}"  # if extension is provided, it is prepended with a dot
+    if prefix:
+        prefix = f"{prefix}_"
+    if suffix:
+        suffix = f"_{suffix}"
+    paths = [directory.joinpath(Path(f"{prefix}{name}{suffix}{extension}")) for name in filenames]
 
-    return parquet_paths
+    return paths

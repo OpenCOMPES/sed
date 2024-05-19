@@ -32,7 +32,7 @@ from sed.core.dfops import forward_fill_lazy
 from sed.loader.base.loader import BaseLoader
 from sed.loader.flash.metadata import MetadataRetriever
 from sed.loader.flash.utils import get_channels
-from sed.loader.flash.utils import initialize_parquet_paths
+from sed.loader.flash.utils import initialize_paths
 from sed.loader.utils import split_dld_time_from_sector_id
 
 
@@ -56,10 +56,10 @@ class FlashLoader(BaseLoader):
         """
         super().__init__(config=config)
 
-    def initialize_dir(self) -> tuple[list[Path], Path]:
+    def initialize_dirs(self) -> tuple[list[Path], Path]:
         """
-        Initializes the directories based on the configuration. If paths is provided in the
-        configuration, the raw data directories and parquet data directory are taken from there.
+        Initializes the directories on Maxwell based on configuration. If paths is provided in
+        the configuration, the raw data directories and parquet data directory are taken from there.
         Otherwise, the beamtime_id and year are used to locate the data directories.
 
         Returns:
@@ -202,17 +202,6 @@ class FlashLoader(BaseLoader):
     def get_elapsed_time(self, fids=None, **kwds):  # noqa: ARG002
         return None
 
-    def read_parquet(self, parquet_paths: Sequence[Path] = None):
-        dfs = []
-        for parquet_path in parquet_paths:
-            if not parquet_path.exists():
-                raise FileNotFoundError(
-                    f"The Parquet file at {parquet_path} does not exist. ",
-                    "If it is in another location, provide the correct path as parquet_path.",
-                )
-            dfs.append(dd.read_parquet(parquet_path))
-        return dfs
-
     def read_dataframe(
         self,
         files: str | Sequence[str] = None,
@@ -221,9 +210,6 @@ class FlashLoader(BaseLoader):
         ftype: str = "h5",
         metadata: dict = None,
         collect_metadata: bool = False,
-        converted: bool = False,
-        load_parquet: bool = False,
-        save_parquet: bool = False,
         detector: str = "",
         force_recreate: bool = False,
         parquet_dir: str | Path = None,
@@ -255,11 +241,12 @@ class FlashLoader(BaseLoader):
         """
         t0 = time.time()
 
-        data_raw_dir, data_parquet_dir = self.initialize_dir()
+        data_raw_dir, data_parquet_dir = self.initialize_dirs()
 
         # Prepare a list of names for the runs to read and parquets to write
         if runs is not None:
             files = []
+            run_files_dict = {}  # Useful for saving entire runs
             if isinstance(runs, (str, int)):
                 runs = [runs]
             for run in runs:
@@ -269,6 +256,7 @@ class FlashLoader(BaseLoader):
                     extension=ftype,
                     daq=self._config["dataframe"]["daq"],
                 )
+                run_files_dict[str(run)] = run_files
                 files.extend(run_files)
             self.runs = list(runs)
             super().read_dataframe(files=files, ftype=ftype)
@@ -283,47 +271,26 @@ class FlashLoader(BaseLoader):
                 metadata=metadata,
             )
 
+        bh = BufferHandler(
+            config=self._config,
+        )
+
         # if parquet_dir is None, use data_parquet_dir
         parquet_dir = parquet_dir or data_parquet_dir
         parquet_dir = Path(parquet_dir)
-        filename = "_".join(str(run) for run in self.runs)
-        converted_str = "converted" if converted else ""
 
-        # Create parquet paths for saving and loading the parquet files of df and timed_df
-        parquet_paths = initialize_parquet_paths(
-            parquet_names=[filename, filename + "_timed"],
+        # Obtain the parquet filenames, metadata, and schema from the method
+        # which handles buffer file creation/reading
+        h5_paths = [Path(file) for file in self.files]
+        bh.run(
+            h5_paths=h5_paths,
             folder=parquet_dir,
-            subfolder=converted_str,
-            prefix="run_",
+            force_recreate=force_recreate,
             suffix=detector,
+            debug=debug,
         )
-
-        # Check if load_parquet is flagged and then load the file if it exists
-        if load_parquet:
-            df, df_timed = self.read_parquet(parquet_paths)
-
-        # Default behavior is to create the buffer files and load them
-        else:
-            # Obtain the parquet filenames, metadata, and schema from the method
-            # which handles buffer file creation/reading
-            h5_paths = [Path(file) for file in self.files]
-            buffer = BufferHandler(
-                config_dataframe=self._config["dataframe"],
-            )
-            buffer.run(
-                h5_paths=h5_paths,
-                folder=parquet_dir,
-                force_recreate=force_recreate,
-                suffix=detector,
-                debug=debug,
-            )
-            df = buffer.dataframe_electron
-            df_timed = buffer.dataframe_pulse
-
-        # Save the dataframe as parquet if requested
-        if save_parquet:
-            df.compute().reset_index(drop=True).to_parquet(parquet_paths[0])
-            df_timed.compute().reset_index(drop=True).to_parquet(parquet_paths[1])
+        df = bh.dataframe_electron
+        df_timed = bh.dataframe_pulse
 
         metadata = self.parse_metadata(**kwds) if collect_metadata else {}
         print(f"loading complete in {time.time() - t0: .2f} s")
@@ -586,27 +553,21 @@ class DataFrameCreator:
 
 class BufferHandler:
     """
-    A class for handling the creation and manipulation of buffer files using DataFrameCreator
-    and ParquetHandler.
+    A class for handling the creation and manipulation of buffer files using DataFrameCreator.
     """
 
     def __init__(
         self,
-        config_dataframe: dict,
+        config: dict,
     ) -> None:
         """
-        Initializes the BufferFileHandler.
+        Initializes the BufferHandler.
 
         Args:
-            config_dataframe (dict): The configuration dictionary with only the dataframe key.
-            h5_paths (List[Path]): List of paths to H5 files.
-            folder (Path): Path to the folder for buffer files.
-            force_recreate (bool): Flag to force recreation of buffer files.
-            prefix (str): Prefix for buffer file names.
-            suffix (str): Suffix for buffer file names.
-            debug (bool): Flag to enable debug mode.
+            config (dict): The configuration dictionary.
         """
-        self._config = config_dataframe
+        self._config = config["dataframe"]
+        self.n_cores = config["core"].get("num_cores", os.cpu_count() - 1)
 
         self.buffer_paths: list[Path] = []
         self.missing_h5_files: list[Path] = []
@@ -668,8 +629,8 @@ class BufferHandler:
             force_recreate (bool): Flag to force recreation of buffer files.
         """
         # Getting the paths of the buffer files, with subfolder as buffer and no extension
-        self.buffer_paths = initialize_parquet_paths(
-            parquet_names=[Path(h5_path).stem for h5_path in h5_paths],
+        self.buffer_paths = initialize_paths(
+            filenames=[Path(h5_path).stem for h5_path in h5_paths],
             folder=folder,
             subfolder="buffer",
             prefix=prefix,
@@ -685,11 +646,9 @@ class BufferHandler:
         self.missing_h5_files = list(compress(h5_paths, files_to_read))
         self.save_paths = list(compress(self.buffer_paths, files_to_read))
 
-        self.num_files = len(self.missing_h5_files)
+        print(f"Reading files: {len(self.missing_h5_files)} new files of {len(h5_paths)} total.")
 
-        print(f"Reading files: {self.num_files} new files of {len(h5_paths)} total.")
-
-    def _create_buffer_file(self, h5_path: Path, parquet_path: Path) -> None:
+    def _save_buffer_file(self, h5_path: Path, parquet_path: Path) -> None:
         """
         Creates a single buffer file. Useful because h5py.File cannot be pickled if left open.
 
@@ -712,32 +671,30 @@ class BufferHandler:
         # Reset the index of the DataFrame and save it as a parquet file
         df.reset_index().to_parquet(parquet_path)
 
-    def create_buffer_files(self, debug: bool) -> None:
+    def save_buffer_files(self, debug: bool) -> None:
         """
         Creates the buffer files.
 
         Args:
             debug (bool): Flag to enable debug mode, which serializes the creation.
         """
-        # make sure to not create more jobs than cores available
-        # TODO: This value should be taken from the configuration
-        n_cores = min(self.num_files, os.cpu_count() - 1)
+        n_cores = min(len(self.missing_h5_files), self.n_cores)
         if n_cores > 0:
             if debug:
                 for h5_path, parquet_path in zip(self.missing_h5_files, self.save_paths):
-                    self._create_buffer_file(h5_path, parquet_path)
+                    self._save_buffer_file(h5_path, parquet_path)
             else:
                 Parallel(n_jobs=n_cores, verbose=10)(
-                    delayed(self._create_buffer_file)(h5_path, parquet_path)
+                    delayed(self._save_buffer_file)(h5_path, parquet_path)
                     for h5_path, parquet_path in zip(self.missing_h5_files, self.save_paths)
                 )
 
-    def fill_dataframes(self) -> None:
+    def fill_dataframes(self, files: Sequence[Path]) -> tuple[dd.DataFrame, dd.DataFrame]:
         """
         Reads all parquet files into one dataframe using dask and fills NaN values.
         """
-        dataframe = dd.read_parquet(self.buffer_paths, calculate_divisions=True)
-        metadata = [pq.read_metadata(file) for file in self.buffer_paths]
+        dataframe = dd.read_parquet(files, calculate_divisions=True)
+        metadata = [pq.read_metadata(file) for file in files]
 
         channels: list[str] = get_channels(
             self._config["channels"],
@@ -747,7 +704,6 @@ class BufferHandler:
         index: list[str] = get_channels(index=True)
         overlap = min(file.num_rows for file in metadata)
 
-        print("Filling nan values...")
         dataframe = forward_fill_lazy(
             df=dataframe,
             columns=channels,
@@ -774,8 +730,7 @@ class BufferHandler:
                 dataframe_electron,
                 config=self._config,
             )
-        self.dataframe_electron = dataframe_electron.astype(dtypes)
-        self.dataframe_pulse = dataframe[index + channels]
+        return dataframe_electron.astype(dtypes), dataframe[index + channels]
 
     def run(
         self,
@@ -803,9 +758,9 @@ class BufferHandler:
         if not force_recreate:
             self.schema_check()
 
-        self.create_buffer_files(debug)
+        self.save_buffer_files(debug)
 
-        self.fill_dataframes()
+        self.dataframe_electron, self.dataframe_pulse = self.fill_dataframes(self.buffer_paths)
 
 
 LOADER = FlashLoader
