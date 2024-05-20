@@ -1,13 +1,14 @@
 """This module provides functions to fetch and load datasets."""
 from __future__ import annotations
 
-import json
 import os
 import shutil
 import zipfile
 
 import requests
 
+from sed.core.config import load_config
+from sed.core.config import save_config
 from sed.core.logging import setup_logging
 from sed.core.user_dirs import USER_CONFIG_PATH
 from sed.core.user_dirs import USER_DATA_PATH
@@ -15,14 +16,18 @@ from sed.core.user_dirs import USER_DATA_PATH
 # Configure logging
 logger = setup_logging(__name__)
 
-# check if datasets.json exists in user_config_dir
-json_path = USER_CONFIG_PATH.joinpath("datasets", "datasets.json")
-if not os.path.exists(json_path):
-    shutil.copy(
-        os.path.join(os.path.dirname(__file__), "datasets.json"),
-        json_path,
-    )
-DATASETS = json.load(open(json_path))
+JSON_PATH = USER_CONFIG_PATH.joinpath("datasets", "datasets.json")
+
+
+def load_datasets_dict():
+    # check if datasets.json exists in user_config_dir
+    if not os.path.exists(JSON_PATH):
+        shutil.copy(
+            os.path.join(os.path.dirname(__file__), "datasets.json"),
+            JSON_PATH,
+        )
+    datasets = load_config(JSON_PATH)
+    return datasets
 
 
 def available_datasets() -> list:
@@ -32,7 +37,8 @@ def available_datasets() -> list:
     Returns:
         list: List of available datasets.
     """
-    return list(DATASETS.keys())
+    datasets = load_datasets_dict()
+    return list(datasets)
 
 
 def check_dataset_availability(data_name: str) -> dict:
@@ -48,12 +54,13 @@ def check_dataset_availability(data_name: str) -> dict:
     Raises:
         ValueError: If the dataset is not found in the predefined list.
     """
-    if data_name not in DATASETS:
+    datasets = load_datasets_dict()
+    if data_name not in datasets:
         error_message = f"Data '{data_name}' is not available for fetching.\
             Available datasets are: {available_datasets()}"
         logger.error(error_message)
         raise ValueError(error_message)
-    return DATASETS.get(data_name)
+    return datasets.get(data_name)
 
 
 def set_data_path(data_name: str, data_path: str, existing_data_path: str) -> str:
@@ -204,7 +211,6 @@ def rearrange_data(data_path: str, subdirs: list) -> None:
     Args:
         data_path (str): Path where the data should be stored.
         subdirs (list): List of subdirectories.
-        rearrange_files (bool): Whether to rearrange files.
     """
     for subdir in subdirs:
         source_path = os.path.join(data_path, subdir)
@@ -216,7 +222,9 @@ def rearrange_data(data_path: str, subdirs: list) -> None:
             logger.info("File movement complete.")
             shutil.rmtree(source_path)
         else:
-            logger.error(f"Subdirectory {subdir} not found.")
+            error_message = f"Subdirectory {subdir} not found."
+            logger.error(error_message)
+            raise FileNotFoundError(error_message)
     logger.info("Rearranging complete.")
 
 
@@ -232,6 +240,7 @@ def load_dataset(data_name: str, data_path: str = None) -> str | tuple[str, list
         str | tuple[str, list[str]]: Path to the dataset or a tuple containing the path to the
         dataset and subdirectories.
     """
+
     dataset = check_dataset_availability(data_name)
     subdirs = dataset.get("subdirs", [])
     rearrange_files = dataset.get("rearrange_files", False)
@@ -259,8 +268,8 @@ def load_dataset(data_name: str, data_path: str = None) -> str | tuple[str, list
         # Update datasets JSON
         dataset["files"] = get_file_list(data_path)
         dataset["data_path"] = data_path
-        with open(json_path, "w") as f:
-            json.dump(DATASETS, f, indent=4)
+
+        save_config({data_name: dataset}, JSON_PATH)  # Save the updated dataset information
 
     # Return subdirectory paths if present
     if subdirs and not rearrange_files:

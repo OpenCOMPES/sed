@@ -61,4 +61,7 @@ def setup_logging(name: str, verbose: bool = False, debug: bool = False) -> logg
     # Add file handler to logger
     logger.addHandler(file_handler)
 
+    # Capture warnings with the logging system
+    logging.captureWarnings(True)
+
     return logger
