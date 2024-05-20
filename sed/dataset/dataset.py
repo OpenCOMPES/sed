@@ -16,17 +16,16 @@ from sed.core.user_dirs import USER_DATA_PATH
 # Configure logging
 logger = setup_logging(__name__)
 
-JSON_PATH = USER_CONFIG_PATH.joinpath("datasets", "datasets.json")
+FILENAME = "datasets.json"
+USER_DATASETS_PATH = USER_CONFIG_PATH.joinpath("datasets", FILENAME)
 
 
-def load_datasets_dict():
+def load_datasets_dict() -> dict:
     # check if datasets.json exists in user_config_dir
-    if not os.path.exists(JSON_PATH):
-        shutil.copy(
-            os.path.join(os.path.dirname(__file__), "datasets.json"),
-            JSON_PATH,
-        )
-    datasets = load_config(JSON_PATH)
+    if not os.path.exists(USER_DATASETS_PATH):
+        module_json = os.path.join(os.path.dirname(__file__), FILENAME)
+        shutil.copy(module_json, USER_DATASETS_PATH)
+    datasets = load_config(str(USER_DATASETS_PATH))
     return datasets
 
 
@@ -269,7 +268,10 @@ def load_dataset(data_name: str, data_path: str = None) -> str | tuple[str, list
         dataset["files"] = get_file_list(data_path)
         dataset["data_path"] = data_path
 
-        save_config({data_name: dataset}, JSON_PATH)  # Save the updated dataset information
+        save_config(
+            {data_name: dataset},
+            str(USER_DATASETS_PATH),
+        )  # Save the updated dataset information
 
     # Return subdirectory paths if present
     if subdirs and not rearrange_files:

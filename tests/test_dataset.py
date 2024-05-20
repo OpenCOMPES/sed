@@ -155,5 +155,4 @@ def test_load_dataset(requests_mock, zip_buffer):
 
     paths = ds.load_dataset(data_name)
 
-    os.remove(json_path_user)
     shutil.rmtree(data_path_user)
