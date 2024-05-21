@@ -22,9 +22,9 @@
         ]
     },
     "Test": {
-        "url": "https://syncandshare.desy.de/index.php/s/58y44ncLFWpggTS/download",
+        "url": "http://test.com/files/file.zip",
         "subdirs": [
-            "PR_393"
+            "subdir"
         ],
         "rearrange_files": true
     }

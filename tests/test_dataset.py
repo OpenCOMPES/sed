@@ -123,15 +123,9 @@ def test_rearrange_data(zip_file):  # noqa: ARG001
 
 def test_load_dataset(requests_mock, zip_buffer):
     json_path_user = USER_CONFIG_PATH.joinpath("datasets", "datasets.json")
-    data_path_user = USER_DATA_PATH.joinpath("datasets", "data")
-    datasets = ds.load_datasets_dict()
-    data_name = "data"
-    data_url = "http://test.com/files/file.zip"
-    subdirs = ["subdir"]
-    rearrange_files = True
-    datasets[data_name] = {"url": data_url, "subdirs": subdirs, "rearrange_files": rearrange_files}
-    with open(json_path_user, "w") as f:
-        json.dump(datasets, f, indent=4)
+    data_name = "Test"
+    data_path_user = USER_DATA_PATH.joinpath("datasets", data_name)
+    _ = ds.load_datasets_dict()  # to ensure datasets.json is in user dir
 
     if os.path.exists(data_path_user):
         # remove dir even if it is not empty
@@ -140,12 +134,11 @@ def test_load_dataset(requests_mock, zip_buffer):
     data_url = "http://test.com/files/file.zip"
     requests_mock.get(data_url, content=zip_buffer.getvalue())
 
-    data_name = "data"
     paths = ds.load_dataset(data_name)
     assert paths == str(USER_DATA_PATH.joinpath("datasets", data_name))
 
     # check if subdir is removed after rearranging
-    assert not os.path.exists(str(USER_DATA_PATH.joinpath("datasets", "data", "subdir")))
+    assert not os.path.exists(str(USER_DATA_PATH.joinpath("datasets", "Test", "subdir")))
 
     # check datasets file to now have data_path listed
     json_path_user = USER_CONFIG_PATH.joinpath("datasets", "datasets.json")
