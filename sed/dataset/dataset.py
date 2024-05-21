@@ -16,16 +16,34 @@ from sed.core.user_dirs import USER_DATA_PATH
 # Configure logging
 logger = setup_logging(__name__)
 
-FILENAME = "datasets.json"
-USER_DATASETS_PATH = USER_CONFIG_PATH.joinpath("datasets", FILENAME)
+DATASETS_FILENAME = "datasets.json"
+# Paths for user configuration and data directories
+USER_CONFIG_DATASETS_DIR = USER_CONFIG_PATH / "datasets"
+USER_CONFIG_DATASETS_DIR.mkdir(parents=True, exist_ok=True)
+
+USER_DATASETS_DIR = USER_DATA_PATH / "datasets"
+USER_DATASETS_DIR.mkdir(parents=True, exist_ok=True)
+
+# Paths for the datasets JSON file
+USER_JSON_PATH = USER_DATASETS_DIR.joinpath(DATASETS_FILENAME)
+MODULE_JSON_PATH = os.path.join(os.path.dirname(__file__), DATASETS_FILENAME)
 
 
 def load_datasets_dict() -> dict:
+    """
+    Loads the datasets configuration dictionary from the user's datasets JSON file.
+
+    If the file does not exist, it copies the default datasets JSON file from the module
+    directory to the user's datasets directory.
+
+    Returns:
+        dict: The datasets dict loaded from user's datasets JSON file.
+    """
     # check if datasets.json exists in user_config_dir
-    if not os.path.exists(USER_DATASETS_PATH):
-        module_json = os.path.join(os.path.dirname(__file__), FILENAME)
-        shutil.copy(module_json, USER_DATASETS_PATH)
-    datasets = load_config(str(USER_DATASETS_PATH))
+    if not os.path.exists(USER_JSON_PATH):
+        module_json = os.path.join(os.path.dirname(__file__), DATASETS_FILENAME)
+        shutil.copy(module_json, USER_JSON_PATH)
+    datasets = load_config(str(USER_JSON_PATH))
     return datasets
 
 
@@ -270,7 +288,7 @@ def load_dataset(data_name: str, data_path: str = None) -> str | tuple[str, list
 
         save_config(
             {data_name: dataset},
-            str(USER_DATASETS_PATH),
+            str(USER_JSON_PATH),
         )  # Save the updated dataset information
 
     # Return subdirectory paths if present
