@@ -124,8 +124,8 @@ def test_rearrange_data(zip_file):  # noqa: ARG001
 def test_load_dataset(requests_mock, zip_buffer):
     json_path_user = USER_CONFIG_PATH.joinpath("datasets", "datasets.json")
     data_name = "Test"
-    data_path_user = USER_DATA_PATH.joinpath("datasets", data_name)
     _ = ds.load_datasets_dict()  # to ensure datasets.json is in user dir
+    data_path_user = USER_DATA_PATH.joinpath("datasets", data_name)
 
     if os.path.exists(data_path_user):
         # remove dir even if it is not empty
