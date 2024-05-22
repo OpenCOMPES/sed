@@ -95,12 +95,7 @@ def set_data_path(data_name: str, data_path: str, existing_data_path: str) -> st
 
     # Set data path if not provided
     if data_path is None:
-        data_path = existing_data_path or str(
-            user_paths["data"].joinpath(
-                "datasets",
-                data_name,
-            ),
-        )
+        data_path = existing_data_path or str(user_paths["data"] / data_name)
         path_source = "existing" if existing_data_path else "default"
         logger.info(f'Using {path_source} data path for "{data_name}": "{data_path}"')
 

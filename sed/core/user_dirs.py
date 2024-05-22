@@ -7,6 +7,8 @@ Attributes:
     USER_LOG_PATH (pathlib.Path): The path to the user-specific log directory.
     USER_DATA_PATH (pathlib.Path): The path to the user-specific data directory.
 """
+from __future__ import annotations
+
 from pathlib import Path
 
 from platformdirs import user_config_path
