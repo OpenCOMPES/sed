@@ -4,29 +4,22 @@ from __future__ import annotations
 import os
 import shutil
 import zipfile
+from pathlib import Path
 
 import requests
 
 from sed.core.config import load_config
 from sed.core.config import save_config
 from sed.core.logging import setup_logging
-from sed.core.user_dirs import USER_CONFIG_PATH
-from sed.core.user_dirs import USER_DATA_PATH
+from sed.core.user_dirs import construct_module_dirs
 
 # Configure logging
 logger = setup_logging(__name__)
 
-DATASETS_FILENAME = "datasets.json"
-# Paths for user configuration and data directories
-USER_CONFIG_DATASETS_DIR = USER_CONFIG_PATH / "datasets"
-USER_CONFIG_DATASETS_DIR.mkdir(parents=True, exist_ok=True)
-
-USER_DATASETS_DIR = USER_DATA_PATH / "datasets"
-USER_DATASETS_DIR.mkdir(parents=True, exist_ok=True)
-
-# Paths for the datasets JSON file
-USER_JSON_PATH = USER_DATASETS_DIR.joinpath(DATASETS_FILENAME)
-MODULE_JSON_PATH = os.path.join(os.path.dirname(__file__), DATASETS_FILENAME)
+NAME = "datasets"
+user_paths = construct_module_dirs(NAME)
+json_path_user = user_paths["config"].joinpath(NAME).with_suffix(".json")
+json_path_module = Path(os.path.dirname(__file__)).joinpath(NAME).with_suffix(".json")
 
 
 def load_datasets_dict() -> dict:
@@ -40,10 +33,9 @@ def load_datasets_dict() -> dict:
         dict: The datasets dict loaded from user's datasets JSON file.
     """
     # check if datasets.json exists in user_config_dir
-    if not os.path.exists(USER_JSON_PATH):
-        module_json = os.path.join(os.path.dirname(__file__), DATASETS_FILENAME)
-        shutil.copy(module_json, USER_JSON_PATH)
-    datasets = load_config(str(USER_JSON_PATH))
+    if not os.path.exists(json_path_user):
+        shutil.copy(json_path_module, json_path_user)
+    datasets = load_config(str(json_path_user))
     return datasets
 
 
@@ -104,7 +96,7 @@ def set_data_path(data_name: str, data_path: str, existing_data_path: str) -> st
     # Set data path if not provided
     if data_path is None:
         data_path = existing_data_path or str(
-            USER_DATA_PATH.joinpath(
+            user_paths["data"].joinpath(
                 "datasets",
                 data_name,
             ),
@@ -288,7 +280,7 @@ def load_dataset(data_name: str, data_path: str = None) -> str | tuple[str, list
 
         save_config(
             {data_name: dataset},
-            str(USER_JSON_PATH),
+            str(json_path_user),
         )  # Save the updated dataset information
 
     # Return subdirectory paths if present
