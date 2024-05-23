@@ -1,21 +1,15 @@
-import os
 from pathlib import Path
 
 import sed
 from sed import SedProcessor
-from sed.dataset import load_dataset
+from sed.dataset import rearrange_data
 
 config_file = Path(sed.__file__).parent / "config/flash_example_config.yaml"
 
-# so it works with the workflow as it uses another naming
 data_path = "./tutorial/"
-os.system(f'touch "{data_path}/Gd_W(110).zip"')
-os.system(f"mv {data_path}/flash_data/* {data_path}")
+# data already downloaded and unzipped by actions
+rearrange_data(data_path, ["analysis_data", "calibration_data"])
 
-_ = load_dataset(
-    "Gd_W(110)",
-    data_path,
-)  # Put in Path to a storage of at least 20 Gbyte free space.
 
 config_override = {
     "core": {
