@@ -1291,7 +1291,6 @@ class SedProcessor:
     # 3. Fit the energy calibration relation
     def calibrate_energy_axis(
         self,
-        ref_id: int,
         ref_energy: float,
         method: str = None,
         energy_scale: str = None,
@@ -1304,10 +1303,7 @@ class SedProcessor:
         approximation, and a d^2/(t-t0)^2 relation.
 
         Args:
-            ref_id (int): id of the trace at the bias where the reference energy is
-                given.
-            ref_energy (float): Absolute energy of the detected feature at the bias
-                of ref_id
+            ref_energy (float): Binding/kinetic energy of the detected feature.
             method (str, optional): Method for determining the energy calibration.
 
                 - **'lmfit'**: Energy calibration using lmfit and 1/t^2 form.
@@ -1334,7 +1330,6 @@ class SedProcessor:
             energy_scale = self._config["energy"]["energy_scale"]
 
         self.ec.calibrate(
-            ref_id=ref_id,
             ref_energy=ref_energy,
             method=method,
             energy_scale=energy_scale,
@@ -1352,7 +1347,7 @@ class SedProcessor:
             )
             print("E/TOF relationship:")
             self.ec.view(
-                traces=self.ec.calibration["axis"][None, :],
+                traces=self.ec.calibration["axis"][None, :] + self.ec.biases[0],
                 xaxis=self.ec.tof,
                 backend="matplotlib",
                 show_legend=False,
@@ -1360,14 +1355,14 @@ class SedProcessor:
             if energy_scale == "kinetic":
                 plt.scatter(
                     self.ec.peaks[:, 0],
-                    -(self.ec.biases - self.ec.biases[ref_id]) + ref_energy,
+                    -(self.ec.biases - self.ec.biases[0]) + ref_energy,
                     s=50,
                     c="k",
                 )
             elif energy_scale == "binding":
                 plt.scatter(
                     self.ec.peaks[:, 0],
-                    self.ec.biases - self.ec.biases[ref_id] + ref_energy,
+                    self.ec.biases - self.ec.biases[0] + ref_energy,
                     s=50,
                     c="k",
                 )

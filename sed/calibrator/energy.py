@@ -2,7 +2,6 @@
 correction. Mostly ported from https://github.com/mpes-kit/mpes.
 """
 import itertools as it
-import warnings as wn
 from copy import deepcopy
 from datetime import datetime
 from functools import partial
@@ -514,7 +513,7 @@ class EnergyCalibrator:
 
     def calibrate(
         self,
-        ref_id: int = 0,
+        ref_energy: float = 0,
         method: str = "lmfit",
         energy_scale: str = "kinetic",
         landmarks: np.ndarray = None,
@@ -527,8 +526,7 @@ class EnergyCalibrator:
         scale using optimization methods.
 
         Args:
-            ref_id (int, optional): The reference trace index (an integer).
-                Defaults to 0.
+            ref_energy (float): Binding/kinetic energy of the detected feature.
             method (str, optional):  Method for determining the energy calibration.
 
                 - **'lmfit'**: Energy calibration using lmfit and 1/t^2 form.
@@ -583,7 +581,7 @@ class EnergyCalibrator:
                 sign * biases,
                 binwidth,
                 binning,
-                ref_id=ref_id,
+                ref_energy=ref_energy,
                 t=t,
                 energy_scale=energy_scale,
                 verbose=verbose,
@@ -593,7 +591,7 @@ class EnergyCalibrator:
             self.calibration = poly_energy_calibration(
                 landmarks,
                 sign * biases,
-                ref_id=ref_id,
+                ref_energy=ref_energy,
                 aug=self.dup,
                 method=method,
                 t=t,
@@ -661,7 +659,7 @@ class EnergyCalibrator:
             for itr, trace in enumerate(traces):
                 if align:
                     ax.plot(
-                        xaxis + sign * (self.biases[itr] - self.biases[self.calibration["refid"]]),
+                        xaxis + sign * (self.biases[itr]),
                         trace,
                         ls="-",
                         linewidth=1,
@@ -724,7 +722,7 @@ class EnergyCalibrator:
                 trace = traces[itr, :]
                 if align:
                     fig.line(
-                        xaxis + sign * (self.biases[itr] - self.biases[self.calibration["refid"]]),
+                        xaxis + sign * (self.biases[itr]),
                         trace,
                         color=color,
                         line_dash="solid",
@@ -2090,8 +2088,7 @@ def fit_energy_calibration(
     vals: Union[List[float], np.ndarray],
     binwidth: float,
     binning: int,
-    ref_id: int = 0,
-    ref_energy: float = None,
+    ref_energy: float,
     t: Union[List[float], np.ndarray] = None,
     energy_scale: str = "kinetic",
     verbose: bool = True,
@@ -2108,9 +2105,8 @@ def fit_energy_calibration(
             each EDC.
         binwidth (float): Time width of each original TOF bin in ns.
         binning (int): Binning factor of the TOF values.
-        ref_id (int, optional): Reference dataset index. Defaults to 0.
-        ref_energy (float, optional): Energy value of the feature in the refence
-            trace (eV). required to output the calibration. Defaults to None.
+        ref_energy (float): Energy value of the feature in the refence
+            trace (eV).
         t (Union[List[float], np.ndarray], optional): Array of TOF values. Required
             to calculate calibration trace. Defaults to None.
         energy_scale (str, optional): Direction of increasing energy scale.
@@ -2135,14 +2131,6 @@ def fit_energy_calibration(
         - "axis": Fitted energy axis.
     """
     vals = np.asarray(vals)
-    nvals = vals.size
-
-    if ref_id >= nvals:
-        wn.warn(
-            "Reference index (refid) cannot be larger than the number of traces!\
-                Reset to the largest allowed number.",
-        )
-        ref_id = nvals - 1
 
     def residual(pars, time, data, binwidth, binning, energy_scale):
         model = tof2ev(
@@ -2211,12 +2199,11 @@ def fit_energy_calibration(
     ecalibdict["t0"] = result.params["t0"].value
     ecalibdict["E0"] = result.params["E0"].value
     ecalibdict["energy_scale"] = energy_scale
+    energy_offset = pfunc(-1 * ref_energy, pos[0])
+    ecalibdict["E0"] = -(energy_offset - vals[0])
 
-    if (ref_energy is not None) and (t is not None):
-        energy_offset = pfunc(-1 * ref_energy, pos[ref_id])
-        ecalibdict["axis"] = pfunc(-energy_offset, t)
-        ecalibdict["E0"] = -energy_offset
-        ecalibdict["refid"] = ref_id
+    if t is not None:
+        ecalibdict["axis"] = pfunc(ecalibdict["E0"], t)
 
     return ecalibdict
 
@@ -2224,9 +2211,8 @@ def fit_energy_calibration(
 def poly_energy_calibration(
     pos: Union[List[float], np.ndarray],
     vals: Union[List[float], np.ndarray],
+    ref_energy: float,
     order: int = 3,
-    ref_id: int = 0,
-    ref_energy: float = None,
     t: Union[List[float], np.ndarray] = None,
     aug: int = 1,
     method: str = "lstsq",
@@ -2246,10 +2232,9 @@ def poly_energy_calibration(
             (e.g. peaks) in the EDCs.
         vals (Union[List[float], np.ndarray]): Bias voltage value associated with
             each EDC.
+        ref_energy (float): Energy value of the feature in the refence
+            trace (eV).
         order (int, optional): Polynomial order of the fitting function. Defaults to 3.
-        ref_id (int, optional): Reference dataset index. Defaults to 0.
-        ref_energy (float, optional): Energy value of the feature in the refence
-            trace (eV). required to output the calibration. Defaults to None.
         t (Union[List[float], np.ndarray], optional): Array of TOF values. Required
             to calculate calibration trace. Defaults to None.
         aug (int, optional): Fitting dimension augmentation
@@ -2277,21 +2262,14 @@ def poly_energy_calibration(
     vals = np.asarray(vals)
     nvals = vals.size
 
-    if ref_id >= nvals:
-        wn.warn(
-            "Reference index (refid) cannot be larger than the number of traces!\
-                Reset to the largest allowed number.",
-        )
-        ref_id = nvals - 1
-
     # Top-to-bottom ordering of terms in the T matrix
-    termorder = np.delete(range(0, nvals, 1), ref_id)
+    termorder = np.delete(range(0, nvals, 1), 0)
     termorder = np.tile(termorder, aug)
     # Left-to-right ordering of polynomials in the T matrix
     polyorder = np.linspace(order, 1, order, dtype="int")
 
     # Construct the T (differential drift time) matrix, Tmat = Tmain - Tsec
-    t_main = np.array([pos[ref_id] ** p for p in polyorder])
+    t_main = np.array([pos[0] ** p for p in polyorder])
     # Duplicate to the same order as the polynomials
     t_main = np.tile(t_main, (aug * (nvals - 1), 1))
 
@@ -2303,7 +2281,7 @@ def poly_energy_calibration(
     t_mat = t_main - np.asarray(t_sec)
 
     # Construct the b vector (differential bias)
-    bvec = vals[ref_id] - np.delete(vals, ref_id)
+    bvec = vals[0] - np.delete(vals, 0)
     bvec = np.tile(bvec, aug)
 
     # Solve for the a vector (polynomial coefficients) using least squares
@@ -2323,12 +2301,10 @@ def poly_energy_calibration(
     ecalibdict["Tmat"] = t_mat
     ecalibdict["bvec"] = bvec
     ecalibdict["energy_scale"] = energy_scale
+    ecalibdict["E0"] = -(pfunc(-1 * ref_energy, pos[0]) + vals[0])
 
-    if ref_energy is not None and t is not None:
-        energy_offset = pfunc(-1 * ref_energy, pos[ref_id])
-        ecalibdict["axis"] = pfunc(-energy_offset, t)
-        ecalibdict["E0"] = -energy_offset
-        ecalibdict["refid"] = ref_id
+    if t is not None:
+        ecalibdict["axis"] = pfunc(-ecalibdict["E0"], t)
 
     return ecalibdict
 
