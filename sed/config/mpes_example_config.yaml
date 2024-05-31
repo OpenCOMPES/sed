@@ -15,14 +15,6 @@ core:
     gid: 1001
 
 dataframe:
-  # hdf5 group names to read from the h5 files (for mpes reader)
-  hdf5_groupnames: ["Stream_0", "Stream_1", "Stream_2", "Stream_4"]
-  # aliases to assign to the dataframe columns for the corresponding hdf5 streams
-  hdf5_aliases:
-    Stream_0: "X"
-    Stream_1: "Y"
-    Stream_2: "t"
-    Stream_4: "ADC"
   # dataframe column name for the time stamp column
   time_stamp_alias: "timeStamps"
   # hdf5 group name containing eventIDs occuring at every millisecond (used to calculate timestamps)
@@ -78,6 +70,25 @@ dataframe:
     E: 'eV'
     kx: '1/A'
     ky: '1/A'
+
+  # dataframe channels and group names to read from the h5 files
+  channels:
+    # The timestamp
+    X:
+      format: per_electron
+      group_name: "/Stream_0"
+    Y:
+      format: per_electron
+      group_name: "/Stream_1"
+    t:
+      format: per_electron
+      group_name: "/Stream_2"
+    ADC:
+      format: per_electron
+      group_name: "/Stream_4"
+    bias_voltage:
+      format: per_file
+      group_name: "KTOF:Lens:TOF:VSet"
 
 energy:
   # Number of bins to use for energy calibration traces
