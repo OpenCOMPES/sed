@@ -86,9 +86,9 @@ dataframe:
     ADC:
       format: per_electron
       group_name: "/Stream_4"
-    bias_voltage:
-      format: per_file
-      group_name: "KTOF:Lens:TOF:VSet"
+#    bias_voltage:
+#      format: per_file
+#      group_name: "KTOF:Lens:Sample:V"
 
 energy:
   # Number of bins to use for energy calibration traces

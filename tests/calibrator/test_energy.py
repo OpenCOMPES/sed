@@ -194,11 +194,9 @@ def test_calibrate_append(energy_scale: str, calibration_method: str) -> None:
     ref_id = 5
     ec.add_ranges(ranges=rng, ref_id=ref_id)
     ec.feature_extract()
-    refid = 4
     e_ref = -0.5
     calibdict = ec.calibrate(
         ref_energy=e_ref,
-        ref_id=refid,
         energy_scale=energy_scale,
         method=calibration_method,
     )
