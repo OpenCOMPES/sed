@@ -259,16 +259,24 @@ def rearrange_data(data_path: str, subdirs: list) -> None:
     for subdir in subdirs:
         source_path = os.path.join(data_path, subdir)
         if os.path.isdir(source_path):
-            logger.info(f"Rearranging files.")
-            for root, dirs, files in os.walk(source_path):
-                for file in files:
-                    shutil.move(os.path.join(root, file), data_path)
+            logger.info(f"Rearranging files in {subdir}.")
+
+            # Count the total number of files to move
+            total_files = sum(len(files) for _, _, files in os.walk(source_path))
+
+            with tqdm(total=total_files, unit="file") as pbar:
+                for root, _, files in os.walk(source_path):
+                    for file in files:
+                        shutil.move(os.path.join(root, file), data_path)
+                        pbar.update(1)
+
             logger.info("File movement complete.")
             shutil.rmtree(source_path)
         else:
             error_message = f"Subdirectory {subdir} not found."
             logger.error(error_message)
             raise FileNotFoundError(error_message)
+
     logger.info("Rearranging complete.")
 
 
