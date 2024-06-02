@@ -5,41 +5,40 @@ log files are stored in a user-specific log directory.
 
 """
 import logging
+import os
+from datetime import datetime
 
-from sed.core.user_dirs import USER_LOG_PATH
+# Default log directory
+DEFAULT_LOG_DIR = os.path.join(os.getcwd(), "logs")
 
 
-def setup_logging(name: str, verbose: bool = False, debug: bool = False) -> logging.Logger:
+def setup_logging(
+    name: str,
+    verbosity: int = logging.WARNING,
+    user_log_path: str = None,
+) -> logging.Logger:
     """
     Configures and returns a logger with specified log levels for console and file handlers.
 
     Args:
         name (str): The name of the logger.
-        verbose (bool): If True, sets the console log level to INFO. Defaults to False.
-        debug (bool): If True, sets the console log level to DEBUG. Defaults to False.
+        verbosity (int): Logging level (logging.DEBUG, logging.INFO, logging.WARNING, etc.).
+                        Defaults to logging.INFO.
+        user_log_path (str): Path to the user-specific log directory. Defaults to None.
 
     Returns:
         logging.Logger: The configured logger instance.
 
     The logger will always write DEBUG level messages to a file located in the user's log
-    directory, while the console log level can be adjusted based on the 'verbose' and 'debug'
-    flags.
+    directory, while the console log level can be adjusted based on the 'verbosity' parameter.
     """
     # Create logger
     logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)  # Set the minimum log level for the logger
+    logger.setLevel(logging.INFO)  # Set the minimum log level for the logger
 
-    # Determine console log level
-    if debug:
-        console_level = logging.DEBUG
-    elif verbose:
-        console_level = logging.INFO
-    else:
-        console_level = logging.WARNING
-
-    # Create console handler and set level to warning (default)
+    # Create console handler and set level
     console_handler = logging.StreamHandler()
-    console_handler.setLevel(console_level)
+    console_handler.setLevel(verbosity)
 
     # Create formatter for console
     console_formatter = logging.Formatter("%(message)s")
@@ -48,7 +47,10 @@ def setup_logging(name: str, verbose: bool = False, debug: bool = False) -> logg
     # Add console handler to logger
     logger.addHandler(console_handler)
 
-    log_file = USER_LOG_PATH.joinpath("sed.log")
+    # Determine log file path
+    log_dir = user_log_path or DEFAULT_LOG_DIR
+    os.makedirs(log_dir, exist_ok=True)
+    log_file = os.path.join(log_dir, f"sed_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.log")
 
     # Create file handler and set level to debug
     file_handler = logging.FileHandler(log_file)
