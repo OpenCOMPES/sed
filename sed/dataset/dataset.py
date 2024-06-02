@@ -8,7 +8,7 @@ from pathlib import Path
 
 import requests
 
-from sed.core.config import load_config
+from sed.core.config import parse_config
 from sed.core.config import save_config
 from sed.core.logging import setup_logging
 from sed.core.user_dirs import construct_module_dirs
@@ -35,7 +35,7 @@ def load_datasets_dict() -> dict:
     # check if datasets.json exists in user_config_dir
     if not os.path.exists(json_path_user):
         shutil.copy(json_path_module, json_path_user)
-    datasets = load_config(str(json_path_user))
+    datasets = parse_config(system_config=str(json_path_user), default_config=str(json_path_module))
     return datasets
 
 
