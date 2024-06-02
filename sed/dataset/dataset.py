@@ -12,14 +12,13 @@ from tqdm import tqdm
 from sed.core.config import parse_config
 from sed.core.config import save_config
 from sed.core.logging import setup_logging
-from sed.core.user_dirs import construct_module_dirs
+from sed.core.user_dirs import USER_CONFIG_PATH
 
 # Configure logging
 logger = setup_logging(__name__)
 
 NAME = "datasets"
-user_paths = construct_module_dirs(NAME)
-json_path_user = user_paths["config"].joinpath(NAME).with_suffix(".json")
+json_path_user = USER_CONFIG_PATH.joinpath(NAME).with_suffix(".json")
 json_path_module = Path(os.path.dirname(__file__)).joinpath(NAME).with_suffix(".json")
 
 
@@ -78,7 +77,12 @@ def check_dataset_availability(data_name: str) -> dict:
     return datasets.get(data_name)
 
 
-def set_data_path(data_name: str, data_path: str, existing_data_path: str) -> str:
+def set_data_path(
+    data_name: str,
+    root_dir: str,
+    existing_data_path: str,
+    use_existing: bool,
+) -> str:
     """
     Determines and sets the data path for a dataset. If a data path is not provided,
     it uses the existing data path or creates a new one. It also notifies the user
@@ -86,27 +90,37 @@ def set_data_path(data_name: str, data_path: str, existing_data_path: str) -> st
 
     Args:
         data_name (str): The name of the dataset.
-        data_path (str, optional): The desired path where the dataset should be stored.
+        root_dir (str, optional): The desired path where the dataset should be stored.
+                                    Defaults to the current directory.
         existing_data_path (str, optional): The path where the dataset currently exists.
 
     Returns:
         str: The final data path for the dataset.
     """
     # Notify the user if data might already exist
-    if existing_data_path and data_path and existing_data_path != data_path:
+    if existing_data_path and root_dir and existing_data_path != root_dir:
         logger.warning(
-            f'{data_name} data might already exists at "{existing_data_path}", '
-            "unless deleted manually.",
+            f'Using {data_name} data that already exists at "{existing_data_path}", '
+            "Set 'use_existing' to False if you want to download to a new location.",
         )
 
-    # Set data path if not provided
-    if data_path is None:
-        data_path = existing_data_path or str(user_paths["data"] / data_name)
-        path_source = "existing" if existing_data_path else "default"
-        logger.info(f'Using {path_source} data path for "{data_name}": "{data_path}"')
+    if not use_existing:
+        path_source = "existing"
+        data_path = os.path.abspath(existing_data_path)
+    elif not root_dir:
+        path_source = "default"
+        root_dir = os.getcwd()
+    else:
+        path_source = "specified"
+        data_path = existing_data_path or os.path.join(root_dir, NAME, data_name)
+        data_path = os.path.abspath(data_path)  # absolute path
+        path_source = "default"
+    logger.info(f'Using {path_source} data path for "{data_name}": "{data_path}"')
 
-        if not os.path.exists(data_path):
-            os.makedirs(data_path)
+    if not os.path.exists(data_path):
+        os.makedirs(data_path)
+        logger.info(f"Created new directory at {data_path}")
+
     return data_path
 
 
@@ -280,7 +294,11 @@ def rearrange_data(data_path: str, subdirs: list) -> None:
     logger.info("Rearranging complete.")
 
 
-def load_dataset(data_name: str, data_path: str = None) -> str | tuple[str, list[str]]:
+def load_dataset(
+    data_name: str,
+    data_path: str = None,
+    use_existing: bool = True,
+) -> str | tuple[str, list[str]]:
     """
     Fetches the specified data and extracts it to the given data path.
 
@@ -304,7 +322,7 @@ def load_dataset(data_name: str, data_path: str = None) -> str | tuple[str, list
     existing_data_path = dataset.get("data_path", None)
     existing_files = dataset.get("files", {})
 
-    data_path = set_data_path(data_name, data_path, existing_data_path)
+    data_path = set_data_path(data_name, data_path, existing_data_path, use_existing)
 
     files_in_dir = get_file_list(data_path)
 
