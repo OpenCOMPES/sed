@@ -7,6 +7,7 @@ import zipfile
 from pathlib import Path
 
 import requests
+from tqdm import tqdm
 
 from sed.core.config import parse_config
 from sed.core.config import save_config
@@ -35,7 +36,12 @@ def load_datasets_dict() -> dict:
     # check if datasets.json exists in user_config_dir
     if not os.path.exists(json_path_user):
         shutil.copy(json_path_module, json_path_user)
-    datasets = parse_config(system_config=str(json_path_user), default_config=str(json_path_module))
+    datasets = parse_config(
+        folder_config={},
+        system_config=str(json_path_user),
+        default_config=str(json_path_module),
+        verbose=False,
+    )
     return datasets
 
 
@@ -145,7 +151,12 @@ def get_file_list(directory: str, ignore_zip: bool = True) -> dict:
     return result
 
 
-def download_data(data_name: str, data_path: str, data_url: str) -> bool:
+def download_data(
+    data_name: str,
+    data_path: str,
+    data_url: str,
+    chunk_size: int = 1024 * 32,
+) -> bool:
     """
     Downloads data from the specified URL.
 
@@ -160,22 +171,38 @@ def download_data(data_name: str, data_path: str, data_url: str) -> bool:
     """
     zip_file_path = os.path.join(data_path, f"{data_name}.zip")
 
-    # Check if data already exists
-    if not os.path.exists(zip_file_path):
-        logger.info(f"Downloading {data_name} data...")
-        response = requests.get(data_url)
-        with open(zip_file_path, "wb") as f:
-            f.write(response.content)
-        logger.info("Download complete.")
-        downloaded = True
+    if os.path.exists(zip_file_path):
+        existing_file_size = os.path.getsize(zip_file_path)
     else:
-        logger.info(f"{data_name} data is already downloaded.")
-        downloaded = False
+        existing_file_size = 0
 
-    return downloaded
+    headers = {"Range": f"bytes={existing_file_size}-"}
+    response = requests.get(data_url, headers=headers, stream=True)
+    total_length = int(response.headers.get("content-length", 0))
+    total_size = existing_file_size + total_length
+
+    if response.status_code == 416:  # Range not satisfiable, file is already fully downloaded
+        logger.info(f"{data_name} data is already fully downloaded.")
+        return True
+
+    mode = "ab" if existing_file_size > 0 else "wb"
+    with open(zip_file_path, mode) as f, tqdm(
+        total=total_size,
+        initial=existing_file_size,
+        unit="B",
+        unit_scale=True,
+        unit_divisor=1024,
+    ) as pbar:
+        for chunk in response.iter_content(chunk_size=chunk_size):
+            if chunk:  # filter out keep-alive new chunks
+                f.write(chunk)
+                pbar.update(len(chunk))
+
+    logger.info("Download complete.")
+    return True
 
 
-def extract_data(data_name: str, data_path: str, subdirs: list) -> bool:
+def extract_data(data_name: str, data_path: str) -> bool:
     """
     Extracts data from a ZIP file.
 
@@ -189,23 +216,36 @@ def extract_data(data_name: str, data_path: str, subdirs: list) -> bool:
                 False if the data is already extracted.
     """
     zip_file_path = os.path.join(data_path, f"{data_name}.zip")
-    # Very basic check. Looks if subdirs are empty
-    extract = True
-    for subdir in subdirs:
-        if os.path.isdir(os.path.join(data_path, subdir)):
-            extract = False
 
-    if extract:
-        logger.info(f"Extracting {data_name} data...")
-        with zipfile.ZipFile(zip_file_path, "r") as zip_ref:
-            zip_ref.extractall(data_path)
-        logger.info("Extraction complete.")
-        extracted = True
-    else:
-        logger.info(f"{data_name} data is already extracted.")
-        extracted = False
+    extracted_files = set()
+    total_files = 0
 
-    return extracted
+    # Check if any subdirectory already contains files
+    with zipfile.ZipFile(zip_file_path, "r") as zip_ref:
+        total_files = len(zip_ref.infolist())
+        for file in zip_ref.infolist():
+            extracted_file_path = os.path.join(data_path, file.filename)
+            if (
+                os.path.exists(extracted_file_path)
+                and os.path.getsize(extracted_file_path) == file.file_size
+            ):
+                extracted_files.add(file.filename)
+
+    if len(extracted_files) == total_files:
+        logger.info(f"{data_name} data is already fully extracted.")
+        return True
+
+    logger.info(f"Extracting {data_name} data...")
+    with zipfile.ZipFile(zip_file_path, "r") as zip_ref:
+        with tqdm(total=total_files, unit="file") as pbar:
+            for file in zip_ref.infolist():
+                if file.filename in extracted_files:
+                    pbar.update(1)
+                    continue
+                zip_ref.extract(file, data_path)
+                pbar.update(1)
+    logger.info("Extraction complete.")
+    return True
 
 
 def rearrange_data(data_path: str, subdirs: list) -> None:
@@ -265,7 +305,7 @@ def load_dataset(data_name: str, data_path: str = None) -> str | tuple[str, list
         logger.info(f"{data_name} data is already present.")
     else:
         _ = download_data(data_name, data_path, url)
-        extracted = extract_data(data_name, data_path, subdirs)
+        extracted = extract_data(data_name, data_path)
         if rearrange_files and extracted:
             rearrange_data(data_path, subdirs)
 
