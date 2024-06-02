@@ -307,7 +307,7 @@ def hdf5_to_array(
             start_time + len(ms_marker) / 1000
         )
 
-        data_list.append(time_stamp_data.astype("float32"))
+        data_list.append(time_stamp_data)
 
     return np.asarray(data_list)
 
@@ -383,7 +383,7 @@ def hdf5_to_timed_array(
 
         time_stamp_data = start_time + np.arange(len(ms_marker)) / 1000
 
-        data_list.append(time_stamp_data.astype("float32"))
+        data_list.append(time_stamp_data)
 
     return np.asarray(data_list)
 
@@ -583,7 +583,7 @@ class MpesLoader(BaseLoader):
 
         channels = kwds.pop(
             "channels",
-            self._config.get("dataframe", {}).get("channels", []),
+            self._config.get("dataframe", {}).get("channels", None),
         )
         time_stamp_alias = kwds.pop(
             "time_stamp_alias",
@@ -686,16 +686,23 @@ class MpesLoader(BaseLoader):
             tuple[float, float]: A tuple containing the start and end time stamps
         """
         h5file = h5py.File(self.files[0])
+        channels = []
+        for channel in self._config["dataframe"]["channels"].values():
+            if channel["format"] == "per_electron":
+                channels = [channel]
+                break
+        if not channels:
+            raise ValueError("No valid 'per_electron' channels found.")
         timestamps = hdf5_to_array(
             h5file,
-            channels=self._config["dataframe"]["channels"],
+            channels=channels,
             time_stamps=True,
         )
         ts_from = timestamps[-1][1]
         h5file = h5py.File(self.files[-1])
         timestamps = hdf5_to_array(
             h5file,
-            channels=self._config["dataframe"]["channels"],
+            channels=channels,
             time_stamps=True,
         )
         ts_to = timestamps[-1][-1]
