@@ -78,9 +78,6 @@ class Dataset:
         """
         Checks if the specified dataset is available in the predefined list of datasets.
 
-        Args:
-            data_name (str): The name of the dataset to check.
-
         Returns:
             dict: The dataset information if available.
 
@@ -88,15 +85,16 @@ class Dataset:
             ValueError: If the dataset is not found in the predefined list.
         """
         if self._data_name not in self._datasets:
-            error_message = f"Data '{self._data_name}' is not available for fetching.\
-                Available datasets are: {self.available}"
+            error_message = (
+                f"Data '{self._data_name}' is not available for fetching.\n"
+                f"Available datasets are: {self.available}"
+            )
             logger.error(error_message)
             raise ValueError(error_message)
         return self._datasets.get(self._data_name)
 
     def _set_data_dir(
         self,
-        data_name: str,
         root_dir: str,
         existing_data_path: str,
         use_existing: bool,
@@ -112,26 +110,25 @@ class Dataset:
             existing_data_path (str): The path where the dataset currently exists.
             use_existing (bool): Whether to use the existing data path.
         """
-        if use_existing:
-            # Notify the user if data might already exist
-            if existing_data_path and root_dir and existing_data_path != root_dir:
+        if use_existing and existing_data_path:
+            if existing_data_path != root_dir:
                 logger.warning(
-                    f"Not downloading {data_name} data as it already exists "
+                    f"Not downloading {self._data_name} data as it already exists "
                     f'at "{existing_data_path}".\n'
                     "Set 'use_existing' to False if you want to download to a new location.",
                 )
-
-        if not use_existing:
+            dir_ = existing_data_path
             path_source = "existing"
-            dir_ = os.path.abspath(existing_data_path)
         else:
-            path_source = "specified"
             if not root_dir:
-                path_source = "default"
                 root_dir = os.getcwd()
-            dir_ = existing_data_path or os.path.join(root_dir, self.NAME, data_name)
-        self._dir = os.path.abspath(dir_)  # absolute path
-        logger.info(f'Using {path_source} data path for "{data_name}": "{self._dir}"')
+                path_source = "default"
+            else:
+                path_source = "specified"
+            dir_ = os.path.join(root_dir, self.NAME, self._data_name)
+
+        self._dir = os.path.abspath(dir_)
+        logger.info(f'Using {path_source} data path for "{self._data_name}": "{self._dir}"')
 
         if not os.path.exists(self._dir):
             os.makedirs(self._dir)
@@ -205,6 +202,7 @@ class Dataset:
             return
 
         mode = "ab" if existing_file_size > 0 else "wb"
+        logger.info(f"Downloading {self._data_name} data...")
         with open(zip_file_path, mode) as f, tqdm(
             total=total_size,
             initial=existing_file_size,
@@ -216,6 +214,7 @@ class Dataset:
                 if chunk:  # filter out keep-alive new chunks
                     f.write(chunk)
                     pbar.update(len(chunk))
+        logger.info(f"{self._data_name} data downloaded successfully.")
 
     def _extract_data(self):
         """
@@ -239,6 +238,7 @@ class Dataset:
 
         if len(extracted_files) == total_files:
             logger.info(f"{self._data_name} data is already fully extracted.")
+            return
 
         logger.info(f"Extracting {self._data_name} data...")
         with zipfile.ZipFile(zip_file_path, "r") as zip_ref:
@@ -249,6 +249,7 @@ class Dataset:
                         continue
                     zip_ref.extract(file, self._dir)
                     pbar.update(1)
+        logger.info(f"{self._data_name} data extracted successfully.")
 
     def _rearrange_data(self) -> None:
         """
@@ -296,9 +297,7 @@ class Dataset:
         self._subdirs = self._state.get("subdirs", [])
         rearrange_files = self._state.get("rearrange_files", False)
         if rearrange_files and not self._subdirs:
-            err = (
-                f"Rearrange_files is set to True but no subdirectories are defined for {data_name}."
-            )
+            err = f"Rearrange_files is set to True but no subdirectories are defined."
             logger.error(err)
             raise ValueError(err)
 
@@ -307,13 +306,13 @@ class Dataset:
         file_list: dict = self._state.get("files", {})
 
         existing_data_path = existing_data_paths[0] if existing_data_paths else None
-        self._set_data_dir(data_name, root_dir, existing_data_path, use_existing)
+        self._set_data_dir(root_dir, existing_data_path, use_existing)
 
         files_in_dir = self._get_file_list()
 
         # if file_list is same as files_in_dir, then don't download/extract data
         if file_list == files_in_dir:
-            logger.info(f"{data_name} data is already present.")
+            logger.info(f"{self._data_name} data is already present.")
         else:
             self._download_data(url)
             self._extract_data()
@@ -327,7 +326,7 @@ class Dataset:
             self._state["data_path"] = existing_data_paths
 
             # Save the updated dataset information
-            save_config({data_name: self._state}, self.json_path["user"])
+            save_config({self._data_name: self._state}, self.json_path["user"])
 
         # Return subdirectory paths if present
         if self._subdirs and not rearrange_files:
