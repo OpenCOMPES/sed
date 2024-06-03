@@ -1,4 +1,9 @@
-"""This module provides functions to fetch and load datasets."""
+"""This module provides a Dataset class to download and extract datasets from web.
+These datasets are defined in a JSON file. The Dataset class implements these features
+Easy API:
+from sed.dataset import datasets
+datasets.get("NAME")
+"""
 from __future__ import annotations
 
 import os
@@ -8,6 +13,7 @@ import zipfile
 import requests
 from tqdm import tqdm
 
+from sed.core.config import load_config
 from sed.core.config import parse_config
 from sed.core.config import save_config
 from sed.core.logging import setup_logging
@@ -20,14 +26,19 @@ logger = setup_logging(__name__)
 class Dataset:
     NAME = "datasets"
     FILENAME = NAME + ".json"
-    json_path_user = os.path.join(USER_CONFIG_PATH, FILENAME)
-    json_path_module = os.path.join(os.path.dirname(__file__), FILENAME)
-    json_path_folder = "./" + FILENAME
+    json_path = {}
+    json_path["user"] = os.path.join(USER_CONFIG_PATH, FILENAME)
+    json_path["module"] = os.path.join(os.path.dirname(__file__), FILENAME)
+    json_path["folder"] = "./" + FILENAME
 
     def __init__(self):
-        self.datasets = self._load_datasets_dict()
+        self._datasets = self._load_datasets_dict()
         self._dir: str = None
         self._subdirs: list[str] = None
+        self._data_name: str = None
+        self._state: dict = None
+        self.subdirs: list[str] = None
+        self.dir: str = None
 
     def _load_datasets_dict(self) -> dict:
         """
@@ -40,14 +51,14 @@ class Dataset:
             dict: The datasets dict loaded from user's datasets JSON file.
         """
         # check if datasets.json exists in user_config_dir
-        if not os.path.exists(self.json_path_user):
-            shutil.copy(self.json_path_module, self.json_path_user)
+        if not os.path.exists(self.json_path["user"]):
+            shutil.copy(self.json_path["module"], self.json_path["user"])
 
         # check if datasets.json exists in folder
         datasets = parse_config(
-            folder_config=self.json_path_folder,
-            system_config=self.json_path_user,
-            default_config=self.json_path_module,
+            folder_config=self.json_path["folder"],
+            system_config=self.json_path["user"],
+            default_config=self.json_path["module"],
             verbose=False,
         )
         return datasets
@@ -60,7 +71,8 @@ class Dataset:
         Returns:
             list: List of available datasets.
         """
-        return list(self.datasets)
+        # remove Test from available datasets
+        return [dataset for dataset in self._datasets if dataset != "Test"]
 
     def _check_dataset_availability(self) -> dict:
         """
@@ -75,12 +87,12 @@ class Dataset:
         Raises:
             ValueError: If the dataset is not found in the predefined list.
         """
-        if self._data_name not in self.datasets:
+        if self._data_name not in self._datasets:
             error_message = f"Data '{self._data_name}' is not available for fetching.\
                 Available datasets are: {self.available}"
             logger.error(error_message)
             raise ValueError(error_message)
-        return self.datasets.get(self._data_name)
+        return self._datasets.get(self._data_name)
 
     def _set_data_dir(
         self,
@@ -96,9 +108,8 @@ class Dataset:
 
         Args:
             data_name (str): The name of the dataset.
-            root_dir (str, optional): The desired path where the dataset should be stored.
-                                        Defaults to the current directory.
-            existing_data_path (str, optional): The path where the dataset currently exists.
+            root_dir (str): The desired path where the dataset should be stored.
+            existing_data_path (str): The path where the dataset currently exists.
             use_existing (bool): Whether to use the existing data path.
         """
         if use_existing:
@@ -169,16 +180,13 @@ class Dataset:
         self,
         data_url: str,
         chunk_size: int = 1024 * 32,
-    ) -> bool:
+    ):
         """
         Downloads data from the specified URL.
 
         Args:
             data_url (str): URL of the data.
-
-        Returns:
-            bool: True if the data was downloaded successfully,
-                    False if the data is already downloaded.
+            chunk_size (int): Size of the data chunk to download. Default is 32 KB.
         """
         zip_file_path = os.path.join(self._dir, f"{self._data_name}.zip")
 
@@ -194,7 +202,7 @@ class Dataset:
 
         if response.status_code == 416:  # Range not satisfiable, file is already fully downloaded
             logger.info(f"{self._data_name} data is already fully downloaded.")
-            return True
+            return
 
         mode = "ab" if existing_file_size > 0 else "wb"
         with open(zip_file_path, mode) as f, tqdm(
@@ -208,9 +216,6 @@ class Dataset:
                 if chunk:  # filter out keep-alive new chunks
                     f.write(chunk)
                     pbar.update(len(chunk))
-
-        logger.info("Download complete.")
-        return True
 
     def _extract_data(self):
         """
@@ -234,7 +239,6 @@ class Dataset:
 
         if len(extracted_files) == total_files:
             logger.info(f"{self._data_name} data is already fully extracted.")
-            return True
 
         logger.info(f"Extracting {self._data_name} data...")
         with zipfile.ZipFile(zip_file_path, "r") as zip_ref:
@@ -245,8 +249,6 @@ class Dataset:
                         continue
                     zip_ref.extract(file, self._dir)
                     pbar.update(1)
-        logger.info("Extraction complete.")
-        return True
 
     def _rearrange_data(self) -> None:
         """
@@ -287,10 +289,7 @@ class Dataset:
         Args:
             data_name (str): Name of the data to fetch.
             root_dir (str): Path where the data should be stored. Default is the current directory.
-
-        Returns:
-            str | tuple[str, list[str]]: Path to the dataset or a tuple containing the path to the
-            dataset and subdirectories.
+            use_existing (bool): Whether to use the existing data path. Default is True.
         """
         self._data_name = data_name
         self._state = self._check_dataset_availability()
@@ -316,9 +315,9 @@ class Dataset:
         if file_list == files_in_dir:
             logger.info(f"{data_name} data is already present.")
         else:
-            _ = self._download_data(url)
-            extracted = self._extract_data()
-            if rearrange_files and extracted:
+            self._download_data(url)
+            self._extract_data()
+            if rearrange_files:
                 self._rearrange_data()
 
             # Update datasets JSON
@@ -327,10 +326,8 @@ class Dataset:
                 existing_data_paths.extend([datasets._dir])
             self._state["data_path"] = existing_data_paths
 
-            save_config(
-                {data_name: self._state},
-                str(self.json_path_user),
-            )  # Save the updated dataset information
+            # Save the updated dataset information
+            save_config({data_name: self._state}, self.json_path["user"])
 
         # Return subdirectory paths if present
         if self._subdirs and not rearrange_files:
@@ -338,6 +335,38 @@ class Dataset:
         else:
             self.subdirs = []
         self.dir = self._dir
+
+    def add(self, data_name: str, info: dict, levels: list = ["user"]):
+        """
+        Adds a new dataset to the datasets JSON file.
+
+        Args:
+            data_name (str): Name of the dataset.
+            info (dict): Information about the dataset.
+            levels (list): List of levels to add the dataset to. Default is ["user"].
+        """
+        for level in levels:
+            path = self.json_path[level]
+            json_dict = load_config(path) if os.path.exists(path) else {}
+            json_dict[data_name] = info
+            save_config(json_dict, path)
+            logger.info(f"Added {data_name} dataset to {level} datasets.json")
+
+    def remove(self, data_name: str, levels: list = ["user"]):
+        """
+        Adds a new dataset to the datasets JSON file.
+
+        Args:
+            data_name (str): Name of the dataset.
+            levels (list): List of levels to add the dataset to. Default is ["user"].
+        """
+        for level in levels:
+            path = self.json_path[level]
+            if os.path.exists(path):
+                json_dict = load_config(path)
+                del json_dict[data_name]
+                save_config(json_dict, path, overwrite=True)
+                logger.info(f"Removed {data_name} dataset from {level} datasets.json")
 
 
 datasets = Dataset()
