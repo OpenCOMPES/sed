@@ -9,6 +9,7 @@ import pytest
 
 from sed.core.user_dirs import USER_CONFIG_PATH
 from sed.dataset import dataset as ds
+from sed.dataset import DatasetsManager as dm
 
 package_dir = os.path.dirname(find_spec("sed").origin)
 json_path = os.path.join(package_dir, "datasets.json")
@@ -32,13 +33,13 @@ def zip_file(fs, zip_buffer):
 
 
 def test_available_datasets():
-    all_dsets = ds._load_datasets_dict()
+    all_dsets = dm.load_datasets_dict()
     del all_dsets["Test"]
     assert ds.available == list(all_dsets.keys())
 
 
 def test_check_dataset_availability():
-    datasets = ds._load_datasets_dict()
+    datasets = dm.load_datasets_dict()
     # return dataset information if available
     for data_name in datasets.keys():
         ds._data_name = data_name
@@ -123,7 +124,7 @@ def test_rearrange_data(zip_file):  # noqa: ARG001
 def test_get_dataset(requests_mock, zip_buffer):
     json_path_user = USER_CONFIG_PATH.joinpath("datasets.json")
     data_name = "Test"
-    _ = ds._load_datasets_dict()  # to ensure datasets.json is in user dir
+    _ = dm.load_datasets_dict()  # to ensure datasets.json is in user dir
     data_path_user = os.path.join("./datasets", data_name)
 
     if os.path.exists(data_path_user):
