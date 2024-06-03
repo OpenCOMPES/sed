@@ -50,7 +50,7 @@ def setup_logging(
     # Determine log file path
     log_dir = user_log_path or DEFAULT_LOG_DIR
     os.makedirs(log_dir, exist_ok=True)
-    log_file = os.path.join(log_dir, f"sed_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.log")
+    log_file = os.path.join(log_dir, f"sed_{datetime.now().strftime('%Y-%m-%d')}.log")
 
     # Create file handler and set level to debug
     file_handler = logging.FileHandler(log_file)
