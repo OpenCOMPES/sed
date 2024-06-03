@@ -19,13 +19,15 @@ logger = setup_logging(__name__)
 
 class Dataset:
     NAME = "datasets"
-    json_path_user = os.path.join(USER_CONFIG_PATH, NAME + ".json")
-    json_path_module = os.path.join(os.path.dirname(__file__), NAME + ".json")
+    FILENAME = NAME + ".json"
+    json_path_user = os.path.join(USER_CONFIG_PATH, FILENAME)
+    json_path_module = os.path.join(os.path.dirname(__file__), FILENAME)
+    json_path_folder = "./" + FILENAME
 
     def __init__(self):
         self.datasets = self._load_datasets_dict()
-        self.dir: str = None
-        self.subdirs: list[str] = None
+        self._dir: str = None
+        self._subdirs: list[str] = None
 
     def _load_datasets_dict(self) -> dict:
         """
@@ -40,10 +42,12 @@ class Dataset:
         # check if datasets.json exists in user_config_dir
         if not os.path.exists(self.json_path_user):
             shutil.copy(self.json_path_module, self.json_path_user)
+
+        # check if datasets.json exists in folder
         datasets = parse_config(
-            folder_config={},
-            system_config=str(self.json_path_user),
-            default_config=str(self.json_path_module),
+            folder_config=self.json_path_folder,
+            system_config=self.json_path_user,
+            default_config=self.json_path_module,
             verbose=False,
         )
         return datasets
@@ -101,7 +105,8 @@ class Dataset:
             # Notify the user if data might already exist
             if existing_data_path and root_dir and existing_data_path != root_dir:
                 logger.warning(
-                    f'Using {data_name} data that already exists at "{existing_data_path}", '
+                    f"Not downloading {data_name} data as it already exists "
+                    f'at "{existing_data_path}".\n'
                     "Set 'use_existing' to False if you want to download to a new location.",
                 )
 
@@ -114,12 +119,12 @@ class Dataset:
                 path_source = "default"
                 root_dir = os.getcwd()
             dir_ = existing_data_path or os.path.join(root_dir, self.NAME, data_name)
-        self.dir = os.path.abspath(dir_)  # absolute path
-        logger.info(f'Using {path_source} data path for "{data_name}": "{self.dir}"')
+        self._dir = os.path.abspath(dir_)  # absolute path
+        logger.info(f'Using {path_source} data path for "{data_name}": "{self._dir}"')
 
-        if not os.path.exists(self.dir):
-            os.makedirs(self.dir)
-            logger.info(f"Created new directory at {self.dir}")
+        if not os.path.exists(self._dir):
+            os.makedirs(self._dir)
+            logger.info(f"Created new directory at {self._dir}")
 
     def _get_file_list(self, ignore_zip: bool = True) -> dict:
         """
@@ -137,14 +142,14 @@ class Dataset:
         main_dir_files = []
 
         # List all files and directories in the given directory
-        all_files_and_dirs = os.listdir(self.dir)
+        all_files_and_dirs = os.listdir(self._dir)
 
         # Filter out hidden files and directories
         visible_files_and_dirs = [item for item in all_files_and_dirs if not item.startswith(".")]
 
         # Organize files into dictionary structure
         for item in visible_files_and_dirs:
-            item_path = os.path.join(self.dir, item)
+            item_path = os.path.join(self._dir, item)
             if os.path.isdir(item_path):
                 result[item] = [file for file in os.listdir(item_path) if not file.startswith(".")]
             else:
@@ -175,7 +180,7 @@ class Dataset:
             bool: True if the data was downloaded successfully,
                     False if the data is already downloaded.
         """
-        zip_file_path = os.path.join(self.dir, f"{self._data_name}.zip")
+        zip_file_path = os.path.join(self._dir, f"{self._data_name}.zip")
 
         if os.path.exists(zip_file_path):
             existing_file_size = os.path.getsize(zip_file_path)
@@ -211,7 +216,7 @@ class Dataset:
         """
         Extracts data from a ZIP file.
         """
-        zip_file_path = os.path.join(self.dir, f"{self._data_name}.zip")
+        zip_file_path = os.path.join(self._dir, f"{self._data_name}.zip")
 
         extracted_files = set()
         total_files = 0
@@ -220,7 +225,7 @@ class Dataset:
         with zipfile.ZipFile(zip_file_path, "r") as zip_ref:
             total_files = len(zip_ref.infolist())
             for file in zip_ref.infolist():
-                extracted_file_path = os.path.join(self.dir, file.filename)
+                extracted_file_path = os.path.join(self._dir, file.filename)
                 if (
                     os.path.exists(extracted_file_path)
                     and os.path.getsize(extracted_file_path) == file.file_size
@@ -238,7 +243,7 @@ class Dataset:
                     if file.filename in extracted_files:
                         pbar.update(1)
                         continue
-                    zip_ref.extract(file, self.dir)
+                    zip_ref.extract(file, self._dir)
                     pbar.update(1)
         logger.info("Extraction complete.")
         return True
@@ -247,8 +252,8 @@ class Dataset:
         """
         Moves files to the main directory if specified.
         """
-        for subdir in self.subdirs:
-            source_path = os.path.join(self.dir, subdir)
+        for subdir in self._subdirs:
+            source_path = os.path.join(self._dir, subdir)
             if os.path.isdir(source_path):
                 logger.info(f"Rearranging files in {subdir}.")
 
@@ -258,7 +263,7 @@ class Dataset:
                 with tqdm(total=total_files, unit="file") as pbar:
                     for root, _, files in os.walk(source_path):
                         for file in files:
-                            shutil.move(os.path.join(root, file), self.dir)
+                            shutil.move(os.path.join(root, file), self._dir)
                             pbar.update(1)
 
                 logger.info("File movement complete.")
@@ -289,24 +294,26 @@ class Dataset:
         """
         self._data_name = data_name
         self._state = self._check_dataset_availability()
-        subdirs = self._state.get("subdirs", [])
+        self._subdirs = self._state.get("subdirs", [])
         rearrange_files = self._state.get("rearrange_files", False)
-        if rearrange_files and not self.subdirs:
+        if rearrange_files and not self._subdirs:
             err = (
                 f"Rearrange_files is set to True but no subdirectories are defined for {data_name}."
             )
             logger.error(err)
             raise ValueError(err)
-        url = self._state.get("url")
-        existing_data_path = self._state.get("data_path", None)
-        existing_files = self._state.get("files", {})
 
-        self.dir = self._set_data_dir(data_name, root_dir, existing_data_path, use_existing)
+        url: str = self._state.get("url")
+        existing_data_paths: list = self._state.get("data_path", [])
+        file_list: dict = self._state.get("files", {})
+
+        existing_data_path = existing_data_paths[0] if existing_data_paths else None
+        self._set_data_dir(data_name, root_dir, existing_data_path, use_existing)
 
         files_in_dir = self._get_file_list()
 
-        # if existing_files is same as files_in_dir, then don't download/extract data
-        if existing_files == files_in_dir:
+        # if file_list is same as files_in_dir, then don't download/extract data
+        if file_list == files_in_dir:
             logger.info(f"{data_name} data is already present.")
         else:
             _ = self._download_data(url)
@@ -316,7 +323,9 @@ class Dataset:
 
             # Update datasets JSON
             self._state["files"] = self._get_file_list()
-            self._state["data_path"] = self.dir
+            if datasets._dir not in existing_data_paths:
+                existing_data_paths.extend([datasets._dir])
+            self._state["data_path"] = existing_data_paths
 
             save_config(
                 {data_name: self._state},
@@ -324,8 +333,11 @@ class Dataset:
             )  # Save the updated dataset information
 
         # Return subdirectory paths if present
-        if subdirs and not rearrange_files:
-            self.subdirs = [os.path.join(self.dir, subdir) for subdir in subdirs]
+        if self._subdirs and not rearrange_files:
+            self.subdirs = [os.path.join(self._dir, subdir) for subdir in self._subdirs]
+        else:
+            self.subdirs = []
+        self.dir = self._dir
 
 
 datasets = Dataset()
