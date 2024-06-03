@@ -135,10 +135,28 @@ class Dataset:
             raise ValueError(error_message)
         return self._datasets.get(self._data_name)
 
+    @property
+    def data_name(self) -> str:
+        """Get the data name."""
+        return self._data_name
+
+    @data_name.setter
+    def data_name(self, value: str):
+        """Set the data name and update the state."""
+        self._data_name = value
+        self._state = self._check_dataset_availability()
+        self._subdirs = self._state.get("subdirs", [])
+
+    @property
+    def existing_data_paths(self) -> list:
+        """Get paths where dataset exists."""
+        if not self._data_name:
+            raise ValueError("Data name not set.")
+        return self._state.get("data_path", [])
+
     def _set_data_dir(
         self,
         root_dir: str,
-        existing_data_path: str,
         use_existing: bool,
     ):
         """
@@ -147,11 +165,10 @@ class Dataset:
         if the specified data path differs from an existing data path.
 
         Args:
-            data_name (str): The name of the dataset.
             root_dir (str): The desired path where the dataset should be stored.
-            existing_data_path (str): The path where the dataset currently exists.
             use_existing (bool): Whether to use the existing data path.
         """
+        existing_data_path = self.existing_data_paths[0] if self.existing_data_paths else None
         if use_existing and existing_data_path:
             if existing_data_path != root_dir:
                 logger.warning(
@@ -325,7 +342,7 @@ class Dataset:
                 error_message = f"Subdirectory {subdir} not found."
                 logger.error(error_message)
                 raise FileNotFoundError(error_message)
-
+        self._subdirs = []
         logger.info("Rearranging complete.")
 
     def get(
@@ -343,52 +360,67 @@ class Dataset:
             remove_zip (bool): Whether to remove the ZIP file after extraction. Default is True.
             ignore_zip (bool): Whether to ignore ZIP files when listing files. Default is True.
         """
-        self._data_name = data_name
-        self._state = self._check_dataset_availability()
-        self._subdirs = self._state.get("subdirs", [])
-        rearrange_files = self._state.get("rearrange_files", False)
-        if rearrange_files and not self._subdirs:
-            err = f"Rearrange_files is set to True but no subdirectories are defined."
-            logger.error(err)
-            raise ValueError(err)
+        self.data_name = data_name  # sets self._data_name and self._state
 
-        url: str = self._state.get("url")
-        existing_data_paths: list = self._state.get("data_path", [])
-        file_list: dict = self._state.get("files", {})
-
-        existing_data_path = existing_data_paths[0] if existing_data_paths else None
         self._set_data_dir(
             kwargs.get("root_dir", None),
-            existing_data_path,
             kwargs.get("use_existing", True),
         )
-
         files_in_dir = self._get_file_list(kwargs.get("ignore_zip", True))
+        file_list: dict = self._state.get("files", {})
 
         # if file_list is same as files_in_dir, then don't download/extract data
         if file_list == files_in_dir:
             logger.info(f"{self._data_name} data is already present.")
         else:
+            url: str = self._state.get("url")
             self._download_data(url)
             self._extract_data(kwargs.get("remove_zip", True))
-            if rearrange_files:
+            if self._state.get("rearrange_files", False):
                 self._rearrange_data()
 
             # Update datasets JSON
             self._state["files"] = self._get_file_list()
-            if self._dir not in existing_data_paths:
-                existing_data_paths.extend([self._dir])
-            self._state["data_path"] = existing_data_paths
-
-            # Save the updated dataset information
+            existing = set(self.existing_data_paths)
+            existing.add(self._dir)
+            self._state["data_path"] = list(existing)
             save_config({self._data_name: self._state}, DatasetsManager.json_path["user"])
 
-        # Return subdirectory paths if present
-        if self._subdirs and not rearrange_files:
-            self.subdirs = [os.path.join(self._dir, subdir) for subdir in self._subdirs]
-        else:
-            self.subdirs = []
+        self.subdirs = [os.path.join(self._dir, subdir) for subdir in self._subdirs]
         self.dir = self._dir
+
+    def remove(self, data_name: str, instance: str = "all"):
+        """
+        Removes directories of all or defined instances of the specified dataset.
+
+        Args:
+            data_name (str): Name of the dataset.
+            instance (str): Name of the instance to remove. Default is "all".
+        """
+        self.data_name = data_name
+        existing = self.existing_data_paths
+        if not existing:
+            logger.info(f"{data_name} data is not present.")
+            return
+
+        if instance == "all":
+            for path in existing:
+                if os.path.exists(path):
+                    shutil.rmtree(path)
+                    logger.info(f"Removed {path}")
+            existing.clear()
+        else:
+            if instance not in existing:
+                logger.info(f"{instance} instance of {data_name} data is not present.")
+                return
+            if os.path.exists(instance):
+                shutil.rmtree(instance)
+                logger.info(f"Removed {instance}")
+            existing.remove(instance)
+
+        # Update datasets JSON
+        self._state["data_path"] = existing
+        save_config({self._data_name: self._state}, DatasetsManager.json_path["user"])
 
 
 dataset = Dataset()
