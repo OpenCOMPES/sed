@@ -8,7 +8,7 @@ from importlib.util import find_spec
 import pytest
 
 from sed.core.user_dirs import USER_CONFIG_PATH
-from sed.dataset import datasets as ds
+from sed.dataset import dataset as ds
 
 package_dir = os.path.dirname(find_spec("sed").origin)
 json_path = os.path.join(package_dir, "datasets.json")

@@ -321,8 +321,8 @@ class Dataset:
 
             # Update datasets JSON
             self._state["files"] = self._get_file_list()
-            if datasets._dir not in existing_data_paths:
-                existing_data_paths.extend([datasets._dir])
+            if self._dir not in existing_data_paths:
+                existing_data_paths.extend([self._dir])
             self._state["data_path"] = existing_data_paths
 
             # Save the updated dataset information
@@ -368,4 +368,4 @@ class Dataset:
                 logger.info(f"Removed {data_name} dataset from {level} datasets.json")
 
 
-datasets = Dataset()
+dataset = Dataset()
