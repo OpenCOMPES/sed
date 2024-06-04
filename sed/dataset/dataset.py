@@ -47,13 +47,12 @@ class DatasetsManager:
         if not os.path.exists(DatasetsManager.json_path["user"]):
             shutil.copy(DatasetsManager.json_path["module"], DatasetsManager.json_path["user"])
 
-        datasets = parse_config(
+        return parse_config(
             folder_config=DatasetsManager.json_path["folder"],
             system_config=DatasetsManager.json_path["user"],
             default_config=DatasetsManager.json_path["module"],
             verbose=False,
         )
-        return datasets
 
     @staticmethod
     def add(data_name: str, info: dict, levels: list = ["user"]):
@@ -97,7 +96,7 @@ class DatasetsManager:
 
 class Dataset:
     def __init__(self):
-        self._datasets = DatasetsManager.load_datasets_dict()
+        self._datasets: dict = DatasetsManager.load_datasets_dict()
         self._dir: str = None
         self._subdirs: list[str] = None
         self._data_name: str = None
@@ -113,6 +112,7 @@ class Dataset:
         Returns:
             list: List of available datasets.
         """
+        self._datasets = DatasetsManager.load_datasets_dict()
         # remove Test from available datasets
         return [dataset for dataset in self._datasets if dataset != "Test"]
 
@@ -144,6 +144,7 @@ class Dataset:
     def data_name(self, value: str):
         """Set the data name and update the state."""
         self._data_name = value
+        self._datasets = DatasetsManager.load_datasets_dict()
         self._state = self._check_dataset_availability()
         self._subdirs = self._state.get("subdirs", [])
 

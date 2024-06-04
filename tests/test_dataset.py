@@ -93,8 +93,8 @@ def test_download_data(fs, requests_mock, zip_buffer):
     fs.create_dir("test")
     data_url = "http://test.com/files/file.zip"
     requests_mock.get(data_url, content=zip_buffer.getvalue())
-    ds.data_name = "Test"
-    ds._state["data_path"] = []
+    ds._data_name = "Test"
+    ds._state = {"data_path": []}
     ds._set_data_dir(root_dir="test", use_existing=True)
     ds._download_data(data_url)
     assert os.path.exists("test/datasets/Test/Test.zip")
