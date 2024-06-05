@@ -20,7 +20,7 @@ def test_get_files_to_read(config, h5_paths):
     subfolder = folder.joinpath("buffer")
     # set to false to avoid creating buffer files unnecessarily
     bh = BufferHandler(config)
-    bh.get_files_to_read(h5_paths, folder, "", "", False)
+    bh._get_files_to_read(h5_paths, folder, "", "", False)
 
     assert len(bh.missing_h5_files) == len(h5_paths)
     assert len(bh.save_paths) == len(h5_paths)
@@ -35,13 +35,13 @@ def test_get_files_to_read(config, h5_paths):
     # create only one buffer file
     bh._save_buffer_file(h5_paths[0], expected_buffer_paths[0])
     # check again for files to read
-    bh.get_files_to_read(h5_paths, folder, "", "", False)
+    bh._get_files_to_read(h5_paths, folder, "", "", False)
     # check that only one file is to be read
     assert len(bh.missing_h5_files) == len(h5_paths) - 1
     Path(expected_buffer_paths[0]).unlink()  # remove buffer file
 
     # add prefix and suffix
-    bh.get_files_to_read(h5_paths, folder, "prefix", "suffix", False)
+    bh._get_files_to_read(h5_paths, folder, "prefix", "suffix", False)
 
     # expected buffer paths with prefix and suffix
     expected_buffer_paths = [
@@ -136,7 +136,7 @@ def test_get_filled_dataframe(config, h5_paths):
 
     df = pd.read_parquet(folder)
 
-    assert np.all(list(bh.dataframe_electron.columns) == list(df.columns) + ["dldSectorID"])
+    assert np.all(list(bh.df_electron.columns) == list(df.columns) + ["dldSectorID"])
 
     channel_pulse = get_channels(
         config["dataframe"]["channels"],
@@ -144,6 +144,6 @@ def test_get_filled_dataframe(config, h5_paths):
         index=True,
         extend_aux=True,
     )
-    assert np.all(list(bh.dataframe_pulse.columns) == channel_pulse)
+    assert np.all(list(bh.df_pulse.columns) == channel_pulse)
     # remove buffer files
     [path.unlink() for path in bh.buffer_paths]
