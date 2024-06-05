@@ -1,11 +1,13 @@
 """Utilities for loaders
 """
-from __future__ import annotations
-
 from glob import glob
 from pathlib import Path
 from typing import cast
+from typing import Dict
+from typing import List
 from typing import Sequence
+from typing import Tuple
+from typing import Union
 
 import dask.dataframe
 import numpy as np
@@ -23,7 +25,7 @@ def gather_files(
     f_end: int = None,
     f_step: int = 1,
     file_sorting: bool = True,
-) -> list[str]:
+) -> List[str]:
     """Collects and sorts files with specified extension from a given folder.
 
     Args:
@@ -39,13 +41,13 @@ def gather_files(
             Defaults to True.
 
     Returns:
-        list[str]: list of collected file names.
+        List[str]: List of collected file names.
     """
     try:
         files = glob(folder + "/*." + extension)
 
         if file_sorting:
-            files = cast(list[str], natsorted(files))
+            files = cast(List[str], natsorted(files))
 
         if f_start is not None and f_end is not None:
             files = files[slice(f_start, f_end, f_step)]
@@ -57,7 +59,7 @@ def gather_files(
     return files
 
 
-def parse_h5_keys(h5_file: File, prefix: str = "") -> list[str]:
+def parse_h5_keys(h5_file: File, prefix: str = "") -> List[str]:
     """Helper method which parses the channels present in the h5 file
     Args:
         h5_file (h5py.File): The H5 file object.
@@ -65,7 +67,7 @@ def parse_h5_keys(h5_file: File, prefix: str = "") -> list[str]:
         Defaults to an empty string.
 
     Returns:
-        list[str]: A list of channel names in the H5 file.
+        List[str]: A list of channel names in the H5 file.
 
     Raises:
         Exception: If an error occurs while parsing the keys.
@@ -146,12 +148,12 @@ def split_channel_bitwise(
 
 
 def split_dld_time_from_sector_id(
-    df: pd.DataFrame | dask.dataframe.DataFrame,
+    df: Union[pd.DataFrame, dask.dataframe.DataFrame],
     tof_column: str = None,
     sector_id_column: str = None,
     sector_id_reserved_bits: int = None,
     config: dict = None,
-) -> tuple[pd.DataFrame | dask.dataframe.DataFrame, dict]:
+) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], Dict]:
     """Converts the 8s time in steps to time in steps and sectorID.
 
     The 8s detector encodes the dldSectorID in the 3 least significant bits of the
@@ -206,7 +208,7 @@ def split_dld_time_from_sector_id(
     return df, {"split_dld_time_from_sector_id": metadata}
 
 
-def get_parquet_metadata(file_paths: list[Path]) -> dict[str, dict]:
+def get_parquet_metadata(file_paths: List[Path]) -> Dict[str, Dict]:
     organized_metadata = {}
     for i, file_path in enumerate(file_paths):
         # Read the metadata for the file
