@@ -56,7 +56,8 @@ class FlashLoader(BaseLoader):
             config (dict): Configuration dictionary.
         """
         super().__init__(config=config)
-        self.instrument = self._config["core"].get("instrument", "hextof")  # default is hextof
+        self.instrument: str = self._config["core"].get("instrument", "hextof")  # default is hextof
+        self._metadata: dict = {}
 
     def initialize_dirs(self) -> tuple[list[Path], Path]:
         """
@@ -244,7 +245,7 @@ class FlashLoader(BaseLoader):
         t0 = time.time()
 
         data_raw_dir, data_parquet_dir = self.initialize_dirs()
-
+        self._metadata.update(metadata)
         # Prepare a list of names for the runs to read and parquets to write
         if runs is not None:
             files = []
@@ -294,12 +295,12 @@ class FlashLoader(BaseLoader):
         if self.instrument == "wespe":
             df, df_timed = wespe_convert(df, df_timed)
 
-        metadata = self.parse_metadata(**kwds) if collect_metadata else {}
-        metadata.update(bh.metadata)
+        self._metadata.update(self.parse_metadata(**kwds) if collect_metadata else {})
+        self._metadata.update(bh.metadata)
 
         print(f"loading complete in {time.time() - t0: .2f} s")
 
-        return df, df_timed, metadata
+        return df, df_timed, self._metadata
 
 
 class DataFrameCreator:
