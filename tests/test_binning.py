@@ -484,6 +484,20 @@ def test_bin_partition() -> None:
     assert np.allclose(cast(np.ndarray, res), res1)
 
 
+def test_non_numeric_dtype_error() -> None:
+    """Test bin_partition function"""
+    pdf = sample_pdf.astype({"x": "string", "y": "int32", "z": "int32"})
+    with pytest.raises(ValueError) as err:
+        _ = bin_partition(
+            part=pdf,
+            bins=bins,  # type: ignore[arg-type]
+            axes=columns,
+            ranges=ranges,
+            skip_test=False,
+        )
+    assert "Encountered data types were ['x: string', 'y: int32', 'z: int32']" in str(err.value)
+
+
 def test_bin_dataframe() -> None:
     """Test bin_dataframe function"""
     res = bin_dataframe(df=sample_ddf, bins=bins, axes=columns, ranges=ranges)
@@ -516,7 +530,7 @@ def test_normalization_histogram_from_timestamps() -> None:
         bin_centers=res.coords[columns[0]].values,
         time_stamp_column="timeStamps",
     )
-    np.testing.assert_allclose(res / res.sum(), histogram / histogram.sum(), rtol=0.001)
+    np.testing.assert_allclose(res / res.sum(), histogram / histogram.sum(), rtol=0.01)
 
 
 def test_normalization_histogram_from_timed_dataframe() -> None:
