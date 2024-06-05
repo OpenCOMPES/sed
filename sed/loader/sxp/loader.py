@@ -655,7 +655,7 @@ class SXPLoader(BaseLoader):
             df = df.dropna(subset=self._config["dataframe"].get("tof_column", "dldTimeSteps"))
             # correct the 3 bit shift which encodes the detector ID in the 8s time
             if self._config["dataframe"].get("split_sector_id_from_dld_time", False):
-                df = split_dld_time_from_sector_id(df, config=self._config)
+                df, _ = split_dld_time_from_sector_id(df, config=self._config)
             return df
 
     def create_buffer_file(self, h5_path: Path, parquet_path: Path) -> Union[bool, Exception]:

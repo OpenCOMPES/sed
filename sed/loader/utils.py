@@ -1,14 +1,16 @@
 """Utilities for loaders
 """
+from __future__ import annotations
+
 from glob import glob
+from pathlib import Path
 from typing import cast
-from typing import List
 from typing import Sequence
-from typing import Union
 
 import dask.dataframe
 import numpy as np
 import pandas as pd
+import pyarrow.parquet as pq
 from h5py import File
 from h5py import Group
 from natsort import natsorted
@@ -21,7 +23,7 @@ def gather_files(
     f_end: int = None,
     f_step: int = 1,
     file_sorting: bool = True,
-) -> List[str]:
+) -> list[str]:
     """Collects and sorts files with specified extension from a given folder.
 
     Args:
@@ -37,13 +39,13 @@ def gather_files(
             Defaults to True.
 
     Returns:
-        List[str]: List of collected file names.
+        list[str]: list of collected file names.
     """
     try:
         files = glob(folder + "/*." + extension)
 
         if file_sorting:
-            files = cast(List[str], natsorted(files))
+            files = cast(list[str], natsorted(files))
 
         if f_start is not None and f_end is not None:
             files = files[slice(f_start, f_end, f_step)]
@@ -55,7 +57,7 @@ def gather_files(
     return files
 
 
-def parse_h5_keys(h5_file: File, prefix: str = "") -> List[str]:
+def parse_h5_keys(h5_file: File, prefix: str = "") -> list[str]:
     """Helper method which parses the channels present in the h5 file
     Args:
         h5_file (h5py.File): The H5 file object.
@@ -63,7 +65,7 @@ def parse_h5_keys(h5_file: File, prefix: str = "") -> List[str]:
         Defaults to an empty string.
 
     Returns:
-        List[str]: A list of channel names in the H5 file.
+        list[str]: A list of channel names in the H5 file.
 
     Raises:
         Exception: If an error occurs while parsing the keys.
@@ -144,12 +146,12 @@ def split_channel_bitwise(
 
 
 def split_dld_time_from_sector_id(
-    df: Union[pd.DataFrame, dask.dataframe.DataFrame],
+    df: pd.DataFrame | dask.dataframe.DataFrame,
     tof_column: str = None,
     sector_id_column: str = None,
     sector_id_reserved_bits: int = None,
     config: dict = None,
-) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
+) -> tuple[pd.DataFrame | dask.dataframe.DataFrame, dict]:
     """Converts the 8s time in steps to time in steps and sectorID.
 
     The 8s detector encodes the dldSectorID in the 3 least significant bits of the
@@ -183,15 +185,42 @@ def split_dld_time_from_sector_id(
             raise ValueError('No value for "sector_id_reserved_bits" found in config.')
 
     if sector_id_column in df.columns:
-        raise ValueError(
-            f"Column {sector_id_column} already in dataframe. This function is not idempotent.",
+        metadata = {"applied": False, "reason": f"Column {sector_id_column} already in dataframe"}
+    else:
+        # Split the time-of-flight column into sector ID and time-of-flight steps
+        df = split_channel_bitwise(
+            df=df,
+            input_column=tof_column,
+            output_columns=[sector_id_column, tof_column],
+            bit_mask=sector_id_reserved_bits,
+            overwrite=True,
+            types=[np.int8, np.int32],
         )
-    df = split_channel_bitwise(
-        df=df,
-        input_column=tof_column,
-        output_columns=[sector_id_column, tof_column],
-        bit_mask=sector_id_reserved_bits,
-        overwrite=True,
-        types=[np.int8, np.int32],
-    )
-    return df
+        metadata = {
+            "applied": True,
+            "tof_column": tof_column,
+            "sector_id_column": sector_id_column,
+            "sector_id_reserved_bits": sector_id_reserved_bits,
+        }
+
+    return df, {"split_dld_time_from_sector_id": metadata}
+
+
+def get_parquet_metadata(file_paths: list[Path]) -> dict[str, dict]:
+    organized_metadata = {}
+    for i, file_path in enumerate(file_paths):
+        # Read the metadata for the file
+        file_meta = pq.read_metadata(file_path)
+
+        # Convert the metadata to a dictionary and remove "row_groups"
+        # as they contain a lot of info that is not needed
+        metadata_dict = file_meta.to_dict()
+        metadata_dict.pop("row_groups", None)
+
+        # Add the filename to the metadata dictionary
+        metadata_dict["filename"] = str(file_path.name)
+
+        # Add the metadata dictionary to the organized_metadata dictionary
+        organized_metadata[f"file_{i + 1}"] = metadata_dict
+
+    return organized_metadata

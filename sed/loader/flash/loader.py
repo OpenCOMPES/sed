@@ -33,6 +33,7 @@ from sed.loader.base.loader import BaseLoader
 from sed.loader.flash.metadata import MetadataRetriever
 from sed.loader.flash.utils import get_channels
 from sed.loader.flash.utils import initialize_paths
+from sed.loader.utils import get_parquet_metadata
 from sed.loader.utils import split_dld_time_from_sector_id
 
 
@@ -247,7 +248,6 @@ class FlashLoader(BaseLoader):
         # Prepare a list of names for the runs to read and parquets to write
         if runs is not None:
             files = []
-            run_files_dict = {}  # Useful for saving entire runs
             if isinstance(runs, (str, int)):
                 runs = [runs]
             for run in runs:
@@ -256,7 +256,6 @@ class FlashLoader(BaseLoader):
                     folders=[str(folder.resolve()) for folder in data_raw_dir],
                     extension=ftype,
                 )
-                run_files_dict[str(run)] = run_files
                 files.extend(run_files)
             self.runs = list(runs)
             super().read_dataframe(files=files, ftype=ftype)
@@ -289,13 +288,15 @@ class FlashLoader(BaseLoader):
             suffix=detector,
             debug=debug,
         )
-        df = bh.dataframe_electron
-        df_timed = bh.dataframe_pulse
+        df = bh.df_electron
+        df_timed = bh.df_pulse
 
         if self.instrument == "wespe":
             df, df_timed = wespe_convert(df, df_timed)
 
         metadata = self.parse_metadata(**kwds) if collect_metadata else {}
+        metadata.update(bh.metadata)
+
         print(f"loading complete in {time.time() - t0: .2f} s")
 
         return df, df_timed, metadata
@@ -576,10 +577,11 @@ class BufferHandler:
         self.missing_h5_files: list[Path] = []
         self.save_paths: list[Path] = []
 
-        self.dataframe_electron: dd.DataFrame = None
-        self.dataframe_pulse: dd.DataFrame = None
+        self.df_electron: dd.DataFrame = None
+        self.df_pulse: dd.DataFrame = None
+        self.metadata: dict = {}
 
-    def schema_check(self) -> None:
+    def _schema_check(self) -> None:
         """
         Checks the schema of the Parquet files.
 
@@ -593,6 +595,10 @@ class BufferHandler:
         )
 
         for i, schema in enumerate(parquet_schemas):
+            if self._config["sector_id_column"] in schema.names:
+                config_schema.add(
+                    self._config["sector_id_column"],
+                )  # for compatibility with old files
             schema_set = set(schema.names)
             if schema_set != config_schema:
                 missing_in_parquet = config_schema - schema_set
@@ -613,7 +619,7 @@ class BufferHandler:
                     "Please check the configuration file or set force_recreate to True.",
                 )
 
-    def get_files_to_read(
+    def _get_files_to_read(
         self,
         h5_paths: list[Path],
         folder: Path,
@@ -674,7 +680,7 @@ class BufferHandler:
         # Reset the index of the DataFrame and save it as a parquet file
         df.reset_index().to_parquet(parquet_path)
 
-    def save_buffer_files(self, debug: bool) -> None:
+    def _save_buffer_files(self, debug: bool) -> None:
         """
         Creates the buffer files.
 
@@ -692,12 +698,12 @@ class BufferHandler:
                     for h5_path, parquet_path in zip(self.missing_h5_files, self.save_paths)
                 )
 
-    def fill_dataframes(self, files: Sequence[Path]) -> tuple[dd.DataFrame, dd.DataFrame]:
+    def _fill_dataframes(self):
         """
         Reads all parquet files into one dataframe using dask and fills NaN values.
         """
-        dataframe = dd.read_parquet(files, calculate_divisions=True)
-        metadata = [pq.read_metadata(file) for file in files]
+        dataframe = dd.read_parquet(self.buffer_paths, calculate_divisions=True)
+        file_metadata = get_parquet_metadata(self.buffer_paths)
 
         channels: list[str] = get_channels(
             self._config["channels"],
@@ -705,18 +711,23 @@ class BufferHandler:
             extend_aux=True,
         )
         index: list[str] = get_channels(index=True)
-        overlap = min(file.num_rows for file in metadata)
-
+        overlap = min(file["num_rows"] for file in file_metadata.values())
+        self.metadata["buffer_file_metadata"] = file_metadata
         dataframe = forward_fill_lazy(
             df=dataframe,
             columns=channels,
             before=overlap,
             iterations=self._config.get("forward_fill_iterations", 2),
         )
+        self.metadata["forward_fill"] = {
+            "columns": channels,
+            "overlap": overlap,
+            "iterations": self._config.get("forward_fill_iterations", 2),
+        }
 
         # Drop rows with nan values in the tof column
         tof_column = self._config.get("tof_column", "dldTimeSteps")
-        dataframe_electron = dataframe.dropna(subset=tof_column)
+        df_electron = dataframe.dropna(subset=tof_column)
 
         # Set the dtypes of the channels here as there should be no null values
         channel_dtypes = get_channels(self._config["channels"], "all")
@@ -729,11 +740,14 @@ class BufferHandler:
 
         # Correct the 3-bit shift which encodes the detector ID in the 8s time
         if self._config.get("split_sector_id_from_dld_time", False):
-            dataframe_electron = split_dld_time_from_sector_id(
-                dataframe_electron,
+            df_electron, meta = split_dld_time_from_sector_id(
+                df_electron,
                 config=self._config,
             )
-        return dataframe_electron.astype(dtypes), dataframe[index + channels]
+            self.metadata.update(meta)
+
+        self.df_electron = df_electron.astype(dtypes)
+        self.df_pulse = dataframe[index + channels]
 
     def run(
         self,
@@ -756,14 +770,14 @@ class BufferHandler:
             debug (bool): Flag to enable debug mode.):
         """
 
-        self.get_files_to_read(h5_paths, folder, prefix, suffix, force_recreate)
+        self._get_files_to_read(h5_paths, folder, prefix, suffix, force_recreate)
 
         if not force_recreate:
-            self.schema_check()
+            self._schema_check()
 
-        self.save_buffer_files(debug)
+        self._save_buffer_files(debug)
 
-        self.dataframe_electron, self.dataframe_pulse = self.fill_dataframes(self.buffer_paths)
+        self._fill_dataframes()
 
 
 def wespe_convert(df: dd.DataFrame, df_timed: dd.DataFrame) -> tuple[dd.DataFrame, dd.DataFrame]:
