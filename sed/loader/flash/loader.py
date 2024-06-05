@@ -211,7 +211,7 @@ class FlashLoader(BaseLoader):
         folders: str | Sequence[str] = None,
         runs: str | Sequence[str] = None,
         ftype: str = "h5",
-        metadata: dict = None,
+        metadata: dict = {},
         collect_metadata: bool = False,
         detector: str = "",
         force_recreate: bool = False,
