@@ -25,7 +25,6 @@ jobs:
         with:
           python-version: 3.8
           poetry-version: 1.2.2
-          install-args: --all-extras
 
       # Run pytest with coverage report, saving to xml
       - name: Run tests on python 3.8
