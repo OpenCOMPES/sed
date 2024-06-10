@@ -163,7 +163,7 @@ def test_has_correct_read_dataframe_func(loader: BaseLoader, read_type: str) -> 
 
     if loader.__name__ in {"flash", "sxp"}:
         loader = cast(FlashLoader, loader)
-        _, parquet_data_dir = loader.initialize_dirs()
+        _, parquet_data_dir = loader._initialize_dirs()
         for file in os.listdir(Path(parquet_data_dir, "buffer")):
             os.remove(Path(parquet_data_dir, "buffer", file))
 
@@ -196,7 +196,7 @@ def test_timed_dataframe(loader: BaseLoader) -> None:
             if loaded_timed_dataframe is None:
                 if loader.__name__ in {"flash", "sxp"}:
                     loader = cast(FlashLoader, loader)
-                    _, parquet_data_dir = loader.initialize_dirs()
+                    _, parquet_data_dir = loader._initialize_dirs()
                     for file in os.listdir(Path(parquet_data_dir, "buffer")):
                         os.remove(Path(parquet_data_dir, "buffer", file))
                 pytest.skip("Not implemented")
@@ -206,7 +206,7 @@ def test_timed_dataframe(loader: BaseLoader) -> None:
 
     if loader.__name__ in {"flash", "sxp"}:
         loader = cast(FlashLoader, loader)
-        _, parquet_data_dir = loader.initialize_dirs()
+        _, parquet_data_dir = loader._initialize_dirs()
         for file in os.listdir(Path(parquet_data_dir, "buffer")):
             os.remove(Path(parquet_data_dir, "buffer", file))
 
@@ -240,7 +240,7 @@ def test_get_count_rate(loader: BaseLoader) -> None:
             if loaded_time is None and loaded_countrate is None:
                 if loader.__name__ in {"flash", "sxp"}:
                     loader = cast(FlashLoader, loader)
-                    _, parquet_data_dir = loader.initialize_dirs()
+                    _, parquet_data_dir = loader._initialize_dirs()
                     for file in os.listdir(Path(parquet_data_dir, "buffer")):
                         os.remove(Path(parquet_data_dir, "buffer", file))
                 pytest.skip("Not implemented")
@@ -251,7 +251,7 @@ def test_get_count_rate(loader: BaseLoader) -> None:
 
     if loader.__name__ in {"flash", "sxp"}:
         loader = cast(FlashLoader, loader)
-        _, parquet_data_dir = loader.initialize_dirs()
+        _, parquet_data_dir = loader._initialize_dirs()
         for file in os.listdir(Path(parquet_data_dir, "buffer")):
             os.remove(Path(parquet_data_dir, "buffer", file))
 
@@ -283,9 +283,9 @@ def test_get_elapsed_time(loader: BaseLoader) -> None:
             )
             elapsed_time = loader.get_elapsed_time()
             if elapsed_time is None:
-                if loader.__name__ in {"flash", "sxp"}:
+                if loader.__name__ in {"sxp"}:
                     loader = cast(FlashLoader, loader)
-                    _, parquet_data_dir = loader.initialize_dirs()
+                    _, parquet_data_dir = loader._initialize_dirs()
                     for file in os.listdir(Path(parquet_data_dir, "buffer")):
                         os.remove(Path(parquet_data_dir, "buffer", file))
                 pytest.skip("Not implemented")
@@ -296,7 +296,7 @@ def test_get_elapsed_time(loader: BaseLoader) -> None:
 
     if loader.__name__ in {"flash", "sxp"}:
         loader = cast(FlashLoader, loader)
-        _, parquet_data_dir = loader.initialize_dirs()
+        _, parquet_data_dir = loader._initialize_dirs()
         for file in os.listdir(Path(parquet_data_dir, "buffer")):
             os.remove(Path(parquet_data_dir, "buffer", file))
 
