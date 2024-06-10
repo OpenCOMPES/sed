@@ -173,7 +173,7 @@ class FlashLoader(BaseLoader):
         metadata = metadata_retriever.get_metadata(
             beamtime_id=self._config["core"]["beamtime_id"],
             runs=self.runs,
-            metadata=self.metadata,
+            metadata=self._metadata,
         )
 
         return metadata
@@ -203,13 +203,11 @@ class FlashLoader(BaseLoader):
             KeyError: If a file ID in fids or a run ID in 'runs' does not exist in the metadata.
         """
         try:
-            file_statistics = self.metadata.get("file_statistics")
-        except KeyError as exc:
+            file_statistics = self._metadata["file_statistics"]
+        except Exception as exc:
             raise KeyError(
                 "File statistics missing. Use 'read_dataframe' first.",
             ) from exc
-
-        runs = kwds.get("runs", None)
 
         def get_elapsed_time_from_fid(fid):
             try:
@@ -229,13 +227,13 @@ class FlashLoader(BaseLoader):
             return sum(get_elapsed_time_from_fid(fid) for fid in fids)
 
         elapsed_times = []
+        runs = kwds.get("runs")
         if runs is not None:
             elapsed_times = [get_elapsed_time_from_run(run) for run in runs]
-
-        if fids is None:
-            fids = range(len(self.files))
-
-        elapsed_times = [get_elapsed_time_from_fid(fid) for fid in fids]
+        else:
+            if fids is None:
+                fids = range(len(self.files))
+            elapsed_times = [get_elapsed_time_from_fid(fid) for fid in fids]
 
         if kwds.get("aggregate", True):
             elapsed_times = sum(elapsed_times)
