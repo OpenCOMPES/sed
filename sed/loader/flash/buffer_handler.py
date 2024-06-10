@@ -76,7 +76,8 @@ class BufferHandler:
 
                 raise ValueError(
                     f"The available channels do not match the schema of file {filename}. "
-                    f"{' '.join(errors)}",
+                    f"{' '.join(errors)}. "
+                    "Please check the configuration file or set force_recreate to True.",
                 )
 
     def _get_files_to_read(
@@ -165,7 +166,7 @@ class BufferHandler:
         dataframe = dd.read_parquet(self.buffer_paths, calculate_divisions=True)
         file_metadata = get_parquet_metadata(
             self.buffer_paths,
-            time_stamp_col=self._config["time_stamp_alias", "timeStamp"],
+            time_stamp_col=self._config.get("time_stamp_alias", "timeStamp"),
         )
         self.metadata["file_statistics"] = file_metadata
 

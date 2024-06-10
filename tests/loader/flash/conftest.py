@@ -3,6 +3,7 @@
 import os
 import shutil
 from importlib.util import find_spec
+from pathlib import Path
 
 import h5py
 import pytest
@@ -68,7 +69,9 @@ def fixture_h5_paths():
     Returns:
         list: A list of h5 file paths.
     """
-    return [os.path.join(package_dir, f"../tests/data/loader/flash/{path}") for path in H5_PATHS]
+    return [
+        Path(os.path.join(package_dir, f"../tests/data/loader/flash/{path}")) for path in H5_PATHS
+    ]
 
 
 # @pytest.fixture(name="pulserSignAdc_channel_array")

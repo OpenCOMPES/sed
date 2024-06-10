@@ -60,16 +60,14 @@ def test_initialize_dirs(
 
     # Instance of class with correct config and call initialize_dirs
     fl = FlashLoader(config=config)
-    data_raw_dir, data_parquet_dir = fl._initialize_dirs()
 
-    assert str(expected_raw_path) == data_raw_dir
-    assert str(expected_processed_path) == data_parquet_dir
+    assert str(expected_raw_path) == fl.raw_dir
+    assert str(expected_processed_path) == fl.parquet_dir
 
     # remove breamtimeid, year and daq from config to raise error
     del config["core"]["beamtime_id"]
-    fl = FlashLoader(config=config)
     with pytest.raises(ValueError) as e:
-        _, _ = fl._initialize_dirs()
+        fl = FlashLoader(config=config)
     print(e.value)
     assert "The beamtime_id and year are required." in str(e.value)
 
@@ -85,8 +83,8 @@ def test_initialize_dirs_filenotfound(config_file: dict) -> None:
     config["core"]["year"] = "2000"
 
     # Instance of class with correct config and call initialize_dirs
-    fl = FlashLoader(config=config)
     with pytest.raises(FileNotFoundError):
+        fl = FlashLoader(config=config)
         _, _ = fl._initialize_dirs()
 
 

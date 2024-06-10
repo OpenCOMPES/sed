@@ -246,7 +246,7 @@ class FlashLoader(BaseLoader):
         self,
         files: str | Sequence[str] = None,
         folders: str | Sequence[str] = None,
-        runs: str | int | Sequence[str] | Sequence[int] = None,
+        runs: str | int | Sequence[str | int] = None,
         ftype: str = "h5",
         metadata: dict = {},
         collect_metadata: bool = False,
@@ -285,15 +285,14 @@ class FlashLoader(BaseLoader):
         # Prepare a list of names for the runs to read and parquets to write
         if runs is not None:
             files = []
-            if isinstance(runs, (str, int)):
-                runs_ = [runs]
+            runs_ = [str(runs)] if isinstance(runs, (str, int)) else list(map(str, runs))
             for run in runs_:
                 run_files = self.get_files_from_run_id(
                     run_id=run,
                     folders=self.raw_dir,
                 )
                 files.extend(run_files)
-            self.runs = list(map(str, runs_))
+            self.runs = runs_
             super().read_dataframe(files=files, ftype=ftype)
         else:
             # This call takes care of files and folders. As we have converted runs into files

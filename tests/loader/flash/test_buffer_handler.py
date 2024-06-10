@@ -82,12 +82,12 @@ def test_buffer_schema_mismatch(config, h5_paths):
     with pytest.raises(ValueError) as e:
         bh = BufferHandler(config)
         bh.run(h5_paths=h5_paths, folder=folder, debug=True)
-    expected_error = e.value.args
+    expected_error = e.value.args[0]
 
     # Validate the specific error messages for schema mismatch
-    assert "The available channels do not match the schema of file" in expected_error[0]
-    assert expected_error[2] == "Missing in parquet: {'gmdTunnel2'}"
-    assert expected_error[4] == "Please check the configuration file or set force_recreate to True."
+    assert "The available channels do not match the schema of file" in expected_error
+    assert "Missing in parquet: {'gmdTunnel2'}" in expected_error
+    assert "Please check the configuration file or set force_recreate to True." in expected_error
 
     # Force recreation of the dataframe, including the added channel 'gmdTunnel2'
     bh = BufferHandler(config)
@@ -101,9 +101,9 @@ def test_buffer_schema_mismatch(config, h5_paths):
         bh = BufferHandler(config)
         bh.run(h5_paths=h5_paths, folder=folder, debug=True)
 
-    expected_error = e.value.args
+    expected_error = e.value.args[0]
     # Check for the specific error message indicating a missing channel in the configuration
-    assert expected_error[3] == "Missing in config: {'gmdTunnel2'}"
+    assert "Missing in config: {'gmdTunnel2'}" in expected_error
 
     # Clean up created buffer files after the test
     [path.unlink() for path in bh.buffer_paths]
