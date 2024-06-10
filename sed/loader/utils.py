@@ -208,21 +208,61 @@ def split_dld_time_from_sector_id(
     return df, {"split_dld_time_from_sector_id": metadata}
 
 
-def get_parquet_metadata(file_paths: List[Path]) -> Dict[str, Dict]:
+def get_timestamp_stats(meta: pq.FileMetaData, time_stamp_col: str) -> Tuple[int, int]:
+    """
+    Extracts the minimum and maximum timestamps from the metadata of a Parquet file.
+
+    Args:
+        meta (pq.FileMetaData): The metadata of the Parquet file.
+        time_stamp_col (str): The name of the column containing the timestamps.
+
+    Returns:
+        Tuple[int, int]: The minimum and maximum timestamps.
+    """
+    idx = meta.schema.names.index(time_stamp_col)
+    timestamps = []
+    for i in range(meta.num_row_groups):
+        stats = meta.row_group(i).column(idx).statistics
+        timestamps.append(stats.min)
+        timestamps.append(stats.max)
+
+    return min(timestamps), max(timestamps)
+
+
+def get_parquet_metadata(file_paths: List[Path], time_stamp_col: str) -> Dict[int, Dict]:
+    """
+    Extracts and organizes metadata from a list of Parquet files.
+
+    For each file, the function reads the metadata, adds the filename, and attempts to
+    extract the minimum and maximum timestamps. "row_groups" entry is removed from FileMetaData.
+
+    Args:
+        file_paths (List[Path]): A list of paths to the Parquet files.
+        time_stamp_col (str): The name of the column containing the timestamps.
+
+    Returns:
+        Dict[str, Dict]: A dictionary file index as key and the values as metadata of each file.
+    """
     organized_metadata = {}
     for i, file_path in enumerate(file_paths):
         # Read the metadata for the file
-        file_meta = pq.read_metadata(file_path)
-
-        # Convert the metadata to a dictionary and remove "row_groups"
-        # as they contain a lot of info that is not needed
+        file_meta: pq.FileMetaData = pq.read_metadata(file_path)
+        # Convert the metadata to a dictionary
         metadata_dict = file_meta.to_dict()
-        metadata_dict.pop("row_groups", None)
-
         # Add the filename to the metadata dictionary
         metadata_dict["filename"] = str(file_path.name)
 
+        # Get the timestamp min and max
+        try:
+            timestamps = get_timestamp_stats(file_meta, time_stamp_col)
+            metadata_dict["time_stamps"] = timestamps
+        except ValueError:
+            pass
+
+        # Remove "row_groups" as they contain a lot of info that is not needed
+        metadata_dict.pop("row_groups", None)
+
         # Add the metadata dictionary to the organized_metadata dictionary
-        organized_metadata[f"file_{i + 1}"] = metadata_dict
+        organized_metadata[i] = metadata_dict
 
     return organized_metadata

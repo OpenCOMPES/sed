@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from sed.loader.flash.loader import BufferHandler
+from sed.loader.flash.buffer_handler import BufferHandler
 from sed.loader.flash.utils import get_channels
 
 

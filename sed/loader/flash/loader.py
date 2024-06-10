@@ -109,7 +109,7 @@ class FlashLoader(BaseLoader):
 
     def get_files_from_run_id(  # type: ignore[override]
         self,
-        run_id: str,
+        run_id: str | int,
         folders: str | Sequence[str] = None,
         extension: str = "h5",
     ) -> list[str]:
@@ -162,31 +162,6 @@ class FlashLoader(BaseLoader):
         # Return the list of found files
         return [str(file.resolve()) for file in files]
 
-    def get_files_from_run_ids(
-        self,
-        runs: str | int | Sequence[str | int],
-    ) -> tuple[list[str], list[str]]:
-        """
-        Retrieves the file paths associated with a given set of run IDs.
-
-        Args:
-            runs (str | int | Sequence[str | int]): A single run ID or a list of run IDs.
-
-        Returns:
-            Tuple[List[str], List[str]]: List of runs and List of file paths.
-        """
-        files = []
-        if isinstance(runs, (str, int)):
-            runs = [runs]
-        runs_ = list(map(str, runs))  # convert all elements in runs to string
-        for run in runs_:
-            run_files = self.get_files_from_run_id(
-                run_id=run,
-                folders=self.raw_dir,
-            )
-            files.extend(run_files)
-        return runs_, files
-
     def parse_metadata(self, scicat_token: str = None) -> dict:
         """Uses the MetadataRetriever class to fetch metadata from scicat for each run.
 
@@ -210,8 +185,62 @@ class FlashLoader(BaseLoader):
     ):
         return None, None
 
-    def get_elapsed_time(self, fids=None, **kwds):  # noqa: ARG002
-        return None
+    def get_elapsed_time(self, fids: Sequence[int] = None, **kwds):  # noqa: ARG002
+        """
+        Calculates the elapsed time.
+
+        Args:
+            fids (Sequence[int]): A sequence of file IDs. Defaults to all files.
+            **kwds:
+                - runs: A sequence of run IDs. Takes precedence over fids.
+                - aggregate: Whether to return the sum of the elapsed times across
+                    the specified files or the elapsed time for each file. Defaults to True.
+
+        Returns:
+            Union[float, List[float]]: The elapsed time(s) in seconds.
+
+        Raises:
+            KeyError: If a file ID in fids or a run ID in 'runs' does not exist in the metadata.
+        """
+        try:
+            file_statistics = self.metadata.get("file_statistics")
+        except KeyError as exc:
+            raise KeyError(
+                "File statistics missing. Use 'read_dataframe' first.",
+            ) from exc
+
+        runs = kwds.get("runs", None)
+
+        def get_elapsed_time_from_fid(fid):
+            try:
+                time_stamps = file_statistics[fid]["time_stamps"]
+                elapsed_time = max(time_stamps) - min(time_stamps)
+            except KeyError as exc:
+                raise KeyError(
+                    f"Timestamp metadata missing in file {fid}."
+                    "Add timestamp column and alias to config before loading.",
+                ) from exc
+
+            return elapsed_time
+
+        def get_elapsed_time_from_run(run_id):
+            files = self.get_files_from_run_id(run_id=run_id, folders=self.raw_dir)
+            fids = [self.files.index(file) for file in files]
+            return sum(get_elapsed_time_from_fid(fid) for fid in fids)
+
+        elapsed_times = []
+        if runs is not None:
+            elapsed_times = [get_elapsed_time_from_run(run) for run in runs]
+
+        if fids is None:
+            fids = range(len(self.files))
+
+        elapsed_times = [get_elapsed_time_from_fid(fid) for fid in fids]
+
+        if kwds.get("aggregate", True):
+            elapsed_times = sum(elapsed_times)
+
+        return elapsed_times
 
     def read_dataframe(
         self,
@@ -255,8 +284,16 @@ class FlashLoader(BaseLoader):
         self._metadata.update(metadata)
         # Prepare a list of names for the runs to read and parquets to write
         if runs is not None:
-            runs, files = self.get_files_from_run_ids(runs)
-            self.runs = runs
+            files = []
+            if isinstance(runs, (str, int)):
+                runs_ = [runs]
+            for run in runs_:
+                run_files = self.get_files_from_run_id(
+                    run_id=run,
+                    folders=self.raw_dir,
+                )
+                files.extend(run_files)
+            self.runs = list(map(str, runs_))
             super().read_dataframe(files=files, ftype=ftype)
         else:
             # This call takes care of files and folders. As we have converted runs into files

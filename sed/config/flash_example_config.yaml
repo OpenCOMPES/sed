@@ -54,18 +54,20 @@ dataframe:
   tof_ns_column: dldTime
   # dataframe column containing corrected time-of-flight data
   corrected_tof_column: "tm"
+  # the time stamp column
+  time_stamp_alias: timeStamp
   # time length of a base time-of-flight bin in seconds
   tof_binwidth: 2.0576131995767355E-11
   # binning parameter for time-of-flight data. 2**tof_binning bins per base bin
   tof_binning: 3  # power of 2, 3 means 8 bins per step
   # dataframe column containing sector ID. obtained from dldTimeSteps column
   sector_id_column: dldSectorID
-
   sector_delays: [0., 0., 0., 0., 0., 0., 0., 0.]
   # the delay stage column
   delay_column: delayStage
   # the corrected pump-probe time axis
   corrected_delay_column: pumpProbeTime
+  # the columns to be used for jitter correction
   jitter_cols: ["dldPosX", "dldPosY", "dldTimeSteps"]
 
   units:

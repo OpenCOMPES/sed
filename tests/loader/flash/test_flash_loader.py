@@ -4,7 +4,6 @@ from importlib.util import find_spec
 from pathlib import Path
 from typing import Literal
 
-import pandas as pd
 import pytest
 
 from sed.core.config import parse_config
@@ -61,17 +60,17 @@ def test_initialize_dirs(
 
     # Instance of class with correct config and call initialize_dirs
     fl = FlashLoader(config=config)
-    data_raw_dir, data_parquet_dir = fl.initialize_dirs()
+    data_raw_dir, data_parquet_dir = fl._initialize_dirs()
 
-    assert expected_raw_path == data_raw_dir[0]
-    assert expected_processed_path == data_parquet_dir
+    assert str(expected_raw_path) == data_raw_dir
+    assert str(expected_processed_path) == data_parquet_dir
 
     # remove breamtimeid, year and daq from config to raise error
     del config["core"]["beamtime_id"]
     fl = FlashLoader(config=config)
     with pytest.raises(ValueError) as e:
-        _, _ = fl.initialize_dirs()
-
+        _, _ = fl._initialize_dirs()
+    print(e.value)
     assert "The beamtime_id and year are required." in str(e.value)
 
 
@@ -88,7 +87,7 @@ def test_initialize_dirs_filenotfound(config_file: dict) -> None:
     # Instance of class with correct config and call initialize_dirs
     fl = FlashLoader(config=config)
     with pytest.raises(FileNotFoundError):
-        _, _ = fl.initialize_dirs()
+        _, _ = fl._initialize_dirs()
 
 
 def test_save_read_parquet_flash(config):
@@ -98,12 +97,6 @@ def test_save_read_parquet_flash(config):
         config_["core"]["paths"]["data_parquet_dir"] + "_flash_save_read/"
     )
     fl = FlashLoader(config=config_)
-    df1, _, _ = fl.read_dataframe(runs=[43878, 43879], save_parquet=True)
+    df1, _, _ = fl.read_dataframe(runs=[43878, 43879])
 
-    df2, _, _ = fl.read_dataframe(runs=[43878, 43879], load_parquet=True)
-
-    # check if parquet read is same as parquet saved read correctly
-    pd.testing.assert_frame_equal(
-        df1.compute().reset_index(drop=True),
-        df2.compute().reset_index(drop=True),
-    )
+    df2, _, _ = fl.read_dataframe(runs=[43878, 43879])

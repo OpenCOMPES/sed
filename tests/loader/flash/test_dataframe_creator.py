@@ -6,7 +6,7 @@ from pandas import DataFrame
 from pandas import Index
 from pandas import MultiIndex
 
-from sed.loader.flash.loader import DataFrameCreator
+from sed.loader.flash.dataframe import DataFrameCreator
 from sed.loader.flash.utils import get_channels
 
 
