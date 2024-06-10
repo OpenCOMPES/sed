@@ -42,20 +42,16 @@ class FlashLoader(BaseLoader):
         """
         super().__init__(config=config)
         self.instrument: str = self._config["core"].get("instrument", "hextof")  # default is hextof
-        self._metadata: dict = {}
-        self.raw_dir, self.parquet_dir = self._initialize_dirs()
+        self.raw_dir: str = None
+        self.parquet_dir: str = None
 
-    def _initialize_dirs(self) -> tuple[str, str]:
+    def _initialize_dirs(self) -> None:
         """
         Initializes the directories on Maxwell based on configuration. If paths is provided in
         the configuration, the raw data directory and parquet data directory are taken from there.
         Otherwise, the beamtime_id and year are used to locate the data directories.
         The first path that has either online- or express- prefix, or the daq name is taken as the
         raw data directory.
-
-        Returns:
-            Tuple[str, str]: A tuple containing raw data directory
-            and the parquet data directory.
 
         Raises:
             ValueError: If required values are missing from the configuration.
@@ -105,7 +101,8 @@ class FlashLoader(BaseLoader):
 
         data_parquet_dir.mkdir(parents=True, exist_ok=True)
 
-        return str(data_raw_dir[0].resolve()), str(data_parquet_dir)
+        self.raw_dir = str(data_raw_dir[0].resolve())
+        self.parquet_dir = str(data_parquet_dir)
 
     def get_files_from_run_id(  # type: ignore[override]
         self,
@@ -173,7 +170,7 @@ class FlashLoader(BaseLoader):
         metadata = metadata_retriever.get_metadata(
             beamtime_id=self._config["core"]["beamtime_id"],
             runs=self.runs,
-            metadata=self._metadata,
+            metadata=self.metadata,
         )
 
         return metadata
@@ -203,7 +200,7 @@ class FlashLoader(BaseLoader):
             KeyError: If a file ID in fids or a run ID in 'runs' does not exist in the metadata.
         """
         try:
-            file_statistics = self._metadata["file_statistics"]
+            file_statistics = self.metadata["file_statistics"]
         except Exception as exc:
             raise KeyError(
                 "File statistics missing. Use 'read_dataframe' first.",
@@ -222,6 +219,8 @@ class FlashLoader(BaseLoader):
             return elapsed_time
 
         def get_elapsed_time_from_run(run_id):
+            if self.raw_dir is None:
+                self._initialize_dirs()
             files = self.get_files_from_run_id(run_id=run_id, folders=self.raw_dir)
             fids = [self.files.index(file) for file in files]
             return sum(get_elapsed_time_from_fid(fid) for fid in fids)
@@ -279,7 +278,7 @@ class FlashLoader(BaseLoader):
         """
         t0 = time.time()
 
-        self._metadata.update(metadata)
+        self._initialize_dirs()
         # Prepare a list of names for the runs to read and parquets to write
         if runs is not None:
             files = []
@@ -326,12 +325,12 @@ class FlashLoader(BaseLoader):
         if self.instrument == "wespe":
             df, df_timed = wespe_convert(df, df_timed)
 
-        self._metadata.update(self.parse_metadata(**kwds) if collect_metadata else {})
-        self._metadata.update(bh.metadata)
+        self.metadata.update(self.parse_metadata(**kwds) if collect_metadata else {})
+        self.metadata.update(bh.metadata)
 
         print(f"loading complete in {time.time() - t0: .2f} s")
 
-        return df, df_timed, self._metadata
+        return df, df_timed, self.metadata
 
 
 LOADER = FlashLoader

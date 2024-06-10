@@ -60,14 +60,14 @@ def test_initialize_dirs(
 
     # Instance of class with correct config and call initialize_dirs
     fl = FlashLoader(config=config)
-
+    fl._initialize_dirs()
     assert str(expected_raw_path) == fl.raw_dir
     assert str(expected_processed_path) == fl.parquet_dir
 
     # remove breamtimeid, year and daq from config to raise error
     del config["core"]["beamtime_id"]
     with pytest.raises(ValueError) as e:
-        fl = FlashLoader(config=config)
+        fl._initialize_dirs()
     print(e.value)
     assert "The beamtime_id and year are required." in str(e.value)
 
@@ -85,7 +85,7 @@ def test_initialize_dirs_filenotfound(config_file: dict) -> None:
     # Instance of class with correct config and call initialize_dirs
     with pytest.raises(FileNotFoundError):
         fl = FlashLoader(config=config)
-        _, _ = fl._initialize_dirs()
+        fl._initialize_dirs()
 
 
 def test_save_read_parquet_flash(config):
@@ -155,9 +155,9 @@ def test_get_elapsed_time_run(config_file):
     fl = FlashLoader(config=config_file)
 
     fl.read_dataframe(runs=[43878, 43879])
-    start, end = fl._metadata["file_statistics"][0]["time_stamps"]
+    start, end = fl.metadata["file_statistics"][0]["time_stamps"]
     expected_elapsed_time_0 = end - start
-    start, end = fl._metadata["file_statistics"][1]["time_stamps"]
+    start, end = fl.metadata["file_statistics"][1]["time_stamps"]
     expected_elapsed_time_1 = end - start
 
     elapsed_time = fl.get_elapsed_time(runs=[43878])
@@ -167,5 +167,5 @@ def test_get_elapsed_time_run(config_file):
     assert elapsed_time == [expected_elapsed_time_0, expected_elapsed_time_1]
 
     elapsed_time = fl.get_elapsed_time(runs=[43878, 43879])
-    start, end = fl._metadata["file_statistics"][1]["time_stamps"]
+    start, end = fl.metadata["file_statistics"][1]["time_stamps"]
     assert elapsed_time == expected_elapsed_time_0 + expected_elapsed_time_1
