@@ -25,6 +25,8 @@ class MetaHandler:
         INDENT_FACTOR = 20
         html = ""
         for key, value in attributes.items():
+            # Ensure the key is a string
+            key = str(key)
             # Format key
             formatted_key = key.replace("_", " ").title()
             formatted_key = f"<b>{formatted_key}</b>"
