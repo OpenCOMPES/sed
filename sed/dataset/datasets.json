@@ -6,7 +6,7 @@
             "energycal_2019_01_08"
         ]
     },
-    "Gd_W(110)": {
+    "Gd_W110": {
         "url": "https://zenodo.org/records/10658470/files/single_event_data.zip",
         "subdirs": [
             "analysis_data",
