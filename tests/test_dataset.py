@@ -7,7 +7,7 @@ from importlib.util import find_spec
 
 import pytest
 
-from sed.core.user_dirs import USER_CONFIG_PATH
+from sed.core.config import USER_CONFIG_PATH
 from sed.dataset import dataset as ds
 from sed.dataset import DatasetsManager as dm
 
