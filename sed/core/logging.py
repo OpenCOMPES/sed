@@ -10,21 +10,20 @@ from datetime import datetime
 
 # Default log directory
 DEFAULT_LOG_DIR = os.path.join(os.getcwd(), "logs")
+CONSOLE_VERBOSITY = logging.INFO
+FILE_VERBOSITY = logging.DEBUG
 
 
 def setup_logging(
     name: str,
-    verbosity: int = logging.WARNING,
-    user_log_path: str = None,
+    user_log_path: str = DEFAULT_LOG_DIR,
 ) -> logging.Logger:
     """
     Configures and returns a logger with specified log levels for console and file handlers.
 
     Args:
         name (str): The name of the logger.
-        verbosity (int): Logging level (logging.DEBUG, logging.INFO, logging.WARNING, etc.).
-                        Defaults to logging.INFO.
-        user_log_path (str): Path to the user-specific log directory. Defaults to None.
+        user_log_path (str): Path to the user-specific log directory. Defaults to DEFAULT_LOG_DIR.
 
     Returns:
         logging.Logger: The configured logger instance.
@@ -38,26 +37,27 @@ def setup_logging(
 
     # Create console handler and set level
     console_handler = logging.StreamHandler()
-    console_handler.setLevel(verbosity)
+    console_handler.setLevel(CONSOLE_VERBOSITY)
 
     # Create formatter for console
-    console_formatter = logging.Formatter("%(message)s")
+    console_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
     console_handler.setFormatter(console_formatter)
 
     # Add console handler to logger
     logger.addHandler(console_handler)
 
     # Determine log file path
-    log_dir = user_log_path or DEFAULT_LOG_DIR
-    os.makedirs(log_dir, exist_ok=True)
-    log_file = os.path.join(log_dir, f"sed_{datetime.now().strftime('%Y-%m-%d')}.log")
+    os.makedirs(user_log_path, exist_ok=True)
+    log_file = os.path.join(user_log_path, f"sed_{datetime.now().strftime('%Y-%m-%d')}.log")
 
     # Create file handler and set level to debug
     file_handler = logging.FileHandler(log_file)
-    file_handler.setLevel(logging.DEBUG)
+    file_handler.setLevel(FILE_VERBOSITY)
 
     # Create formatter for file
-    file_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    file_formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s in %(filename)s:%(lineno)d",
+    )
     file_handler.setFormatter(file_formatter)
 
     # Add file handler to logger
