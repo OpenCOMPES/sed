@@ -16,8 +16,9 @@ from tqdm import tqdm
 from sed.core.config import load_config
 from sed.core.config import parse_config
 from sed.core.config import save_config
+from sed.core.config import USER_CONFIG_PATH
 from sed.core.logging import setup_logging
-from sed.core.user_dirs import USER_CONFIG_PATH
+
 
 # Configure logging
 logger = setup_logging(__name__)
