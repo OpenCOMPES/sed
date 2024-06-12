@@ -9,6 +9,7 @@ sed functionality.
 """
 from __future__ import annotations
 
+import re
 import time
 from pathlib import Path
 from typing import Sequence
@@ -103,6 +104,21 @@ class FlashLoader(BaseLoader):
 
         self.raw_dir = str(data_raw_dir[0].resolve())
         self.parquet_dir = str(data_parquet_dir)
+
+    @property
+    def available_runs(self) -> list[int]:
+        # Get all files in raw_dir with "run" in their names
+        files = list(Path(self.raw_dir).glob("*run*"))
+
+        # Extract run IDs from filenames
+        run_ids = set()
+        for file in files:
+            match = re.search(r"run(\d+)", file.name)
+            if match:
+                run_ids.add(int(match.group(1)))
+
+        # Return run IDs in sorted order
+        return sorted(list(run_ids))
 
     def get_files_from_run_id(  # type: ignore[override]
         self,

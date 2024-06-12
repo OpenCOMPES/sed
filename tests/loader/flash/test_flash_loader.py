@@ -169,3 +169,27 @@ def test_get_elapsed_time_run(config_file):
     elapsed_time = fl.get_elapsed_time(runs=[43878, 43879])
     start, end = fl.metadata["file_statistics"][1]["time_stamps"]
     assert elapsed_time == expected_elapsed_time_0 + expected_elapsed_time_1
+
+
+def test_available_runs(monkeypatch, config_file):
+    """Test available_runs property of FlashLoader class"""
+    # Create an instance of FlashLoader
+    fl = FlashLoader(config=config_file)
+
+    # Mock the raw_dir and files
+    fl.raw_dir = "/path/to/raw_dir"
+    files = [
+        "run1_file1.h5",
+        "run3_file1.h5",
+        "run2_file1.h5",
+        "run1_file2.h5",
+    ]
+
+    # Mock the glob method to return the mock files
+    def mock_glob(*args, **kwargs):  # noqa: ARG001
+        return [Path(fl.raw_dir, file) for file in files]
+
+    monkeypatch.setattr(Path, "glob", mock_glob)
+
+    # Test available_runs
+    assert fl.available_runs == [1, 2, 3]
