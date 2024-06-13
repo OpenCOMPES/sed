@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 import shutil
 import zipfile
+from datetime import datetime
 
 import requests
 from tqdm import tqdm
@@ -313,6 +314,9 @@ class Dataset:
                         pbar.update(1)
                         continue
                     zip_ref.extract(file, self._dir)
+                    # Preserve original timestamp
+                    timestamp = datetime(*file.date_time).timestamp()
+                    os.utime(os.path.join(self._dir, file.filename), (timestamp, timestamp))
                     pbar.update(1)
         logger.info(f"{self._data_name} data extracted successfully.")
 
