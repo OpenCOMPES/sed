@@ -149,6 +149,7 @@ class Dataset:
         self._datasets = DatasetsManager.load_datasets_dict()
         self._state = self._check_dataset_availability()
         self._subdirs = self._state.get("subdirs", [])
+        self._set_data_dir(None, True)
 
     @property
     def existing_data_paths(self) -> list:
@@ -375,8 +376,8 @@ class Dataset:
         files_in_dir = self._get_file_list(kwargs.get("ignore_zip", True))
         file_list: dict = self._state.get("files", {})
 
-        # if file_list is same as files_in_dir, then don't download/extract data
-        if file_list == files_in_dir:
+        # if file_list is subset of/same as files_in_dir, then don't download/extract data
+        if file_list.items() <= files_in_dir.items():
             logger.info(f"{self._data_name} data is already present.")
         else:
             url: str = self._state.get("url")
