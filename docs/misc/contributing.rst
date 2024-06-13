@@ -30,7 +30,7 @@ Getting Started
 
 
 2. **Install Python and Poetry:**
-   - Ensure you have Python 3.8, 3.9, or 3.10 and poetry installed.
+   - Ensure you have Python 3.8, 3.9, 3.10 or 3.11 and poetry installed.
 
     .. code-block:: bash
 
@@ -55,7 +55,7 @@ Development Workflow
 =====================
 
 .. note::
-   This guide assumes that you have Python (version 3.8, 3.9, or 3.10) and poetry with dev dependencies installed on your machine.
+   This guide assumes that you have Python (version 3.8, 3.9, 3.10, 3.11) and poetry with dev dependencies installed on your machine.
 
 1. **Install pre-commit hooks:** To ensure your code is formatted correctly, install pre-commit hooks:
 
@@ -77,7 +77,7 @@ Development Workflow
 
     .. code-block:: bash
 
-        pytest sed tests
+        pytest tests
 
 
 5. **Commit Changes:** Commit your changes with a clear and concise commit message:
