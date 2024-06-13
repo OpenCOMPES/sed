@@ -360,7 +360,7 @@ class Dataset:
         file_list: list = self._state.get("files", [])
 
         # if all files are present, skip download
-        if all(file in files_in_dir for file in file_list):
+        if file_list and all(file in files_in_dir for file in file_list):
             logger.info(f"{self._data_name} data is already present.")
         else:
             url: str = self._state.get("url")
