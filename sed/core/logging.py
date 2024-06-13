@@ -6,6 +6,7 @@ log files are stored in a user-specific log directory.
 """
 import logging
 import os
+import sys
 from datetime import datetime
 
 # Default log directory
@@ -36,11 +37,11 @@ def setup_logging(
     logger.setLevel(logging.INFO)  # Set the minimum log level for the logger
 
     # Create console handler and set level
-    console_handler = logging.StreamHandler()
+    console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(CONSOLE_VERBOSITY)
 
     # Create formatter for console
-    console_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    console_formatter = logging.Formatter("%(message)s")
     console_handler.setFormatter(console_formatter)
 
     # Add console handler to logger
