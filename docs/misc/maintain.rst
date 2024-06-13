@@ -125,28 +125,19 @@ Release
 
 To create a release, follow these steps:
 
-   a. **Create a Git Tag:**
+   a. **Create a Git Release on Github:**
 
-      Before pushing the tag, ensure the release is ready to be made. Make sure to have the **v** prefix in the tag name.
+      - On the "tags" page, select "releases", and press "Draft a new release".
+      - At "choose a tag", type in the name of the new release tag. Make sure to have a **v** prefix in the tag name, e.g. **v0.1.10**.
+      - Confirm creation of the tag, and press "Generate release notes". Edit the notes as appropriate (e.g. remove auto-generated update PRs).
+      - Press "Publish release". This will create the new tag and release entry, and issue the build and upload to PyPI.
 
-    .. code-block:: bash
-
-      git tag -a v0.1.5 -m "Describe here what the release is about"
-
-   b. **Push the Tag to GitHub:**
-
-      After creating the tag, push it to the GitHub repository.
-
-    .. code-block:: bash
-
-      git push origin v0.1.5
-
-   c. **Check PyPI for the Published Package:**
+   b. **Check PyPI for the Published Package:**
 
       - Visit the PyPI page (https://pypi.org/project/sed-processor/).
-      - Confirm that the new version (e.g., 0.1.5) has been published.
+      - Confirm that the new version (e.g., 0.1.10) has been published.
 
-   d. **If you don't see update on PyPI:**
+   c. **If you don't see update on PyPI:**
 
       - Visit the GitHub Actions page and monitor the Release workflow (https://github.com/OpenCOMPES/sed/actions/workflows/release.yml).
       - Check if errors occured.
