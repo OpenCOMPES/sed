@@ -81,12 +81,11 @@ def test_get_file_list(fs):
     fs.create_file("test/data/subdir/file.zip")
     fs.create_file("test/data/file.zip")
     ds._dir = "test/data"
-    assert {"main_directory": ["file.txt"], "subdir": ["file.txt"]} == ds._get_file_list()
+    assert ["file.txt", "subdir/file.txt"] == ds._get_file_list()
 
-    assert {
-        "main_directory": ["file.txt", "file.zip"],
-        "subdir": ["file.txt", "file.zip"],
-    } == ds._get_file_list(ignore_zip=False)
+    assert ["file.txt", "file.zip", "subdir/file.txt", "subdir/file.zip"] == ds._get_file_list(
+        ignore_zip=False,
+    )
 
 
 def test_download_data(fs, requests_mock, zip_buffer):
@@ -148,5 +147,4 @@ def test_get_dataset(requests_mock, zip_buffer):
     datasets_json = json.load(open(json_path_user))
     assert datasets_json[data_name]["data_path"]
     assert datasets_json[data_name]["files"]
-
     shutil.rmtree(data_path_user)

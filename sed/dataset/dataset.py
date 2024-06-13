@@ -197,44 +197,28 @@ class Dataset:
             os.makedirs(self._dir)
             logger.info(f"Created new directory at {self._dir}")
 
-    def _get_file_list(self, ignore_zip: bool = True) -> dict:
+    def _get_file_list(self, ignore_zip: bool = True) -> list[str]:
         """
-        Returns a dictionary containing lists of files in each subdirectory
-        and files in the main directory.
+        Returns a list of file paths in the directory and its subdirectories.
 
         Args:
             ignore_zip (bool): Whether to ignore ZIP files. Default is True.
 
         Returns:
-            dict: Dictionary containing lists of files in each subdirectory and files
-                    in the main directory.
+            List[str]: List of file paths in the directory and its subdirectories.
         """
-        result = {}
-        main_dir_files = []
+        file_paths = []
 
-        # List all files and directories in the given directory
-        all_files_and_dirs = os.listdir(self._dir)
+        # Walk through directory and its subdirectories
+        for root, _, files in os.walk(self._dir):
+            for file in files:
+                # Ignore hidden files and ZIP files if ignore_zip is True
+                if not file.startswith(".") and (not ignore_zip or not file.endswith(".zip")):
+                    file_path = os.path.join(root, file)
+                    relative_path = os.path.relpath(file_path, self._dir)
+                    file_paths.append(relative_path)
 
-        # Filter out hidden files and directories
-        visible_files_and_dirs = [item for item in all_files_and_dirs if not item.startswith(".")]
-
-        # Organize files into dictionary structure
-        for item in visible_files_and_dirs:
-            item_path = os.path.join(self._dir, item)
-            if os.path.isdir(item_path):
-                result[item] = [file for file in os.listdir(item_path) if not file.startswith(".")]
-            else:
-                main_dir_files.append(item)
-
-        # Include files in the main directory
-        result["main_directory"] = main_dir_files
-
-        # remove zip files if ignore_zip is True
-        if ignore_zip:
-            for key in list(result.keys()):
-                result[key] = [file for file in result[key] if not file.endswith(".zip")]
-
-        return result
+        return file_paths
 
     def _download_data(
         self,
@@ -374,10 +358,10 @@ class Dataset:
             kwargs.get("use_existing", True),
         )
         files_in_dir = self._get_file_list(kwargs.get("ignore_zip", True))
-        file_list: dict = self._state.get("files", {})
+        file_list: list = self._state.get("files", [])
 
         # if file_list is subset of/same as files_in_dir, then don't download/extract data
-        if file_list.items() <= files_in_dir.items():
+        if len(file_list) != 0 and set(file_list).issubset(set(files_in_dir)):
             logger.info(f"{self._data_name} data is already present.")
         else:
             url: str = self._state.get("url")
