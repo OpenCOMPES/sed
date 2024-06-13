@@ -170,7 +170,14 @@ def bin_partition(
                 apply_jitter_on_column(sel_part, amp * binsize, col, mode)
         vals = sel_part.values
     else:
-        vals = part.values[:, col_id]
+        vals = part.iloc[:, col_id].values
+    if vals.dtype == "object":
+        raise ValueError(
+            "Binning requires all binned dataframe columns to be of numeric type. "
+            "Encountered data types were "
+            f"{[part.columns[id] + ': ' + str(part.iloc[:, id].dtype) for id in col_id]}. "
+            "Please make sure all axes data are of numeric type.",
+        )
     if hist_mode == "numba":
         hist_partition, edges = numba_histogramdd(
             vals,
@@ -316,13 +323,10 @@ def bin_dataframe(
 
     # limit multithreading in worker threads
     with threadpool_limits(limits=threads_per_worker, user_api=threadpool_api):
-
         # Main loop for binning
         for i in tqdm(range(0, df.npartitions, n_cores), disable=not pbar):
-
             core_tasks = []  # Core-level jobs
             for j in range(0, n_cores):
-
                 partition_index = i + j
                 if partition_index >= df.npartitions:
                     break

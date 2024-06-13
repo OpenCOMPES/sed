@@ -1,5 +1,6 @@
 """This module contains a config library for loading yaml/json files into dicts
 """
+import copy
 import json
 import os
 import platform
@@ -43,7 +44,7 @@ def parse_config(
         system_config (Union[ dict, str, ], optional): system-wide config dictionary
             or file path. The loaded dictionary is completed with the system-wide values,
             taking preference over default values. Defaults to the file "/etc/sed/config.yaml"
-            on linux, and "%ALLUSERPROFILE%/sed/config.yaml" on windows.
+            on linux, and "%ALLUSERSPROFILE%/sed/config.yaml" on windows.
         default_config (Union[ dict, str, ], optional): default config dictionary
             or file path. The loaded dictionary is completed with the default values.
             Defaults to *package_dir*/config/default.yaml".
@@ -59,7 +60,7 @@ def parse_config(
         config = {}
 
     if isinstance(config, dict):
-        config_dict = config
+        config_dict = copy.deepcopy(config)
     else:
         config_dict = load_config(config)
         if verbose:
@@ -67,7 +68,7 @@ def parse_config(
 
     folder_dict: dict = None
     if isinstance(folder_config, dict):
-        folder_dict = folder_config
+        folder_dict = copy.deepcopy(folder_config)
     else:
         if folder_config is None:
             folder_config = "./sed_config.yaml"
@@ -78,7 +79,7 @@ def parse_config(
 
     user_dict: dict = None
     if isinstance(user_config, dict):
-        user_dict = user_config
+        user_dict = copy.deepcopy(user_config)
     else:
         if user_config is None:
             user_config = str(
@@ -91,7 +92,7 @@ def parse_config(
 
     system_dict: dict = None
     if isinstance(system_config, dict):
-        system_dict = system_config
+        system_dict = copy.deepcopy(system_config)
     else:
         if system_config is None:
             if platform.system() in ["Linux", "Darwin"]:
@@ -100,7 +101,7 @@ def parse_config(
                 )
             elif platform.system() == "Windows":
                 system_config = str(
-                    Path(os.environ["ALLUSERPROFILE"]).joinpath("sed").joinpath("config.yaml"),
+                    Path(os.environ["ALLUSERSPROFILE"]).joinpath("sed").joinpath("config.yaml"),
                 )
         if Path(system_config).exists():
             system_dict = load_config(system_config)
@@ -108,7 +109,7 @@ def parse_config(
                 print(f"System config loaded from: [{str(Path(system_config).resolve())}]")
 
     if isinstance(default_config, dict):
-        default_dict = default_config
+        default_dict = copy.deepcopy(default_config)
     else:
         default_dict = load_config(default_config)
         if verbose:
@@ -209,18 +210,20 @@ def complete_dictionary(dictionary: dict, base_dictionary: dict) -> dict:
     Returns:
         dict: the completed (merged) dictionary
     """
-    for k, v in base_dictionary.items():
-        if isinstance(v, dict):
-            if k not in dictionary.keys():
-                dictionary[k] = v
+    if base_dictionary:
+        for k, v in base_dictionary.items():
+            if isinstance(v, dict):
+                if k not in dictionary.keys():
+                    dictionary[k] = v
+                else:
+                    if not isinstance(dictionary[k], dict):
+                        raise ValueError(
+                            "Cannot merge dictionaries. "
+                            f"Mismatch on Key {k}: {dictionary[k]}, {v}.",
+                        )
+                    dictionary[k] = complete_dictionary(dictionary[k], v)
             else:
-                if not isinstance(dictionary[k], dict):
-                    raise ValueError(
-                        f"Cannot merge dictionaries. Mismatch on Key {k}: {dictionary[k]}, {v}.",
-                    )
-                dictionary[k] = complete_dictionary(dictionary[k], v)
-        else:
-            if k not in dictionary.keys():
-                dictionary[k] = v
+                if k not in dictionary.keys():
+                    dictionary[k] = v
 
     return dictionary

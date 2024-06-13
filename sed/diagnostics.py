@@ -16,7 +16,7 @@ def plot_single_hist(
     edges: np.ndarray,
     legend: str = None,
     **kwds,
-) -> pbk.Figure:
+) -> pbk.figure:
     """Bokeh-based plotting of a single histogram with legend and tooltips.
 
     Args:
@@ -26,7 +26,7 @@ def plot_single_hist(
         **kwds: Keyword arguments for ``bokeh.plotting.figure().quad()``.
 
     Returns:
-        pbk.Figure: An instance of 'bokeh.plotting.Figure' as a plot handle.
+        pbk.figure: An instance of 'bokeh.plotting.figure' as a plot handle.
     """
     ttp = kwds.pop("tooltip", [("(x, y)", "($x, $y)")])
 
@@ -42,7 +42,7 @@ def plot_single_hist(
         **kwds,
     )
 
-    fig.y_range.start = 0
+    fig.y_range.start = 0  # type: ignore
     fig.legend.location = "top_right"
     fig.grid.grid_line_color = "lightgrey"
 
@@ -86,7 +86,6 @@ def grid_histogram(
     figsz = kwds.pop("figsize", (14, 8))
 
     if backend == "matplotlib":
-
         nrv = len(rvs)
         nrow = int(np.ceil(nrv / ncol))
         histtype = kwds.pop("histtype", "step")
@@ -94,7 +93,6 @@ def grid_histogram(
         fig, ax = plt.subplots(nrow, ncol, figsize=figsz)
         otherax = ax.copy()
         for i, zipped in enumerate(zip(rvs, rvbins, rvranges)):
-
             # Make each histogram plot
             rvname, rvbin, rvrg = zipped
             try:
@@ -131,12 +129,10 @@ def grid_histogram(
                 fig.delaxes(oax)
 
     elif backend == "bokeh":
-
         output_notebook(hide_banner=True)
 
         plots = []
         for i, zipped in enumerate(zip(rvs, rvbins, rvranges)):
-
             rvname, rvbin, rvrg = zipped
             histvals, edges = np.histogram(dct[rvname], bins=rvbin, range=rvrg)
 
@@ -157,7 +153,7 @@ def grid_histogram(
         # Make grid plot
         pbk.show(
             gridplot(
-                plots,
+                plots,  # type: ignore
                 ncols=ncol,
                 width=figsz[0] * 30,
                 height=figsz[1] * 28,

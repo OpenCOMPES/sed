@@ -2,6 +2,7 @@
 import os
 from importlib.util import find_spec
 from pathlib import Path
+from typing import Literal
 
 import pytest
 
@@ -14,7 +15,7 @@ H5_PATH = "FLASH1_USER3_stream_2_run43878_file1_20230130T153807.1.h5"
 
 
 @pytest.fixture(name="config_file")
-def fixture_config_file():
+def fixture_config_file() -> dict:
     """Fixture providing a configuration file for FlashLoader tests.
 
     Returns:
@@ -23,7 +24,7 @@ def fixture_config_file():
     return parse_config(config_path)
 
 
-def test_get_channels_by_format(config_file):
+def test_get_channels_by_format(config_file: dict) -> None:
     """
     Test function to verify the 'get_channels' method in FlashLoader class for
     retrieving channels based on formats and index inclusion.
@@ -86,10 +87,10 @@ def test_get_channels_by_format(config_file):
     ["online-0/fl1user3/", "express-0/fl1user3/", "FL1USER3/"],
 )
 def test_initialize_paths(
-    config_file,
+    config_file: dict,
     fs,
-    sub_dir,
-):
+    sub_dir: Literal["online-0/fl1user3/", "express-0/fl1user3/", "FL1USER3/"],
+) -> None:
     """
     Test the initialization of paths based on the configuration and directory structures.
 
@@ -123,7 +124,7 @@ def test_initialize_paths(
     assert expected_processed_path == data_parquet_dir
 
 
-def test_initialize_paths_filenotfound(config_file):
+def test_initialize_paths_filenotfound(config_file: dict) -> None:
     """
     Test FileNotFoundError during the initialization of paths.
     """
@@ -139,7 +140,7 @@ def test_initialize_paths_filenotfound(config_file):
         _, _ = fl.initialize_paths()
 
 
-def test_invalid_channel_format(config_file):
+def test_invalid_channel_format(config_file: dict) -> None:
     """
     Test ValueError for an invalid channel format.
     """
@@ -152,7 +153,7 @@ def test_invalid_channel_format(config_file):
         fl.read_dataframe()
 
 
-def test_group_name_not_in_h5(config_file):
+def test_group_name_not_in_h5(config_file: dict) -> None:
     """
     Test ValueError when the group_name for a channel does not exist in the H5 file.
     """
@@ -161,12 +162,12 @@ def test_group_name_not_in_h5(config_file):
     fl = FlashLoader(config=config)
 
     with pytest.raises(ValueError) as e:
-        fl.create_dataframe_per_file(config["core"]["paths"]["data_raw_dir"] + H5_PATH)
+        fl.create_dataframe_per_file(Path(config["core"]["paths"]["data_raw_dir"] + H5_PATH))
 
     assert str(e.value.args[0]) == "The group_name for channel dldPosX does not exist."
 
 
-def test_buffer_schema_mismatch(config_file):
+def test_buffer_schema_mismatch(config_file: dict) -> None:
     """
     Test function to verify schema mismatch handling in the FlashLoader's 'read_dataframe' method.
 

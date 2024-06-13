@@ -7,6 +7,8 @@
 *.nx
 *.nxs
 *.zip
+**/processed/*
+**/sed_config.yaml
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

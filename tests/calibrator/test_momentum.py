@@ -33,7 +33,7 @@ with open(
 momentum_map = np.asarray(momentum_map_list).T
 
 
-def test_bin_data_and_slice_image():
+def test_bin_data_and_slice_image() -> None:
     """Test binning the data and slicing of the image"""
     config = parse_config(
         config={"core": {"loader": "mpes"}},
@@ -51,7 +51,7 @@ def test_bin_data_and_slice_image():
     assert sed_processor.mc.slice.shape == (512, 512)
 
 
-def test_feature_extract():
+def test_feature_extract() -> None:
     """Testextracting the feature from a 2D slice"""
     config = parse_config(
         config={"core": {"loader": "mpes"}},
@@ -73,7 +73,7 @@ def test_feature_extract():
     "include_center",
     [True, False],
 )
-def test_splinewarp(include_center: bool):
+def test_splinewarp(include_center: bool) -> None:
     """Test the generation of the splinewarp etimate.
 
     Args:
@@ -109,7 +109,48 @@ def test_splinewarp(include_center: bool):
     assert len(mc.ptargs) == len(mc.prefs)
 
 
-def test_pose_correction():
+def test_ascale() -> None:
+    """Test the generation of the splinewarp etimate with ascale parameter."""
+    config = parse_config(
+        config={"core": {"loader": "mpes"}},
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
+    mc = MomentumCorrector(config=config)
+    mc.load_data(
+        data=momentum_map,
+        bin_ranges=[(-256, 1792), (-256, 1792)],
+    )
+    features = np.array(
+        [
+            [203.2, 341.96],
+            [299.16, 345.32],
+            [350.25, 243.70],
+            [304.38, 149.88],
+            [199.52, 152.48],
+            [154.28, 242.27],
+            [248.29, 248.62],
+        ],
+    )
+    mc.add_features(features=features, rotsym=6)
+    with pytest.raises(ValueError):
+        mc.spline_warp_estimate(ascale=1.3)
+    with pytest.raises(ValueError):
+        mc.spline_warp_estimate(ascale=[1.3, 1, 1.3, 1])
+    with pytest.raises(TypeError):
+        mc.spline_warp_estimate(ascale="invalid type")  # type:ignore
+    mc.spline_warp_estimate(ascale=[1.3, 1, 1.3, 1, 1.3, 1])
+    assert mc.cdeform_field.shape == mc.rdeform_field.shape == mc.image.shape
+    assert len(mc.ptargs) == len(mc.prefs)
+    # test single value case
+    with pytest.raises(ValueError):
+        mc.add_features(features=features, rotsym=4)
+    mc.add_features(features=features[:5, :], rotsym=4)
+    mc.spline_warp_estimate(ascale=1.3)
+
+
+def test_pose_correction() -> None:
     """Test the adjustment of the pose correction."""
     config = parse_config(
         config={"core": {"loader": "mpes"}},
@@ -128,7 +169,7 @@ def test_pose_correction():
     assert np.all(np.array([mc.cdeform_field, mc.rdeform_field]) != dfield)
 
 
-def test_apply_correction():
+def test_apply_correction() -> None:
     """Test the application of the distortion correction to the dataframe."""
     config = parse_config(
         config={"core": {"loader": "mpes"}},
@@ -162,7 +203,7 @@ def test_apply_correction():
     assert "Xm" in df.columns
     assert "Ym" in df.columns
     assert metadata["correction"]["applied"] is True
-    np.testing.assert_equal(metadata["correction"]["prefs"], features)
+    np.testing.assert_equal(metadata["correction"]["reference_points"], features)
     assert metadata["correction"]["cdeform_field"].shape == momentum_map.shape
     assert metadata["correction"]["rdeform_field"].shape == momentum_map.shape
 
@@ -241,7 +282,7 @@ depends_on_list = [
 def test_apply_registration(
     transformations: Dict[Any, Any],
     depends_on: Dict[Any, Any],
-):
+) -> None:
     """Test the application of the distortion correction to the dataframe."""
     config = parse_config(
         config={"core": {"loader": "mpes"}},
@@ -311,7 +352,7 @@ def test_apply_registration(
             )
 
 
-def test_momentum_calibration_equiscale():
+def test_momentum_calibration_equiscale() -> None:
     """Test the calibration using one point and the k-distance,
     and application to the dataframe.
     """
@@ -344,7 +385,7 @@ def test_momentum_calibration_equiscale():
         np.testing.assert_equal(metadata["calibration"][key], value)
 
 
-def test_momentum_calibration_two_points():
+def test_momentum_calibration_two_points() -> None:
     """Test the calibration using two k-points, and application to the dataframe."""
     config = parse_config(
         config={"core": {"loader": "mpes"}},
@@ -371,6 +412,22 @@ def test_momentum_calibration_two_points():
         equiscale=False,
     )
     df, metadata = mc.append_k_axis(df, x_column="X", y_column="Y")
+    assert "kx" in df.columns
+    assert "ky" in df.columns
+    for key, value in mc.calibration.items():
+        np.testing.assert_equal(
+            metadata["calibration"][key],
+            value,
+        )
+    # Test with passing calibration parameters
+    calibration = mc.calibration.copy()
+    calibration.pop("creation_date")
+    df, _, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
+        folders=df_folder,
+        collect_metadata=False,
+    )
+    mc = MomentumCorrector(config=config)
+    df, metadata = mc.append_k_axis(df, **calibration)
     assert "kx" in df.columns
     assert "ky" in df.columns
     for key, value in mc.calibration.items():

@@ -8,6 +8,7 @@ from copy import deepcopy
 from importlib.util import find_spec
 from typing import Any
 from typing import Dict
+from typing import Literal
 
 import dask.dataframe
 import numpy as np
@@ -38,7 +39,7 @@ with open(folder + "biases.csv", newline="", encoding="utf-8") as csvfile:
     biases = np.asarray(next(reader))
 
 
-def test_bin_data_and_read_biases_from_files():
+def test_bin_data_and_read_biases_from_files() -> None:
     """Test binning the data and extracting the bias values from the files"""
     config = parse_config(
         config={"dataframe": {"tof_binning": 2}, "energy": {"bias_key": "@KTOF:Lens:Sample:V"}},
@@ -77,7 +78,7 @@ def test_bin_data_and_read_biases_from_files():
         ec.bin_data(data_files=files)
 
 
-def test_energy_calibrator_from_arrays_norm():
+def test_energy_calibrator_from_arrays_norm() -> None:
     """Test loading the energy, bias and tof traces into the class"""
     config = parse_config(
         config={"dataframe": {"tof_binning": 2}},
@@ -97,7 +98,7 @@ def test_energy_calibrator_from_arrays_norm():
         assert np.max(ec.traces_normed[i, :]) == 1
 
 
-def test_feature_extract():
+def test_feature_extract() -> None:
     """Test generating the ranges, and extracting the features"""
     config = parse_config(
         config={"dataframe": {"tof_binning": 2}},
@@ -130,7 +131,7 @@ def test_feature_extract():
     )
 
 
-def test_adjust_ranges():
+def test_adjust_ranges() -> None:
     """Test the interactive function for adjusting the feature ranges"""
     config = parse_config(
         config={"dataframe": {"tof_binning": 2}},
@@ -170,7 +171,7 @@ calibration_methods = ["lmfit", "lstsq", "lsqr"]
     "energy_scale, calibration_method",
     itertools.product(energy_scales, calibration_methods),
 )
-def test_calibrate_append(energy_scale: str, calibration_method: str):
+def test_calibrate_append(energy_scale: str, calibration_method: str) -> None:
     """Test if the calibration routines generate the correct slope of energy vs. tof,
     and the application to the data frame.
 
@@ -225,7 +226,7 @@ calib_dicts = [{"d": 1, "t0": 0, "E0": 0}, {"coeffs": [1, 2, 3], "E0": 0}]
     "calib_type, calib_dict",
     zip(calib_types, calib_dicts),
 )
-def test_append_energy_axis_from_dict_kwds(calib_type: str, calib_dict: dict):
+def test_append_energy_axis_from_dict_kwds(calib_type: str, calib_dict: dict) -> None:
     """Function to test if the energy calibration is correctly applied using a dict or
     kwd parameters.
 
@@ -256,7 +257,7 @@ def test_append_energy_axis_from_dict_kwds(calib_type: str, calib_dict: dict):
     assert metadata["calibration"]["calib_type"] == calib_type
 
 
-def test_append_energy_axis_raises():
+def test_append_energy_axis_raises() -> None:
     """Test if apply_correction raises the correct errors"""
     config = parse_config(config={}, folder_config={}, user_config={}, system_config={})
     loader = get_loader(loader_name="mpes", config=config)
@@ -271,7 +272,7 @@ def test_append_energy_axis_raises():
         )
 
 
-def test_append_tof_ns_axis():
+def test_append_tof_ns_axis() -> None:
     """Function to test if the tof_ns calibration is correctly applied.
     TODO: add further tests once the discussion about units is done.
     """
@@ -342,7 +343,7 @@ correction_kwds = [
     "correction_type, correction_kwd",
     zip(correction_types, correction_kwds),
 )
-def test_energy_correction(correction_type: str, correction_kwd: dict):
+def test_energy_correction(correction_type: str, correction_kwd: dict) -> None:
     """Function to test if all energy correction functions generate symmetric curves
     with the maximum at the cetner x/y.
 
@@ -425,9 +426,7 @@ def test_energy_correction(correction_type: str, correction_kwd: dict):
     "correction_type",
     correction_types,
 )
-def test_adjust_energy_correction_raises(
-    correction_type: str,
-):
+def test_adjust_energy_correction_raises(correction_type: str) -> None:
     """Function to test if the adjust_energy_correction function raises the correct errors.
 
     Args:
@@ -469,10 +468,7 @@ def test_adjust_energy_correction_raises(
     "correction_type, correction_kwd",
     zip(correction_types, correction_kwds),
 )
-def test_energy_correction_from_dict_kwds(
-    correction_type: str,
-    correction_kwd: dict,
-):
+def test_energy_correction_from_dict_kwds(correction_type: str, correction_kwd: dict) -> None:
     """Function to test if the energy correction is correctly applied using a dict or
     kwd parameters.
 
@@ -534,9 +530,7 @@ def test_energy_correction_from_dict_kwds(
     "correction_type",
     correction_types,
 )
-def test_apply_energy_correction_raises(
-    correction_type: str,
-):
+def test_apply_energy_correction_raises(correction_type: str) -> None:
     """Function to test if the apply_energy_correction raises the correct errors.
 
     Args:
@@ -572,13 +566,18 @@ def test_apply_energy_correction_raises(
         assert config["dataframe"]["corrected_tof_column"] in df.columns
 
 
-def test_add_offsets_functionality():
+@pytest.mark.parametrize(
+    "energy_scale",
+    ["kinetic", "binding"],
+)
+def test_add_offsets_functionality(energy_scale: str) -> None:
     """test the add_offsets function"""
+    scale_sign: Literal[-1, 1] = -1 if energy_scale == "binding" else 1
     config = parse_config(
         config={
             "energy": {
                 "calibration": {
-                    "energy_scale": "kinetic",
+                    "energy_scale": energy_scale,
                 },
                 "offsets": {
                     "constant": 1,
@@ -617,13 +616,14 @@ def test_add_offsets_functionality():
         loader=get_loader("flash", config=config),
     )
     res, meta = ec.add_offsets(t_df)
-    exp_vals = df["energy"].copy() + 1
-    exp_vals += df["off1"] - df["off1"].mean()
-    exp_vals -= df["off2"]
-    exp_vals += df["off3"].mean()
+    exp_vals = df["energy"].copy() + 1 * scale_sign
+    exp_vals += (df["off1"] - df["off1"].mean()) * scale_sign
+    exp_vals -= df["off2"] * scale_sign
+    exp_vals += df["off3"].mean() * scale_sign
     np.testing.assert_allclose(res["energy"].values, exp_vals.values)
-    exp_meta = params.copy()
+    exp_meta: Dict[str, Any] = {}
     exp_meta["applied"] = True
+    exp_meta["offsets"] = ec.offsets
     assert meta == exp_meta
     # test with explicit params
     ec = EnergyCalibrator(
@@ -631,17 +631,31 @@ def test_add_offsets_functionality():
         loader=get_loader("flash", config=config),
     )
     t_df = dask.dataframe.from_pandas(df.copy(), npartitions=2)
-    res, meta = ec.add_offsets(t_df, **params)  # pylint disable=unexpected-keyword-arg
+    res, meta = ec.add_offsets(t_df, **params)  # type: ignore
     np.testing.assert_allclose(res["energy"].values, exp_vals.values)
-    params["applied"] = True
-    assert meta == params
+    exp_meta = {}
+    exp_meta["applied"] = True
+    exp_meta["offsets"] = ec.offsets
+    assert meta == exp_meta
+    # test with minimal parameters
+    ec = EnergyCalibrator(
+        config=config,
+        loader=get_loader("flash", config=config),
+    )
+    t_df = dask.dataframe.from_pandas(df.copy(), npartitions=2)
+    res, meta = ec.add_offsets(t_df, weights=-1, columns="off1")
+    res, meta = ec.add_offsets(res, columns="off1")
+    exp_vals = df["energy"].copy()
+    np.testing.assert_allclose(res["energy"].values, exp_vals.values)
+    exp_meta = {}
+    exp_meta["applied"] = True
+    exp_meta["offsets"] = ec.offsets
+    assert meta == exp_meta
 
-    # test with different energy scale
 
-
-def test_add_offset_raises():
+def test_add_offset_raises() -> None:
     """test if add_offset raises the correct errors"""
-    cfg_dict = {
+    cfg_dict: Dict[str, Any] = {
         "energy": {
             "calibration": {
                 "energy_scale": "kinetic",
@@ -664,20 +678,13 @@ def test_add_offset_raises():
         },
     )
     t_df = dask.dataframe.from_pandas(df.copy(), npartitions=2)
-    # no sign in config
-    with pytest.raises(KeyError):
-        cfg = deepcopy(cfg_dict)
-        cfg["energy"]["offsets"]["off1"].pop("weight")
-        config = parse_config(config=cfg, folder_config={}, user_config={}, system_config={})
-        ec = EnergyCalibrator(config=cfg, loader=get_loader("flash", config=config))
-        _ = ec.add_offsets(t_df)
 
     # no energy scale
     with pytest.raises(ValueError):
         cfg = deepcopy(cfg_dict)
         cfg["energy"]["calibration"].pop("energy_scale")
         config = parse_config(config=cfg, folder_config={}, user_config={}, system_config={})
-        ec = EnergyCalibrator(config=cfg, loader=get_loader("flash", config=config))
+        ec = EnergyCalibrator(config=config, loader=get_loader("flash", config=config))
         _ = ec.add_offsets(t_df)
 
     # invalid energy scale
@@ -685,7 +692,7 @@ def test_add_offset_raises():
         cfg = deepcopy(cfg_dict)
         cfg["energy"]["calibration"]["energy_scale"] = "wrong_value"
         config = parse_config(config=cfg, folder_config={}, user_config={}, system_config={})
-        ec = EnergyCalibrator(config=cfg, loader=get_loader("flash", config=config))
+        ec = EnergyCalibrator(config=config, loader=get_loader("flash", config=config))
         _ = ec.add_offsets(t_df)
 
     # invalid sign
@@ -693,7 +700,7 @@ def test_add_offset_raises():
         cfg = deepcopy(cfg_dict)
         cfg["energy"]["offsets"]["off1"]["weight"] = "wrong_type"
         config = parse_config(config=cfg, folder_config={}, user_config={}, system_config={})
-        ec = EnergyCalibrator(config=cfg, loader=get_loader("flash", config=config))
+        ec = EnergyCalibrator(config=config, loader=get_loader("flash", config=config))
         _ = ec.add_offsets(t_df)
 
         # invalid constant
@@ -701,13 +708,13 @@ def test_add_offset_raises():
         cfg = deepcopy(cfg_dict)
         cfg["energy"]["offsets"]["constant"] = "wrong_type"
         config = parse_config(config=cfg, folder_config={}, user_config={}, system_config={})
-        ec = EnergyCalibrator(config=cfg, loader=get_loader("flash", config=config))
+        ec = EnergyCalibrator(config=config, loader=get_loader("flash", config=config))
         _ = ec.add_offsets(t_df)
 
 
-def test_align_dld_sectors():
+def test_align_dld_sectors() -> None:
     """test functionality and error handling of align_dld_sectors"""
-    cfg_dict = {
+    cfg_dict: Dict[str, Any] = {
         "dataframe": {
             "tof_column": "dldTimeSteps",
             "sector_id_column": "dldSectorId",
@@ -734,10 +741,11 @@ def test_align_dld_sectors():
 
     # from kwds
     config = parse_config(config={}, folder_config={}, user_config={}, system_config={})
-    ec = EnergyCalibrator(config=cfg_dict, loader=get_loader("flash", config=config))
+    ec = EnergyCalibrator(config=config, loader=get_loader("flash", config=config))
     t_df = dask.dataframe.from_pandas(df.copy(), npartitions=2)
     res, meta = ec.align_dld_sectors(
         t_df,
+        tof_column=cfg_dict["dataframe"]["tof_column"],
         sector_delays=cfg_dict["dataframe"]["sector_delays"],
         sector_id_column="dldSectorId",
     )

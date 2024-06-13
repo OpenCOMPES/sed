@@ -1,5 +1,6 @@
 """This is a code that performs several tests for the settings loader.
 """
+import copy
 import os
 import tempfile
 from importlib.util import find_spec
@@ -31,7 +32,7 @@ default_histogram_keys = [
 ]
 
 
-def test_default_config():
+def test_default_config() -> None:
     """Test the config loader for the default config."""
     config = parse_config()
     assert isinstance(config, dict)
@@ -43,7 +44,7 @@ def test_default_config():
         assert key in config["histogram"].keys()
 
 
-def test_load_dict():
+def test_load_dict() -> None:
     """Test the config loader for a dict."""
     config_dict = {"test_entry": True}
     config = parse_config(config_dict)
@@ -53,7 +54,28 @@ def test_load_dict():
     assert config["test_entry"] is True
 
 
-def test_load_config():
+def test_load_does_not_modify() -> None:
+    """Test that the loader does not modify the source dictionaries."""
+    config_dict = {"test_entry": True}
+    config_copy = copy.deepcopy(config_dict)
+    folder_dict = {"a": 5, "b": {"c": 7}}
+    folder_copy = copy.deepcopy(folder_dict)
+    user_dict = {"test_entry2": False}
+    user_copy = copy.deepcopy(user_dict)
+    system_dict = {"a": 3, "b": {"c": 9, "d": 13}}
+    system_copy = copy.deepcopy(system_dict)
+    default_dict = {"a": 1, "b": {"c": 13}, "c": {"e": 11}}
+    default_copy = copy.deepcopy(default_dict)
+
+    parse_config(config_dict, folder_dict, user_dict, system_dict, default_dict)
+    assert config_dict == config_copy
+    assert folder_dict == folder_copy
+    assert user_dict == user_copy
+    assert system_dict == system_copy
+    assert default_dict == default_copy
+
+
+def test_load_config() -> None:
     """Test if the config loader can handle json and yaml files."""
     config_json = load_config(
         f"{package_dir}/../tests/data/config/config.json",
@@ -64,13 +86,13 @@ def test_load_config():
     assert config_json == config_yaml
 
 
-def test_load_config_raise():
+def test_load_config_raise() -> None:
     """Test if the config loader raises an error for a wrong file type."""
     with pytest.raises(TypeError):
         load_config(f"{package_dir}/../README.md")
 
 
-def test_complete_dictionary():
+def test_complete_dictionary() -> None:
     """Test the merging of a config and a default config dict"""
     dict1 = {"key1": 1, "key2": 2, "nesteddict": {"key4": 4}}
     dict2 = {"key1": 2, "key3": 3, "nesteddict": {"key5": 5}}
@@ -83,7 +105,15 @@ def test_complete_dictionary():
     assert dict3["key1"] == 1
 
 
-def test_save_dict():
+def test_complete_dictionary_raise() -> None:
+    """Test that the complete_dictionary function raises if the dicts conflict."""
+    dict1 = {"key1": 1, "key2": 2, "nesteddict": 3}
+    dict2 = {"key1": 2, "key3": 3, "nesteddict": {"key5": 5}}
+    with pytest.raises(ValueError):
+        complete_dictionary(dictionary=dict1, base_dictionary=dict2)
+
+
+def test_save_dict() -> None:
     """Test the config saver for a dict."""
     with tempfile.TemporaryDirectory() as tmpdirname:
         for ext in ["yaml", "json"]:

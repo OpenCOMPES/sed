@@ -45,7 +45,6 @@ class FlashLoader(BaseLoader):
     supported_file_types = ["h5"]
 
     def __init__(self, config: dict) -> None:
-
         super().__init__(config=config)
         self.multi_index = ["trainId", "pulseId", "electronId"]
         self.index_per_electron: MultiIndex = None
@@ -787,7 +786,8 @@ class FlashLoader(BaseLoader):
         # Check if load_parquet is flagged and then load the file if it exists
         if load_parquet:
             try:
-                dataframe = dd.read_parquet(parquet_path)
+                dataframe_electron = dd.read_parquet(parquet_path)
+                dataframe_pulse = dataframe_electron
             except Exception as exc:
                 raise FileNotFoundError(
                     "The final parquet for this run(s) does not exist yet. "
@@ -836,13 +836,14 @@ class FlashLoader(BaseLoader):
 
         return dataframe_electron, dataframe_pulse
 
-    def parse_metadata(self) -> dict:
+    def parse_metadata(self, scicat_token: str = None) -> dict:
         """Uses the MetadataRetriever class to fetch metadata from scicat for each run.
 
         Returns:
             dict: Metadata dictionary
+            scicat_token (str, optional):: The scicat token to use for fetching metadata
         """
-        metadata_retriever = MetadataRetriever(self._config["metadata"])
+        metadata_retriever = MetadataRetriever(self._config["metadata"], scicat_token)
         metadata = metadata_retriever.get_metadata(
             beamtime_id=self._config["core"]["beamtime_id"],
             runs=self.runs,
@@ -853,12 +854,12 @@ class FlashLoader(BaseLoader):
 
     def get_count_rate(
         self,
-        fids: Sequence[int] = None,
-        **kwds,
+        fids: Sequence[int] = None,  # noqa: ARG002
+        **kwds,  # noqa: ARG002
     ):
         return None, None
 
-    def get_elapsed_time(self, fids=None, **kwds):
+    def get_elapsed_time(self, fids=None, **kwds):  # noqa: ARG002
         return None
 
     def read_dataframe(
@@ -925,7 +926,7 @@ class FlashLoader(BaseLoader):
 
         df, df_timed = self.parquet_handler(data_parquet_dir, **kwds)
 
-        metadata = self.parse_metadata() if collect_metadata else {}
+        metadata = self.parse_metadata(**kwds) if collect_metadata else {}
         print(f"loading complete in {time.time() - t0: .2f} s")
 
         return df, df_timed, metadata

@@ -24,7 +24,7 @@ loader = get_loader("mpes", config=config)
     "ncols, backend",
     itertools.product([1, 2, 3, 4], ["matplotlib", "bokeh"]),
 )
-def test_plot_histogram(ncols: int, backend: str):
+def test_plot_histogram(ncols: int, backend: str) -> None:
     """Test generation of data histogram
 
     Args:

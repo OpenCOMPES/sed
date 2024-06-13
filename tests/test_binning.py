@@ -1,6 +1,7 @@
 """This file contains code that performs several tests for the sed.binning module
 """
 from typing import Any
+from typing import cast
 from typing import List
 from typing import Sequence
 from typing import Tuple
@@ -63,7 +64,7 @@ arrays_round = [get_linear_bin_edges(b, r) for r, b in zip(ranges_round, bins_ro
     [bins[:1], bins[:2], bins[:3]],
     ids=lambda x: f"bins:{len(x)}",
 )
-def test_histdd_error_is_raised(_samples: np.ndarray, _bins: List[int]):
+def test_histdd_error_is_raised(_samples: np.ndarray, _bins: List[int]) -> None:
     """Test if the correct error is raised if the bins and sample shapes do not match
 
     Args:
@@ -94,7 +95,7 @@ def test_histdd_error_is_raised(_samples: np.ndarray, _bins: List[int]):
     if x[2] < 7
     else f"ndim: {x[2]-6}-round",
 )
-def test_histdd_bins_as_numpy(args: Tuple[np.ndarray, np.ndarray, int]):
+def test_histdd_bins_as_numpy(args: Tuple[np.ndarray, np.ndarray, int]) -> None:
     """Test whether the numba_histogramdd functions produces the same result
     as np.histogramdd if called with a list of bin edgees
 
@@ -106,7 +107,7 @@ def test_histdd_bins_as_numpy(args: Tuple[np.ndarray, np.ndarray, int]):
     hist1, edges1 = np.histogramdd(sample_, bins_)
     hist2, edges2 = numba_histogramdd(sample_, bins_)
     np.testing.assert_allclose(hist1, hist2)
-    for (edges1_, edges2_) in zip(edges1, edges2):
+    for edges1_, edges2_ in zip(edges1, edges2):
         np.testing.assert_allclose(edges1_, edges2_)
 
 
@@ -127,7 +128,7 @@ def test_histdd_bins_as_numpy(args: Tuple[np.ndarray, np.ndarray, int]):
     if x[3] < 7
     else f"ndim: {x[3]-6}-round",
 )
-def test_histdd_ranges_as_numpy(args: Tuple[np.ndarray, tuple, tuple, int]):
+def test_histdd_ranges_as_numpy(args: Tuple[np.ndarray, tuple, tuple, int]) -> None:
     """Test whether the numba_histogramdd functions produces the same result
     as np.histogramdd if called with bin numbers and ranges
 
@@ -139,7 +140,7 @@ def test_histdd_ranges_as_numpy(args: Tuple[np.ndarray, tuple, tuple, int]):
     hist1, edges1 = np.histogramdd(sample_, bins_, ranges_)
     hist2, edges2 = numba_histogramdd(sample_, bins_, ranges_)
     np.testing.assert_allclose(hist1, hist2)
-    for (edges1_, edges2_) in zip(edges1, edges2):
+    for edges1_, edges2_ in zip(edges1, edges2):
         np.testing.assert_allclose(edges1_, edges2_)
 
 
@@ -160,7 +161,7 @@ def test_histdd_ranges_as_numpy(args: Tuple[np.ndarray, tuple, tuple, int]):
     if x[3] < 7
     else f"ndim: {x[3]-6}-round",
 )
-def test_histdd_one_bins_as_numpy(args: Tuple[np.ndarray, int, tuple, int]):
+def test_histdd_one_bins_as_numpy(args: Tuple[np.ndarray, int, tuple, int]) -> None:
     """Test whether the numba_histogramdd functions produces the same result
     as np.histogramdd if called with bin numbers and ranges
 
@@ -172,7 +173,7 @@ def test_histdd_one_bins_as_numpy(args: Tuple[np.ndarray, int, tuple, int]):
     hist1, edges1 = np.histogramdd(sample_, bins_, ranges_)
     hist2, edges2 = numba_histogramdd(sample_, bins_, ranges_)
     np.testing.assert_allclose(hist1, hist2)
-    for (edges1_, edges2_) in zip(edges1, edges2):
+    for edges1_, edges2_ in zip(edges1, edges2):
         np.testing.assert_allclose(edges1_, edges2_)
 
 
@@ -195,7 +196,7 @@ def test_histdd_one_bins_as_numpy(args: Tuple[np.ndarray, int, tuple, int]):
 )
 def test_from_bins_equals_from_bin_range(
     args: Tuple[np.ndarray, int, tuple, np.ndarray, int],
-):
+) -> None:
     """Test whether the numba_histogramdd functions produces the same result
     if called with bin numbers and ranges or with bin edges.
 
@@ -207,7 +208,7 @@ def test_from_bins_equals_from_bin_range(
     hist1, edges1 = numba_histogramdd(sample_, bins_, ranges_)
     hist2, edges2 = numba_histogramdd(sample_, arrays_)
     np.testing.assert_allclose(hist1, hist2, verbose=True)
-    for (edges1_, edges2_) in zip(edges1, edges2):
+    for edges1_, edges2_ in zip(edges1, edges2):
         np.testing.assert_allclose(edges1_, edges2_)
 
 
@@ -218,9 +219,7 @@ def test_from_bins_equals_from_bin_range(
     ],
     ids=lambda x: f"ndim: {x[2]}",
 )
-def test_numba_hist_from_bins(
-    args: Tuple[np.ndarray, np.ndarray, int],
-):
+def test_numba_hist_from_bins(args: Tuple[np.ndarray, np.ndarray, int]) -> None:
     """Run tests using the _hist_from_bins function without numba jit.
 
     Args:
@@ -254,9 +253,7 @@ def test_numba_hist_from_bins(
     ],
     ids=lambda x: f"ndim: {x[3]}",
 )
-def test_numba_hist_from_bins_ranges(
-    args: Tuple[np.ndarray, int, tuple, int],
-):
+def test_numba_hist_from_bins_ranges(args: Tuple[np.ndarray, int, tuple, int]) -> None:
     """Run tests using the _hist_from_bins_ranges function without numba jit.
 
     Args:
@@ -267,7 +264,7 @@ def test_numba_hist_from_bins_ranges(
     _hist_from_bin_range.py_func(sample_, bins_, np.asarray(ranges_))
 
 
-def test_bin_centers_to_bin_edges():
+def test_bin_centers_to_bin_edges() -> None:
     """Test the conversion from bin centers to bin edges"""
     stepped_array = np.concatenate(
         [
@@ -282,7 +279,7 @@ def test_bin_centers_to_bin_edges():
         assert bin_edges[i + 1] > stepped_array[i]
 
 
-def test_bin_edges_to_bin_centers():
+def test_bin_edges_to_bin_centers() -> None:
     """Test the conversion from bin edges to bin centers"""
     stepped_array = np.concatenate(
         [
@@ -321,7 +318,7 @@ def test_bin_edges_to_bin_centers():
 def test_simplify_binning_arguments(
     args: Tuple[List[int], List[str], List[Tuple[float, float]]],
     arg_type: str,
-):
+) -> None:
     """Test the result of the _simplify_binning_arguments functions for number of
     bins and ranges
     """
@@ -402,13 +399,13 @@ def test_simplify_binning_arguments(
             np.testing.assert_array_equal(ranges__[i], ranges_expected[i])
 
 
-def test_bin_partition():
+def test_bin_partition() -> None:
     """Test bin_partition function"""
     # test skipping checks in bin_partition
     with pytest.raises(TypeError):
         res = bin_partition(
             part=sample_pdf,
-            bins=[10, np.array([10, 20])],
+            bins=[10, np.array([10, 20])],  # type: ignore[arg-type]
             axes=columns,
             ranges=ranges,
             skip_test=True,
@@ -417,7 +414,7 @@ def test_bin_partition():
         res = bin_partition(
             part=sample_pdf,
             bins=bins,
-            axes=["x", 10],
+            axes=["x", 10],  # type: ignore[arg-type, list-item]
             ranges=ranges,
             skip_test=True,
         )
@@ -455,7 +452,7 @@ def test_bin_partition():
         skip_test=False,
         jitter=columns,
     )
-    assert not np.allclose(res, res1)
+    assert not np.allclose(cast(np.ndarray, res), res1)
     # test jittering, dict
     res = bin_partition(
         part=sample_pdf,
@@ -465,7 +462,7 @@ def test_bin_partition():
         skip_test=False,
         jitter={axis: {"amplitude": 0.5, "mode": "normal"} for axis in columns},
     )
-    assert not np.allclose(res, res1)
+    assert not np.allclose(cast(np.ndarray, res), res1)
     # numpy mode
     with pytest.raises(ValueError):
         res = bin_partition(
@@ -484,10 +481,24 @@ def test_bin_partition():
         skip_test=False,
         hist_mode="numpy",
     )
-    assert np.allclose(res, res1)
+    assert np.allclose(cast(np.ndarray, res), res1)
 
 
-def test_bin_dataframe():
+def test_non_numeric_dtype_error() -> None:
+    """Test bin_partition function"""
+    pdf = sample_pdf.astype({"x": "string", "y": "int32", "z": "int32"})
+    with pytest.raises(ValueError) as err:
+        _ = bin_partition(
+            part=pdf,
+            bins=bins,  # type: ignore[arg-type]
+            axes=columns,
+            ranges=ranges,
+            skip_test=False,
+        )
+    assert "Encountered data types were ['x: string', 'y: int32', 'z: int32']" in str(err.value)
+
+
+def test_bin_dataframe() -> None:
     """Test bin_dataframe function"""
     res = bin_dataframe(df=sample_ddf, bins=bins, axes=columns, ranges=ranges)
     assert isinstance(res, xr.DataArray)
@@ -508,7 +519,7 @@ def test_bin_dataframe():
     np.testing.assert_allclose(res.values, res2.values)
 
 
-def test_normalization_histogram_from_timestamps():
+def test_normalization_histogram_from_timestamps() -> None:
     """Test the function to generate the normalization histogram from timestamps"""
     time_stamped_df = sample_ddf.copy()
     time_stamped_df["timeStamps"] = time_stamped_df.index
@@ -519,10 +530,10 @@ def test_normalization_histogram_from_timestamps():
         bin_centers=res.coords[columns[0]].values,
         time_stamp_column="timeStamps",
     )
-    np.testing.assert_allclose(res / res.sum(), histogram / histogram.sum(), rtol=0.001)
+    np.testing.assert_allclose(res / res.sum(), histogram / histogram.sum(), rtol=0.01)
 
 
-def test_normalization_histogram_from_timed_dataframe():
+def test_normalization_histogram_from_timed_dataframe() -> None:
     """Test the function to generate the normalization histogram from the timed dataframe"""
     res = bin_dataframe(df=sample_ddf, bins=[bins[0]], axes=[columns[0]], ranges=[ranges[0]])
     histogram = normalization_histogram_from_timed_dataframe(

@@ -76,7 +76,7 @@ def get_all_loaders() -> List[ParameterSet]:
 
 
 @pytest.mark.parametrize("loader", get_all_loaders())
-def test_if_loaders_are_children_of_base_loader(loader: BaseLoader):
+def test_if_loaders_are_children_of_base_loader(loader: BaseLoader) -> None:
     """Test to verify that all loaders are children of BaseLoader"""
     if loader.__name__ != "BaseLoader":
         assert isinstance(loader, BaseLoader)
@@ -84,7 +84,7 @@ def test_if_loaders_are_children_of_base_loader(loader: BaseLoader):
 
 @pytest.mark.parametrize("loader", get_all_loaders())
 @pytest.mark.parametrize("read_type", read_types)
-def test_has_correct_read_dataframe_func(loader: BaseLoader, read_type: str):
+def test_has_correct_read_dataframe_func(loader: BaseLoader, read_type: str) -> None:
     """Test if all loaders have a valid read function implemented"""
     assert callable(loader.read_dataframe)
 
@@ -169,7 +169,7 @@ def test_has_correct_read_dataframe_func(loader: BaseLoader, read_type: str):
 
 
 @pytest.mark.parametrize("loader", get_all_loaders())
-def test_timed_dataframe(loader: BaseLoader):
+def test_timed_dataframe(loader: BaseLoader) -> None:
     """Test if the loaders return a correct timed dataframe
 
     Args:
@@ -212,7 +212,7 @@ def test_timed_dataframe(loader: BaseLoader):
 
 
 @pytest.mark.parametrize("loader", get_all_loaders())
-def test_get_count_rate(loader: BaseLoader):
+def test_get_count_rate(loader: BaseLoader) -> None:
     """Test the get_count_rate function
 
     Args:
@@ -257,7 +257,7 @@ def test_get_count_rate(loader: BaseLoader):
 
 
 @pytest.mark.parametrize("loader", get_all_loaders())
-def test_get_elapsed_time(loader: BaseLoader):
+def test_get_elapsed_time(loader: BaseLoader) -> None:
     """Test the get_elapsed_time function
 
     Args:
@@ -301,7 +301,7 @@ def test_get_elapsed_time(loader: BaseLoader):
             os.remove(Path(parquet_data_dir, "buffer", file))
 
 
-def test_mpes_timestamps():
+def test_mpes_timestamps() -> None:
     """Function to test if the timestamps are loaded correctly"""
     loader_name = "mpes"
     loader = get_loader(loader_name)
