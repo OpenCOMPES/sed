@@ -67,8 +67,23 @@ def hdf5_to_dataframe(
             seach_pattern="Stream",
         )
 
-    channel_list = [channel for channel in channels.values()]
-    column_names = [name for name in channels.keys()]
+    channel_list = []
+    column_names = []
+
+    for name, channel in channels.items():
+        if (
+            channel["format"] == "per_electron"
+            and channel["group_name"] in test_proc
+            or channel["format"] == "per_file"
+            and channel["group_name"] in test_proc.attrs
+        ):
+            channel_list.append(channel)
+            column_names.append(name)
+        else:
+            print(
+                f"Entry \"{channel['group_name']}\" for channel \"{name}\" not found.",
+                "Skipping the channel.",
+            )
 
     if time_stamps:
         column_names.append(time_stamp_alias)
@@ -141,8 +156,23 @@ def hdf5_to_timed_dataframe(
             seach_pattern="Stream",
         )
 
-    channel_list = [channel for channel in channels.values()]
-    column_names = [name for name in channels.keys()]
+    channel_list = []
+    column_names = []
+
+    for name, channel in channels.items():
+        if (
+            channel["format"] == "per_electron"
+            and channel["group_name"] in test_proc
+            or channel["format"] == "per_file"
+            and channel["group_name"] in test_proc.attrs
+        ):
+            channel_list.append(channel)
+            column_names.append(name)
+        else:
+            print(
+                f"Entry \"{channel['group_name']}\" for channel \"{name}\" not found.",
+                "Skipping the channel.",
+            )
 
     if time_stamps:
         column_names.append(time_stamp_alias)

@@ -33,6 +33,8 @@ dataframe:
   tof_column: "t"
   # dataframe column containing analog-to-digital data
   adc_column: "ADC"
+  # dataframe column containing bias voltage data
+  bias_column: "sampleBias"
   # dataframe column containing corrected x coordinates
   corrected_x_column: "Xm"
   # dataframe column containing corrected y coordinates
@@ -86,9 +88,9 @@ dataframe:
     ADC:
       format: per_electron
       group_name: "/Stream_4"
-#    bias_voltage:
-#      format: per_file
-#      group_name: "KTOF:Lens:Sample:V"
+    sampleBias:
+      format: per_file
+      group_name: "KTOF:Lens:Sample:V"
 
 energy:
   # Number of bins to use for energy calibration traces

@@ -1415,6 +1415,7 @@ class SedProcessor:
     def append_energy_axis(
         self,
         calibration: dict = None,
+        bias_voltage: float = None,
         preview: bool = False,
         verbose: bool = None,
         **kwds,
@@ -1428,6 +1429,9 @@ class SedProcessor:
             calibration (dict, optional): Calibration dict containing calibration
                 parameters. Overrides calibration from class or config.
                 Defaults to None.
+            bias_voltage (float, optional): Sample bias voltage of the scan data. If omitted,
+                the bias voltage is being read from the dataframe. If it is not found there,
+                a warning is printed and the calibrated data will not be offset correctly.
             preview (bool): Option to preview the first elements of the data frame.
             verbose (bool, optional): Option to print out diagnostic information.
                 Defaults to config["core"]["verbose"].
@@ -1468,11 +1472,23 @@ class SedProcessor:
 
         else:
             raise ValueError("No dataframe loaded!")
-        if preview:
-            print(self._dataframe.head(10))
+
+        if bias_voltage is not None:
+            self.add_energy_offset(constant=bias_voltage, verbose=verbose, preview=preview)
+        elif self.config["dataframe"]["bias_column"] in self._dataframe.columns:
+            self.add_energy_offset(
+                columns=[self.config["dataframe"]["bias_column"]],
+                verbose=verbose,
+                preview=preview,
+            )
         else:
-            if verbose:
-                print(self._dataframe)
+            print("Sample bias data not found or provided. Calibrated energy will be offset.")
+            # Preview only if no offset applied
+            if preview:
+                print(self._dataframe.head(10))
+            else:
+                if verbose:
+                    print(self._dataframe)
 
     def add_energy_offset(
         self,
