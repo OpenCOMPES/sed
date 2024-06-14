@@ -12,7 +12,7 @@ import zipfile
 from datetime import datetime
 
 import requests
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 from sed.core.config import load_config
 from sed.core.config import parse_config
