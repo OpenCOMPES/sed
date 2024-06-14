@@ -323,7 +323,7 @@ class Dataset:
                 with tqdm(total=total_files, unit="file") as pbar:
                     for root, _, files in os.walk(source_path):
                         for file in files:
-                            shutil.move(os.path.join(root, file), self._dir)
+                            shutil.move(os.path.join(root, file), os.path.join(self._dir, file))
                             pbar.update(1)
 
                 logger.info("File movement complete.")
