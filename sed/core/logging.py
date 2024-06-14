@@ -34,6 +34,8 @@ def setup_logging(
     """
     # Create logger
     logger = logging.getLogger(name)
+    if logger.hasHandlers():
+        logger.handlers.clear()
     logger.setLevel(logging.INFO)  # Set the minimum log level for the logger
 
     # Create console handler and set level
