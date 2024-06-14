@@ -1,7 +1,6 @@
 import io
 import json
 import os
-import shutil
 import zipfile
 from importlib.util import find_spec
 
@@ -124,15 +123,12 @@ def test_rearrange_data(zip_file):  # noqa: ARG001
         ds._rearrange_data()
 
 
-def test_get_dataset(requests_mock, zip_buffer):
+def test_get_remove_dataset(requests_mock, zip_buffer):
     json_path_user = USER_CONFIG_PATH.joinpath("datasets.json")
     data_name = "Test"
     _ = dm.load_datasets_dict()  # to ensure datasets.json is in user dir
-    data_path_user = os.path.join("./datasets", data_name)
 
-    if os.path.exists(data_path_user):
-        # remove dir even if it is not empty
-        shutil.rmtree(data_path_user)
+    ds.remove(data_name)
 
     data_url = "http://test.com/files/file.zip"
     requests_mock.get(data_url, content=zip_buffer.getvalue())
@@ -147,4 +143,35 @@ def test_get_dataset(requests_mock, zip_buffer):
     datasets_json = json.load(open(json_path_user))
     assert datasets_json[data_name]["data_path"]
     assert datasets_json[data_name]["files"]
-    shutil.rmtree(data_path_user)
+    ds.remove(data_name)
+
+    assert not os.path.exists(os.path.join("./datasets", data_name))
+
+    ds.get(data_name)
+    ds.get(data_name)
+    ds.remove(data_name, ds.existing_data_paths[0])
+
+
+def test_datasets_manager():
+    dm.add(
+        "Test_DM",
+        {"url": "http://test.com/files/file.zip", "subdirs": ["subdir"]},
+        levels=["folder", "user"],
+    )
+    datasets_json = json.load(open(dm.json_path["folder"]))
+    assert datasets_json["Test_DM"]
+    assert datasets_json["Test_DM"]["url"] == "http://test.com/files/file.zip"
+    assert datasets_json["Test_DM"]["subdirs"] == ["subdir"]
+
+    dm.remove("Test_DM", levels=["folder"])
+    datasets_json = json.load(open(dm.json_path["folder"]))
+    with pytest.raises(KeyError):
+        datasets_json["Test_DM"]
+
+    datasets_json = json.load(open(dm.json_path["user"]))
+    assert datasets_json["Test_DM"]
+
+    dm.remove("Test_DM", levels=["user"])
+    datasets_json = json.load(open(dm.json_path["user"]))
+    with pytest.raises(KeyError):
+        datasets_json["Test_DM"]
