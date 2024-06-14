@@ -1532,6 +1532,9 @@ class EnergyCalibrator:
             offsets["creation_date"] = datetime.now().timestamp()
             # column-based offsets
             if columns is not None:
+                if isinstance(columns, str):
+                    columns = [columns]
+
                 if weights is None:
                     weights = 1
                 if isinstance(weights, (int, float, np.integer, np.floating)):
@@ -1543,10 +1546,13 @@ class EnergyCalibrator:
                 if not all(isinstance(s, (int, float, np.integer, np.floating)) for s in weights):
                     raise TypeError(f"Invalid type for weights: {type(weights)}")
 
-                if isinstance(columns, str):
-                    columns = [columns]
-                if isinstance(preserve_mean, bool):
-                    preserve_mean = [preserve_mean] * len(columns)
+                if preserve_mean is None:
+                    preserve_mean = False
+                if not isinstance(preserve_mean, Sequence):
+                    preserve_mean = [preserve_mean]
+                if len(preserve_mean) == 1:
+                    preserve_mean = [preserve_mean[0]] * len(columns)
+
                 if not isinstance(reductions, Sequence):
                     reductions = [reductions]
                 if len(reductions) == 1:
