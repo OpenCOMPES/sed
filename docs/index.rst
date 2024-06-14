@@ -23,6 +23,7 @@ Single-Event DataFrame (SED) documentation
    sed/loader
    sed/binning
    sed/calibrator
+   sed/dataset
    sed/diagnostic
    sed/io
    sed/metadata
