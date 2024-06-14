@@ -43,7 +43,7 @@ def setup_logging(
     console_handler.setLevel(CONSOLE_VERBOSITY)
 
     # Create formatter for console
-    console_formatter = logging.Formatter("%(message)s")
+    console_formatter = logging.Formatter("%(levelname)s - %(message)s")
     console_handler.setFormatter(console_formatter)
 
     # Add console handler to logger

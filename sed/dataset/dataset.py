@@ -174,7 +174,7 @@ class Dataset:
         existing_data_path = self.existing_data_paths[0] if self.existing_data_paths else None
         if use_existing and existing_data_path:
             if existing_data_path != root_dir:
-                logger.warning(
+                logger.info(
                     f"Not downloading {self._data_name} data as it already exists "
                     f'at "{existing_data_path}".\n'
                     "Set 'use_existing' to False if you want to download to a new location.",
