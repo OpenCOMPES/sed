@@ -9,8 +9,11 @@ from pathlib import Path
 from typing import Union
 
 import yaml
+from platformdirs import user_config_path
 
 package_dir = os.path.dirname(find_spec("sed").origin)
+
+USER_CONFIG_PATH = user_config_path(appname="sed", appauthor="OpenCOMPES", ensure_exists=True)
 
 
 def parse_config(
