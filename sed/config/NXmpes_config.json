@@ -161,7 +161,7 @@
     "detector_voltage": "@attrs:metadata/file/KTOF:Lens:UDLD:V",
     "detector_voltage/@units": "V"
   },
-  "/ENTRY[entry]/INSTRUMENT[instrument]/source_TYPE[source_probe]": {
+  "/ENTRY[entry]/INSTRUMENT[instrument]/sourceTYPE[source_probe]": {
     "name": "HHG @ TR-ARPES @ FHI",
     "probe": "photon",
     "type": "HHG laser",
@@ -170,7 +170,7 @@
     "frequency/@units": "kHz",
     "associated_beam": "/entry/instrument/beam_probe"
   },
-  "/ENTRY[entry]/INSTRUMENT[instrument]/beam_TYPE[beam_probe]": {
+  "/ENTRY[entry]/INSTRUMENT[instrument]/beamTYPE[beam_probe]": {
     "distance": 0.0,
     "distance/@units": "mm",
     "incident_energy": "@attrs:metadata/instrument/beam/probe/incident_energy",
@@ -185,7 +185,7 @@
     "extent/@units": "µm",
     "associated_source": "/entry/instrument/source_probe"
   },
-  "/ENTRY[entry]/INSTRUMENT[instrument]/source_TYPE[source_pump]": {
+  "/ENTRY[entry]/INSTRUMENT[instrument]/sourceTYPE[source_pump]": {
     "name": "OPCPA @ TR-ARPES @ FHI",
     "probe": "visible light",
     "type": "Optical Laser",
@@ -194,7 +194,7 @@
     "frequency/@units": "kHz",
     "associated_beam": "/entry/instrument/beam_pump"
   },
-  "/ENTRY[entry]/INSTRUMENT[instrument]/beam_TYPE[beam_pump]": {
+  "/ENTRY[entry]/INSTRUMENT[instrument]/beamTYPE[beam_pump]": {
     "distance": 0.0,
     "distance/@units": "mm",
     "incident_energy": "@attrs:metadata/instrument/beam/pump/incident_energy",
@@ -263,7 +263,7 @@
   },
   "/ENTRY[entry]/SAMPLE[sample]": {
     "preparation_date": "@attrs:metadata/sample/preparation_date",
-    "sample_history/notes": "@attrs:metadata/sample/sample_history",
+    "history/notes/description": "@attrs:metadata/sample/sample_history",
     "description": "@attrs:metadata/sample/chemical_formula",
     "name": "@attrs:metadata/sample/name",
     "situation": "vacuum",
@@ -372,21 +372,24 @@
       "AXISNAME[rot_z]/@depends_on": "@attrs:metadata/momentum_correction/registration/rot_z/depends_on"
     }
   },
-  "/ENTRY[entry]/PROCESS[process]/energy_calibration":{
+  "/ENTRY[entry]/PROCESS_MPES[process]/energy_calibration":{
     "coefficients": "@attrs:metadata/energy_calibration/calibration/coefficients",
     "fit_function": "@attrs:metadata/energy_calibration/calibration/fit_function",
     "original_axis": "@attrs:metadata/energy_calibration/tof",
-    "calibrated_axis": "@attrs:metadata/energy_calibration/calibration/axis"
+    "calibrated_axis": "@attrs:metadata/energy_calibration/calibration/axis",
+    "calibrated_axis/@units": "eV"
   },
-  "/ENTRY[entry]/PROCESS[process]/CALIBRATION[kx_calibration]": {
+  "/ENTRY[entry]/PROCESS_MPES[process]/kx_calibration": {
     "scaling": "@attrs:metadata/momentum_calibration/calibration/kx_scale",
     "offset": "@attrs:metadata/momentum_calibration/calibration/x_center",
-    "calibrated_axis": "@attrs:metadata/momentum_calibration/calibration/kx_axis"
+    "calibrated_axis": "@attrs:metadata/momentum_calibration/calibration/kx_axis",
+    "calibrated_axis/@units": "Angstrom^-1"
   },
-  "/ENTRY[entry]/PROCESS[process]/CALIBRATION[ky_calibration]": {
+  "/ENTRY[entry]/PROCESS_MPES[process]/ky_calibration": {
     "scaling": "@attrs:metadata/momentum_calibration/calibration/ky_scale",
     "offset": "@attrs:metadata/momentum_calibration/calibration/y_center",
-    "calibrated_axis": "@attrs:metadata/momentum_calibration/calibration/ky_axis"
+    "calibrated_axis": "@attrs:metadata/momentum_calibration/calibration/ky_axis",
+    "calibrated_axis/@units": "Angstrom^-1"
   },
   "/ENTRY[entry]/data": {
     "@axes": "@data:dims",
