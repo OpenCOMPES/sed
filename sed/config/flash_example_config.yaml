@@ -187,7 +187,7 @@ dataframe:
 #   scicat_token: <TOKEN>
 
 # The nexus collection routine shall be finalized soon for both instruments
-# nexus:
-#   reader: "flash"
-#   definition: "NXmpes"
-#   input_files: ["NXmpes_config_HEXTOF_light.json"]
+nexus:
+  reader: "mpes"
+  definition: "NXmpes"
+  input_files: ["NXmpes_config-HEXTOF.json"]
