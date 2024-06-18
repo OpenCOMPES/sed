@@ -8,9 +8,10 @@
   "/ENTRY[entry]/experiment_institution": "Deutsches Elektronen-Synchrotron DESY",
   "/ENTRY[entry]/experiment_facility": "Free-Electron Laser FLASH",
   "/ENTRY[entry]/experiment_laboratory": "@attrs:metadata/creationLocation",
-  "/ENTRY[entry]/entry_identifier": "@attrs:metadata/_id",
+  "/ENTRY[entry]/entry_identifier": "@attrs:metadata/pid",
   "/ENTRY[entry]/USER[user]": {
     "name": "@attrs:metadata/principalInvestigator",
+    "affiliation": "t.b.d.",
     "role": "Principal investigator",
     "email": "@attrs:metadata/contactEmail"
   },
@@ -38,8 +39,8 @@
     "pressure_gauge": {
       "name": "sample_chamber_pressure",
       "measurement": "pressure",
-      "value": "@attrs:metadata/scientificMetadata/Sample/sample_pressure/value",
-      "value/@units": "@attrs:metadata/scientificMetadata/Sample/sample_pressure/unit"
+      "value": "@attrs:metadata/scientificMetadata/sample/sample_pressure/value",
+      "value/@units": "@attrs:metadata/scientificMetadata/sample/sample_pressure/unit"
     }
   },
 
@@ -54,21 +55,21 @@
       "ky",
       "E"
     ],
-    "slow_axes": "@attrs:metadata/instrument/analyzer/slow_axes",
+    "slow_axes": "t.b.d.",
     "energy_resolution": {
-      "resolution": "@attrs:metadata/instrument/analyzer/energy_resolution",
+      "resolution": 100,
       "resolution/@units": "meV",
       "physical_quantity": "energy",
       "type": "estimated"
     },
     "momentum_resolution": {
-      "resolution": "@attrs:metadata/instrument/analyzer/momentum_resolution",
+      "resolution": 0.08,
       "resolution/@units": "1/angstrom",
       "physical_quantity": "momentum",
       "type": "estimated"
     },
     "spatial_resolution": {
-      "resolution": "@attrs:metadata/instrument/analyzer/spatial_resolution",
+      "resolution": 1,
       "resolution/@units": "µm",
       "physical_quantity": "length",
       "type": "estimated"
@@ -76,12 +77,10 @@
   },
   "/ENTRY[entry]/INSTRUMENT[instrument]/ELECTRONANALYSER[electronanalyser]/COLLECTIONCOLUMN[collectioncolumn]": {
     "projection": "@attrs:metadata/scientificMetadata/Collection/projection",
-    "scheme": "None",
+    "scheme": "momentum dispersive",
     "lens_mode": "@attrs:metadata/scientificMetadata/Collection/lens_mode",
     "extractor_voltage": "@attrs:metadata/scientificMetadata/Collection/extractor_voltage",
     "extractor_voltage/@units": "V",
-    "extractor_current": "t.b.d.",
-    "extractor_current/@units": "µA",
     "working_distance": 4.0,
     "working_distance/@units": "mm",
     "field_aperture": {
@@ -98,18 +97,12 @@
       }
     },
     "contrast_aperture": {
-      "shape": "round",
-      "size": "OPEN",
-      "size/@units": "µm",
-      "POSITIONER[ca_m3]": {
-        "value": 0.0,
-        "value/@units": "mm"
-      }
+      "shape": "open"
     }
   },
   "/ENTRY[entry]/INSTRUMENT[instrument]/ELECTRONANALYSER[electronanalyser]/ENERGYDISPERSION[energydispersion]": {
-    "pass_energy": "@attrs:metadata/scientificMetadata/Collection/tof_voltage",
-    "pass_energy/@units": "eV",
+    "drift_energy": "@attrs:metadata/scientificMetadata/Collection/tof_voltage",
+    "drift_energy/@units": "eV",
     "scheme": "tof",
     "tof_distance": 0.8,
     "tof_distance/@units": "m"
@@ -128,7 +121,7 @@
     "detector_voltage": 2250.0,
     "detector_voltage/@units": "V"
   },
-  "/ENTRY[entry]/INSTRUMENT[instrument]/source_TYPE[source_probe]": {
+  "/ENTRY[entry]/INSTRUMENT[instrument]/sourceTYPE[source_probe]": {
     "name": "@attrs:metadata/scientificMetadata/Source/name",
     "probe": "@attrs:metadata/scientificMetadata/Source/probe",
     "type": "@attrs:metadata/scientificMetadata/Source/type",
@@ -137,20 +130,18 @@
     "frequency/@units": "@attrs:metadata/scientificMetadata/Source/repetition_rate/unit",
     "associated_beam": "/entry/instrument/beam_probe"
   },
-  "/ENTRY[entry]/INSTRUMENT[instrument]/beam_TYPE[beam_probe]": {
+  "/ENTRY[entry]/INSTRUMENT[instrument]/beamTYPE[beam_probe]": {
     "distance": 0.0,
     "distance/@units": "mm",
     "incident_energy": "@attrs:metadata/scientificMetadata/Source/photon_energy/value",
-    "incident_energy/@units": "@attrs:metadata/scientificMetadata/Source/dispersion/unit",
-    "incident_energy_dispersion": "@attrs:metadata/scientificMetadata/Source/dispersion/value",
-    "incident_energy_dispersion/@units": "@attrs:metadata/scientificMetadata/Source/dispersion/unit",
-    "pulse_duration": "t.b.d.",
+    "incident_energy/@units": "@attrs:metadata/scientificMetadata/Source/photon_energy/unit",
+    "pulse_duration": 100,
     "pulse_duration/@units": "fs",
-    "incident_polarization": "horizontal",
-    "incident_polarization/@units": "None",
+    "incident_polarization": [1, 1, 0, 0],
+    "incident_polarization/@units": "V^2/mm^2",
     "associated_source": "/entry/instrument/source_probe"
   },
-  "/ENTRY[entry]/INSTRUMENT[instrument]/source_TYPE[source_pump]": {
+  "/ENTRY[entry]/INSTRUMENT[instrument]/sourceTYPE[source_pump]": {
     "name": "OPCPA @ TR-ARPES @ FHI",
     "probe": "visible light",
     "type": "Optical Laser",
@@ -159,25 +150,27 @@
     "frequency/@units": "kHz",
     "associated_beam": "/entry/instrument/beam_pump"
   },
-  "/ENTRY[entry]/INSTRUMENT[instrument]/beam_TYPE[beam_pump]": {
+  "/ENTRY[entry]/INSTRUMENT[instrument]/beamTYPE[beam_pump]": {
     "distance": 0.0,
     "distance/@units": "mm",
     "incident_wavelength": "@attrs:metadata/scientificMetadata/Laser/wavelength/value",
     "incident_wavelength/@units": "@attrs:metadata/scientificMetadata/Laser/wavelength/unit",
-    "pulse_duration": "@attrs:metadata/scientificMetadata/Laser/wavelength/pulse duration/value",
-    "pulse_duration/@units": "@attrs:metadata/scientificMetadata/Laser/wavelength/pulse duration/unit",
-    "incident_polarization": "@attrs:metadata/instrument/beam/pump/incident_polarization",
+    "incident_energy": "@attrs:metadata/scientificMetadata/Laser/energy/value",
+    "incident_energy/@units": "@attrs:metadata/scientificMetadata/Laser/energy/unit",
+    "pulse_duration": "@attrs:metadata/scientificMetadata/Laser/pulse duration/value",
+    "pulse_duration/@units": "@attrs:metadata/scientificMetadata/Laser/pulse duration/unit",
+    "incident_polarization": "@attrs:metadata/scientificMetadata/Laser/polarization",
     "incident_polarization/@units": "V^2/mm^2",
-    "pulse_energy": "@attrs:metadata/scientificMetadata/Laser/wavelength/pulse_energy/value",
-    "pulse_energy/@units": "@attrs:metadata/scientificMetadata/Laser/wavelength/pulse_energy/unit",
+    "pulse_energy": "@attrs:metadata/scientificMetadata/Laser/pulse_energy/value",
+    "pulse_energy/@units": "@attrs:metadata/scientificMetadata/Laser/pulse_energy/unit",
     "associated_source": "/entry/instrument/source_pump"
   },
   "/ENTRY[entry]/INSTRUMENT[instrument]/MANIPULATOR[manipulator]": {
     "temperature_sensor": {
       "name": "sample_temperature",
       "measurement": "temperature",
-      "value": "@attrs:metadata/scientificMetadata/sample/temperature/value",
-      "value/@units": "@attrs:metadata/scientificMetadata/sample/temperature/unit"
+      "value": "@attrs:metadata/scientificMetadata/sample/sample_temperature/value",
+      "value/@units": "@attrs:metadata/scientificMetadata/sample/sample_temperature/unit"
     },
     "sample_bias_voltmeter": {
       "name": "sample_bias",
@@ -200,58 +193,21 @@
       "voltmeter": "@link:/entry/instrument/manipulator/sample_bias_voltmeter"
     }
   },
-  "/ENTRY[entry]/PROCESS[process]/DISTORTION[distortion]": {
-    "symmetry": "@attrs:metadata/momentum_correction/correction/rotsym",
-    "original_centre": "@attrs:metadata/momentum_correction/correction/pcent",
-    "original_points": "@attrs:metadata/momentum_correction/correction/pouter",
-    "cdeform_field": "@attrs:metadata/momentum_correction/correction/cdeform_field",
-    "rdeform_field": "@attrs:metadata/momentum_correction/correction/rdeform_field"
-  },
-  "/ENTRY[entry]/PROCESS[process]/REGISTRATION[registration]": {
-    "depends_on": "@attrs:metadata/momentum_correction/registration/depends_on",
-    "TRANSFORMATIONS[tranformations]": {
-      "AXISNAME[trans_x]": "@attrs:metadata/momentum_correction/registration/trans_x/value",
-      "AXISNAME[trans_x]/@transformation_type": "@attrs:metadata/momentum_correction/registration/trans_x/type",
-      "AXISNAME[trans_x]/@units": "@attrs:metadata/momentum_correction/registration/trans_x/units",
-      "AXISNAME[trans_x]/@vector": "@attrs:metadata/momentum_correction/registration/trans_x/vector",
-      "AXISNAME[trans_x]/@depends_on": "@attrs:metadata/momentum_correction/registration/trans_x/depends_on",
-      "AXISNAME[trans_y]": "@attrs:metadata/momentum_correction/registration/trans_y/value",
-      "AXISNAME[trans_y]/@units": "@attrs:metadata/momentum_correction/registration/trans_y/units",
-      "AXISNAME[trans_y]/@transformation_type": "@attrs:metadata/momentum_correction/registration/trans_y/type",
-      "AXISNAME[trans_y]/@vector": "@attrs:metadata/momentum_correction/registration/trans_y/vector",
-      "AXISNAME[trans_y]/@depends_on": "@attrs:metadata/momentum_correction/registration/trans_y/depends_on",
-      "AXISNAME[rot_z]": "@attrs:metadata/momentum_correction/registration/rot_z/value",
-      "AXISNAME[rot_z]/@units": "@attrs:metadata/momentum_correction/registration/rot_z/units",
-      "AXISNAME[rot_z]/@transformation_type": "@attrs:metadata/momentum_correction/registration/rot_z/type",
-      "AXISNAME[rot_z]/@offset": "@attrs:metadata/momentum_correction/registration/rot_z/offset",
-      "AXISNAME[rot_z]/@vector": "@attrs:metadata/momentum_correction/registration/rot_z/vector",
-      "AXISNAME[rot_z]/@depends_on": "@attrs:metadata/momentum_correction/registration/rot_z/depends_on"
-    }
-  },
-  "/ENTRY[entry]/PROCESS[process]/energy_calibration":{
+  "/ENTRY[entry]/PROCESS_MPES[process]/energy_calibration":{
     "coefficients": "@attrs:metadata/energy_calibration/calibration/coefficients",
     "fit_function": "@attrs:metadata/energy_calibration/calibration/fit_function",
     "original_axis": "@attrs:metadata/energy_calibration/tof",
-    "calibrated_axis": "@attrs:metadata/energy_calibration/calibration/axis"
-  },
-  "/ENTRY[entry]/PROCESS[process]/CALIBRATION[kx_calibration]": {
-    "scaling": "@attrs:metadata/momentum_calibration/calibration/kx_scale",
-    "offset": "@attrs:metadata/momentum_calibration/calibration/x_center",
-    "calibrated_axis": "@attrs:metadata/momentum_calibration/calibration/kx_axis"
-  },
-  "/ENTRY[entry]/PROCESS[process]/CALIBRATION[ky_calibration]": {
-    "scaling": "@attrs:metadata/momentum_calibration/calibration/ky_scale",
-    "offset": "@attrs:metadata/momentum_calibration/calibration/y_center",
-    "calibrated_axis": "@attrs:metadata/momentum_calibration/calibration/ky_axis"
+    "calibrated_axis": "@attrs:metadata/energy_calibration/calibration/axis",
+    "calibrated_axis/@units": "eV"
   },
   "/ENTRY[entry]/data": {
     "@axes": "@data:dims",
-    "AXISNAME_indices[@*_indices]": "@data:*.index",
+    "@*_indices": "@data:*.index",
     "@signal": "data",
     "data": "@data:data",
     "data/@units": "counts",
-    "AXISNAME[*]": "@data:*.data",
-    "AXISNAME[*]/@units": "@data:*.unit",
+    "*": "@data:*.data",
+    "*/@units": "@data:*.unit",
     "energy/@type": "@attrs:metadata/energy_calibration/calibration/energy_scale"
   }
 }

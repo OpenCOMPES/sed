@@ -78,6 +78,7 @@ dataframe:
     sampleTemperature: 'K'
     dldTime: 'ns'
     delay: 'ps'
+    delayStage: 'ps'
     timeStamp: 's'
     energy: 'eV'
     E: 'eV'
@@ -190,4 +191,4 @@ dataframe:
 nexus:
   reader: "mpes"
   definition: "NXmpes"
-  input_files: ["NXmpes_config-HEXTOF.json"]
+  input_files: ["../sed/config/NXmpes_config-HEXTOF.json"]
