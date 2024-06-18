@@ -142,7 +142,7 @@
     "associated_source": "/entry/instrument/source_probe"
   },
   "/ENTRY[entry]/INSTRUMENT[instrument]/sourceTYPE[source_pump]": {
-    "name": "OPCPA @ TR-ARPES @ FHI",
+    "name": "FLASH pump laser",
     "probe": "visible light",
     "type": "Optical Laser",
     "mode": "Single Bunch",
