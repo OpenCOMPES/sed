@@ -18,9 +18,9 @@ dataframe:
   # dataframe column name for the time stamp column
   time_stamp_alias: "timeStamps"
   # hdf5 group name containing eventIDs occuring at every millisecond (used to calculate timestamps)
-  ms_markers_key: "/msMarkers"
+  ms_markers_key: "msMarkers"
   # hdf5 attribute containing the timestamp of the first event in a file
-  first_event_time_stamp_key: "/FirstEventTimeStamp"
+  first_event_time_stamp_key: "FirstEventTimeStamp"
   # Time stepping in seconds of the succesive events in the timed dataframe
   timed_dataframe_unit_time: 0.001
   # list of columns to apply jitter to
@@ -78,23 +78,23 @@ dataframe:
     # The X-channel
     X:
       format: per_electron
-      dataset_key: "/Stream_0"
+      dataset_key: "Stream_0"
     # The Y-channel
     Y:
       format: per_electron
-      dataset_key: "/Stream_1"
+      dataset_key: "Stream_1"
     # The tof-channel
     t:
       format: per_electron
-      dataset_key: "/Stream_2"
+      dataset_key: "Stream_2"
     # The ADC-channel
     ADC:
       format: per_electron
-      dataset_key: "/Stream_4"
+      dataset_key: "Stream_4"
     # The sample Bias-channel
     sampleBias:
       format: per_file
-      dataset_key: "/KTOF:Lens:Sample:V"
+      dataset_key: "KTOF:Lens:Sample:V"
 
 energy:
   # Number of bins to use for energy calibration traces
