@@ -7,11 +7,15 @@ from importlib.util import find_spec
 import dask
 import numpy as np
 import psutil
+import pytest
 
 from sed import SedProcessor
 from sed.binning.binning import bin_dataframe
 from sed.core.config import load_config
 from sed.core.config import save_config
+from sed.loader.base.loader import BaseLoader
+from tests.loader.test_loaders import get_all_loaders
+from tests.loader.test_loaders import get_loader_name_from_loader_object
 
 package_dir = os.path.dirname(find_spec("sed").origin)
 
@@ -28,6 +32,8 @@ array = (
 )
 dataframe = dask.dataframe.from_dask_array(array, columns=axes)
 
+test_data_dir = os.path.join(package_dir, "..", "tests", "data")
+runs = {"generic": None, "mpes": ["30", "50"], "flash": ["43878"], "sxp": ["0016"]}
 
 targets = load_config(package_dir + "/../benchmarks/benchmark_targets.yaml")
 
@@ -171,3 +177,32 @@ def test_workflow_4d() -> None:
         print(f"Updating targets for 'workflow_4d' to {float(np.mean(result) * 1.2)}")
         targets["workflow_4d"] = float(np.mean(result) * 1.2)
         save_config(targets, package_dir + "/../benchmarks/benchmark_targets.yaml")
+
+
+@pytest.mark.parametrize("loader", get_all_loaders())
+def test_loader_compute(loader: BaseLoader) -> None:
+    loader_name = get_loader_name_from_loader_object(loader)
+    if loader.__name__ != "BaseLoader":
+        if runs[loader_name] is None:
+            pytest.skip("Not implemented")
+        loaded_dataframe, _, loaded_metadata = loader.read_dataframe(
+            runs=runs[loader_name],
+            collect_metadata=False,
+        )
+
+        loaded_dataframe.compute()
+        timer = timeit.Timer(
+            "loaded_dataframe.compute()",
+            globals={**globals(), **locals()},
+        )
+        result = timer.repeat(5, number=1)
+        print(result)
+        assert min(result) < targets[f"loader_compute_{loader_name}"]
+        # update targets if substantial improvement occurs
+        if np.mean(result) < 0.8 * targets[f"loader_compute_{loader_name}"]:
+            print(
+                f"Updating targets for loader_compute_{loader_name}' "
+                f"to {float(np.mean(result) * 1.2)}",
+            )
+            targets[f"loader_compute_{loader_name}"] = float(np.mean(result) * 1.2)
+            save_config(targets, package_dir + "/../benchmarks/benchmark_targets.yaml")
