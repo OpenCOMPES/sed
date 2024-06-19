@@ -75,19 +75,23 @@ dataframe:
 
   # dataframe channels and group names to read from the h5 files
   channels:
-    # The timestamp
+    # The X-channel
     X:
       format: per_electron
       group_name: "/Stream_0"
+    # The Y-channel
     Y:
       format: per_electron
       group_name: "/Stream_1"
+    # The tof-channel
     t:
       format: per_electron
       group_name: "/Stream_2"
+    # The ADC-channel
     ADC:
       format: per_electron
       group_name: "/Stream_4"
+    # The sample Bias-channel
     sampleBias:
       format: per_file
       group_name: "KTOF:Lens:Sample:V"
