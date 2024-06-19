@@ -43,7 +43,7 @@ def hdf5_to_dataframe(
     Args:
         files (List[str]): A list of the file paths to load.
         channels (Dict[str, str], optional): hdf5 channels names to load. Each entry in the dict
-            should contain the keys "format" and "groupName". Defaults to load all groups
+            should contain the keys "format" and "group_name". Defaults to load all groups
             containing "Stream", and to read the attribute "Name" from each group.
         time_stamps (bool, optional): Option to calculate time stamps. Defaults to
             False.
