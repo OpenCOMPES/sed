@@ -9,6 +9,7 @@
 *.zip
 **/datasets/*
 **/processed/*
+**/buffer/*
 **/sed_config.yaml
 **/datasets.json
 
