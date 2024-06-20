@@ -2017,7 +2017,7 @@ def peakdetect1d(
 
     # maxima and minima candidates are temporarily stored in
     # mx and mn respectively
-    _min, _max = np.Inf, -np.Inf
+    _min, _max = np.inf, -np.inf
 
     # Only detect peak if there is 'lookahead' amount of points after it
     for index, (x, y) in enumerate(
@@ -2032,15 +2032,15 @@ def peakdetect1d(
             _min_pos = x
 
         # Find local maxima
-        if y < _max - delta and _max != np.Inf:
+        if y < _max - delta and _max != np.inf:
             # Maxima peak candidate found
             # look ahead in signal to ensure that this is a peak and not jitter
             if y_axis[index : index + lookahead].max() < _max:
                 max_peaks.append([_max_pos, _max])
                 dump.append(True)
                 # Set algorithm to only find minima now
-                _max = np.Inf
-                _min = np.Inf
+                _max = np.inf
+                _min = np.inf
 
                 if index + lookahead >= length:
                     # The end is within lookahead no more peaks can be found
@@ -2051,15 +2051,15 @@ def peakdetect1d(
             #    mxpos = x_axis[np.where(y_axis[index:index+lookahead]==mx)]
 
         # Find local minima
-        if y > _min + delta and _min != -np.Inf:
+        if y > _min + delta and _min != -np.inf:
             # Minima peak candidate found
             # look ahead in signal to ensure that this is a peak and not jitter
             if y_axis[index : index + lookahead].min() > _min:
                 min_peaks.append([_min_pos, _min])
                 dump.append(False)
                 # Set algorithm to only find maxima now
-                _min = -np.Inf
-                _max = -np.Inf
+                _min = -np.inf
+                _max = -np.inf
 
                 if index + lookahead >= length:
                     # The end is within lookahead no more peaks can be found
