@@ -23,6 +23,7 @@ Single-Event DataFrame (SED) documentation
    sed/loader
    sed/binning
    sed/calibrator
+   sed/dataset
    sed/diagnostic
    sed/io
    sed/metadata
@@ -32,6 +33,7 @@ Single-Event DataFrame (SED) documentation
    :maxdepth: 2
    :caption: Contributing
 
+   misc/contributing
    misc/maintain
 
 Indices and tables

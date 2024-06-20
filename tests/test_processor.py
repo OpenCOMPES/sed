@@ -189,11 +189,11 @@ def test_attributes_setters() -> None:
         processor.dataframe["X"].compute(),
         processor.dataframe["Y"].compute(),
     )
-    processor_metadata = processor.attributes
+    processor_metadata = processor.attributes.metadata
     assert isinstance(processor_metadata, dict)
     assert "test" in processor_metadata.keys()
     processor.add_attribute({"key2": 5}, name="test2")
-    assert processor.attributes["test2"]["key2"] == 5
+    assert processor_metadata["test2"]["key2"] == 5
     assert processor.config["core"]["loader"] == "mpes"
     assert len(processor.files) == 2
 
@@ -398,7 +398,7 @@ def test_pose_adjustment_save_load() -> None:
     processor.apply_momentum_correction()
     assert "Xm" in processor.dataframe.columns
     assert "Ym" in processor.dataframe.columns
-    assert "momentum_correction" in processor.attributes
+    assert "momentum_correction" in processor.attributes.metadata
     os.remove("sed_config_pose_adjustments.yaml")
 
 
@@ -609,7 +609,10 @@ def test_energy_calibration_workflow(energy_scale: str, calibration_method: str)
         processor.add_energy_offset(constant=1)
     processor.append_energy_axis(preview=False)
     assert "energy" in processor.dataframe.columns
-    assert processor.attributes["energy_calibration"]["calibration"]["energy_scale"] == energy_scale
+    assert (
+        processor.attributes.metadata["energy_calibration"]["calibration"]["energy_scale"]
+        == energy_scale
+    )
     os.remove(f"sed_config_energy_calibration_{energy_scale}-{calibration_method}.yaml")
 
     energy1 = processor.dataframe["energy"].compute().values
@@ -743,11 +746,14 @@ def test_delay_calibration_workflow() -> None:
     processor.calibrate_delay_axis()
     assert "delay" in processor.dataframe.columns
     assert (
-        processor.attributes["delay_calibration"]["calibration"]["creation_date"]
+        processor.attributes.metadata["delay_calibration"]["calibration"]["creation_date"]
         == creation_date_calibration
     )
     processor.add_delay_offset(preview=True)
-    assert processor.attributes["delay_offset"]["offsets"]["creation_date"] == creation_date_offsets
+    assert (
+        processor.attributes.metadata["delay_offset"]["offsets"]["creation_date"]
+        == creation_date_offsets
+    )
     np.testing.assert_allclose(expected, processor.dataframe["delay"].compute())
     os.remove("sed_config_delay_calibration.yaml")
 
@@ -819,9 +825,12 @@ def test_add_time_stamped_data() -> None:
     res = processor.dataframe["time_stamped_data"].compute().values
     assert res[0] == 0
     assert res[-1] == 1
-    assert processor.attributes["time_stamped_data"][0] == "time_stamped_data"
-    np.testing.assert_array_equal(processor.attributes["time_stamped_data"][1], time_stamps)
-    np.testing.assert_array_equal(processor.attributes["time_stamped_data"][2], data)
+    assert processor.attributes.metadata["time_stamped_data"][0] == "time_stamped_data"
+    np.testing.assert_array_equal(
+        processor.attributes.metadata["time_stamped_data"][1],
+        time_stamps,
+    )
+    np.testing.assert_array_equal(processor.attributes.metadata["time_stamped_data"][2], data)
 
 
 def test_event_histogram() -> None:
