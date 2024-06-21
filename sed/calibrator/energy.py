@@ -186,12 +186,12 @@ class EnergyCalibrator:
         """Bin data from single-event files, and load into class.
 
         Args:
-            data_files (List[str]): list of file names to bin
-            axes (List[str], optional): bin axes. Defaults to
+            data_files (list[str]): list of file names to bin
+            axes (list[str], optional): bin axes. Defaults to
                 config["dataframe"]["tof_column"].
-            bins (List[int], optional): number of bins.
+            bins (list[int], optional): number of bins.
                 Defaults to config["energy"]["bins"].
-            ranges (Sequence[Tuple[float, float]], optional): bin ranges.
+            ranges (Sequence[tuple[float, float]], optional): bin ranges.
                 Defaults to config["energy"]["ranges"].
             biases (np.ndarray, optional): Bias voltages used.
                 If not provided, biases are extracted from the file meta data.
@@ -298,7 +298,7 @@ class EnergyCalibrator:
         (containing the peaks) among all traces.
 
         Args:
-            ranges (Tuple):
+            ranges (tuple):
                 Collection of feature detection ranges, within which an algorithm
                 (i.e. 1D peak detector) with look for the feature.
             ref_id (int, optional): Index of the reference trace. Defaults to 0.
@@ -487,7 +487,7 @@ class EnergyCalibrator:
         """Select or extract the equivalent landmarks (e.g. peaks) among all traces.
 
         Args:
-            ranges (List[Tuple], optional):  List of ranges in each trace to look for
+            ranges (list[tuple], optional):  List of ranges in each trace to look for
                 the peak feature, [start, end]. Defaults to self.featranges.
             traces (np.ndarray, optional): Collection of 1D spectra to use for
                 calibration. Defaults to self.traces_normed.
@@ -621,7 +621,7 @@ class EnergyCalibrator:
 
         Args:
             traces (np.ndarray): Matrix of traces to visualize.
-            segs (List[Tuple], optional): Segments to be highlighted in the
+            segs (list[tuple], optional): Segments to be highlighted in the
                 visualization. Defaults to None.
             peaks (np.ndarray, optional): Peak positions for labelling the traces.
                 Defaults to None.
@@ -982,7 +982,7 @@ class EnergyCalibrator:
                 Defaults to config["energy"]["correction_type"].
             amplitude (float, optional): Amplitude of the time-of-flight correction
                 term. Defaults to config["energy"]["correction"]["correction_type"].
-            center (Tuple[float, float], optional): Center (x/y) coordinates for the
+            center (tuple[float, float], optional): Center (x/y) coordinates for the
                 correction. Defaults to config["energy"]["correction"]["center"].
             correction (dict, optional): Correction dict. Defaults to the config values
                 and is updated from provided and adjusted parameters.
@@ -1431,7 +1431,7 @@ class EnergyCalibrator:
         """Aligns the time-of-flight axis of the different sections of a detector.
 
         Args:
-            df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to use.
+            df (dask.dataframe.DataFrame): Dataframe to use.
             tof_column (str, optional): Name of the column containing the time-of-flight values.
                 Defaults to config["dataframe"]["tof_column"].
             sector_id_column (str, optional): Name of the column containing the sector id values.
@@ -1440,8 +1440,8 @@ class EnergyCalibrator:
                 config["dataframe"]["sector_delays"].
 
         Returns:
-            dask.dataframe.DataFrame: Dataframe with the new columns.
-            dict: Metadata dictionary.
+            tuple[dask.dataframe.DataFrame, dict]: Dataframe with the new columns and Metadata
+            dictionary.
         """
         if sector_delays is None:
             sector_delays = self.sector_delays
@@ -1647,7 +1647,7 @@ def extract_bias(files: list[str], bias_key: str) -> np.ndarray:
     """Read bias values from hdf5 files
 
     Args:
-        files (List[str]): List of filenames
+        files (list[str]): List of filenames
         bias_key (str): hdf5 path to the bias value
 
     Returns:
@@ -1679,7 +1679,7 @@ def correction_function(
         y (float | np.ndarray): y coordinate
         correction_type (str): type of correction. One of
             "spherical", "Lorentzian", "Gaussian", or "Lorentzian_asymmetric"
-        center (Tuple[int, int]): center position of the distribution (x,y)
+        center (tuple[int, int]): center position of the distribution (x,y)
         amplitude (float): Amplitude of the correction
         **kwds: Keyword arguments:
 
@@ -1853,13 +1853,13 @@ def range_convert(
 
     Args:
         x (np.ndarray): Values of the x axis (e.g. time-of-flight values).
-        xrng (Tuple): Boundary value range on the x axis.
+        xrng (tuple): Boundary value range on the x axis.
         pathcorr (np.ndarray): Path correspondence between two 1D arrays in the
             following form,
             [(id_1_trace_1, id_1_trace_2), (id_2_trace_1, id_2_trace_2), ...]
 
     Returns:
-        Tuple: Transformed range according to the path correspondence.
+        tuple: Transformed range according to the path correspondence.
     """
     pathcorr = np.asarray(pathcorr)
     xrange_trans = []
@@ -1898,7 +1898,7 @@ def peaksearch(
     Args:
         traces (np.ndarray): Collection of 1D spectra.
         tof (np.ndarray): Time-of-flight values.
-        ranges (List[Tuple], optional): List of ranges for peak detection in the format
+        ranges (list[tuple], optional): List of ranges for peak detection in the format
         [(LowerBound1, UpperBound1), (LowerBound2, UpperBound2), ....].
             Defaults to None.
         pkwindow (int, optional): Window width of a peak (amounts to lookahead in
@@ -1948,7 +1948,7 @@ def _datacheck_peakdetect(
         ValueError: Raised if x and y values don't have the same length.
 
     Returns:
-        Tuple[np.ndarray, np.ndarray]: Tuple of checked (x/y) arrays.
+        tuple[np.ndarray, np.ndarray]: Tuple of checked (x/y) arrays.
     """
 
     if x_axis is None:
@@ -1998,7 +1998,7 @@ def peakdetect1d(
         ValueError: Raised if lookahead and delta are out of range.
 
     Returns:
-        Tuple[np.ndarray, np.ndarray]: Tuple of positions of the positive peaks,
+        tuple[np.ndarray, np.ndarray]: Tuple of positions of the positive peaks,
         positions of the negative peaks
     """
     max_peaks = []
