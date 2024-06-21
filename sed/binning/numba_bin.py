@@ -1,13 +1,11 @@
 """This file contains code for binning using numba precompiled code for the
 sed.binning module
-
 """
+from __future__ import annotations
+
+from collections.abc import Sequence
 from typing import Any
 from typing import cast
-from typing import List
-from typing import Sequence
-from typing import Tuple
-from typing import Union
 
 import numba
 import numpy as np
@@ -108,7 +106,7 @@ def binsearch(bins: np.ndarray, val: float) -> int:
 def _hist_from_bins(
     sample: np.ndarray,
     bins: Sequence[np.ndarray],
-    shape: Tuple,
+    shape: tuple,
 ) -> np.ndarray:
     """Numba powered binning method, similar to np.histogramdd.
 
@@ -118,7 +116,7 @@ def _hist_from_bins(
         sample (np.ndarray) : the array of shape (N,D) on which to compute the histogram
         bins (Sequence[np.ndarray]): array of shape (N,D) defining the D bins on which
             to compute the histogram, i.e. the desired output axes.
-        shape (Tuple): shape of the resulting array. Workaround for the fact numba
+        shape (tuple): shape of the resulting array. Workaround for the fact numba
             does not allow to create tuples.
     Returns:
         hist: the computed n-dimensional histogram
@@ -154,9 +152,9 @@ def _hist_from_bins(
 
 def numba_histogramdd(
     sample: np.ndarray,
-    bins: Union[int, Sequence[int], Sequence[np.ndarray], np.ndarray],
+    bins: int | Sequence[int] | Sequence[np.ndarray] | np.ndarray,
     ranges: Sequence = None,
-) -> Tuple[np.ndarray, List[np.ndarray]]:
+) -> tuple[np.ndarray, list[np.ndarray]]:
     """Multidimensional histogramming function, powered by Numba.
 
     Behaves in total much like numpy.histogramdd. Returns uint32 arrays.
@@ -168,7 +166,7 @@ def numba_histogramdd(
 
     Args:
         sample (np.ndarray): The data to be histogrammed with shape N,D
-        bins (Union[int, Sequence[int], Sequence[np.ndarray], np.ndarray]): The number
+        bins (int | Sequence[int] | Sequence[np.ndarray] | np.ndarray): The number
             of bins for each dimension D, or a sequence of bin edges on which to calculate
             the histogram.
         ranges (Sequence, optional): The range(s) to use for binning when bins is a sequence
@@ -181,7 +179,7 @@ def numba_histogramdd(
         RuntimeError: Internal shape error after binning
 
     Returns:
-        Tuple[np.ndarray, List[np.ndarray]]: 2-element tuple of The computed histogram
+        tuple[np.ndarray, list[np.ndarray]]: 2-element tuple of The computed histogram
         and s list of D arrays describing the bin edges for each dimension.
 
         - **hist**: The computed histogram
@@ -213,7 +211,7 @@ def numba_histogramdd(
 
     # method == "array"
     if isinstance(bins[0], np.ndarray):
-        bins = cast(List[np.ndarray], list(bins))
+        bins = cast(list[np.ndarray], list(bins))
         hist = _hist_from_bins(
             sample,
             tuple(bins),
@@ -239,7 +237,7 @@ def numba_histogramdd(
     bins = tuple(bins)
 
     # Create edge arrays
-    edges: List[Any] = []
+    edges: list[Any] = []
     nbin = np.empty(num_cols, int)
 
     for i in range(num_cols):
