@@ -616,7 +616,6 @@ def test_add_offsets_functionality(energy_scale: str) -> None:
         loader=get_loader("flash", config=config),
     )
     res, meta = ec.add_offsets(t_df)
-    res = res.compute()
     exp_vals = df["energy"].copy() + 1 * scale_sign
     exp_vals += (df["off1"] - df["off1"].mean()) * scale_sign
     exp_vals -= df["off2"] * scale_sign
@@ -633,7 +632,6 @@ def test_add_offsets_functionality(energy_scale: str) -> None:
     )
     t_df = dask.dataframe.from_pandas(df.copy(), npartitions=2)
     res, meta = ec.add_offsets(t_df, **params)  # type: ignore
-    res = res.compute()
     np.testing.assert_allclose(res["energy"].values, exp_vals.values)
     exp_meta = {}
     exp_meta["applied"] = True
@@ -647,7 +645,6 @@ def test_add_offsets_functionality(energy_scale: str) -> None:
     t_df = dask.dataframe.from_pandas(df.copy(), npartitions=2)
     res, meta = ec.add_offsets(t_df, weights=-1, columns="off1")
     res, meta = ec.add_offsets(res, columns="off1")
-    res = res.compute()
     exp_vals = df["energy"].copy()
     np.testing.assert_allclose(res["energy"].values, exp_vals.values)
     exp_meta = {}
