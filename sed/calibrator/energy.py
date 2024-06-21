@@ -378,8 +378,8 @@ class EnergyCalibrator:
                 plot_segs[itr].set_ydata(traceseg)
                 plot_segs[itr].set_xdata(tofseg)
 
-                plot_peaks[itr].set_xdata(self.peaks[itr, 0])
-                plot_peaks[itr].set_ydata(self.peaks[itr, 1])
+                plot_peaks[itr].set_xdata([self.peaks[itr, 0]])
+                plot_peaks[itr].set_ydata([self.peaks[itr, 1]])
 
             fig.canvas.draw_idle()
 
@@ -1132,9 +1132,9 @@ class EnergyCalibrator:
             )
 
             trace1.set_ydata(correction_x)
-            line1.set_xdata(x=x_center)
+            line1.set_xdata([x_center])
             trace2.set_ydata(correction_y)
-            line2.set_xdata(x=y_center)
+            line2.set_xdata([y_center])
 
             fig.canvas.draw_idle()
 
