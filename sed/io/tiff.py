@@ -1,9 +1,10 @@
 """This module contains tiff file input/output functions for the sed.io module
 
 """
+from __future__ import annotations
+
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
-from typing import Union
 
 import numpy as np
 import tifffile
@@ -37,20 +38,20 @@ _IMAGEJ_DIMS_ALIAS = {
 
 
 def to_tiff(
-    data: Union[xr.DataArray, np.ndarray],
-    faddr: Union[Path, str],
+    data: xr.DataArray | np.ndarray,
+    faddr: Path | str,
     alias_dict: dict = None,
 ):
     """Save an array as a .tiff stack compatible with ImageJ
 
     Args:
-        data (Union[xr.DataArray, np.ndarray]): data to be saved. If a np.ndarray,
+        data (xr.DataArray | np.ndarray): data to be saved. If a np.ndarray,
             the order is retained. If it is an xarray.DataArray, the order is inferred
             from axis_dict instead. ImageJ likes tiff files with axis order as
             TZCYXS. Therefore, best axis order in input should be: Time, Energy,
             posY, posX. The channels 'C' and 'S' are automatically added and can
             be ignored.
-        faddr (Union[Path, str]): full path and name of file to save.
+        faddr Path | str): full path and name of file to save.
         alias_dict (dict, optional): name pairs for correct axis ordering. Keys should
             be any of T,Z,C,Y,X,S. The Corresponding value should be a dimension of the
             xarray or the dimension number if a numpy array. This is used to sort the
@@ -63,7 +64,7 @@ def to_tiff(
         NotImplementedError: if data is not 2,3 or 4 dimensional
         TypeError: if data is not a np.ndarray or an xarray.DataArray
     """
-    out: Union[np.ndarray, xr.DataArray] = None
+    out: np.ndarray | xr.DataArray = None
     if isinstance(data, np.ndarray):
         # TODO: add sorting by dictionary keys
         dim_expansions = {2: [0, 1, 2, 5], 3: [0, 2, 5], 4: [2, 5]}
@@ -172,7 +173,7 @@ def _fill_missing_dims(dims: Sequence, alias_dict: dict = None) -> list:
 
 
 def load_tiff(
-    faddr: Union[str, Path],
+    faddr: str | Path,
     coords: dict = None,
     dims: Sequence = None,
     attrs: dict = None,
@@ -184,7 +185,7 @@ def load_tiff(
     only as np.ndarray.
 
     Args:
-        faddr (Union[str, Path]): Path to file to load.
+        faddr (str | Path): Path to file to load.
         coords (dict, optional): The axes describing the data, following the tiff
             stack order. Defaults to None.
         dims (Sequence, optional): the order of the coordinates provided, considering

@@ -3,10 +3,9 @@ module sed.loader.mpes, code for loading hdf5 files delayed into a dask datafram
 Mostly ported from https://github.com/mpes-kit/mpes.
 @author: L. Rettig
 """
-from typing import List
-from typing import Sequence
-from typing import Tuple
-from typing import Union
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import dask.dataframe as ddf
 import numpy as np
@@ -29,23 +28,23 @@ class GenericLoader(BaseLoader):
 
     def read_dataframe(
         self,
-        files: Union[str, Sequence[str]] = None,
-        folders: Union[str, Sequence[str]] = None,
-        runs: Union[str, Sequence[str]] = None,
+        files: str | Sequence[str] = None,
+        folders: str | Sequence[str] = None,
+        runs: str | Sequence[str] = None,
         ftype: str = "parquet",
         metadata: dict = None,
         collect_metadata: bool = False,
         **kwds,
-    ) -> Tuple[ddf.DataFrame, ddf.DataFrame, dict]:
+    ) -> tuple[ddf.DataFrame, ddf.DataFrame, dict]:
         """Read stored files from a folder into a dataframe.
 
         Args:
-            files (Union[str, Sequence[str]], optional): File path(s) to process.
+            files (str | Sequence[str], optional): File path(s) to process.
                 Defaults to None.
-            folders (Union[str, Sequence[str]], optional): Path to folder(s) where files
+            folders (str | Sequence[str], optional): Path to folder(s) where files
                 are stored. Path has priority such that if it's specified, the specified
                 files will be ignored. Defaults to None.
-            runs (Union[str, Sequence[str]], optional): Run identifier(s). Corresponding
+            runs (str | Sequence[str], optional): Run identifier(s). Corresponding
                 files will be located in the location provided by ``folders``. Takes
                 precendence over ``files`` and ``folders``. Defaults to None.
             ftype (str, optional): File type to read ('parquet', 'json', 'csv', etc).
@@ -64,7 +63,7 @@ class GenericLoader(BaseLoader):
             ValueError: Raised if the file type is not supported.
 
         Returns:
-            Tuple[ddf.DataFrame, dict]: Dask dataframe, timed dataframe and metadata
+            tuple[ddf.DataFrame, ddf.DataFrame, dict]: Dask dataframe, timed dataframe and metadata
             read from specified files.
         """
         # pylint: disable=duplicate-code
@@ -102,21 +101,21 @@ class GenericLoader(BaseLoader):
     def get_files_from_run_id(
         self,
         run_id: str,  # noqa: ARG002
-        folders: Union[str, Sequence[str]] = None,  # noqa: ARG002
+        folders: str | Sequence[str] = None,  # noqa: ARG002
         extension: str = None,  # noqa: ARG002
         **kwds,  # noqa: ARG002
-    ) -> List[str]:
+    ) -> list[str]:
         """Locate the files for a given run identifier.
 
         Args:
             run_id (str): The run identifier to locate.
-            folders (Union[str, Sequence[str]], optional): The directory(ies) where the raw
+            folders (str | Sequence[str], optional): The directory(ies) where the raw
                 data is located. Defaults to None.
             extension (str, optional): The file extension. Defaults to "h5".
             kwds: Keyword arguments
 
         Return:
-            str: Path to the location of run data.
+            list[str]: Path to the location of run data.
         """
         raise NotImplementedError
 
@@ -124,7 +123,7 @@ class GenericLoader(BaseLoader):
         self,
         fids: Sequence[int] = None,  # noqa: ARG002
         **kwds,  # noqa: ARG002
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray]:
         """Create count rate data for the files specified in ``fids``.
 
         Args:
@@ -133,7 +132,7 @@ class GenericLoader(BaseLoader):
             kwds: Keyword arguments
 
         Return:
-            Tuple[np.ndarray, np.ndarray]: Arrays containing countrate and seconds
+            tuple[np.ndarray, np.ndarray]: Arrays containing countrate and seconds
             into the scan.
         """
         # TODO
