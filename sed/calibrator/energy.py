@@ -1,6 +1,8 @@
 """sed.calibrator.energy module. Code for energy calibration and
 correction. Mostly ported from https://github.com/mpes-kit/mpes.
 """
+from __future__ import annotations
+
 import itertools as it
 import warnings as wn
 from collections.abc import Sequence
@@ -10,7 +12,6 @@ from functools import partial
 from typing import Any
 from typing import cast
 from typing import Literal
-from typing import Union
 
 import bokeh.plotting as pbk
 import dask.dataframe
@@ -426,7 +427,7 @@ class EnergyCalibrator:
 
     def add_ranges(
         self,
-        ranges: Union[list[tuple], tuple],
+        ranges: list[tuple] | tuple,
         ref_id: int = 0,
         traces: np.ndarray = None,
         infer_others: bool = True,
@@ -436,7 +437,7 @@ class EnergyCalibrator:
         """Select or extract the equivalent feature ranges (containing the peaks) among all traces.
 
         Args:
-            ranges (Union[List[Tuple], Tuple]):
+            ranges (list[tuple] | tuple):
                 Collection of feature detection ranges, within which an algorithm
                 (i.e. 1D peak detector) with look for the feature.
             ref_id (int, optional): Index of the reference trace. Defaults to 0.
@@ -776,17 +777,17 @@ class EnergyCalibrator:
 
     def append_energy_axis(
         self,
-        df: Union[pd.DataFrame, dask.dataframe.DataFrame],
+        df: pd.DataFrame | dask.dataframe.DataFrame,
         tof_column: str = None,
         energy_column: str = None,
         calibration: dict = None,
         verbose: bool = True,
         **kwds,
-    ) -> tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
+    ) -> tuple[pd.DataFrame | dask.dataframe.DataFrame, dict]:
         """Calculate and append the energy axis to the events dataframe.
 
         Args:
-            df (Union[pd.DataFrame, dask.dataframe.DataFrame]):
+            df (pd.DataFrame | dask.dataframe.DataFrame):
                 Dataframe to apply the energy axis calibration to.
             tof_column (str, optional): Label of the source column.
                 Defaults to config["dataframe"]["tof_column"].
@@ -805,7 +806,7 @@ class EnergyCalibrator:
             NotImplementedError: Raised if an invalid calib_type is found.
 
         Returns:
-            Union[pd.DataFrame, dask.dataframe.DataFrame]: dataframe with added column
+            tuple[pd.DataFrame | dask.dataframe.DataFrame, dict]: dataframe with added column
             and energy calibration metadata dictionary.
         """
         if tof_column is None:
@@ -889,15 +890,15 @@ class EnergyCalibrator:
 
     def append_tof_ns_axis(
         self,
-        df: Union[pd.DataFrame, dask.dataframe.DataFrame],
+        df: pd.DataFrame | dask.dataframe.DataFrame,
         tof_column: str = None,
         tof_ns_column: str = None,
         **kwds,
-    ) -> tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
+    ) -> tuple[pd.DataFrame | dask.dataframe.DataFrame, dict]:
         """Converts the time-of-flight time from steps to time in ns.
 
         Args:
-            df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to convert.
+            df (pd.DataFrame | dask.dataframe.DataFrame): Dataframe to convert.
             tof_column (str, optional): Name of the column containing the
                 time-of-flight steps. Defaults to config["dataframe"]["tof_column"].
             tof_ns_column (str, optional): Name of the column to store the
@@ -908,8 +909,8 @@ class EnergyCalibrator:
                 Defaults to config["energy"]["tof_binning"].
 
         Returns:
-            dask.dataframe.DataFrame: Dataframe with the new columns.
-            dict: Metadata dictionary.
+            tuple[pd.DataFrame | dask.dataframe.DataFrame, dict]: Dataframe with the new columns
+            and Metadata dictionary.
         """
         binwidth = kwds.pop("binwidth", self.binwidth)
         binning = kwds.pop("binning", self.binning)
@@ -1307,7 +1308,7 @@ class EnergyCalibrator:
 
     def apply_energy_correction(
         self,
-        df: Union[pd.DataFrame, dask.dataframe.DataFrame],
+        df: pd.DataFrame | dask.dataframe.DataFrame,
         tof_column: str = None,
         new_tof_column: str = None,
         correction_type: str = None,
@@ -1315,11 +1316,11 @@ class EnergyCalibrator:
         correction: dict = None,
         verbose: bool = True,
         **kwds,
-    ) -> tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
+    ) -> tuple[pd.DataFrame | dask.dataframe.DataFrame, dict]:
         """Apply correction to the time-of-flight (TOF) axis of single-event data.
 
         Args:
-            df (Union[pd.DataFrame, dask.dataframe.DataFrame]): The dataframe where
+            df (pd.DataFrame | dask.dataframe.DataFrame): The dataframe where
                 to apply the energy correction to.
             tof_column (str, optional): Name of the source column to convert.
                 Defaults to config["dataframe"]["tof_column"].
@@ -1356,7 +1357,7 @@ class EnergyCalibrator:
                   asymmetric 2D Lorentz profile, X-direction.
 
         Returns:
-            Union[pd.DataFrame, dask.dataframe.DataFrame]: dataframe with added column
+            tuple[pd.DataFrame | dask.dataframe.DataFrame, dict]: dataframe with added column
             and Energy correction metadata dictionary.
         """
         if correction is None:
@@ -1470,16 +1471,16 @@ class EnergyCalibrator:
 
     def add_offsets(
         self,
-        df: Union[pd.DataFrame, dask.dataframe.DataFrame] = None,
+        df: pd.DataFrame | dask.dataframe.DataFrame = None,
         offsets: dict[str, Any] = None,
         constant: float = None,
-        columns: Union[str, Sequence[str]] = None,
-        weights: Union[float, Sequence[float]] = None,
-        preserve_mean: Union[bool, Sequence[bool]] = False,
-        reductions: Union[str, Sequence[str]] = None,
+        columns: str | Sequence[str] = None,
+        weights: float | Sequence[float] = None,
+        preserve_mean: bool | Sequence[bool] = False,
+        reductions: str | Sequence[str] = None,
         energy_column: str = None,
         verbose: bool = True,
-    ) -> tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
+    ) -> tuple[pd.DataFrame | dask.dataframe.DataFrame, dict]:
         """Apply an offset to the energy column by the values of the provided columns.
 
         If no parameter is passed to this function, the offset is applied as defined in the
@@ -1487,25 +1488,26 @@ class EnergyCalibrator:
         and the offset is applied using the ``dfops.apply_offset_from_columns()`` function.
 
         Args:
-            df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to use.
+            df (pd.DataFrame | dask.dataframe.DataFrame): Dataframe to use.
             offsets (Dict, optional): Dictionary of energy offset parameters.
             constant (float, optional): The constant to shift the energy axis by.
-            columns (Union[str, Sequence[str]]): Name of the column(s) to apply the shift from.
-            weights (Union[float, Sequence[float]]): weights to apply to the columns.
+            columns (str | Sequence[str]): Name of the column(s) to apply the shift from.
+            weights (float | Sequence[float]): weights to apply to the columns.
                 Can also be used to flip the sign (e.g. -1). Defaults to 1.
-            preserve_mean (bool): Whether to subtract the mean of the column before applying the
-                shift. Defaults to False.
-            reductions (str): The reduction to apply to the column. Should be an available method
-                of dask.dataframe.Series. For example "mean". In this case the function is applied
-                to the column to generate a single value for the whole dataset. If None, the shift
-                is applied per-dataframe-row. Defaults to None. Currently only "mean" is supported.
+            preserve_mean (bool | Sequence[bool]): Whether to subtract the mean of the column
+                before applying the shift. Defaults to False.
+            reductions (str | Sequence[str]): The reduction to apply to the column. Should be an
+                available method of dask.dataframe.Series. For example "mean". In this case the
+                function is applied to the column to generate a single value for the whole dataset.
+                If None, the shift is applied per-dataframe-row. Defaults to None. Currently only
+                "mean" is supported.
             energy_column (str, optional): Name of the column containing the energy values.
             verbose (bool, optional): Option to print out diagnostic information.
                 Defaults to True.
 
         Returns:
-            dask.dataframe.DataFrame: Dataframe with the new columns.
-            dict: Metadata dictionary.
+            tuple[pd.DataFrame | dask.dataframe.DataFrame, dict]: Dataframe with the new columns
+            and Metadata dictionary.
         """
         if offsets is None:
             offsets = deepcopy(self.offsets)
@@ -1663,18 +1665,18 @@ def extract_bias(files: list[str], bias_key: str) -> np.ndarray:
 
 
 def correction_function(
-    x: Union[float, np.ndarray],
-    y: Union[float, np.ndarray],
+    x: float | np.ndarray,
+    y: float | np.ndarray,
     correction_type: str,
     center: tuple[float, float],
     amplitude: float,
     **kwds,
-) -> Union[float, np.ndarray]:
+) -> float | np.ndarray:
     """Calculate the TOF correction based on the given X/Y coordinates and a model.
 
     Args:
-        x (float): x coordinate
-        y (float): y coordinate
+        x (float | np.ndarray): x coordinate
+        y (float | np.ndarray): y coordinate
         correction_type (str): type of correction. One of
             "spherical", "Lorentzian", "Gaussian", or "Lorentzian_asymmetric"
         center (Tuple[int, int]): center position of the distribution (x,y)
@@ -1692,7 +1694,7 @@ def correction_function(
               asymmetric 2D Lorentz profile, X-direction.
 
     Returns:
-        float: calculated correction value
+        float | np.ndarray: calculated correction value
     """
     if correction_type == "spherical":
         try:
@@ -2083,13 +2085,13 @@ def peakdetect1d(
 
 
 def fit_energy_calibration(
-    pos: Union[list[float], np.ndarray],
-    vals: Union[list[float], np.ndarray],
+    pos: list[float] | np.ndarray,
+    vals: list[float] | np.ndarray,
     binwidth: float,
     binning: int,
     ref_id: int = 0,
     ref_energy: float = None,
-    t: Union[list[float], np.ndarray] = None,
+    t: list[float] | np.ndarray = None,
     energy_scale: str = "kinetic",
     verbose: bool = True,
     **kwds,
@@ -2099,16 +2101,16 @@ def fit_energy_calibration(
     function d/(t-t0)**2.
 
     Args:
-        pos (Union[List[float], np.ndarray]): Positions of the spectral landmarks
+        pos (list[float] | np.ndarray): Positions of the spectral landmarks
             (e.g. peaks) in the EDCs.
-        vals (Union[List[float], np.ndarray]): Bias voltage value associated with
+        vals (list[float] | np.ndarray): Bias voltage value associated with
             each EDC.
         binwidth (float): Time width of each original TOF bin in ns.
         binning (int): Binning factor of the TOF values.
         ref_id (int, optional): Reference dataset index. Defaults to 0.
         ref_energy (float, optional): Energy value of the feature in the refence
             trace (eV). required to output the calibration. Defaults to None.
-        t (Union[List[float], np.ndarray], optional): Array of TOF values. Required
+        t (list[float] | np.ndarray, optional): Array of TOF values. Required
             to calculate calibration trace. Defaults to None.
         energy_scale (str, optional): Direction of increasing energy scale.
 
@@ -2219,12 +2221,12 @@ def fit_energy_calibration(
 
 
 def poly_energy_calibration(
-    pos: Union[list[float], np.ndarray],
-    vals: Union[list[float], np.ndarray],
+    pos: list[float] | np.ndarray,
+    vals: list[float] | np.ndarray,
     order: int = 3,
     ref_id: int = 0,
     ref_energy: float = None,
-    t: Union[list[float], np.ndarray] = None,
+    t: list[float] | np.ndarray = None,
     aug: int = 1,
     method: str = "lstsq",
     energy_scale: str = "kinetic",
@@ -2239,15 +2241,15 @@ def poly_energy_calibration(
 
 
     Args:
-        pos (Union[List[float], np.ndarray]): Positions of the spectral landmarks
+        pos (list[float] | np.ndarray): Positions of the spectral landmarks
             (e.g. peaks) in the EDCs.
-        vals (Union[List[float], np.ndarray]): Bias voltage value associated with
+        vals (list[float] | np.ndarray): Bias voltage value associated with
             each EDC.
         order (int, optional): Polynomial order of the fitting function. Defaults to 3.
         ref_id (int, optional): Reference dataset index. Defaults to 0.
         ref_energy (float, optional): Energy value of the feature in the refence
             trace (eV). required to output the calibration. Defaults to None.
-        t (Union[List[float], np.ndarray], optional): Array of TOF values. Required
+        t (list[float] | np.ndarray, optional): Array of TOF values. Required
             to calculate calibration trace. Defaults to None.
         aug (int, optional): Fitting dimension augmentation
             (1=no change, 2=double, etc). Defaults to 1.
@@ -2370,7 +2372,7 @@ def tof2ev(
 
 
 def tof2evpoly(
-    poly_a: Union[list[float], np.ndarray],
+    poly_a: list[float] | np.ndarray,
     energy_offset: float,
     t: float,
 ) -> float:
@@ -2378,7 +2380,7 @@ def tof2evpoly(
     conversion formula.
 
     Args:
-        poly_a (Union[List[float], np.ndarray]): Polynomial coefficients.
+        poly_a (list[float] | np.ndarray): Polynomial coefficients.
         energy_offset (float): Energy offset in eV.
         t (float): TOF value in bin number.
 
