@@ -7,8 +7,10 @@
 *.nx
 *.nxs
 *.zip
+**/datasets/*
 **/processed/*
 **/sed_config.yaml
+**/datasets.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -840,7 +840,7 @@ class MpesLoader(BaseLoader):
         ].keys()
 
         lens_volts = np.array(
-            [metadata["file"].get(f"KTOF:Lens:{lens}:V", np.NaN) for lens in lens_list],
+            [metadata["file"].get(f"KTOF:Lens:{lens}:V", np.nan) for lens in lens_list],
         )
         for mode, value in self._config["metadata"]["lens_mode_config"].items():
             lens_volts_config = np.array([value[k] for k in lens_list])
