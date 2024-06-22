@@ -3,9 +3,10 @@
 """
 # Note: some of the functions presented here were
 # inspired by https://github.com/mpes-kit/mpes
+from __future__ import annotations
+
+from collections.abc import Sequence
 from typing import Callable
-from typing import Sequence
-from typing import Union
 
 import dask.dataframe
 import numpy as np
@@ -14,21 +15,21 @@ from dask.diagnostics import ProgressBar
 
 
 def apply_jitter(
-    df: Union[pd.DataFrame, dask.dataframe.DataFrame],
-    cols: Union[str, Sequence[str]],
-    cols_jittered: Union[str, Sequence[str]] = None,
-    amps: Union[float, Sequence[float]] = 0.5,
+    df: pd.DataFrame | dask.dataframe.DataFrame,
+    cols: str | Sequence[str],
+    cols_jittered: str | Sequence[str] = None,
+    amps: float | Sequence[float] = 0.5,
     jitter_type: str = "uniform",
-) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
+) -> pd.DataFrame | dask.dataframe.DataFrame:
     """Add jittering to one or more dataframe columns.
 
     Args:
-        df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to add
+        df (pd.DataFrame | dask.dataframe.DataFrame): Dataframe to add
             noise/jittering to.
-        cols (Union[str, Sequence[str]]): Names of the columns to add jittering to.
-        cols_jittered (Union[str, Sequence[str]], optional): Names of the columns
+        cols (str | Sequence[str]): Names of the columns to add jittering to.
+        cols_jittered (str | Sequence[str], optional): Names of the columns
             with added jitter. Defaults to None.
-        amps (Union[float, Sequence[float]], optional): Amplitude scalings for the
+        amps (float | Sequence[float], optional): Amplitude scalings for the
             jittering noise. If one number is given, the same is used for all axes.
             For normal noise, the added noise will have sdev [-amp, +amp], for
             uniform noise it will cover the interval [-amp, +amp].
@@ -37,7 +38,7 @@ def apply_jitter(
             distributed noise. Defaults to "uniform".
 
     Returns:
-        Union[pd.DataFrame, dask.dataframe.DataFrame]: dataframe with added columns.
+        pd.DataFrame | dask.dataframe.DataFrame: dataframe with added columns.
     """
     assert cols is not None, "cols needs to be provided!"
     assert jitter_type in (
@@ -71,17 +72,17 @@ def apply_jitter(
 
 
 def drop_column(
-    df: Union[pd.DataFrame, dask.dataframe.DataFrame],
-    column_name: Union[str, Sequence[str]],
-) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
+    df: pd.DataFrame | dask.dataframe.DataFrame,
+    column_name: str | Sequence[str],
+) -> pd.DataFrame | dask.dataframe.DataFrame:
     """Delete columns.
 
     Args:
-        df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to use.
-        column_name (Union[str, Sequence[str]])): List of column names to be dropped.
+        df (pd.DataFrame | dask.dataframe.DataFrame): Dataframe to use.
+        column_name (str | Sequence[str]): List of column names to be dropped.
 
     Returns:
-        Union[pd.DataFrame, dask.dataframe.DataFrame]: Dataframe with dropped columns.
+        pd.DataFrame | dask.dataframe.DataFrame: Dataframe with dropped columns.
     """
     out_df = df.drop(column_name, axis=1)
 
@@ -89,15 +90,15 @@ def drop_column(
 
 
 def apply_filter(
-    df: Union[pd.DataFrame, dask.dataframe.DataFrame],
+    df: pd.DataFrame | dask.dataframe.DataFrame,
     col: str,
     lower_bound: float = -np.inf,
     upper_bound: float = np.inf,
-) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
+) -> pd.DataFrame | dask.dataframe.DataFrame:
     """Application of bound filters to a specified column (can be used consecutively).
 
     Args:
-        df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to use.
+        df (pd.DataFrame | dask.dataframe.DataFrame): Dataframe to use.
         col (str): Name of the column to filter. Passing "index" for col will
             filter on the index in each dataframe partition.
         lower_bound (float, optional): The lower bound used in the filtering.
@@ -106,7 +107,7 @@ def apply_filter(
             Defaults to np.inf.
 
     Returns:
-        Union[pd.DataFrame, dask.dataframe.DataFrame]: The filtered dataframe.
+        pd.DataFrame | dask.dataframe.DataFrame: The filtered dataframe.
     """
     df = df.copy()
     if col == "index":
@@ -132,14 +133,14 @@ def add_time_stamped_data(
     timestamps in the dataframe.
 
     Args:
-        df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to use.
+        df (dask.dataframe.DataFrame): Dataframe to use.
         time_stamps (np.ndarray): Time stamps of the values to add
         data (np.ndarray): Values corresponding at the time stamps in time_stamps
         dest_column (str): destination column name
         time_stamp_column (str): Time stamp column name
 
     Returns:
-        Union[pd.DataFrame, dask.dataframe.DataFrame]: Dataframe with added column
+        dask.dataframe.DataFrame: Dataframe with added column
     """
     if time_stamp_column not in df.columns:
         raise ValueError(f"{time_stamp_column} not found in dataframe!")
@@ -163,23 +164,23 @@ def add_time_stamped_data(
 
 
 def map_columns_2d(
-    df: Union[pd.DataFrame, dask.dataframe.DataFrame],
+    df: pd.DataFrame | dask.dataframe.DataFrame,
     map_2d: Callable,
     x_column: str,
     y_column: str,
     **kwds,
-) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
+) -> pd.DataFrame | dask.dataframe.DataFrame:
     """Apply a 2-dimensional mapping simultaneously to two dimensions.
 
     Args:
-        df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to use.
+        df (pd.DataFrame | dask.dataframe.DataFrame): Dataframe to use.
         map_2d (Callable): 2D mapping function.
         x_column (str): The X column of the dataframe to apply mapping to.
         y_column (str): The Y column of the dataframe to apply mapping to.
         **kwds: Additional arguments for the 2D mapping function.
 
     Returns:
-        Union[pd.DataFrame, dask.dataframe.DataFrame]: Dataframe with mapped columns.
+        pd.DataFrame | dask.dataframe.DataFrame: Dataframe with mapped columns.
     """
     new_x_column = kwds.pop("new_x_column", x_column)
     new_y_column = kwds.pop("new_y_column", y_column)
@@ -196,7 +197,7 @@ def map_columns_2d(
 def forward_fill_lazy(
     df: dask.dataframe.DataFrame,
     columns: Sequence[str] = None,
-    before: Union[str, int] = "max",
+    before: str | int = "max",
     compute_lengths: bool = False,
     iterations: int = 2,
 ) -> dask.dataframe.DataFrame:
@@ -210,8 +211,8 @@ def forward_fill_lazy(
 
     Args:
         df (dask.dataframe.DataFrame): The dataframe to forward fill.
-        columns (list): The columns to forward fill. If None, fills all columns
-        before (int, str, optional): The number of rows to include before the current partition.
+        columns (list, optional): The columns to forward fill. If None, fills all columns
+        before (str | int, optional): The number of rows to include before the current partition.
             if 'max' it takes as much as possible from the previous partition, which is
             the size of the smallest partition in the dataframe. Defaults to 'max'.
         compute_lengths (bool, optional): Whether to compute the length of each partition
@@ -258,7 +259,7 @@ def forward_fill_lazy(
 def backward_fill_lazy(
     df: dask.dataframe.DataFrame,
     columns: Sequence[str] = None,
-    after: Union[str, int] = "max",
+    after: str | int = "max",
     compute_lengths: bool = False,
     iterations: int = 1,
 ) -> dask.dataframe.DataFrame:
@@ -270,8 +271,8 @@ def backward_fill_lazy(
 
     Args:
         df (dask.dataframe.DataFrame): The dataframe to forward fill.
-        columns (list): The columns to forward fill. If None, fills all columns
-        after (int, str, optional): The number of rows to include after the current partition.
+        columns (list, optional): The columns to forward fill. If None, fills all columns
+        after (str | int, optional): The number of rows to include after the current partition.
             if 'max' it takes as much as possible from the previous partition, which is
             the size of the smallest partition in the dataframe. Defaults to 'max'.
         compute_lengths (bool, optional): Whether to compute the length of each partition
@@ -318,10 +319,10 @@ def backward_fill_lazy(
 def offset_by_other_columns(
     df: dask.dataframe.DataFrame,
     target_column: str,
-    offset_columns: Union[str, Sequence[str]],
-    weights: Union[float, Sequence[float]],
-    reductions: Union[str, Sequence[str]] = None,
-    preserve_mean: Union[bool, Sequence[bool]] = False,
+    offset_columns: str | Sequence[str],
+    weights: float | Sequence[float],
+    reductions: str | Sequence[str] = None,
+    preserve_mean: bool | Sequence[bool] = False,
     inplace: bool = True,
     rename: str = None,
 ) -> dask.dataframe.DataFrame:
@@ -330,12 +331,13 @@ def offset_by_other_columns(
     Args:
         df (dask.dataframe.DataFrame): Dataframe to use. Currently supports only dask dataframes.
         target_column (str): Name of the column to apply the offset to.
-        offset_columns (str): Name of the column(s) to use for the offset.
-        weights (flot): weights to apply on each column before adding. Used also for changing sign.
-        reductions (str, optional): Reduction function to use for the offset. Defaults to "mean".
-            Currently, only mean is supported.
-        preserve_mean (bool, optional): Whether to subtract the mean of the offset column.
-            Defaults to False. If a list is given, it must have the same length as
+        offset_columns (str | Sequence[str]): Name of the column(s) to use for the offset.
+        weights (float | Sequence[float]): weights to apply on each column before adding. Used also
+            for changing sign.
+        reductions (str | Sequence[str], optional): Reduction function to use for the offset.
+            Defaults to "mean". Currently, only mean is supported.
+        preserve_mean (bool | Sequence[bool], optional): Whether to subtract the mean of the offset
+            column. Defaults to False. If a list is given, it must have the same length as
             offset_columns. Otherwise the value passed is used for all columns.
         inplace (bool, optional): Whether to apply the offset inplace.
             If false, the new column will have the name provided by rename, or has the same name as

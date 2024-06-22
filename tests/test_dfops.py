@@ -1,8 +1,9 @@
 """This file contains code that performs several tests for the dfops functions
 """
+from __future__ import annotations
+
 import datetime as dt
 from typing import Any
-from typing import List
 
 import dask.dataframe as ddf
 import numpy as np
@@ -343,7 +344,7 @@ def test_offset_by_other_columns_functionality() -> None:
         offset_columns=["off1"],
         weights=[1],
     )
-    expected: List[Any] = [11, 22, 33, 44, 55, 66]
+    expected: list[Any] = [11, 22, 33, 44, 55, 66]
     np.testing.assert_allclose(res["target"].values, expected)
 
     res = offset_by_other_columns(

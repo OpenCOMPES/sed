@@ -1,5 +1,7 @@
 """Module tests.loader.mirrorutil, tests for the sed.load.mirrorutil file
 """
+from __future__ import annotations
+
 import glob
 import io
 import os

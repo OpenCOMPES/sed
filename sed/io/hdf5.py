@@ -1,7 +1,7 @@
 """This module contains hdf5 file input/output functions for the sed.io module
 
 """
-from typing import Union
+from __future__ import annotations
 
 import h5py
 import numpy as np
@@ -53,12 +53,12 @@ def recursive_write_metadata(h5group: h5py.Group, node: dict):
 
 
 def recursive_parse_metadata(
-    node: Union[h5py.Group, h5py.Dataset],
+    node: h5py.Group | h5py.Dataset,
 ) -> dict:
     """Recurses through an hdf5 file, and parse it into a dictionary.
 
     Args:
-        node (Union[h5py.Group, h5py.Dataset]): hdf5 group or dataset to parse into
+        node (h5py.Group | h5py.Dataset): hdf5 group or dataset to parse into
             dictionary.
 
     Returns:
