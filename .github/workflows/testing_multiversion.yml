@@ -4,7 +4,7 @@ name: Unit Tests
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches: [ main, v1_feature_branch ]
     paths-ignore:
       pyproject.toml
 
