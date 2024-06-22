@@ -121,6 +121,7 @@ def test_workflow_1d() -> None:
         system_config={},
         verbose=True,
     )
+    processor.dataframe["sampleBias"] = 16.7
     processor.add_jitter()
     processor.apply_momentum_correction()
     processor.apply_momentum_calibration()
@@ -155,6 +156,7 @@ def test_workflow_4d() -> None:
         system_config={},
         verbose=True,
     )
+    processor.dataframe["sampleBias"] = 16.7
     processor.add_jitter()
     processor.apply_momentum_correction()
     processor.apply_momentum_calibration()
