@@ -29,6 +29,7 @@ jobs:
       # Run pytest with coverage report, saving to xml
       - name: Run tests on python 3.8
         run: |
+          poetry install
           poetry run pytest --cov --cov-report xml:cobertura.xml --full-trace --show-capture=no -sv -n auto tests/
 
       # Take report and upload to coveralls
