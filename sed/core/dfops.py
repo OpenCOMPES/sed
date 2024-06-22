@@ -390,53 +390,20 @@ def offset_by_other_columns(
             "Please open a request on GitHub if this feature is required.",
         )
 
-    # calculate the mean of the columns to reduce
-    means = {
-        col: dask.delayed(df[col].mean())
-        for col, red, pm in zip(offset_columns, reductions, preserve_mean)
-        if red or pm
-    }
-
-    # define the functions to apply the offsets
-    def shift_by_mean(x, cols, signs, means, flip_signs=False):
-        """Shift the target column by the mean of the offset columns."""
-        for col in cols:
-            s = -signs[col] if flip_signs else signs[col]
-            x[target_column] = x[target_column] + s * means[col]
-        return x[target_column]
-
-    def shift_by_row(x, cols, signs):
-        """Apply the offsets to the target column."""
-        for col in cols:
-            x[target_column] = x[target_column] + signs[col] * x[col]
-        return x[target_column]
-
     # apply offset from the reduced columns
-    df[target_column] = df.map_partitions(
-        shift_by_mean,
-        cols=[col for col, red in zip(offset_columns, reductions) if red],
-        signs=signs_dict,
-        means=means,
-        meta=df[target_column].dtype,
-    )
+    for col, red in zip(offset_columns, reductions):
+        if red == "mean":
+            df[target_column] = df[target_column] + signs_dict[col] * df[col].mean()
 
     # apply offset from the offset columns
-    df[target_column] = df.map_partitions(
-        shift_by_row,
-        cols=[col for col, red in zip(offset_columns, reductions) if not red],
-        signs=signs_dict,
-        meta=df[target_column].dtype,
-    )
+    for col, red in zip(offset_columns, reductions):
+        if not red:
+            df[target_column] = df[target_column] + signs_dict[col] * df[col]
 
     # compensate shift from the preserved mean columns
     if any(preserve_mean):
-        df[target_column] = df.map_partitions(
-            shift_by_mean,
-            cols=[col for col, pmean in zip(offset_columns, preserve_mean) if pmean],
-            signs=signs_dict,
-            means=means,
-            flip_signs=True,
-            meta=df[target_column].dtype,
-        )
+        for col, pmean in zip(offset_columns, preserve_mean):
+            if pmean:
+                df[target_column] = df[target_column] - signs_dict[col] * df[col].mean()
 
     return df
