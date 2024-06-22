@@ -65,30 +65,26 @@ def hdf5_to_dataframe(
             seach_pattern="Stream",
         )
 
-    channel_list = []
+    electron_channels = []
     column_names = []
 
     for name, channel in channels.items():
-        if (
-            channel["format"] == "per_electron"
-            and channel["dataset_key"] in test_proc
-            or channel["format"] == "per_file"
-            and channel["dataset_key"] in test_proc.attrs
-        ):
-            channel_list.append(channel)
-            column_names.append(name)
-        else:
-            print(
-                f"Entry \"{channel['dataset_key']}\" for channel \"{name}\" not found.",
-                "Skipping the channel.",
-            )
+        if channel["format"] == "per_electron":
+            if channel["dataset_key"] in test_proc:
+                electron_channels.append(channel)
+                column_names.append(name)
+            else:
+                print(
+                    f"Entry \"{channel['dataset_key']}\" for channel \"{name}\" not found.",
+                    "Skipping the channel.",
+                )
 
     if time_stamps:
         column_names.append(time_stamp_alias)
 
     test_array = hdf5_to_array(
         h5file=test_proc,
-        channels=channel_list,
+        channels=electron_channels,
         time_stamps=time_stamps,
         ms_markers_key=ms_markers_key,
         first_event_time_stamp_key=first_event_time_stamp_key,
@@ -99,7 +95,7 @@ def hdf5_to_dataframe(
         da.from_delayed(
             dask.delayed(hdf5_to_array)(
                 h5file=h5py.File(f),
-                channels=channel_list,
+                channels=electron_channels,
                 time_stamps=time_stamps,
                 ms_markers_key=ms_markers_key,
                 first_event_time_stamp_key=first_event_time_stamp_key,
@@ -111,7 +107,25 @@ def hdf5_to_dataframe(
     ]
     array_stack = da.concatenate(arrays, axis=1).T
 
-    return ddf.from_dask_array(array_stack, columns=column_names)
+    dataframe = ddf.from_dask_array(array_stack, columns=column_names)
+
+    for name, channel in channels.items():
+        if channel["format"] == "per_file":
+            if channel["dataset_key"] in test_proc.attrs:
+                values = [float(get_attribute(h5py.File(f), channel["dataset_key"])) for f in files]
+                delayeds = [
+                    add_value(partition, name, value)
+                    for partition, value in zip(dataframe.partitions, values)
+                ]
+                dataframe = ddf.from_delayed(delayeds)
+
+            else:
+                print(
+                    f"Entry \"{channel['dataset_key']}\" for channel \"{name}\" not found.",
+                    "Skipping the channel.",
+                )
+
+    return dataframe
 
 
 def hdf5_to_timed_dataframe(
@@ -154,30 +168,26 @@ def hdf5_to_timed_dataframe(
             seach_pattern="Stream",
         )
 
-    channel_list = []
+    electron_channels = []
     column_names = []
 
     for name, channel in channels.items():
-        if (
-            channel["format"] == "per_electron"
-            and channel["dataset_key"] in test_proc
-            or channel["format"] == "per_file"
-            and channel["dataset_key"] in test_proc.attrs
-        ):
-            channel_list.append(channel)
-            column_names.append(name)
-        else:
-            print(
-                f"Entry \"{channel['dataset_key']}\" for channel \"{name}\" not found.",
-                "Skipping the channel.",
-            )
+        if channel["format"] == "per_electron":
+            if channel["dataset_key"] in test_proc:
+                electron_channels.append(channel)
+                column_names.append(name)
+            else:
+                print(
+                    f"Entry \"{channel['dataset_key']}\" for channel \"{name}\" not found.",
+                    "Skipping the channel.",
+                )
 
     if time_stamps:
         column_names.append(time_stamp_alias)
 
     test_array = hdf5_to_timed_array(
         h5file=test_proc,
-        channels=channel_list,
+        channels=electron_channels,
         time_stamps=time_stamps,
         ms_markers_key=ms_markers_key,
         first_event_time_stamp_key=first_event_time_stamp_key,
@@ -188,7 +198,7 @@ def hdf5_to_timed_dataframe(
         da.from_delayed(
             dask.delayed(hdf5_to_timed_array)(
                 h5file=h5py.File(f),
-                channels=channel_list,
+                channels=electron_channels,
                 time_stamps=time_stamps,
                 ms_markers_key=ms_markers_key,
                 first_event_time_stamp_key=first_event_time_stamp_key,
@@ -200,7 +210,41 @@ def hdf5_to_timed_dataframe(
     ]
     array_stack = da.concatenate(arrays, axis=1).T
 
-    return ddf.from_dask_array(array_stack, columns=column_names)
+    dataframe = ddf.from_dask_array(array_stack, columns=column_names)
+
+    for name, channel in channels.items():
+        if channel["format"] == "per_file":
+            if channel["dataset_key"] in test_proc.attrs:
+                values = [float(get_attribute(h5py.File(f), channel["dataset_key"])) for f in files]
+                delayeds = [
+                    add_value(partition, name, value)
+                    for partition, value in zip(dataframe.partitions, values)
+                ]
+                dataframe = ddf.from_delayed(delayeds)
+
+            else:
+                print(
+                    f"Entry \"{channel['dataset_key']}\" for channel \"{name}\" not found.",
+                    "Skipping the channel.",
+                )
+
+    return dataframe
+
+
+@dask.delayed
+def add_value(partition: ddf.DataFrame, name: str, value: float) -> ddf.DataFrame:
+    """Dask delayed helper function to add a value to each dataframe partition
+
+    Args:
+        partition (ddf.DataFrame): Dask dataframe partition
+        name (str): Name of the column to add
+        value (float): value to add to this partition
+
+    Returns:
+        ddf.DataFrame: Dataframe partition with added column
+    """
+    partition[name] = value
+    return partition
 
 
 def get_datasets_and_aliases(
@@ -254,7 +298,7 @@ def hdf5_to_array(
     Args:
         h5file (h5py.File):
             hdf5 file handle to read from
-        electron_channels (Sequence[Dict[str, any]]):
+        channels (Sequence[Dict[str, any]]):
             channel dicts containing group names and types to read.
         time_stamps (bool, optional):
             Option to calculate time stamps. Defaults to False.
@@ -268,40 +312,25 @@ def hdf5_to_array(
     """
 
     # Delayed array for loading an HDF5 file of reasonable size (e.g. < 1GB)
-
-    # determine group length from per_electron column:
-    nelectrons = 0
-    for channel in channels:
-        if channel["format"] == "per_electron":
-            nelectrons = len(h5file[channel["dataset_key"]])
-            break
-    if nelectrons == 0:
-        raise ValueError("No 'per_electron' columns defined, or no hits found in file.")
-
     # Read out groups:
     data_list = []
     for channel in channels:
         if channel["format"] == "per_electron":
             g_dataset = np.asarray(h5file[channel["dataset_key"]])
-        elif channel["format"] == "per_file":
-            value = float(get_attribute(h5file, channel["dataset_key"]))
-            g_dataset = np.asarray([value] * nelectrons)
         else:
             raise ValueError(
                 f"Invalid 'format':{channel['format']} for channel {channel['dataset_key']}.",
             )
-        if "data_type" in channel.keys():
-            g_dataset = g_dataset.astype(channel["data_type"])
+        if "dtype" in channel.keys():
+            g_dataset = g_dataset.astype(channel["dtype"])
         else:
             g_dataset = g_dataset.astype("float32")
-        if len(g_dataset) != nelectrons:
-            raise ValueError(f"Inconsistent entries found for channel {channel['dataset_key']}.")
         data_list.append(g_dataset)
 
     # calculate time stamps
     if time_stamps:
         # create target array for time stamps
-        time_stamp_data = np.zeros(nelectrons)
+        time_stamp_data = np.zeros(len(data_list[0]))
         # the ms marker contains a list of events that occurred at full ms intervals.
         # It's monotonically increasing, and can contain duplicates
         ms_marker = np.asarray(h5file[ms_markers_key])
@@ -355,7 +384,7 @@ def hdf5_to_timed_array(
     Args:
         h5file (h5py.File):
             hdf5 file handle to read from
-        electron_channels (Sequence[Dict[str, any]]):
+        channels (Sequence[Dict[str, any]]):
             channel dicts containing group names and types to read.
         time_stamps (bool, optional):
             Option to calculate time stamps. Defaults to False.
@@ -380,15 +409,12 @@ def hdf5_to_timed_array(
             g_dataset = np.asarray(h5file[channel["dataset_key"]])
             for i, point in enumerate(ms_marker):
                 timed_dataset[i] = g_dataset[int(point) - 1]
-        elif channel["format"] == "per_file":
-            value = float(get_attribute(h5file, channel["dataset_key"]))
-            timed_dataset[:] = value
         else:
             raise ValueError(
                 f"Invalid 'format':{channel['format']} for channel {channel['dataset_key']}.",
             )
-        if "data_type" in channel.keys():
-            timed_dataset = timed_dataset.astype(channel["data_type"])
+        if "dtype" in channel.keys():
+            timed_dataset = timed_dataset.astype(channel["dtype"])
         else:
             timed_dataset = timed_dataset.astype("float32")
 
