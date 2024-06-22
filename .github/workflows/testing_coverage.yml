@@ -24,7 +24,7 @@ jobs:
         uses: packetcoders/action-setup-cache-python-poetry@main
         with:
           python-version: 3.9
-          poetry-version: 1.2.2
+          poetry-version: 1.8.3
 
       # Run pytest with coverage report, saving to xml
       - name: Run tests on python 3.9

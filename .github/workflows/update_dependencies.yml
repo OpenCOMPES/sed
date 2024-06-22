@@ -29,7 +29,7 @@ jobs:
         uses: packetcoders/action-setup-cache-python-poetry@main
         with:
           python-version: 3.9
-          poetry-version: 1.2.2
+          poetry-version: 1.8.3
 
       # update poetry lockfile
       - name: "Update poetry lock file"
