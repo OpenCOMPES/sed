@@ -4961,5 +4961,5 @@ notebook = ["ipykernel", "jupyter", "jupyterlab", "jupyterlab-h5web"]
 
 [metadata]
 lock-version = "2.0"
-python-versions = ">=3.9, <3.12.3"
-content-hash = "db95a000750305a8743b5758e903e75fb0026608ead249eea7262c7cae53c076"
+python-versions = ">=3.9, <3.12.3, !=3.11.9"
+content-hash = "e2c46628207d2ac571d40b2b191956117af6a078b879e3aad5961c5a982a1a90"
