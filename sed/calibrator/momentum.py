@@ -609,7 +609,7 @@ class MomentumCorrector:
                 Order of interpolation (see ``scipy.ndimage.map_coordinates()``).
                 Defaults to 1.
             ascale: (float | list | tuple | np.ndarray, optional): Scale parameter determining a
-                realtive scale for each symmetry feature. If provided as single float, rotsym has
+                relative scale for each symmetry feature. If provided as single float, rotsym has
                 to be 4. This parameter describes the relative scaling between the two orthogonal
                 symmetry directions (for an orthorhombic system). This requires the correction
                 points to be located along the principal axes (X/Y points of the Brillouin zone).
@@ -1975,14 +1975,12 @@ def dictmerge(
     Returns:
         dict: Merged dictionary.
     """
-    if isinstance(
-        other_entries,
-        (list, tuple),
-    ):  # Merge main_dict with a list or tuple of dictionaries
+    # Merge main_dict with a list or tuple of dictionaries
+    if isinstance(other_entries, (list, tuple)):
         for oth in other_entries:
             main_dict = {**main_dict, **oth}
-
-    elif isinstance(other_entries, dict):  # Merge D with a single dictionary
+    # Merge D with a single dictionary
+    elif isinstance(other_entries, dict):
         main_dict = {**main_dict, **other_entries}
 
     return main_dict
@@ -2147,7 +2145,7 @@ def load_dfield(file: str) -> tuple[np.ndarray, np.ndarray]:
         file (str): Path to file containing the inverse dfield
 
     Returns:
-        np.ndarray: the loaded inverse deformation field
+        tuple[np.ndarray, np.ndarray]: the loaded inverse row and column deformation fields
     """
     rdeform_field: np.ndarray = None
     cdeform_field: np.ndarray = None

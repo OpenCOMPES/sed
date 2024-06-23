@@ -934,8 +934,8 @@ class SXPLoader(BaseLoader):
             collect_metadata (bool, optional): Whether to collect metadata. Defaults to False.
 
         Returns:
-            tuple[dd.DataFrame, dd.DataFrame, dict]: A tuple containing the concatenated DataFrame
-            and metadata.
+            tuple[dd.DataFrame, dd.DataFrame, dict]: A tuple containing the concatenated DataFrame,
+            timed DataFrame, and metadata.
 
         Raises:
             ValueError: If neither 'runs' nor 'files'/'data_raw_dir' is provided.
