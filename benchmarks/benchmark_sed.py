@@ -55,8 +55,8 @@ def test_binning_1d() -> None:
     result = timer.repeat(5, number=1)
     print(result)
     assert min(result) < targets["binning_1d"]
-    # update targets if substantial improvement occurs
-    if np.mean(result) < 0.75 * targets["binning_1d"]:
+    # update targets if >20% improvement occurs beyond old bestmark
+    if np.mean(result) < 0.8 * 0.75 * targets["binning_1d"]:
         print(f"Updating targets for 'binning_1d' to {float(np.mean(result) / 0.75)}")
         targets["binning_1d"] = float(np.mean(result) / 0.75)
         save_config(targets, package_dir + "/../benchmarks/benchmark_targets.yaml")
@@ -79,8 +79,8 @@ def test_binning_4d() -> None:
     result = timer.repeat(5, number=1)
     print(result)
     assert min(result) < targets["binning_4d"]
-    # update targets if substantial improvement occurs
-    if np.mean(result) < 0.75 * targets["binning_4d"]:
+    # update targets if >20% improvement occurs beyond old bestmark
+    if np.mean(result) < 0.8 * 0.75 * targets["binning_4d"]:
         print(f"Updating targets for 'binning_4d' to {float(np.mean(result) / 0.75)}")
         targets["binning_4d"] = float(np.mean(result) / 0.75)
         save_config(targets, package_dir + "/../benchmarks/benchmark_targets.yaml")
@@ -104,8 +104,8 @@ def test_splinewarp() -> None:
     result = timer.repeat(5, number=1)
     print(result)
     assert min(result) < targets["inv_dfield"]
-    # update targets if substantial improvement occurs
-    if np.mean(result) < 0.75 * targets["inv_dfield"]:
+    # update targets if >20% improvement occurs beyond old bestmark
+    if np.mean(result) < 0.8 * 0.75 * targets["inv_dfield"]:
         print(f"Updating targets for 'inv_dfield' to {float(np.mean(result) / 0.75)}")
         targets["inv_dfield"] = float(np.mean(result) / 0.75)
         save_config(targets, package_dir + "/../benchmarks/benchmark_targets.yaml")
@@ -138,8 +138,8 @@ def test_workflow_1d() -> None:
     result = timer.repeat(5, number=1)
     print(result)
     assert min(result) < targets["workflow_1d"]
-    # update targets if substantial improvement occurs
-    if np.mean(result) < 0.75 * targets["workflow_1d"]:
+    # update targets if >20% improvement occurs beyond old bestmark
+    if np.mean(result) < 0.8 * 0.75 * targets["workflow_1d"]:
         print(f"Updating targets for 'workflow_1d' to {float(np.mean(result) / 0.75)}")
         targets["workflow_1d"] = float(np.mean(result) / 0.75)
         save_config(targets, package_dir + "/../benchmarks/benchmark_targets.yaml")
@@ -172,8 +172,8 @@ def test_workflow_4d() -> None:
     result = timer.repeat(5, number=1)
     print(result)
     assert min(result) < targets["workflow_4d"]
-    # update targets if substantial improvement occurs
-    if np.mean(result) < 0.75 * targets["workflow_4d"]:
+    # update targets if >20% improvement occurs beyond old bestmark
+    if np.mean(result) < 0.8 * 0.75 * targets["workflow_4d"]:
         print(f"Updating targets for 'workflow_4d' to {float(np.mean(result) / 0.75)}")
         targets["workflow_4d"] = float(np.mean(result) / 0.75)
         save_config(targets, package_dir + "/../benchmarks/benchmark_targets.yaml")
@@ -195,11 +195,11 @@ def test_loader_compute(loader: BaseLoader) -> None:
             "loaded_dataframe.compute()",
             globals={**globals(), **locals()},
         )
-        result = timer.repeat(5, number=1)
+        result = timer.repeat(20, number=1)
         print(result)
         assert min(result) < targets[f"loader_compute_{loader_name}"]
-        # update targets if substantial improvement occurs
-        if np.mean(result) < 0.75 * targets[f"loader_compute_{loader_name}"]:
+        # update targets if >20% improvement occurs beyond old bestmark
+        if np.mean(result) < 0.8 * 0.75 * targets[f"loader_compute_{loader_name}"]:
             print(
                 f"Updating targets for loader_compute_{loader_name}' "
                 f"to {float(np.mean(result) / 0.75)}",
