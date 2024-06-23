@@ -9,8 +9,8 @@ import datetime
 import glob
 import json
 import os
-from typing import Any
 from collections.abc import Sequence
+from typing import Any
 from urllib.error import HTTPError
 from urllib.error import URLError
 from urllib.request import urlopen
@@ -287,7 +287,7 @@ def get_datasets_and_aliases(
 
 def hdf5_to_array(
     h5file: h5py.File,
-    channels: Sequence[Dict[str, Any]],
+    channels: Sequence[dict[str, Any]],
     time_stamps=False,
     ms_markers_key: str = "msMarkers",
     first_event_time_stamp_key: str = "FirstEventTimeStamp",
@@ -298,7 +298,7 @@ def hdf5_to_array(
     Args:
         h5file (h5py.File):
             hdf5 file handle to read from
-        channels (Sequence[Dict[str, any]]):
+        channels (Sequence[dict[str, any]]):
             channel dicts containing group names and types to read.
         time_stamps (bool, optional):
             Option to calculate time stamps. Defaults to False.
@@ -373,7 +373,7 @@ def hdf5_to_array(
 
 def hdf5_to_timed_array(
     h5file: h5py.File,
-    channels: Sequence[Dict[str, Any]],
+    channels: Sequence[dict[str, Any]],
     time_stamps=False,
     ms_markers_key: str = "msMarkers",
     first_event_time_stamp_key: str = "FirstEventTimeStamp",
@@ -384,7 +384,7 @@ def hdf5_to_timed_array(
     Args:
         h5file (h5py.File):
             hdf5 file handle to read from
-        channels (Sequence[Dict[str, any]]):
+        channels (Sequence[dict[str, any]]):
             channel dicts containing group names and types to read.
         time_stamps (bool, optional):
             Option to calculate time stamps. Defaults to False.
