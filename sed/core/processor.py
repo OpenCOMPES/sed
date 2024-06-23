@@ -1491,16 +1491,16 @@ class SedProcessor:
 
         Args:
             constant (float, optional): The constant to shift the energy axis by.
-            columns (str | Sequence[str]): Name of the column(s) to apply the shift from.
-            weights (float | Sequence[float]): weights to apply to the columns.
+            columns (str | Sequence[str], optional): Name of the column(s) to apply the shift from.
+            weights (float | Sequence[float], optional): weights to apply to the columns.
                 Can also be used to flip the sign (e.g. -1). Defaults to 1.
-            reductions (str | Sequence[str]): The reduction to apply to the column. Should be an
-                available method of dask.dataframe.Series. For example "mean". In this case the
-                function is applied to the column to generate a single value for the whole dataset.
-                If None, the shift is applied per-dataframe-row. Defaults to None. Currently only
-                "mean" is supported.
-            preserve_mean (bool | Sequence[bool]): Whether to subtract the mean of the column
-                before applying the shift. Defaults to False.
+            reductions (str | Sequence[str], optional): The reduction to apply to the column.
+                Should be an available method of dask.dataframe.Series. For example "mean". In this
+                case the function is applied to the column to generate a single value for the whole
+                dataset. If None, the shift is applied per-dataframe-row. Defaults to None.
+                Currently only "mean" is supported.
+            preserve_mean (bool | Sequence[bool], optional): Whether to subtract the mean of the
+                column before applying the shift. Defaults to False.
             preview (bool, optional): Option to preview the first elements of the data frame.
                 Defaults to False.
             verbose (bool, optional): Option to print out diagnostic information.
@@ -1826,16 +1826,16 @@ class SedProcessor:
         Args:
             constant (float, optional): The constant to shift the delay axis by.
             flip_delay_axis (bool, optional): Option to reverse the direction of the delay axis.
-            columns (str | Sequence[str]): Name of the column(s) to apply the shift from.
-            weights (float | Sequence[float]): weights to apply to the columns.
+            columns (str | Sequence[str], optional): Name of the column(s) to apply the shift from.
+            weights (float | Sequence[float], optional): weights to apply to the columns.
                 Can also be used to flip the sign (e.g. -1). Defaults to 1.
-            reductions (str | Sequence[str]): The reduction to apply to the column. Should be an
-                available method of dask.dataframe.Series. For example "mean". In this case the
-                function is applied to the column to generate a single value for the whole dataset.
-                If None, the shift is applied per-dataframe-row. Defaults to None. Currently only
-                "mean" is supported.
-            preserve_mean (bool | Sequence[bool]): Whether to subtract the mean of the column
-                before applying the shift. Defaults to False.
+            reductions (str | Sequence[str], optional): The reduction to apply to the column.
+                Should be an available method of dask.dataframe.Series. For example "mean". In this
+                case the function is applied to the column to generate a single value for the whole
+                dataset. If None, the shift is applied per-dataframe-row. Defaults to None.
+                Currently only "mean" is supported.
+            preserve_mean (bool | Sequence[bool], optional): Whether to subtract the mean of the
+                column before applying the shift. Defaults to False.
             preview (bool, optional): Option to preview the first elements of the data frame.
                 Defaults to False.
             verbose (bool, optional): Option to print out diagnostic information.
