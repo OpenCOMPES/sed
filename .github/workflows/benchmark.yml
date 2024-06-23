@@ -4,7 +4,7 @@ name: benchmark
 on:
     workflow_dispatch:
     push:
-        branches: [ main, create-pull-request/patch ]
+        branches: [ main, v1_feature_branch, create-pull-request/patch ]
         paths-ignore:
           pyproject.toml
 
