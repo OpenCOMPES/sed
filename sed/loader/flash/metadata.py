@@ -2,10 +2,9 @@
 The module provides a MetadataRetriever class for retrieving metadata
 from a Scicat Instance based on beamtime and run IDs.
 """
+from __future__ import annotations
 
 import warnings
-from typing import Dict
-from typing import Optional
 
 import requests
 
@@ -16,7 +15,7 @@ class MetadataRetriever:
     on beamtime and run IDs.
     """
 
-    def __init__(self, metadata_config: Dict, scicat_token: str = None) -> None:
+    def __init__(self, metadata_config: dict, scicat_token: str = None) -> None:
         """
         Initializes the MetadataRetriever class.
 
@@ -43,15 +42,15 @@ class MetadataRetriever:
         self,
         beamtime_id: str,
         runs: list,
-        metadata: Optional[Dict] = None,
-    ) -> Dict:
+        metadata: dict = None,
+    ) -> dict:
         """
         Retrieves metadata for a given beamtime ID and list of runs.
 
         Args:
             beamtime_id (str): The ID of the beamtime.
             runs (list): A list of run IDs.
-            metadata (Dict, optional): The existing metadata dictionary.
+            metadata (dict, optional): The existing metadata dictionary.
             Defaults to None.
 
         Returns:
@@ -75,7 +74,7 @@ class MetadataRetriever:
 
         return metadata
 
-    def _get_metadata_per_run(self, pid: str) -> Dict:
+    def _get_metadata_per_run(self, pid: str) -> dict:
         """
         Retrieves metadata for a specific run based on the PID.
 
@@ -83,13 +82,13 @@ class MetadataRetriever:
             pid (str): The PID of the run.
 
         Returns:
-            Dict: The retrieved metadata.
+            dict: The retrieved metadata.
 
         Raises:
             Exception: If the request to retrieve metadata fails.
         """
         headers2 = dict(self.headers)
-        headers2["Authorization"] = "Bearer {}".format(self.token)
+        headers2["Authorization"] = f"Bearer {self.token}"
 
         try:
             dataset_response = requests.get(
@@ -101,7 +100,9 @@ class MetadataRetriever:
             # Check if response is an empty object because wrong url for older implementation
             if not dataset_response.content:
                 dataset_response = requests.get(
-                    self._create_old_dataset_url(pid), headers=headers2, timeout=10
+                    self._create_old_dataset_url(pid),
+                    headers=headers2,
+                    timeout=10,
                 )
             # If the dataset request is successful, return the retrieved metadata
             # as a JSON object
@@ -113,12 +114,16 @@ class MetadataRetriever:
 
     def _create_old_dataset_url(self, pid: str) -> str:
         return "{burl}/{url}/%2F{npid}".format(
-            burl=self.url, url="Datasets", npid=self._reformat_pid(pid)
+            burl=self.url,
+            url="Datasets",
+            npid=self._reformat_pid(pid),
         )
 
     def _create_new_dataset_url(self, pid: str) -> str:
         return "{burl}/{url}/{npid}".format(
-            burl=self.url, url="Datasets", npid=self._reformat_pid(pid)
+            burl=self.url,
+            url="Datasets",
+            npid=self._reformat_pid(pid),
         )
 
     def _reformat_pid(self, pid: str) -> str:

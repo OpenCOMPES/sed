@@ -28,8 +28,8 @@ jobs:
       - name: "Setup Python, Poetry and Dependencies"
         uses: packetcoders/action-setup-cache-python-poetry@main
         with:
-          python-version: 3.8
-          poetry-version: 1.2.2
+          python-version: 3.9
+          poetry-version: 1.8.3
 
       # Run benchmakrs
       - name: Run benchmarks on python 3.8

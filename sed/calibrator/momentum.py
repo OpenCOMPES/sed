@@ -1,14 +1,12 @@
 """sed.calibrator.momentum module. Code for momentum calibration and distortion
 correction. Mostly ported from https://github.com/mpes-kit/mpes.
 """
+from __future__ import annotations
+
 import itertools as it
 from copy import deepcopy
 from datetime import datetime
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Tuple
-from typing import Union
 
 import bokeh.palettes as bp
 import bokeh.plotting as pbk
@@ -40,9 +38,9 @@ class MomentumCorrector:
     Momentum distortion correction and momentum calibration workflow functions.
 
     Args:
-        data (Union[xr.DataArray, np.ndarray], optional): Multidimensional hypervolume
+        data (xr.DataArray | np.ndarray, optional): Multidimensional hypervolume
             containing the data. Defaults to None.
-        bin_ranges (List[Tuple], optional): Binning ranges of the data volume, if
+        bin_ranges (list[tuple], optional): Binning ranges of the data volume, if
             provided as np.ndarray. Defaults to None.
         rotsym (int, optional): Rotational symmetry of the data. Defaults to 6.
         config (dict, optional): Config dictionary. Defaults to None.
@@ -50,17 +48,17 @@ class MomentumCorrector:
 
     def __init__(
         self,
-        data: Union[xr.DataArray, np.ndarray] = None,
-        bin_ranges: List[Tuple] = None,
+        data: xr.DataArray | np.ndarray = None,
+        bin_ranges: list[tuple] = None,
         rotsym: int = 6,
         config: dict = None,
     ):
         """Constructor of the MomentumCorrector class.
 
         Args:
-            data (Union[xr.DataArray, np.ndarray], optional): Multidimensional
+            data (xr.DataArray | np.ndarray, optional): Multidimensional
                 hypervolume containing the data. Defaults to None.
-            bin_ranges (List[Tuple], optional): Binning ranges of the data volume,
+            bin_ranges (list[tuple], optional): Binning ranges of the data volume,
                 if provided as np.ndarray. Defaults to None.
             rotsym (int, optional): Rotational symmetry of the data. Defaults to 6.
             config (dict, optional): Config dictionary. Defaults to None.
@@ -75,7 +73,7 @@ class MomentumCorrector:
         self.slice: np.ndarray = None
         self.slice_corrected: np.ndarray = None
         self.slice_transformed: np.ndarray = None
-        self.bin_ranges: List[Tuple] = self._config["momentum"].get("bin_ranges", [])
+        self.bin_ranges: list[tuple] = self._config["momentum"].get("bin_ranges", [])
 
         if data is not None:
             self.load_data(data=data, bin_ranges=bin_ranges)
@@ -90,7 +88,7 @@ class MomentumCorrector:
         self.include_center: bool = False
         self.use_center: bool = False
         self.pouter: np.ndarray = None
-        self.pcent: Tuple[float, ...] = None
+        self.pcent: tuple[float, ...] = None
         self.pouter_ord: np.ndarray = None
         self.prefs: np.ndarray = None
         self.ptargs: np.ndarray = None
@@ -106,10 +104,10 @@ class MomentumCorrector:
         self.cdeform_field_bkp: np.ndarray = None
         self.inverse_dfield: np.ndarray = None
         self.dfield_updated: bool = False
-        self.transformations: Dict[str, Any] = self._config["momentum"].get("transformations", {})
-        self.correction: Dict[str, Any] = self._config["momentum"].get("correction", {})
-        self.adjust_params: Dict[str, Any] = {}
-        self.calibration: Dict[str, Any] = self._config["momentum"].get("calibration", {})
+        self.transformations: dict[str, Any] = self._config["momentum"].get("transformations", {})
+        self.correction: dict[str, Any] = self._config["momentum"].get("correction", {})
+        self.adjust_params: dict[str, Any] = {}
+        self.calibration: dict[str, Any] = self._config["momentum"].get("calibration", {})
 
         self.x_column = self._config["dataframe"]["x_column"]
         self.y_column = self._config["dataframe"]["y_column"]
@@ -153,15 +151,15 @@ class MomentumCorrector:
 
     def load_data(
         self,
-        data: Union[xr.DataArray, np.ndarray],
-        bin_ranges: List[Tuple] = None,
+        data: xr.DataArray | np.ndarray,
+        bin_ranges: list[tuple] = None,
     ):
         """Load binned data into the momentum calibrator class
 
         Args:
-            data (Union[xr.DataArray, np.ndarray]):
+            data (xr.DataArray | np.ndarray):
                 2D or 3D data array, either as np.ndarray or xr.DataArray.
-            bin_ranges (List[Tuple], optional):
+            bin_ranges (list[tuple], optional):
                 Binning ranges. Needs to be provided in case the data are given
                 as np.ndarray. Otherwise, they are determined from the coords of
                 the xr.DataArray. Defaults to None.
@@ -267,9 +265,7 @@ class MomentumCorrector:
             axmax = np.max(self.slice, axis=(0, 1))
             if axmin < axmax:
                 img.set_clim(axmin, axmax)
-            ax.set_title(
-                f"Plane[{start}:{stop}]",
-            )
+            ax.set_title(f"Plane[{start}:{stop}]")
             fig.canvas.draw_idle()
 
             plane_slider.close()
@@ -287,13 +283,13 @@ class MomentumCorrector:
 
     def select_slice(
         self,
-        selector: Union[slice, List[int], int],
+        selector: slice | list[int] | int,
         axis: int = 2,
     ):
         """Select (hyper)slice from a (hyper)volume.
 
         Args:
-            selector (Union[slice, List[int], int]):
+            selector (slice | list[int] | int):
                 Selector along the specified axis to extract the slice (image). Use
                 the construct slice(start, stop, step) to select a range of images
                 and sum them. Use an integer to specify only a particular slice.
@@ -594,7 +590,7 @@ class MomentumCorrector:
         use_center: bool = None,
         fixed_center: bool = True,
         interp_order: int = 1,
-        ascale: Union[float, list, tuple, np.ndarray] = None,
+        ascale: float | list | tuple | np.ndarray = None,
         verbose: bool = True,
         **kwds,
     ) -> np.ndarray:
@@ -612,13 +608,13 @@ class MomentumCorrector:
             interp_order (int, optional):
                 Order of interpolation (see ``scipy.ndimage.map_coordinates()``).
                 Defaults to 1.
-            ascale: (Union[float, np.ndarray], optional): Scale parameter determining a realtive
-                scale for each symmetry feature. If provided as single float, rotsym has to be 4.
-                This parameter describes the relative scaling between the two orthogonal symmetry
-                directions (for an orthorhombic system). This requires the correction points to be
-                located along the principal axes (X/Y points of the Brillouin zone). Otherwise, an
-                array with ``rotsym`` elements is expected, containing relative scales for each
-                feature. Defaults to an array of equal scales.
+            ascale: (float | list | tuple | np.ndarray, optional): Scale parameter determining a
+                realtive scale for each symmetry feature. If provided as single float, rotsym has
+                to be 4. This parameter describes the relative scaling between the two orthogonal
+                symmetry directions (for an orthorhombic system). This requires the correction
+                points to be located along the principal axes (X/Y points of the Brillouin zone).
+                Otherwise, an array with ``rotsym`` elements is expected, containing relative
+                scales for each feature. Defaults to an array of equal scales.
             verbose (bool, optional): Option to report the used landmarks for correction.
                 Defaults to True.
             **kwds: keyword arguments:
@@ -1028,7 +1024,7 @@ class MomentumCorrector:
 
     def pose_adjustment(
         self,
-        transformations: Dict[str, Any] = None,
+        transformations: dict[str, Any] = None,
         apply: bool = False,
         reset: bool = True,
         verbose: bool = True,
@@ -1262,7 +1258,7 @@ class MomentumCorrector:
         image: np.ndarray = None,
         origin: str = "lower",
         cmap: str = "terrain_r",
-        figsize: Tuple[int, int] = (4, 4),
+        figsize: tuple[int, int] = (4, 4),
         points: dict = None,
         annotated: bool = False,
         backend: str = "matplotlib",
@@ -1270,7 +1266,7 @@ class MomentumCorrector:
         scatterkwds: dict = {},
         cross: bool = False,
         crosshair: bool = False,
-        crosshair_radii: List[int] = [50, 100, 150],
+        crosshair_radii: list[int] = [50, 100, 150],
         crosshair_thickness: int = 1,
         **kwds,
     ):
@@ -1281,7 +1277,7 @@ class MomentumCorrector:
             origin (str, optional): Figure origin specification ('lower' or 'upper').
                 Defaults to "lower".
             cmap (str, optional):  Colormap specification. Defaults to "terrain_r".
-            figsize (Tuple[int, int], optional): Figure size. Defaults to (4, 4).
+            figsize (tuple[int, int], optional): Figure size. Defaults to (4, 4).
             points (dict, optional): Points for annotation. Defaults to None.
             annotated (bool, optional): Option to add annotation. Defaults to False.
             backend (str, optional): Visualization backend specification. Defaults to
@@ -1298,7 +1294,7 @@ class MomentumCorrector:
                 self.pcent. Defaults to False.
             crosshair (bool, optional): Display option to plot circles around center
                 self.pcent. Works only in bokeh backend. Defaults to False.
-            crosshair_radii (List[int], optional): Pixel radii of circles to plot when
+            crosshair_radii (list[int], optional): Pixel radii of circles to plot when
                 crosshair option is activated. Defaults to [50, 100, 150].
             crosshair_thickness (int, optional): Thickness of crosshair circles.
                 Defaults to 1.
@@ -1317,7 +1313,7 @@ class MomentumCorrector:
             txtsize = kwds.pop("textsize", 12)
 
         if backend == "matplotlib":
-            fig, ax = plt.subplots(figsize=figsize)
+            fig_plt, ax = plt.subplots(figsize=figsize)
             ax.imshow(image.T, origin=origin, cmap=cmap, **imkwds)
 
             if cross:
@@ -1409,11 +1405,11 @@ class MomentumCorrector:
 
     def select_k_range(
         self,
-        point_a: Union[np.ndarray, List[int]] = None,
-        point_b: Union[np.ndarray, List[int]] = None,
+        point_a: np.ndarray | list[int] = None,
+        point_b: np.ndarray | list[int] = None,
         k_distance: float = None,
-        k_coord_a: Union[np.ndarray, List[float]] = None,
-        k_coord_b: Union[np.ndarray, List[float]] = np.array([0.0, 0.0]),
+        k_coord_a: np.ndarray | list[float] = None,
+        k_coord_b: np.ndarray | list[float] = np.array([0.0, 0.0]),
         equiscale: bool = True,
         apply: bool = False,
     ):
@@ -1424,16 +1420,16 @@ class MomentumCorrector:
         specifications of point coordinates.
 
         Args:
-            point_a (Union[np.ndarray, List[int]], optional): Pixel coordinates of the
+            point_a (np.ndarray | list[int], optional): Pixel coordinates of the
                 symmetry point a.
-            point_b (Union[np.ndarray, List[int]], optional): Pixel coordinates of the
+            point_b (np.ndarray | list[int], optional): Pixel coordinates of the
                 symmetry point b. Defaults to the center pixel of the image, defined by
                 config["momentum"]["center_pixel"].
             k_distance (float, optional): The known momentum space distance between the
                 two symmetry points.
-            k_coord_a (Union[np.ndarray, List[float]], optional): Momentum coordinate
+            k_coord_a (np.ndarray | list[float], optional): Momentum coordinate
                 of the symmetry points a. Only valid if equiscale=False.
-            k_coord_b (Union[np.ndarray, List[float]], optional): Momentum coordinate
+            k_coord_b (np.ndarray | list[float], optional): Momentum coordinate
                 of the symmetry points b. Only valid if equiscale=False. Defaults to
                 the k-space center np.array([0.0, 0.0]).
             equiscale (bool, optional): Option to adopt equal scale along both the x
@@ -1560,11 +1556,11 @@ class MomentumCorrector:
 
     def calibrate(
         self,
-        point_a: Union[np.ndarray, List[int]],
-        point_b: Union[np.ndarray, List[int]],
+        point_a: np.ndarray | list[int],
+        point_b: np.ndarray | list[int],
         k_distance: float = None,
-        k_coord_a: Union[np.ndarray, List[float]] = None,
-        k_coord_b: Union[np.ndarray, List[float]] = np.array([0.0, 0.0]),
+        k_coord_a: np.ndarray | list[float] = None,
+        k_coord_b: np.ndarray | list[float] = np.array([0.0, 0.0]),
         equiscale: bool = True,
         image: np.ndarray = None,
     ) -> dict:
@@ -1575,16 +1571,16 @@ class MomentumCorrector:
         of point coordinates.
 
         Args:
-            point_a (Union[np.ndarray, List[int]], optional): Pixel coordinates of the
+            point_a (np.ndarray | list[int], optional): Pixel coordinates of the
                 symmetry point a.
-            point_b (Union[np.ndarray, List[int]], optional): Pixel coordinates of the
+            point_b (np.ndarray | list[int], optional): Pixel coordinates of the
                 symmetry point b. Defaults to the center pixel of the image, defined by
                 config["momentum"]["center_pixel"].
             k_distance (float, optional): The known momentum space distance between the
                 two symmetry points.
-            k_coord_a (Union[np.ndarray, List[float]], optional): Momentum coordinate
+            k_coord_a (np.ndarray | list[float], optional): Momentum coordinate
                 of the symmetry points a. Only valid if equiscale=False.
-            k_coord_b (Union[np.ndarray, List[float]], optional): Momentum coordinate
+            k_coord_b (np.ndarray | list[float], optional): Momentum coordinate
                 of the symmetry points b. Only valid if equiscale=False. Defaults to
                 the k-space center np.array([0.0, 0.0]).
             equiscale (bool, optional): Option to adopt equal scale along both the x
@@ -1677,19 +1673,19 @@ class MomentumCorrector:
 
     def apply_corrections(
         self,
-        df: Union[pd.DataFrame, dask.dataframe.DataFrame],
+        df: pd.DataFrame | dask.dataframe.DataFrame,
         x_column: str = None,
         y_column: str = None,
         new_x_column: str = None,
         new_y_column: str = None,
         verbose: bool = True,
         **kwds,
-    ) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
+    ) -> tuple[pd.DataFrame | dask.dataframe.DataFrame, dict]:
         """Calculate and replace the X and Y values with their distortion-corrected
         version.
 
         Args:
-            df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to apply
+            df (pd.DataFrame | dask.dataframe.DataFrame): Dataframe to apply
                 the distotion correction to.
             x_column (str, optional): Label of the 'X' column before momentum
                 distortion correction. Defaults to config["momentum"]["x_column"].
@@ -1712,7 +1708,7 @@ class MomentumCorrector:
                 Additional keyword arguments are passed to ``apply_dfield``.
 
         Returns:
-            Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]: Dataframe with
+            tuple[pd.DataFrame | dask.dataframe.DataFrame, dict]: Dataframe with
             added columns and momentum correction metadata dictionary.
         """
         if x_column is None:
@@ -1766,7 +1762,7 @@ class MomentumCorrector:
         Returns:
             dict: generated correction metadata dictionary.
         """
-        metadata: Dict[Any, Any] = {}
+        metadata: dict[Any, Any] = {}
         if len(self.correction) > 0:
             metadata["correction"] = self.correction
             metadata["correction"]["applied"] = True
@@ -1836,18 +1832,18 @@ class MomentumCorrector:
 
     def append_k_axis(
         self,
-        df: Union[pd.DataFrame, dask.dataframe.DataFrame],
+        df: pd.DataFrame | dask.dataframe.DataFrame,
         x_column: str = None,
         y_column: str = None,
         new_x_column: str = None,
         new_y_column: str = None,
         calibration: dict = None,
         **kwds,
-    ) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
+    ) -> tuple[pd.DataFrame | dask.dataframe.DataFrame, dict]:
         """Calculate and append the k axis coordinates (kx, ky) to the events dataframe.
 
         Args:
-            df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to apply the
+            df (pd.DataFrame | dask.dataframe.DataFrame): Dataframe to apply the
                 distotion correction to.
             x_column (str, optional): Label of the source 'X' column.
                 Defaults to config["momentum"]["corrected_x_column"] or
@@ -1865,7 +1861,7 @@ class MomentumCorrector:
                 to the calibration dictionary.
 
         Returns:
-            Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]: Dataframe with
+            tuple[pd.DataFrame | dask.dataframe.DataFrame, dict]: Dataframe with
             added columns and momentum calibration metadata dictionary.
         """
         if x_column is None:
@@ -1928,7 +1924,7 @@ class MomentumCorrector:
         """
         if calibration is None:
             calibration = self.calibration
-        metadata: Dict[Any, Any] = {}
+        metadata: dict[Any, Any] = {}
         try:
             metadata["creation_date"] = calibration["creation_date"]
         except KeyError:
@@ -1967,13 +1963,13 @@ def cm2palette(cmap_name: str) -> list:
 
 def dictmerge(
     main_dict: dict,
-    other_entries: Union[List[dict], Tuple[dict], dict],
+    other_entries: list[dict] | tuple[dict] | dict,
 ) -> dict:
     """Merge a dictionary with other dictionaries.
 
     Args:
         main_dict (dict): Main dictionary.
-        other_entries (Union[List[dict], Tuple[dict], dict]):
+        other_entries (list[dict] | tuple[dict] | dict):
             Other dictionary or composite dictionarized elements.
 
     Returns:
@@ -1981,10 +1977,7 @@ def dictmerge(
     """
     if isinstance(
         other_entries,
-        (
-            list,
-            tuple,
-        ),
+        (list, tuple),
     ):  # Merge main_dict with a list or tuple of dictionaries
         for oth in other_entries:
             main_dict = {**main_dict, **oth}
@@ -2006,7 +1999,7 @@ def detector_coordiantes_2_k_koordinates(
     c_conversion: float,
     r_step: float,
     c_step: float,
-) -> Tuple[float, float]:
+) -> tuple[float, float]:
     """Conversion from detector coordinates (rdet, cdet) to momentum coordinates
     (kr, kc).
 
@@ -2023,7 +2016,7 @@ def detector_coordiantes_2_k_koordinates(
         c_step (float): Column stepping factor.
 
     Returns:
-        Tuple[float, float]: Converted momentum space row/column coordinates.
+        tuple[float, float]: Converted momentum space row/column coordinates.
     """
     r_det0 = r_start + r_step * r_center
     c_det0 = c_start + c_step * c_center
@@ -2034,18 +2027,18 @@ def detector_coordiantes_2_k_koordinates(
 
 
 def apply_dfield(
-    df: Union[pd.DataFrame, dask.dataframe.DataFrame],
+    df: pd.DataFrame | dask.dataframe.DataFrame,
     dfield: np.ndarray,
     x_column: str,
     y_column: str,
     new_x_column: str,
     new_y_column: str,
-    detector_ranges: List[Tuple],
-) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
+    detector_ranges: list[tuple],
+) -> pd.DataFrame | dask.dataframe.DataFrame:
     """Application of the inverse displacement-field to the dataframe coordinates.
 
     Args:
-        df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to apply the
+        df (pd.DataFrame | dask.dataframe.DataFrame): Dataframe to apply the
             distotion correction to.
         dfield (np.ndarray): The distortion correction field. 3D matrix,
             with column and row distortion fields stacked along the first dimension.
@@ -2053,11 +2046,11 @@ def apply_dfield(
         y_column (str): Label of the 'Y' source column.
         new_x_column (str): Label of the 'X' destination column.
         new_y_column (str): Label of the 'Y' destination column.
-        detector_ranges (List[Tuple]): tuple of pixel ranges of the detector x/y
+        detector_ranges (list[tuple]): tuple of pixel ranges of the detector x/y
             coordinates
 
     Returns:
-        Union[pd.DataFrame, dask.dataframe.DataFrame]: dataframe with added columns
+        pd.DataFrame | dask.dataframe.DataFrame: dataframe with added columns
     """
     x = df[x_column]
     y = df[y_column]
@@ -2075,8 +2068,8 @@ def apply_dfield(
 def generate_inverse_dfield(
     rdeform_field: np.ndarray,
     cdeform_field: np.ndarray,
-    bin_ranges: List[Tuple],
-    detector_ranges: List[Tuple],
+    bin_ranges: list[tuple],
+    detector_ranges: list[tuple],
 ) -> np.ndarray:
     """Generate inverse deformation field using inperpolation with griddata.
     Assuming the binning range of the input ``rdeform_field`` and ``cdeform_field``
@@ -2085,8 +2078,8 @@ def generate_inverse_dfield(
     Args:
         rdeform_field (np.ndarray): Row-wise deformation field.
         cdeform_field (np.ndarray): Column-wise deformation field.
-        bin_ranges (List[Tuple]): Detector ranges of the binned coordinates.
-        detector_ranges (List[Tuple]): Ranges of detector coordinates to interpolate to.
+        bin_ranges (list[tuple]): Detector ranges of the binned coordinates.
+        detector_ranges (list[tuple]): Ranges of detector coordinates to interpolate to.
 
     Returns:
         np.ndarray: The calculated inverse deformation field (row/column)
@@ -2147,7 +2140,7 @@ def generate_inverse_dfield(
     return inverse_dfield
 
 
-def load_dfield(file: str) -> Tuple[np.ndarray, np.ndarray]:
+def load_dfield(file: str) -> tuple[np.ndarray, np.ndarray]:
     """Load inverse dfield from file
 
     Args:

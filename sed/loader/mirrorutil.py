@@ -5,11 +5,12 @@ tremendiously.
 Mostly ported from https://github.com/mpes-kit/mpes.
 @author: L. Rettig
 """
+from __future__ import annotations
+
 import errno
 import os
 import shutil
 from datetime import datetime
-from typing import List
 
 import dask as d
 from dask.diagnostics import ProgressBar
@@ -317,7 +318,7 @@ def get_target_dir(
 
 
 # replacement for os.makedirs, which is independent of umask
-def mymakedirs(path: str, mode: int, gid: int) -> List[str]:
+def mymakedirs(path: str, mode: int, gid: int) -> list[str]:
     """Creates a directory path iteratively from its root
 
     Args:
@@ -326,7 +327,7 @@ def mymakedirs(path: str, mode: int, gid: int) -> List[str]:
         gid (int): Group id of created directories
 
     Returns:
-        str: Path of created directories
+        list[str]: Path of created directories
     """
 
     if not path or os.path.exists(path):

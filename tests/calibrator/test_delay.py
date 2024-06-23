@@ -1,9 +1,10 @@
 """Module tests.calibrator.delay, tests for the sed.calibrator.delay file
 """
+from __future__ import annotations
+
 import os
 from importlib.util import find_spec
 from typing import Any
-from typing import Dict
 
 import dask.dataframe
 import numpy as np
@@ -114,7 +115,7 @@ def test_delay_parameters_from_delay_range_mm() -> None:
         collect_metadata=False,
     )
     dc = DelayCalibrator(config=config)
-    calibration: Dict[str, Any] = {"delay_range_mm": (1, 15)}
+    calibration: dict[str, Any] = {"delay_range_mm": (1, 15)}
     with pytest.raises(NotImplementedError):
         dc.append_delay_axis(df, calibration=calibration)
     calibration["time0"] = 1

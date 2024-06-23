@@ -3,8 +3,9 @@ The conversion is based on the nexusutils from the FAIRmat NFDI consortium.
 For details, see https://github.com/nomad-coe/nomad-parser-nexus
 
 """
-from typing import Sequence
-from typing import Union
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import xarray as xr
 from pynxtools.dataconverter.convert import convert
@@ -15,7 +16,7 @@ def to_nexus(
     faddr: str,
     reader: str,
     definition: str,
-    input_files: Union[str, Sequence[str]],
+    input_files: str | Sequence[str],
     **kwds,
 ):
     """Saves the x-array provided to a NeXus file at faddr, using the provided reader,
@@ -27,7 +28,7 @@ def to_nexus(
         faddr (str): The file path to save to.
         reader (str): The name of the NeXus reader to use.
         definition (str): The NeXus definiton to use.
-        config_file (str): The file path to the configuration file to use.
+        input_files (str | Sequence[str]): The file path or paths to the additional files to use.
         **kwds: Keyword arguments for ``nexusutils.dataconverter.convert``.
     """
 
