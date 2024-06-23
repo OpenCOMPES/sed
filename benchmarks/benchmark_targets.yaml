@@ -1,8 +1,8 @@
-binning_1d: 3.823766174933333
-binning_4d: 10.874196000533333
-inv_dfield: 6.449857629866649
-loader_compute_flash: 0.046021607999970605
-loader_compute_mpes: 0.01723324879997866
-loader_compute_sxp: 0.00812402506668756
-workflow_1d: 20.176347301066652
-workflow_4d: 26.607221860799985
+binning_1d: 100
+binning_4d: 100
+inv_dfield: 100
+loader_compute_flash: 100
+loader_compute_mpes: 100
+loader_compute_sxp: 100
+workflow_1d: 100
+workflow_4d: 100
