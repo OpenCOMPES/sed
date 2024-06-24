@@ -81,24 +81,28 @@ dataframe:
     # pulse ID is a necessary channel for using the loader.
     pulseId:
       format: per_electron
-      group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
+      index_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/index"
+      dataset_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/value"
       slice: 2
 
     dldPosX:
       format: per_electron
-      group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
+      index_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/index"
+      dataset_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/value"
       slice: 1
       dtype: uint16
 
     dldPosY:
       format: per_electron
-      group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
+      index_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/index"
+      dataset_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/value"
       slice: 0
       dtype: uint16
 
     dldTimeSteps:
       format: per_electron
-      group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
+      index_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/index"
+      dataset_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/value"
       slice: 3
       dtype: uint32
 
@@ -106,7 +110,8 @@ dataframe:
     # a multidim structure so further aliases are defined below
     dldAux:
       format: per_train
-      group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
+      index_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/index"
+      dataset_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/value"
       slice: 4
       dldAuxChannels:
         sampleBias: 0
@@ -119,19 +124,23 @@ dataframe:
 
     timeStamp:
       format: per_train
-      group_name: "/uncategorised/FLASH.DIAG/TIMINGINFO/TIME1.BUNCH_FIRST_INDEX.1/"
+      index_key: "/uncategorised/FLASH.DIAG/TIMINGINFO/TIME1.BUNCH_FIRST_INDEX.1/index"
+      dataset_key: "/uncategorised/FLASH.DIAG/TIMINGINFO/TIME1.BUNCH_FIRST_INDEX.1/time"
 
     delayStage:
       format: per_train
-      group_name: "/zraw/FLASH.SYNC/LASER.LOCK.EXP/F1.PG.OSC/FMC0.MD22.1.ENCODER_POSITION.RD/dGroup/"
+      index_key: "/zraw/FLASH.SYNC/LASER.LOCK.EXP/F1.PG.OSC/FMC0.MD22.1.ENCODER_POSITION.RD/dGroup/index"
+      dataset_key: "/zraw/FLASH.SYNC/LASER.LOCK.EXP/F1.PG.OSC/FMC0.MD22.1.ENCODER_POSITION.RD/dGroup/value"
 
     pulserSignAdc:
       format: per_pulse
-      group_name: "/FL1/Experiment/PG/SIS8300 100MHz ADC/CH6/TD/"
+      index_key: "/FL1/Experiment/PG/SIS8300 100MHz ADC/CH6/TD/index"
+      dataset_key: "/FL1/Experiment/PG/SIS8300 100MHz ADC/CH6/TD/value"
 
     gmdTunnel:
       format: per_pulse
-      group_name: "/FL1/Photon Diagnostic/GMD/Pulse resolved energy/energy tunnel/"
+      index_key: "/FL1/Photon Diagnostic/GMD/Pulse resolved energy/energy tunnel/index"
+      dataset_key: "/FL1/Photon Diagnostic/GMD/Pulse resolved energy/energy tunnel/value"
       slice: 0
 
   # The prefixes of the stream names for different DAQ systems for parsing filenames

@@ -40,25 +40,19 @@ class DataFrameCreator:
             tuple[str, str]: Outputs a tuple of 'index_key' and 'dataset_key'.
 
         Raises:
-            ValueError: If neither 'group_name' nor both 'index_key' and 'dataset_key' are provided.
+            ValueError: If 'index_key' and 'dataset_key' are not provided.
         """
         channel_config = self._config["channels"][channel]
 
-        if "group_name" in channel_config:
-            index_key = channel_config["group_name"] + "index"
-            if channel == "timeStamp":
-                dataset_key = channel_config["group_name"] + "time"
-            else:
-                dataset_key = channel_config["group_name"] + "value"
-            return index_key, dataset_key
         if "index_key" in channel_config and "dataset_key" in channel_config:
             return channel_config["index_key"], channel_config["dataset_key"]
+        else:
+            print("'group_name' is no longer supported.")
 
         raise ValueError(
             "For channel:",
             channel,
-            "Provide either both 'index_key' and 'dataset_key'.",
-            "or 'group_name' (parses only 'index' and 'value' or 'time' keys.)",
+            "Provide both 'index_key' and 'dataset_key'.",
         )
 
     def get_dataset_array(

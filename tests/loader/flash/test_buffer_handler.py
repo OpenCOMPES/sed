@@ -73,7 +73,8 @@ def test_buffer_schema_mismatch(config, h5_paths):
     # Manipulate the configuration to introduce a new channel 'gmdTunnel2'
     config_dict = config
     config_dict["dataframe"]["channels"]["gmdTunnel2"] = {
-        "group_name": "/FL1/Photon Diagnostic/GMD/Pulse resolved energy/energy tunnel/",
+        "index_key": "/FL1/Photon Diagnostic/GMD/Pulse resolved energy/energy tunnel/index",
+        "dataset_key": "/FL1/Photon Diagnostic/GMD/Pulse resolved energy/energy tunnel/value",
         "format": "per_pulse",
         "slice": 0,
     }

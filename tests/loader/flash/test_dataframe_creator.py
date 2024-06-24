@@ -16,12 +16,11 @@ def test_get_index_dataset_key(config_dataframe, h5_file):
     channel = "dldPosX"
     df = DataFrameCreator(config, h5_file)
     index_key, dataset_key = df.get_index_dataset_key(channel)
-    group_name = config["channels"][channel]["group_name"]
-    assert index_key == group_name + "index"
-    assert dataset_key == group_name + "value"
+    assert index_key == config["channels"][channel]["index_key"]
+    assert dataset_key == config["channels"][channel]["dataset_key"]
 
-    # remove group_name key
-    del config["channels"][channel]["group_name"]
+    # remove index_key
+    del config["channels"][channel]["index_key"]
     with pytest.raises(ValueError):
         df.get_index_dataset_key(channel)
 
@@ -58,13 +57,11 @@ def test_empty_get_dataset_array(config_dataframe, h5_file, h5_file_copy):
     df = DataFrameCreator(config_dataframe, h5_file)
     train_id, dset = df.get_dataset_array(channel)
 
-    channel_index_key = config_dataframe["channels"][channel]["group_name"] + "index"
+    channel_index_key = "/FL1/Photon Diagnostic/GMD/Pulse resolved energy/energy tunnel/index"
     # channel_dataset_key = config_dataframe["channels"][channel]["group_name"] + "value"
-    empty_dataset_key = config_dataframe["channels"][channel]["group_name"] + "empty"
+    empty_dataset_key = "/FL1/Photon Diagnostic/GMD/Pulse resolved energy/energy tunnel/empty"
     config_dataframe["channels"][channel]["index_key"] = channel_index_key
     config_dataframe["channels"][channel]["dataset_key"] = empty_dataset_key
-    # Remove the 'group_name' key
-    del config_dataframe["channels"][channel]["group_name"]
 
     # create an empty dataset
     h5_file_copy.create_dataset(
@@ -237,7 +234,7 @@ def test_group_name_not_in_h5(config_dataframe, h5_file):
     """Test ValueError when the group_name for a channel does not exist in the H5 file."""
     channel = "dldPosX"
     config = config_dataframe
-    config["channels"][channel]["group_name"] = "foo"
+    config["channels"][channel]["dataset_key"] = "foo"
     df = DataFrameCreator(config, h5_file)
 
     with pytest.raises(KeyError):
@@ -261,12 +258,7 @@ def test_get_index_dataset_key_error(config_dataframe, h5_file):
     config = config_dataframe
     channel = "dldPosX"
     df = DataFrameCreator(config, h5_file)
-    index_key, dataset_key = df.get_index_dataset_key(channel)
-    group_name = config["channels"][channel]["group_name"]
-    assert index_key == group_name + "index"
-    assert dataset_key == group_name + "value"
 
-    # remove group_name key
-    del config["channels"][channel]["group_name"]
+    del config["channels"][channel]["dataset_key"]
     with pytest.raises(ValueError):
         df.get_index_dataset_key(channel)
