@@ -1,5 +1,7 @@
 """Utilities for loaders
 """
+from __future__ import annotations
+
 from collections.abc import Sequence
 from glob import glob
 from pathlib import Path

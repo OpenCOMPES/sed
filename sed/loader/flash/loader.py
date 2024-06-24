@@ -7,6 +7,8 @@ automatically forward-filled across different files.
 This can then be saved as a parquet for out-of-sed processing and reread back to access other
 sed functionality.
 """
+from __future__ import annotations
+
 import re
 import time
 from collections.abc import Sequence

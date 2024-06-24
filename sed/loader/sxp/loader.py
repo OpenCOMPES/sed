@@ -9,6 +9,8 @@ This can then be saved as a parquet for out-of-sed processing and reread back to
 sed funtionality.
 Most of the structure is identical to the FLASH loader.
 """
+from __future__ import annotations
+
 import time
 from collections.abc import Sequence
 from functools import reduce
