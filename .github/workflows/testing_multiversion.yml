@@ -27,8 +27,10 @@ jobs:
           python-version: ${{matrix.python-version}}
           poetry-version: 1.2.2
 
+      - name: Install project dependencies
+        run: poetry install
+
       # Use cached python and dependencies, install poetry
       - name: Run tests on python ${{matrix.python-version}}
         run: |
-          poetry install
           poetry run pytest --full-trace --show-capture=no -sv -n auto tests/
