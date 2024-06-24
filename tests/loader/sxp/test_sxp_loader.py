@@ -1,9 +1,9 @@
-# pylint: disable=duplicate-code
 """Tests for SXPLoader functionality"""
+from __future__ import annotations
+
 import os
 from importlib.util import find_spec
 from pathlib import Path
-from typing import List
 
 import pytest
 
@@ -35,7 +35,7 @@ def test_get_channels_by_format(config_file: dict) -> None:
 
     # Define expected channels for each format.
     electron_channels = ["dldPosX", "dldPosY", "dldTimeSteps"]
-    pulse_channels: List[str] = []
+    pulse_channels: list[str] = []
     train_channels = ["timeStamp", "delayStage"]
     index_channels = ["trainId", "pulseId", "electronId"]
 

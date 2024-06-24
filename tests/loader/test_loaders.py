@@ -1,11 +1,12 @@
 """Test cases for loaders used to load dataframes
 """
+from __future__ import annotations
+
 import os
 from copy import deepcopy
 from importlib.util import find_spec
 from pathlib import Path
 from typing import cast
-from typing import List
 
 import dask.dataframe as ddf
 import pytest
@@ -52,7 +53,7 @@ def get_loader_name_from_loader_object(loader: BaseLoader) -> str:
     return ""
 
 
-def get_all_loaders() -> List[ParameterSet]:
+def get_all_loaders() -> list[ParameterSet]:
     """Scans through the loader list and returns them for pytest parametrization"""
     loaders = []
 

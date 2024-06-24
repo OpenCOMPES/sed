@@ -1,11 +1,9 @@
 """This file contains helper functions for the sed.binning module
-
 """
+from __future__ import annotations
+
+from collections.abc import Sequence
 from typing import cast
-from typing import List
-from typing import Sequence
-from typing import Tuple
-from typing import Union
 
 import numpy as np
 
@@ -16,16 +14,10 @@ def _arraysum(array_a, array_b):
 
 
 def simplify_binning_arguments(
-    bins: Union[
-        int,
-        dict,
-        Sequence[int],
-        Sequence[np.ndarray],
-        Sequence[tuple],
-    ],
+    bins: int | dict | Sequence[int] | Sequence[np.ndarray] | Sequence[tuple],
     axes: Sequence[str] = None,
-    ranges: Sequence[Tuple[float, float]] = None,
-) -> Tuple[Union[List[int], List[np.ndarray]], List[str], List[Tuple[float, float]]]:
+    ranges: Sequence[tuple[float, float]] = None,
+) -> tuple[list[int] | list[np.ndarray], list[str], list[tuple[float, float]]]:
     """Convert the flexible input for defining bins into a
     simple "axes" "bins" "ranges" tuple.
 
@@ -33,7 +25,7 @@ def simplify_binning_arguments(
     binning functions defined here.
 
     Args:
-        bins (int, dict, Sequence[int], Sequence[np.ndarray], Sequence[tuple]):
+        bins (int | dict | Sequence[int] | Sequence[np.ndarray] | Sequence[tuple]):
             Definition of the bins. Can  be any of the following cases:
 
                 - an integer describing the number of bins for all dimensions. This
@@ -56,7 +48,7 @@ def simplify_binning_arguments(
             the order of the dimensions in the resulting array. Only not required if
             bins are provided as dictionary containing the axis names.
             Defaults to None.
-        ranges (Sequence[Tuple[float, float]], optional): Sequence of tuples containing
+        ranges (Sequence[tuple[float, float]], optional): Sequence of tuples containing
             the start and end point of the binning range. Required if bins given as
             int or Sequence[int]. Defaults to None.
 
@@ -67,7 +59,7 @@ def simplify_binning_arguments(
         AttributeError: Shape mismatch
 
     Returns:
-        Tuple[Union[List[int], List[np.ndarray]], List[Tuple[float, float]]]: Tuple
+        tuple[list[int] | list[np.ndarray], list[str], list[tuple[float, float]]]: Tuple
         containing lists of bin centers, axes, and ranges.
     """
     # if bins is a dictionary: unravel to axes and bins
@@ -113,7 +105,7 @@ def simplify_binning_arguments(
 
     # if bins are provided as int, check that ranges are present
     if all(isinstance(x, (int, np.int64)) for x in bins):
-        bins = cast(List[int], list(bins))
+        bins = cast(list[int], list(bins))
         if ranges is None:
             raise AttributeError(
                 "Must provide a range if bins is an integer or list of integers",
@@ -125,7 +117,7 @@ def simplify_binning_arguments(
 
     # otherwise, all bins should by np.ndarrays here
     elif all(isinstance(x, np.ndarray) for x in bins):
-        bins = cast(List[np.ndarray], list(bins))
+        bins = cast(list[np.ndarray], list(bins))
     else:
         raise TypeError(f"Could not interpret bins of type {type(bins)}")
 

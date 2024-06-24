@@ -10,12 +10,9 @@ sed funtionality.
 Most of the structure is identical to the FLASH loader.
 """
 import time
+from collections.abc import Sequence
 from functools import reduce
 from pathlib import Path
-from typing import List
-from typing import Sequence
-from typing import Tuple
-from typing import Union
 
 import dask.dataframe as dd
 import h5py
@@ -50,8 +47,8 @@ class SXPLoader(BaseLoader):
         self.multi_index = ["trainId", "pulseId", "electronId"]
         self.index_per_electron: MultiIndex = None
         self.index_per_pulse: MultiIndex = None
-        self.failed_files_error: List[str] = []
-        self.array_indices: List[List[slice]] = None
+        self.failed_files_error: list[str] = []
+        self.array_indices: list[list[slice]] = None
         self.raw_dir: str = None
         self.parquet_dir: str = None
 
@@ -106,23 +103,23 @@ class SXPLoader(BaseLoader):
     def get_files_from_run_id(
         self,
         run_id: str,
-        folders: Union[str, Sequence[str]] = None,
+        folders: str | Sequence[str] = None,
         extension: str = "h5",
         **kwds,
-    ) -> List[str]:
+    ) -> list[str]:
         """Returns a list of filenames for a given run located in the specified directory
         for the specified data acquisition (daq).
 
         Args:
             run_id (str): The run identifier to locate.
-            folders (Union[str, Sequence[str]], optional): The directory(ies) where the raw
+            folders (str | Sequence[str], optional): The directory(ies) where the raw
                 data is located. Defaults to config["core"]["base_folder"].
             extension (str, optional): The file extension. Defaults to "h5".
             kwds: Keyword arguments:
                 - daq (str): The data acquisition identifier.
 
         Returns:
-            List[str]: A list of path strings representing the collected file names.
+            list[str]: A list of path strings representing the collected file names.
 
         Raises:
             FileNotFoundError: If no files are found for the given run in the directory.
@@ -146,7 +143,7 @@ class SXPLoader(BaseLoader):
         # Generate the file patterns to search for in the directory
         file_pattern = f"**/{stream_name_prefixes[daq]}{run_id}{stream_name_postfix}*." + extension
 
-        files: List[Path] = []
+        files: list[Path] = []
         # Use pathlib to search for matching files in each directory
         for folder in folders:
             files.extend(
@@ -166,7 +163,7 @@ class SXPLoader(BaseLoader):
         return [str(file.resolve()) for file in files]
 
     @property
-    def available_channels(self) -> List:
+    def available_channels(self) -> list:
         """Returns the channel names that are available for use,
         excluding pulseId, defined by the json file"""
         available_channels = list(self._config["dataframe"]["channels"].keys())
@@ -174,13 +171,13 @@ class SXPLoader(BaseLoader):
         available_channels.remove("trainId")
         return available_channels
 
-    def get_channels(self, formats: Union[str, List[str]] = "", index: bool = False) -> List[str]:
+    def get_channels(self, formats: str | list[str] = "", index: bool = False) -> list[str]:
         """
         Returns a list of channels associated with the specified format(s).
 
         Args:
-            formats (Union[str, List[str]]): The desired format(s)
-                                ('per_pulse', 'per_electron', 'per_train', 'all').
+            formats (str | list[str]): The desired format(s)
+                ('per_pulse', 'per_electron', 'per_train', 'all').
             index (bool): If True, includes channels from the multi_index.
 
         Returns:
@@ -341,7 +338,7 @@ class SXPLoader(BaseLoader):
         self,
         h5_file: h5py.File,
         channel: str,
-    ) -> Tuple[Series, np.ndarray]:
+    ) -> tuple[Series, np.ndarray]:
         """
         Returns a numpy array for a given channel name for a given file.
 
@@ -350,7 +347,7 @@ class SXPLoader(BaseLoader):
             channel (str): The name of the channel.
 
         Returns:
-            Tuple[Series, np.ndarray]: A tuple containing the train ID Series and the numpy array
+            tuple[Series, np.ndarray]: A tuple containing the train ID Series and the numpy array
             for the channel's data.
 
         """
@@ -510,7 +507,7 @@ class SXPLoader(BaseLoader):
         self,
         h5_file: h5py.File,
         channel: str,
-    ) -> Union[Series, DataFrame]:
+    ) -> Series | DataFrame:
         """
         Returns a pandas DataFrame for a given channel name from a given file.
 
@@ -523,7 +520,7 @@ class SXPLoader(BaseLoader):
             channel (str): The name of the channel.
 
         Returns:
-            Union[Series, DataFrame]: A pandas Series or DataFrame representing the channel's data.
+            Series | DataFrame: A pandas Series or DataFrame representing the channel's data.
 
         Raises:
             ValueError: If the channel has an undefined format.
@@ -657,7 +654,7 @@ class SXPLoader(BaseLoader):
                 df, _ = split_dld_time_from_sector_id(df, config=self._config)
             return df
 
-    def create_buffer_file(self, h5_path: Path, parquet_path: Path) -> Union[bool, Exception]:
+    def create_buffer_file(self, h5_path: Path, parquet_path: Path) -> bool | Exception:
         """
         Converts an HDF5 file to Parquet format to create a buffer file.
 
@@ -667,6 +664,9 @@ class SXPLoader(BaseLoader):
         Args:
             h5_path (Path): Path to the input HDF5 file.
             parquet_path (Path): Path to the output Parquet file.
+
+        Returns:
+            bool | Exception: Collected exceptions if any.
 
         Raises:
             ValueError: If an error occurs during the conversion process.
@@ -688,7 +688,7 @@ class SXPLoader(BaseLoader):
         data_parquet_dir: Path,
         detector: str,
         force_recreate: bool,
-    ) -> Tuple[List[Path], List, List]:
+    ) -> tuple[list[Path], list, list]:
         """
         Handles the conversion of buffer files (h5 to parquet) and returns the filenames.
 
@@ -698,7 +698,7 @@ class SXPLoader(BaseLoader):
             force_recreate (bool): Forces recreation of buffer files
 
         Returns:
-            Tuple[List[Path], List, List]: Three lists, one for
+            tuple[list[Path], list, list]: Three lists, one for
             parquet file paths, one for metadata and one for schema.
 
         Raises:
@@ -795,7 +795,7 @@ class SXPLoader(BaseLoader):
         load_parquet: bool = False,
         save_parquet: bool = False,
         force_recreate: bool = False,
-    ) -> Tuple[dd.DataFrame, dd.DataFrame]:
+    ) -> tuple[dd.DataFrame, dd.DataFrame]:
         """
         Handles loading and saving of parquet files based on the provided parameters.
 
@@ -810,7 +810,7 @@ class SXPLoader(BaseLoader):
             save_parquet (bool, optional): Saves the entire dataframe into a parquet.
             force_recreate (bool, optional): Forces recreation of buffer file.
         Returns:
-            tuple: A tuple containing two dataframes:
+            tuple[dd.DataFrame, dd.DataFrame]: A tuple containing two dataframes:
             - dataframe_electron: Dataframe containing the loaded/augmented electron data.
             - dataframe_pulse: Dataframe containing the loaded/augmented timed data.
 
@@ -851,7 +851,7 @@ class SXPLoader(BaseLoader):
             dataframe = dd.read_parquet(filenames, calculate_divisions=True)
 
             # Channels to fill NaN values
-            channels: List[str] = self.get_channels(["per_pulse", "per_train"])
+            channels: list[str] = self.get_channels(["per_pulse", "per_train"])
 
             overlap = min(file.num_rows for file in metadata)
 
@@ -907,23 +907,23 @@ class SXPLoader(BaseLoader):
 
     def read_dataframe(
         self,
-        files: Union[str, Sequence[str]] = None,
-        folders: Union[str, Sequence[str]] = None,
-        runs: Union[str, Sequence[str]] = None,
+        files: str | Sequence[str] = None,
+        folders: str | Sequence[str] = None,
+        runs: str | Sequence[str] = None,
         ftype: str = "h5",
         metadata: dict = None,
         collect_metadata: bool = False,
         **kwds,
-    ) -> Tuple[dd.DataFrame, dd.DataFrame, dict]:
+    ) -> tuple[dd.DataFrame, dd.DataFrame, dict]:
         """
         Read express data from the DAQ, generating a parquet in between.
 
         Args:
-            files (Union[str, Sequence[str]], optional): File path(s) to process. Defaults to None.
-            folders (Union[str, Sequence[str]], optional): Path to folder(s) where files are stored
+            files (str | Sequence[str], optional): File path(s) to process. Defaults to None.
+            folders (str | Sequence[str], optional): Path to folder(s) where files are stored
                 Path has priority such that if it's specified, the specified files will be ignored.
                 Defaults to None.
-            runs (Union[str, Sequence[str]], optional): Run identifier(s). Corresponding files will
+            runs (str | Sequence[str], optional): Run identifier(s). Corresponding files will
                 be located in the location provided by ``folders``. Takes precendence over
                 ``files`` and ``folders``. Defaults to None.
             ftype (str, optional): The file extension type. Defaults to "h5".
@@ -931,7 +931,8 @@ class SXPLoader(BaseLoader):
             collect_metadata (bool, optional): Whether to collect metadata. Defaults to False.
 
         Returns:
-            Tuple[dd.DataFrame, dict]: A tuple containing the concatenated DataFrame and metadata.
+            tuple[dd.DataFrame, dd.DataFrame, dict]: A tuple containing the concatenated DataFrame,
+            timed DataFrame, and metadata.
 
         Raises:
             ValueError: If neither 'runs' nor 'files'/'data_raw_dir' is provided.

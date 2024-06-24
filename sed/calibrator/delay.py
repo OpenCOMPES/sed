@@ -1,13 +1,11 @@
 """sed.calibrator.delay module. Code for delay calibration.
 """
+from __future__ import annotations
+
+from collections.abc import Sequence
 from copy import deepcopy
 from datetime import datetime
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Sequence
-from typing import Tuple
-from typing import Union
 
 import dask.dataframe
 import h5py
@@ -46,30 +44,30 @@ class DelayCalibrator:
             "corrected_delay_column",
             self.delay_column,
         )
-        self.calibration: Dict[str, Any] = self._config["delay"].get("calibration", {})
-        self.offsets: Dict[str, Any] = self._config["delay"].get("offsets", {})
+        self.calibration: dict[str, Any] = self._config["delay"].get("calibration", {})
+        self.offsets: dict[str, Any] = self._config["delay"].get("offsets", {})
 
     def append_delay_axis(
         self,
-        df: Union[pd.DataFrame, dask.dataframe.DataFrame],
+        df: pd.DataFrame | dask.dataframe.DataFrame,
         adc_column: str = None,
         delay_column: str = None,
-        calibration: Dict[str, Any] = None,
-        adc_range: Union[Tuple, List, np.ndarray] = None,
-        delay_range: Union[Tuple, List, np.ndarray] = None,
+        calibration: dict[str, Any] = None,
+        adc_range: tuple | list | np.ndarray = None,
+        delay_range: tuple | list | np.ndarray = None,
         time0: float = None,
-        delay_range_mm: Union[Tuple, List, np.ndarray] = None,
+        delay_range_mm: tuple | list | np.ndarray = None,
         datafile: str = None,
         p1_key: str = None,
         p2_key: str = None,
         t0_key: str = None,
         verbose: bool = True,
-    ) -> Tuple[Union[pd.DataFrame, dask.dataframe.DataFrame], dict]:
+    ) -> tuple[pd.DataFrame | dask.dataframe.DataFrame, dict]:
         """Calculate and append the delay axis to the events dataframe, by converting
         values from an analog-digital-converter (ADC).
 
         Args:
-            df (Union[pd.DataFrame, dask.dataframe.DataFrame]): The dataframe where
+            df (pd.DataFrame | dask.dataframe.DataFrame): The dataframe where
                 to apply the delay calibration to.
             adc_column (str, optional): Source column for delay calibration.
                 Defaults to config["dataframe"]["adc_column"].
@@ -77,14 +75,14 @@ class DelayCalibrator:
                 Defaults to config["dataframe"]["delay_column"].
             calibration (dict, optional): Calibration dictionary with parameters for
                 delay calibration.
-            adc_range (Union[Tuple, List, np.ndarray], optional): The range of used
+            adc_range (tuple | list | np.ndarray, optional): The range of used
                 ADC values. Defaults to config["delay"]["adc_range"].
-            delay_range (Union[Tuple, List, np.ndarray], optional): Range of scanned
+            delay_range (tuple | list | np.ndarray, optional): Range of scanned
                 delay values in ps. If omitted, the range is calculated from the
                 delay_range_mm and t0 values.
             time0 (float, optional): Pump-Probe overlap value of the delay coordinate.
                 If omitted, it is searched for in the data files.
-            delay_range_mm (Union[Tuple, List, np.ndarray], optional): Range of scanned
+            delay_range_mm (tuple | list | np.ndarray, optional): Range of scanned
                 delay stage in mm. If omitted, it is searched for in the data files.
             datafile (str, optional): Datafile in which delay parameters are searched
                 for. Defaults to None.
@@ -102,7 +100,7 @@ class DelayCalibrator:
             NotImplementedError: Raised if no sufficient information passed.
 
         Returns:
-            Union[pd.DataFrame, dask.dataframe.DataFrame]: dataframe with added column
+            tuple[pd.DataFrame | dask.dataframe.DataFrame, dict]: dataframe with added column
             and delay calibration metdata dictionary.
         """
         # pylint: disable=duplicate-code
@@ -207,39 +205,40 @@ class DelayCalibrator:
     def add_offsets(
         self,
         df: dask.dataframe.DataFrame,
-        offsets: Dict[str, Any] = None,
+        offsets: dict[str, Any] = None,
         constant: float = None,
         flip_delay_axis: bool = None,
-        columns: Union[str, Sequence[str]] = None,
-        weights: Union[float, Sequence[float]] = 1.0,
-        preserve_mean: Union[bool, Sequence[bool]] = False,
-        reductions: Union[str, Sequence[str]] = None,
+        columns: str | Sequence[str] = None,
+        weights: float | Sequence[float] = 1.0,
+        preserve_mean: bool | Sequence[bool] = False,
+        reductions: str | Sequence[str] = None,
         delay_column: str = None,
         verbose: bool = True,
-    ) -> Tuple[dask.dataframe.DataFrame, dict]:
+    ) -> tuple[dask.dataframe.DataFrame, dict]:
         """Apply an offset to the delay column based on a constant or other columns.
 
         Args:
             df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to use.
-            offsets (Dict, optional): Dictionary of delay offset parameters.
+            offsets (dict, optional): Dictionary of delay offset parameters.
             constant (float, optional): The constant to shift the delay axis by.
             flip_delay_axis (bool, optional): Whether to flip the time axis. Defaults to False.
-            columns (Union[str, Sequence[str]]): Name of the column(s) to apply the shift from.
-            weights (Union[int, Sequence[int]]): weights to apply to the columns.
+            columns (str | Sequence[str]): Name of the column(s) to apply the shift from.
+            weights (float | Sequence[float]): weights to apply to the columns.
                 Can also be used to flip the sign (e.g. -1). Defaults to 1.
-            preserve_mean (bool): Whether to subtract the mean of the column before applying the
-                shift. Defaults to False.
-            reductions (str): The reduction to apply to the column. Should be an available method
-                of dask.dataframe.Series. For example "mean". In this case the function is applied
-                to the column to generate a single value for the whole dataset. If None, the shift
-                is applied per-dataframe-row. Defaults to None. Currently only "mean" is supported.
+            preserve_mean (bool | Sequence[bool]): Whether to subtract the mean of the column
+                before applying the shift. Defaults to False.
+            reductions (str | Sequence[str]): The reduction to apply to the column. Should be an
+                available method of dask.dataframe.Series. For example "mean". In this case the
+                function is applied to the column to generate a single value for the whole dataset.
+                If None, the shift is applied per-dataframe-row. Defaults to None. Currently only
+                "mean" is supported.
             delay_column (str, optional): Name of the column containing the delay values.
             verbose (bool, optional): Option to print out diagnostic information.
                 Defaults to True.
 
         Returns:
-            dask.dataframe.DataFrame: Dataframe with the shifted delay axis.
-            dict: Metadata dictionary.
+            tuple[dask.dataframe.DataFrame, dict]: Dataframe with the shifted delay axis and
+            Metadata dictionary.
         """
         if offsets is None:
             offsets = deepcopy(self.offsets)
@@ -247,7 +246,7 @@ class DelayCalibrator:
         if delay_column is None:
             delay_column = self.delay_column
 
-        metadata: Dict[str, Any] = {
+        metadata: dict[str, Any] = {
             "applied": True,
         }
 
@@ -379,7 +378,7 @@ def extract_delay_stage_parameters(
     p1_key: str,
     p2_key: str,
     t0_key: str,
-) -> Tuple:
+) -> tuple:
     """
     Read delay stage ranges from hdf5 file
 
@@ -404,18 +403,18 @@ def extract_delay_stage_parameters(
 
 
 def mm_to_ps(
-    delay_mm: Union[float, np.ndarray],
+    delay_mm: float | np.ndarray,
     time0_mm: float,
-) -> Union[float, np.ndarray]:
+) -> float | np.ndarray:
     """Converts a delaystage position in mm into a relative delay in picoseconds
     (double pass).
 
     Args:
-        delay_mm (Union[float, Sequence[float]]): Delay stage position in mm
+        delay_mm (float | np.ndarray): Delay stage position in mm
         time0_mm (float): Delay stage position of pump-probe overlap in mm
 
     Returns:
-        Union[float, Sequence[float]]: Relative delay in picoseconds
+        float | np.ndarray: Relative delay in picoseconds
     """
     delay_ps = (delay_mm - time0_mm) / 0.15
     return delay_ps

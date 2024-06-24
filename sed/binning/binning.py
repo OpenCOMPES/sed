@@ -1,12 +1,11 @@
 """This module contains the binning functions of the sed.binning module
-
 """
+from __future__ import annotations
+
 import gc
+from collections.abc import Sequence
 from functools import reduce
 from typing import cast
-from typing import List
-from typing import Sequence
-from typing import Tuple
 from typing import Union
 
 import dask.dataframe
@@ -26,27 +25,21 @@ N_CPU = psutil.cpu_count()
 
 
 def bin_partition(
-    part: Union[dask.dataframe.DataFrame, pd.DataFrame],
-    bins: Union[
-        int,
-        dict,
-        Sequence[int],
-        Sequence[np.ndarray],
-        Sequence[tuple],
-    ] = 100,
+    part: dask.dataframe.DataFrame | pd.DataFrame,
+    bins: int | dict | Sequence[int] | Sequence[np.ndarray] | Sequence[tuple] = 100,
     axes: Sequence[str] = None,
-    ranges: Sequence[Tuple[float, float]] = None,
+    ranges: Sequence[tuple[float, float]] = None,
     hist_mode: str = "numba",
-    jitter: Union[list, dict] = None,
+    jitter: list | dict = None,
     return_edges: bool = False,
     skip_test: bool = False,
-) -> Union[np.ndarray, Tuple[np.ndarray, list]]:
+) -> np.ndarray | tuple[np.ndarray, list]:
     """Compute the n-dimensional histogram of a single dataframe partition.
 
     Args:
-        part (Union[dask.dataframe.DataFrame, pd.DataFrame]): dataframe on which
+        part (dask.dataframe.DataFrame | pd.DataFrame): dataframe on which
             to perform the histogram. Usually a partition of a dask DataFrame.
-        bins (int, dict, Sequence[int], Sequence[np.ndarray], Sequence[tuple], optional):
+        bins (int | dict | Sequence[int] | Sequence[np.ndarray] | Sequence[tuple], optional):
             Definition of the bins. Can  be any of the following cases:
 
                 - an integer describing the number of bins for all dimensions. This
@@ -70,7 +63,7 @@ def bin_partition(
             the order of the dimensions in the resulting array. Only not required if
             bins are provided as dictionary containing the axis names.
             Defaults to None.
-        ranges (Sequence[Tuple[float, float]], optional): Sequence of tuples containing
+        ranges (Sequence[tuple[float, float]], optional): Sequence of tuples containing
             the start and end point of the binning range. Required if bins given as
             int or Sequence[int]. Defaults to None.
         hist_mode (str, optional): Histogram calculation method.
@@ -79,7 +72,7 @@ def bin_partition(
                 - "numba" use a numba powered similar method.
 
             Defaults to "numba".
-        jitter (Union[list, dict], optional): a list of the axes on which to apply
+        jitter (list | dict, optional): a list of the axes on which to apply
             jittering. To specify the jitter amplitude or method (normal or uniform
             noise) a dictionary can be passed. This should look like
             jitter={'axis':{'amplitude':0.5,'mode':'uniform'}}.
@@ -102,8 +95,8 @@ def bin_partition(
             present in the dataframe
 
     Returns:
-        Union[np.ndarray, Tuple[np.ndarray, list]]: 2-element tuple returned only when
-        returnEdges is True. Otherwise only hist is returned.
+        np.ndarray | tuple[np.ndarray: 2-element tuple returned only when
+        return_edges is True. Otherwise only hist is returned.
 
         - **hist**: The result of the n-dimensional binning
         - **edges**: A list of D arrays describing the bin edges for each dimension.
@@ -122,17 +115,17 @@ def bin_partition(
             raise TypeError(
                 "axes needs to be of type 'List[str]' if tests are skipped!",
             )
-        bins = cast(Union[List[int], List[np.ndarray]], bins)
-        axes = cast(List[str], axes)
-        ranges = cast(List[Tuple[float, float]], ranges)
+        bins = cast(Union[list[int], list[np.ndarray]], bins)
+        axes = cast(list[str], axes)
+        ranges = cast(list[tuple[float, float]], ranges)
 
     # convert bin centers to bin edges:
     if all(isinstance(x, np.ndarray) for x in bins):
-        bins = cast(List[np.ndarray], bins)
+        bins = cast(list[np.ndarray], bins)
         for i, bin_centers in enumerate(bins):
             bins[i] = bin_centers_to_bin_edges(bin_centers)
     else:
-        bins = cast(List[int], bins)
+        bins = cast(list[int], bins)
         # shift ranges by half a bin size to align the bin centers to the given ranges,
         # as the histogram functions interprete the ranges as limits for the edges.
         for i, nbins in enumerate(bins):
@@ -203,18 +196,12 @@ def bin_partition(
 
 def bin_dataframe(
     df: dask.dataframe.DataFrame,
-    bins: Union[
-        int,
-        dict,
-        Sequence[int],
-        Sequence[np.ndarray],
-        Sequence[tuple],
-    ] = 100,
+    bins: int | dict | Sequence[int] | Sequence[np.ndarray] | Sequence[tuple] = 100,
     axes: Sequence[str] = None,
-    ranges: Sequence[Tuple[float, float]] = None,
+    ranges: Sequence[tuple[float, float]] = None,
     hist_mode: str = "numba",
     mode: str = "fast",
-    jitter: Union[list, dict] = None,
+    jitter: list | dict = None,
     pbar: bool = True,
     n_cores: int = N_CPU - 1,
     threads_per_worker: int = 4,
@@ -228,7 +215,7 @@ def bin_dataframe(
     Args:
         df (dask.dataframe.DataFrame): a dask.DataFrame on which to perform the
             histogram.
-            bins (int, dict, Sequence[int], Sequence[np.ndarray], Sequence[tuple], optional):
+        bins (int | dict | Sequence[int] | Sequence[np.ndarray] | Sequence[tuple], optional):
             Definition of the bins. Can be any of the following cases:
 
                 - an integer describing the number of bins for all dimensions. This
@@ -252,7 +239,7 @@ def bin_dataframe(
             the order of the dimensions in the resulting array. Only not required if
             bins are provided as dictionary containing the axis names.
             Defaults to None.
-        ranges (Sequence[Tuple[float, float]], optional): Sequence of tuples containing
+        ranges (Sequence[tuple[float, float]], optional): Sequence of tuples containing
             the start and end point of the binning range. Required if bins given as
             int or Sequence[int]. Defaults to None.
         hist_mode (str, optional): Histogram calculation method.
@@ -269,7 +256,7 @@ def bin_dataframe(
                 - 'legacy': Single-core recombination of partition results.
 
             Defaults to "fast".
-        jitter (Union[list, dict], optional): a list of the axes on which to apply
+        jitter (list | dict, optional): a list of the axes on which to apply
             jittering. To specify the jitter amplitude or method (normal or uniform
             noise) a dictionary can be passed. This should look like
             jitter={'axis':{'amplitude':0.5,'mode':'uniform'}}.
@@ -304,14 +291,14 @@ def bin_dataframe(
     # create the coordinate axes for the xarray output
     # if provided as array, they are interpreted as bin centers
     if isinstance(bins[0], np.ndarray):
-        bins = cast(List[np.ndarray], bins)
+        bins = cast(list[np.ndarray], bins)
         coords = dict(zip(axes, bins))
     elif ranges is None:
         raise ValueError(
             "bins is not an array and range is none. this shouldn't happen.",
         )
     else:
-        bins = cast(List[int], bins)
+        bins = cast(list[int], bins)
         coords = {
             ax: np.linspace(r[0], r[1], n, endpoint=False) for ax, r, n in zip(axes, ranges, bins)
         }
@@ -509,7 +496,7 @@ def normalization_histogram_from_timed_dataframe(
 
 
 def apply_jitter_on_column(
-    df: Union[dask.dataframe.core.DataFrame, pd.DataFrame],
+    df: dask.dataframe.core.DataFrame | pd.DataFrame,
     amp: float,
     col: str,
     mode: str = "uniform",

@@ -7,12 +7,10 @@ automatically forward-filled across different files.
 This can then be saved as a parquet for out-of-sed processing and reread back to access other
 sed functionality.
 """
-from __future__ import annotations
-
 import re
 import time
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 import dask.dataframe as dd
 from natsort import natsorted
@@ -132,12 +130,12 @@ class FlashLoader(BaseLoader):
 
         Args:
             run_id (str): The run identifier to locate.
-            folders (Union[str, Sequence[str]], optional): The directory(ies) where the raw
+            folders (str | Sequence[str], optional): The directory(ies) where the raw
                 data is located. Defaults to config["core"]["base_folder"].
             extension (str, optional): The file extension. Defaults to "h5".
 
         Returns:
-            List[str]: A list of path strings representing the collected file names.
+            list[str]: A list of path strings representing the collected file names.
 
         Raises:
             FileNotFoundError: If no files are found for the given run in the directory.
@@ -273,8 +271,8 @@ class FlashLoader(BaseLoader):
         Read express data from the DAQ, generating a parquet in between.
 
         Args:
-            files (Union[str, Sequence[str]], optional): File path(s) to process. Defaults to None.
-            folders (Union[str, Sequence[str]], optional): Path to folder(s) where files are stored
+            files (str | Sequence[str], optional): File path(s) to process. Defaults to None.
+            folders (str | Sequence[str], optional): Path to folder(s) where files are stored
                 Path has priority such that if it's specified, the specified files will be ignored.
                 Defaults to None.
             runs (Union[str, Sequence[str]], optional): Run identifier(s). Corresponding files will
@@ -285,8 +283,8 @@ class FlashLoader(BaseLoader):
             collect_metadata (bool, optional): Whether to collect metadata. Defaults to False.
 
         Returns:
-            Tuple[dd.DataFrame, dd.DataFrame, dict]: A tuple containing the concatenated DataFrame
-                and metadata.
+            tuple[dd.DataFrame, dd.DataFrame, dict]: A tuple containing the concatenated DataFrame
+            and metadata.
 
         Raises:
             ValueError: If neither 'runs' nor 'files'/'data_raw_dir' is provided.

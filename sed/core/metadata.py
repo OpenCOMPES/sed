@@ -1,27 +1,59 @@
 """This is a metadata handler class from the sed package
 """
+from __future__ import annotations
+
 import json
 from copy import deepcopy
 from typing import Any
-from typing import Dict
 
 from sed.core.config import complete_dictionary
 
 
 class MetaHandler:
     """This class provides methods to manipulate metadata dictionaries,
-    and give a nice representation of them."""
+    and give a nice representation of them.
 
-    def __init__(self, meta: Dict = None) -> None:
+    Args:
+        meta (dict, optional): Pre-existing metadata dict. Defaults to None.
+    """
+
+    def __init__(self, meta: dict = None) -> None:
+        """Constructor.
+
+        Args:
+            meta (dict, optional): Pre-existing metadata dict. Defaults to None.
+        """
         self._m = deepcopy(meta) if meta is not None else {}
 
-    def __getitem__(self, val: Any) -> None:
+    def __getitem__(self, val: Any) -> Any:
+        """Function for getting a value
+
+        Args:
+            val (Any): Metadata category key
+
+        Returns:
+            Any: The metadata category entry.
+        """
         return self._m[val]
 
     def __repr__(self) -> str:
+        """String representation function as json
+
+        Returns:
+            str: Summary string.
+        """
         return json.dumps(self._m, default=str, indent=4)
 
-    def _format_attributes(self, attributes, indent=0):
+    def _format_attributes(self, attributes: dict, indent: int = 0) -> str:
+        """Function to summarize a dictionary as html
+
+        Args:
+            attributes (dict): dictionary to summarize
+            indent (int, optional): Indentation value. Defaults to 0.
+
+        Returns:
+            str: Generated html summary.
+        """
         INDENT_FACTOR = 20
         html = ""
         for key, value in attributes.items():
@@ -44,11 +76,16 @@ class MetaHandler:
         return html
 
     def _repr_html_(self) -> str:
+        """Summary function as html
+
+        Returns:
+            str: Generated html summary
+        """
         html = self._format_attributes(self._m)
         return html
 
     @property
-    def metadata(self) -> Dict:
+    def metadata(self) -> dict:
         """Property returning the metadata dict.
         Returns:
             dict: Dictionary of metadata.
