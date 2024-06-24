@@ -510,8 +510,8 @@ class MomentumCorrector:
             features[point_no][0] = point_x
             features[point_no][1] = point_y
 
-            markers[point_no].set_xdata(point_x)
-            markers[point_no].set_ydata(point_y)
+            markers[point_no].set_xdata([point_x])
+            markers[point_no].set_ydata([point_y])
 
         point_no_input = ipw.Dropdown(
             options=range(features.shape[0]),
