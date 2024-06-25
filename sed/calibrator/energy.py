@@ -847,6 +847,8 @@ class EnergyCalibrator:
 
             elif "coeffs" in calibration and "E0" in calibration:
                 calibration["calib_type"] = "poly"
+                if "energy_scale" not in calibration:
+                    calibration["energy_scale"] = "kinetic"
             else:
                 raise ValueError("No valid calibration parameters provided!")
 
