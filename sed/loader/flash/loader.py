@@ -5,7 +5,7 @@ The raw hdf5 data is combined and saved into buffer files and loaded as a dask d
 The dataframe is a amalgamation of all h5 files for a combination of runs, where the NaNs are
 automatically forward filled across different files.
 This can then be saved as a parquet for out-of-sed processing and reread back to access other
-sed funtionality.
+sed functionality.
 """
 import time
 from functools import reduce
@@ -881,7 +881,7 @@ class FlashLoader(BaseLoader):
                 Path has priority such that if it's specified, the specified files will be ignored.
                 Defaults to None.
             runs (Union[str, Sequence[str]], optional): Run identifier(s). Corresponding files will
-                be located in the location provided by ``folders``. Takes precendence over
+                be located in the location provided by ``folders``. Takes precedence over
                 ``files`` and ``folders``. Defaults to None.
             ftype (str, optional): The file extension type. Defaults to "h5".
             metadata (dict, optional): Additional metadata. Defaults to None.

@@ -52,7 +52,7 @@ def bin_partition(
                 - an integer describing the number of bins for all dimensions. This
                   requires "ranges" to be defined as well.
                 - A sequence containing one entry of the following types for each
-                  dimenstion:
+                  dimension:
 
                     - an integer describing the number of bins. This requires "ranges"
                       to be defined as well.
@@ -83,14 +83,14 @@ def bin_partition(
             jittering. To specify the jitter amplitude or method (normal or uniform
             noise) a dictionary can be passed. This should look like
             jitter={'axis':{'amplitude':0.5,'mode':'uniform'}}.
-            This example also shows the default behaviour, in case None is
+            This example also shows the default behavior, in case None is
             passed in the dictionary, or jitter is a list of strings.
             Warning: this is not the most performing approach. Applying jitter
             on the dataframe before calling the binning is much faster.
             Defaults to None.
         return_edges (bool, optional): If True, returns a list of D arrays
             describing the bin edges for each dimension, similar to the
-            behaviour of ``np.histogramdd``. Defaults to False.
+            behavior of ``np.histogramdd``. Defaults to False.
         skip_test (bool, optional): Turns off input check and data transformation.
             Defaults to False as it is intended for internal use only.
             Warning: setting this True might make error tracking difficult.
@@ -134,7 +134,7 @@ def bin_partition(
     else:
         bins = cast(List[int], bins)
         # shift ranges by half a bin size to align the bin centers to the given ranges,
-        # as the histogram functions interprete the ranges as limits for the edges.
+        # as the histogram functions interpret the ranges as limits for the edges.
         for i, nbins in enumerate(bins):
             halfbinsize = (ranges[i][1] - ranges[i][0]) / (nbins) / 2
             ranges[i] = (
@@ -234,7 +234,7 @@ def bin_dataframe(
                 - an integer describing the number of bins for all dimensions. This
                   requires "ranges" to be defined as well.
                 - A sequence containing one entry of the following types for each
-                  dimenstion:
+                  dimension:
 
                     - an integer describing the number of bins. This requires "ranges"
                       to be defined as well.
@@ -273,7 +273,7 @@ def bin_dataframe(
             jittering. To specify the jitter amplitude or method (normal or uniform
             noise) a dictionary can be passed. This should look like
             jitter={'axis':{'amplitude':0.5,'mode':'uniform'}}.
-            This example also shows the default behaviour, in case None is
+            This example also shows the default behavior, in case None is
             passed in the dictionary, or jitter is a list of strings.
             Warning: this is not the most performing approach. applying jitter
             on the dataframe before calling the binning is much faster.
@@ -479,7 +479,7 @@ def normalization_histogram_from_timed_dataframe(
     bin_centers: np.ndarray,
     time_unit: float,
 ) -> xr.DataArray:
-    """Get a normalization histogram from a timed datafram.
+    """Get a normalization histogram from a timed dataframe.
 
     Args:
         df (dask.dataframe.DataFrame): a dask.DataFrame on which to perform the

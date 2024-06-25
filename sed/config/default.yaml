@@ -37,9 +37,9 @@ dataframe:
   adc_binning: 1
   # list of columns to apply jitter to.
   jitter_cols: ["@x_column", "@y_column", "@tof_column"]
-  # Jitter amplitude or list of jitter amplitudes. Should equal half the digitial step size of each jitter_column
+  # Jitter amplitude or list of jitter amplitudes. Should equal half the digital step size of each jitter_column
   jitter_amps: 0.5
-  # Time stepping in seconds of the succesive events in the timed dataframe
+  # Time stepping in seconds of the successive events in the timed dataframe
   timed_dataframe_unit_time: 0.001
 
 energy:
@@ -57,7 +57,7 @@ energy:
   fastdtw_radius: 2
   # Window around a peak to make sure that no other peaks are present
   peak_window: 7
-  # Mehtod to use for energy calibration
+  # Method to use for energy calibration
   calibration_method: "lmfit"
   # Energy scale to use for energy calibration
   energy_scale: "kinetic"
@@ -66,11 +66,11 @@ energy:
   tof_fermi: 132250
   # TOF range to visualize for the correction tool around tof_fermi
   tof_width: [-600, 1000]
-  # x-intergration range for the correction tool around the center pixel
+  # x-integration range for the correction tool around the center pixel
   x_width: [-20, 20]
-  # y-intergration range for the correction tool around the center pixel
+  # y-integration range for the correction tool around the center pixel
   y_width: [-20, 20]
-  # High intensity cutoff for the visulaization tool
+  # High intensity cutoff for the visualization tool
   color_clip: 300
 
 
@@ -105,7 +105,7 @@ delay:
 binning:
   # Histogram computation mode to use.
   hist_mode: "numba"
-  # Mode for hostogram recombination to use
+  # Mode for histogram recombination to use
   mode: fast
   # Whether to display a progress bar
   pbar: True
@@ -117,7 +117,7 @@ binning:
 histogram:
   # number of bins used for histogram visualization
   bins: [80, 80, 80]
-  # default axes to use for histgram visualization.
+  # default axes to use for histogram visualization.
   # Axes names starting with "@" refer to keys in the "dataframe" section
   axes: ["@x_column", "@y_column", "@tof_column"]
   # default ranges to use for histogram visualization (in unbinned detector coordinates)

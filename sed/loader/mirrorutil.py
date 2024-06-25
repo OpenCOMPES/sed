@@ -1,7 +1,7 @@
 """
 module sed.loader.mirrorutil, code for transparently mirroring file system trees to a
 second (local) location. This is speeds up binning of data stored on network drives
-tremendiously.
+tremendously.
 Mostly ported from https://github.com/mpes-kit/mpes.
 @author: L. Rettig
 """
@@ -19,7 +19,7 @@ class CopyTool:
     """File collecting and sorting class.
 
     Args:
-        source (str): Dource path for the copy tool.
+        source (str): Source path for the copy tool.
         dest (str): Destination path for the copy tool.
     """
 
@@ -262,7 +262,7 @@ class CopyTool:
             proceed = input()
         if proceed == "y":
             shutil.rmtree(oldest_scan)
-            print("Removed sucessfully!")
+            print("Removed successfully!")
         else:
             print("Aborted.")
 
@@ -291,7 +291,7 @@ def get_target_dir(
         ValueError: Raised if sdir not inside of source
 
     Returns:
-        str: The mapped targed directory inside dest
+        str: The mapped target directory inside dest
     """
 
     if not os.path.isdir(sdir):
