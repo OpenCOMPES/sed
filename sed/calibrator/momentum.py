@@ -333,7 +333,7 @@ class MomentumCorrector:
                 Option to calculate symmetry scores. Defaults to False.
             **kwds: Keyword arguments.
 
-                - **symtype** (str): Type of symmetry scores to calculte
+                - **symtype** (str): Type of symmetry scores to calculate
                   if symscores is True. Defaults to "rotation".
 
         Raises:
@@ -781,7 +781,7 @@ class MomentumCorrector:
             self.slice_corrected = corrected_image
 
         if verbose:
-            print("Calulated thin spline correction based on the following landmarks:")
+            print("Calculated thin spline correction based on the following landmarks:")
             print(f"pouter: {self.pouter}")
             if use_center:
                 print(f"pcent: {self.pcent}")
@@ -883,7 +883,7 @@ class MomentumCorrector:
                 - rotation_auto.
                 - scaling.
                 - scaling_auto.
-                - homomorphy.
+                - homography.
 
             keep (bool, optional): Option to keep the specified coordinate transform in
                 the class. Defaults to False.
@@ -1003,7 +1003,7 @@ class MomentumCorrector:
             )
             self.slice_transformed = slice_transformed
         else:
-            # if external image is provided, apply only the new addional tranformation
+            # if external image is provided, apply only the new additional transformation
             slice_transformed = ndi.map_coordinates(
                 image,
                 [rdeform, cdeform],
@@ -1036,7 +1036,7 @@ class MomentumCorrector:
 
         Args:
             transformations (dict, optional): Dictionary with transformations.
-                Defaults to self.transformations or config["momentum"]["transformtions"].
+                Defaults to self.transformations or config["momentum"]["transformations"].
             apply (bool, optional):
                 Option to directly apply the provided transformations.
                 Defaults to False.
@@ -1413,11 +1413,10 @@ class MomentumCorrector:
         equiscale: bool = True,
         apply: bool = False,
     ):
-        """Interactive selection function for features for the Momentum axes calibra-
-        tion. It allows the user to select the pixel positions of two symmetry points
-        (a and b) and the k-space distance of the two. Alternatively, the corrdinates
-        of both points can be provided. See the equiscale option for details on the
-        specifications of point coordinates.
+        """Interactive selection function for features for the Momentum axes calibration. It allows
+        the user to select the pixel positions of two symmetry points (a and b) and the k-space
+        distance of the two. Alternatively, the coordinates of both points can be provided. See the
+        equiscale option for details on the specifications of point coordinates.
 
         Args:
             point_a (np.ndarray | list[int], optional): Pixel coordinates of the
@@ -1686,7 +1685,7 @@ class MomentumCorrector:
 
         Args:
             df (pd.DataFrame | dask.dataframe.DataFrame): Dataframe to apply
-                the distotion correction to.
+                the distortion correction to.
             x_column (str, optional): Label of the 'X' column before momentum
                 distortion correction. Defaults to config["momentum"]["x_column"].
             y_column (str, optional): Label of the 'Y' column before momentum
@@ -1777,11 +1776,11 @@ class MomentumCorrector:
             metadata["registration"]["creation_date"] = datetime.now().timestamp()
             metadata["registration"]["applied"] = True
             metadata["registration"]["depends_on"] = (
-                "/entry/process/registration/tranformations/rot_z"
+                "/entry/process/registration/transformations/rot_z"
                 if "angle" in metadata["registration"] and metadata["registration"]["angle"]
-                else "/entry/process/registration/tranformations/trans_y"
+                else "/entry/process/registration/transformations/trans_y"
                 if "xtrans" in metadata["registration"] and metadata["registration"]["xtrans"]
-                else "/entry/process/registration/tranformations/trans_x"
+                else "/entry/process/registration/transformations/trans_x"
                 if "ytrans" in metadata["registration"] and metadata["registration"]["ytrans"]
                 else "."
             )
@@ -1805,7 +1804,7 @@ class MomentumCorrector:
                     [0.0, 1.0, 0.0],
                 )
                 metadata["registration"]["trans_y"]["depends_on"] = (
-                    "/entry/process/registration/tranformations/trans_x"
+                    "/entry/process/registration/transformations/trans_x"
                     if "ytrans" in metadata["registration"] and metadata["registration"]["ytrans"]
                     else "."
                 )
@@ -1821,9 +1820,9 @@ class MomentumCorrector:
                     (metadata["registration"]["center"], [0.0]),
                 )
                 metadata["registration"]["rot_z"]["depends_on"] = (
-                    "/entry/process/registration/tranformations/trans_y"
+                    "/entry/process/registration/transformations/trans_y"
                     if "xtrans" in metadata["registration"] and metadata["registration"]["xtrans"]
-                    else "/entry/process/registration/tranformations/trans_x"
+                    else "/entry/process/registration/transformations/trans_x"
                     if "ytrans" in metadata["registration"] and metadata["registration"]["ytrans"]
                     else "."
                 )
@@ -1844,7 +1843,7 @@ class MomentumCorrector:
 
         Args:
             df (pd.DataFrame | dask.dataframe.DataFrame): Dataframe to apply the
-                distotion correction to.
+                distortion correction to.
             x_column (str, optional): Label of the source 'X' column.
                 Defaults to config["momentum"]["corrected_x_column"] or
                 config["momentum"]["x_column"] (whichever is present).
@@ -1891,7 +1890,7 @@ class MomentumCorrector:
             calibration["creation_date"] = datetime.now().timestamp()
 
         try:
-            (df[new_x_column], df[new_y_column]) = detector_coordiantes_2_k_koordinates(
+            (df[new_x_column], df[new_y_column]) = detector_coordinates_2_k_coordinates(
                 r_det=df[x_column],
                 c_det=df[y_column],
                 r_start=calibration["rstart"],
@@ -1947,7 +1946,7 @@ def cm2palette(cmap_name: str) -> list:
         cmap_name (str): Name of the colormap/palette.
 
     Returns:
-        list: List of colors in hex representation (a bokoeh palette).
+        list: List of colors in hex representation (a bokeh palette).
     """
     if cmap_name in bp.all_palettes.keys():
         palette_func = getattr(bp, cmap_name)
@@ -1986,7 +1985,7 @@ def dictmerge(
     return main_dict
 
 
-def detector_coordiantes_2_k_koordinates(
+def detector_coordinates_2_k_coordinates(
     r_det: float,
     c_det: float,
     r_start: float,
@@ -1998,7 +1997,7 @@ def detector_coordiantes_2_k_koordinates(
     r_step: float,
     c_step: float,
 ) -> tuple[float, float]:
-    """Conversion from detector coordinates (rdet, cdet) to momentum coordinates
+    """Conversion from detector coordinates (r_det, c_det) to momentum coordinates
     (kr, kc).
 
     Args:
@@ -2037,7 +2036,7 @@ def apply_dfield(
 
     Args:
         df (pd.DataFrame | dask.dataframe.DataFrame): Dataframe to apply the
-            distotion correction to.
+            distortion correction to.
         dfield (np.ndarray): The distortion correction field. 3D matrix,
             with column and row distortion fields stacked along the first dimension.
         x_column (str): Label of the 'X' source column.
@@ -2069,7 +2068,7 @@ def generate_inverse_dfield(
     bin_ranges: list[tuple],
     detector_ranges: list[tuple],
 ) -> np.ndarray:
-    """Generate inverse deformation field using inperpolation with griddata.
+    """Generate inverse deformation field using interpolation with griddata.
     Assuming the binning range of the input ``rdeform_field`` and ``cdeform_field``
     covers the whole detector.
 

@@ -46,7 +46,7 @@ class GenericLoader(BaseLoader):
                 files will be ignored. Defaults to None.
             runs (str | Sequence[str], optional): Run identifier(s). Corresponding
                 files will be located in the location provided by ``folders``. Takes
-                precendence over ``files`` and ``folders``. Defaults to None.
+                precedence over ``files`` and ``folders``. Defaults to None.
             ftype (str, optional): File type to read ('parquet', 'json', 'csv', etc).
                 If a folder path is given, all files with the specified extension are
                 read into the dataframe in the reading order. Defaults to "parquet".
@@ -59,7 +59,7 @@ class GenericLoader(BaseLoader):
 
         Raises:
             ValueError: Raised if neither files nor folder provided.
-            FileNotFoundError: Raised if the fileds or folder cannot be found.
+            FileNotFoundError: Raised if the files or folder cannot be found.
             ValueError: Raised if the file type is not supported.
 
         Returns:

@@ -64,7 +64,7 @@ Setting the “use_existing” keyword to False allows to download the data in a
 Interrupting extraction has similar behavior to download and just continues from where it stopped.
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
-Or if user deletes the extracted documents, it reextracts from zip file
+Or if user deletes the extracted documents, it re-extracts from zip file
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 .. code:: python
