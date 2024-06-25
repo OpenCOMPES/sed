@@ -1429,7 +1429,7 @@ class SedProcessor:
                 Defaults to None.
             bias_voltage (float, optional): Sample bias voltage of the scan data. If omitted,
                 the bias voltage is being read from the dataframe. If it is not found there,
-                a warning is printed and the calibrated data will not be offset correctly.
+                a warning is printed and the calibrated data might have an offset.
             preview (bool): Option to preview the first elements of the data frame.
             verbose (bool, optional): Option to print out diagnostic information.
                 Defaults to config["core"]["verbose"].
@@ -1447,6 +1447,7 @@ class SedProcessor:
             df, metadata = self.ec.append_energy_axis(
                 df=self._dataframe,
                 calibration=calibration,
+                bias_voltage=bias_voltage,
                 verbose=verbose,
                 **kwds,
             )
@@ -1454,6 +1455,7 @@ class SedProcessor:
                 tdf, _ = self.ec.append_energy_axis(
                     df=self._timed_dataframe,
                     calibration=calibration,
+                    bias_voltage=bias_voltage,
                     verbose=False,
                     **kwds,
                 )
@@ -1470,23 +1472,11 @@ class SedProcessor:
 
         else:
             raise ValueError("No dataframe loaded!")
-
-        if bias_voltage is not None:
-            self.add_energy_offset(constant=bias_voltage, verbose=verbose, preview=preview)
-        elif self.config["dataframe"]["bias_column"] in self._dataframe.columns:
-            self.add_energy_offset(
-                columns=[self.config["dataframe"]["bias_column"]],
-                verbose=verbose,
-                preview=preview,
-            )
+        if preview:
+            print(self._dataframe.head(10))
         else:
-            print("Sample bias data not found or provided. Calibrated energy will be offset.")
-            # Preview only if no offset applied
-            if preview:
-                print(self._dataframe.head(10))
-            else:
-                if verbose:
-                    print(self._dataframe)
+            if verbose:
+                print(self._dataframe)
 
     def add_energy_offset(
         self,

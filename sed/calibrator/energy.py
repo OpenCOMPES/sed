@@ -779,6 +779,7 @@ class EnergyCalibrator:
         tof_column: str = None,
         energy_column: str = None,
         calibration: dict = None,
+        bias_voltage: float = None,
         verbose: bool = True,
         **kwds,
     ) -> tuple[pd.DataFrame | dask.dataframe.DataFrame, dict]:
@@ -794,6 +795,9 @@ class EnergyCalibrator:
             calibration (dict, optional): Calibration dictionary. If provided,
                 overrides calibration from class or config.
                 Defaults to self.calibration or config["energy"]["calibration"].
+            bias_voltage (float, optional): Sample bias voltage of the scan data. If omitted,
+                the bias voltage is being read from the dataframe. If it is not found there,
+                a warning is printed and the calibrated data might have an offset.
             verbose (bool, optional): Option to print out diagnostic information.
                 Defaults to True.
             **kwds: additional keyword arguments for the energy conversion. They are
@@ -881,6 +885,20 @@ class EnergyCalibrator:
             )
         else:
             raise NotImplementedError
+
+        # apply bias offset
+        scale_sign: Literal[-1, 1] = -1 if calibration["energy_scale"] == "binding" else 1
+        if bias_voltage is not None:
+            df[energy_column] = df[energy_column] + scale_sign * bias_voltage
+        elif self._config["dataframe"]["bias_column"] in df.columns:
+            df = dfops.offset_by_other_columns(
+                df=df,
+                target_column=energy_column,
+                offset_columns=self._config["dataframe"]["bias_column"],
+                weights=scale_sign,
+            )
+        else:
+            print("Sample bias data not found or provided. Calibrated energy might be incorrect.")
 
         metadata = self.gather_calibration_metadata(calibration)
 
@@ -1636,10 +1654,7 @@ class EnergyCalibrator:
         if constant:
             if not isinstance(constant, (int, float, np.integer, np.floating)):
                 raise TypeError(f"Invalid type for constant: {type(constant)}")
-            df[energy_column] = df.map_partitions(
-                lambda x: x[energy_column] + constant,
-                meta=(energy_column, np.float64),
-            )
+            df[energy_column] = df[energy_column] + constant
 
         self.offsets = offsets
         metadata["offsets"] = offsets
