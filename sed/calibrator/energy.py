@@ -444,7 +444,7 @@ class EnergyCalibrator:
             traces (np.ndarray, optional): Collection of energy dispersion curves.
                 Defaults to self.traces_normed.
             infer_others (bool, optional): Option to infer the feature detection range
-                in other traces from a given one using a time warp algorthm.
+                in other traces from a given one using a time warp algorithm.
                 Defaults to True.
             mode (str, optional): Specification on how to change the feature ranges
                 ('append' or 'replace'). Defaults to "replace".
@@ -1155,7 +1155,7 @@ class EnergyCalibrator:
                 update(correction["amplitude"], x_center, y_center, diameter=correction["diameter"])
             except KeyError as exc:
                 raise ValueError(
-                    "Parameter 'diameter' required for correction type 'sperical', ",
+                    "Parameter 'diameter' required for correction type 'spherical', ",
                     "but not present!",
                 ) from exc
 
@@ -1337,7 +1337,7 @@ class EnergyCalibrator:
                 Defaults to config["energy"]["correction_type"].
             amplitude (float, optional): Amplitude of the time-of-flight correction
                 term. Defaults to config["energy"]["correction"]["correction_type"].
-            correction (dict, optional): Correction dictionary containing paramters
+            correction (dict, optional): Correction dictionary containing parameters
                 for the correction. Defaults to self.correction or
                 config["energy"]["correction"].
             verbose (bool, optional): Option to print out diagnostic information.
@@ -1938,7 +1938,7 @@ def _datacheck_peakdetect(
     x_axis: np.ndarray,
     y_axis: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Input format checking for 1D peakdtect algorithm
+    """Input format checking for 1D peakdetect algorithm
 
     Args:
         x_axis (np.ndarray): x-axis array
@@ -2108,7 +2108,7 @@ def fit_energy_calibration(
         binwidth (float): Time width of each original TOF bin in ns.
         binning (int): Binning factor of the TOF values.
         ref_id (int, optional): Reference dataset index. Defaults to 0.
-        ref_energy (float, optional): Energy value of the feature in the refence
+        ref_energy (float, optional): Energy value of the feature in the reference
             trace (eV). required to output the calibration. Defaults to None.
         t (list[float] | np.ndarray, optional): Array of TOF values. Required
             to calculate calibration trace. Defaults to None.
@@ -2130,7 +2130,7 @@ def fit_energy_calibration(
     Returns:
         dict: A dictionary of fitting parameters including the following,
 
-        - "coeffs": Fitted function coefficents.
+        - "coeffs": Fitted function coefficients.
         - "axis": Fitted energy axis.
     """
     vals = np.asarray(vals)
@@ -2247,7 +2247,7 @@ def poly_energy_calibration(
             each EDC.
         order (int, optional): Polynomial order of the fitting function. Defaults to 3.
         ref_id (int, optional): Reference dataset index. Defaults to 0.
-        ref_energy (float, optional): Energy value of the feature in the refence
+        ref_energy (float, optional): Energy value of the feature in the reference
             trace (eV). required to output the calibration. Defaults to None.
         t (list[float] | np.ndarray, optional): Array of TOF values. Required
             to calculate calibration trace. Defaults to None.

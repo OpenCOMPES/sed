@@ -31,7 +31,7 @@ def apply_jitter(
             with added jitter. Defaults to None.
         amps (float | Sequence[float], optional): Amplitude scalings for the
             jittering noise. If one number is given, the same is used for all axes.
-            For normal noise, the added noise will have sdev [-amp, +amp], for
+            For normal noise, the added noise will have stdev [-amp, +amp], for
             uniform noise it will cover the interval [-amp, +amp].
             Defaults to 0.5.
         jitter_type (str, optional): the type of jitter to add. 'uniform' or 'normal'
@@ -205,7 +205,7 @@ def forward_fill_lazy(
 
     Allows forward filling between partitions. This is useful for dataframes
     that have sparse data, such as those with many NaNs.
-    Runnin the forward filling multiple times can fix the issue of having
+    Running the forward filling multiple times can fix the issue of having
     entire partitions consisting of NaNs. By default we run this twice, which
     is enough to fix the issue for dataframes with no consecutive partitions of NaNs.
 

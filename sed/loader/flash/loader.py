@@ -277,7 +277,7 @@ class FlashLoader(BaseLoader):
             folders (str | Sequence[str], optional): Path to folder(s) where files are stored
                 Path has priority such that if it's specified, the specified files will be ignored.
                 Defaults to None.
-            runs (Union[str, Sequence[str]], optional): Run identifier(s). Corresponding files will
+            runs (str | Sequence[str], optional): Run identifier(s). Corresponding files will
                 be located in the location provided by ``folders``. Takes precedence over
                 ``files`` and ``folders``. Defaults to None.
             ftype (str, optional): The file extension type. Defaults to "h5".

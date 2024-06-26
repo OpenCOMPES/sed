@@ -177,8 +177,8 @@ def test_calibrate_append(energy_scale: str, calibration_method: str) -> None:
     and the application to the data frame.
 
     Args:
-        energy_scale (str): tpye of energy scaling
-        calibration_method (str): method used for ralibration
+        energy_scale (str): type of energy scaling
+        calibration_method (str): method used for calibration
     """
     config = parse_config(
         config={"dataframe": {"tof_binning": 2}},
@@ -346,7 +346,7 @@ correction_kwds = [
 )
 def test_energy_correction(correction_type: str, correction_kwd: dict) -> None:
     """Function to test if all energy correction functions generate symmetric curves
-    with the maximum at the cetner x/y.
+    with the maximum at the center x/y.
 
     Args:
         correction_type (str): type of correction to test

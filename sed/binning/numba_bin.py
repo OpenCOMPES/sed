@@ -22,7 +22,7 @@ def _hist_from_bin_range(
     bit integers.
 
     Args:
-        sample (np.ndarray): The data to be histogrammed with shape N,D.
+        sample (np.ndarray): The data to be histogram'd with shape N,D.
         bins (Sequence[int]): The number of bins for each dimension D.
         ranges (np.ndarray): A sequence of length D, each an optional (lower,
             upper) tuple giving the outer bin edges to be used if the edges are
@@ -47,7 +47,7 @@ def _hist_from_bin_range(
 
     for i in range(ndims):
         delta[i] = 1 / ((ranges[i, 1] - ranges[i, 0]) / bins[i])
-        strides[i] = hist.strides[i] // hist.itemsize  # pylint: disable=E1136
+        strides[i] = hist.strides[i] // hist.itemsize
 
     for t in range(sample.shape[0]):
         is_inside = True
@@ -155,7 +155,7 @@ def numba_histogramdd(
     bins: int | Sequence[int] | Sequence[np.ndarray] | np.ndarray,
     ranges: Sequence = None,
 ) -> tuple[np.ndarray, list[np.ndarray]]:
-    """Multidimensional histogramming function, powered by Numba.
+    """Multidimensional histogram function, powered by Numba.
 
     Behaves in total much like numpy.histogramdd. Returns uint32 arrays.
     This was chosen because it has a significant performance improvement over
@@ -165,7 +165,7 @@ def numba_histogramdd(
     sizes.
 
     Args:
-        sample (np.ndarray): The data to be histogrammed with shape N,D
+        sample (np.ndarray): The data to be histogram'd with shape N,D
         bins (int | Sequence[int] | Sequence[np.ndarray] | np.ndarray): The number
             of bins for each dimension D, or a sequence of bin edges on which to calculate
             the histogram.
