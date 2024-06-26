@@ -101,7 +101,7 @@ class MetaHandler:
         Args:
             entry: dictionary containing the metadata to add.
             name: name of the dictionary key under which to add entry.
-            duplicate_policy: Control behaviour in case the 'name' key
+            duplicate_policy: Control behavior in case the 'name' key
                 is already present in the metadata dictionary. Can be any of:
 
                     - "raise": raises a DuplicateEntryError.

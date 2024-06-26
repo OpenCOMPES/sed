@@ -96,7 +96,7 @@ def test_histdd_error_is_raised(_samples: np.ndarray, _bins: list[int]) -> None:
 )
 def test_histdd_bins_as_numpy(args: tuple[np.ndarray, np.ndarray, int]) -> None:
     """Test whether the numba_histogramdd functions produces the same result
-    as np.histogramdd if called with a list of bin edgees
+    as np.histogramdd if called with a list of bin edges
 
     Args:
         args (tuple[np.ndarray, np.ndarray, int]): Tuple of

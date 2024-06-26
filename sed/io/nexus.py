@@ -1,5 +1,5 @@
 """This module contains NuXus file input/output functions for the sed.io module.
-The conversion is based on the nexusutils from the FAIRmat NFDI consortium.
+The conversion is based on the pynxtools from the FAIRmat NFDI consortium.
 For details, see https://github.com/nomad-coe/nomad-parser-nexus
 
 """
@@ -27,9 +27,9 @@ def to_nexus(
             data._attrs["metadata"].
         faddr (str): The file path to save to.
         reader (str): The name of the NeXus reader to use.
-        definition (str): The NeXus definiton to use.
+        definition (str): The NeXus definition to use.
         input_files (str | Sequence[str]): The file path or paths to the additional files to use.
-        **kwds: Keyword arguments for ``nexusutils.dataconverter.convert``.
+        **kwds: Keyword arguments for ``pynxtools.dataconverter.convert.convert()``.
     """
 
     if isinstance(input_files, str):

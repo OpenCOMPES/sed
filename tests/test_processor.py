@@ -131,8 +131,8 @@ def test_processor_from_runs() -> None:
 
 
 def test_additional_parameter_to_loader() -> None:
-    """Test if additinal keyword parameter can be passed to the loader from the
-    Processor initialiuzation.
+    """Test if additional keyword parameter can be passed to the loader from the
+    Processor initialization.
     """
     config = {"core": {"loader": "generic"}}
     processor = SedProcessor(
@@ -670,7 +670,7 @@ def test_align_dld_sectors() -> None:
         tof_aligned_array[i][0 : len(val)] = val
     np.testing.assert_allclose(tof_ref_array, tof_aligned_array + sector_delays[:, np.newaxis])
 
-    # cleanup flash inermediaries
+    # cleanup flash intermediaries
     parquet_data_dir = config["core"]["paths"]["data_parquet_dir"]
     for file in os.listdir(Path(parquet_data_dir, "buffer")):
         os.remove(Path(parquet_data_dir, "buffer", file))
@@ -1005,7 +1005,7 @@ metadata["user0"] = {}
 metadata["user0"]["name"] = "Name"
 metadata["user0"]["email"] = "email"
 metadata["user0"]["affiliation"] = "affiliation"
-# NXinstrument
+# Instrument
 metadata["instrument"] = {}
 # analyzer
 metadata["instrument"]["analyzer"] = {}

@@ -53,7 +53,7 @@ def test_bin_data_and_slice_image() -> None:
 
 
 def test_feature_extract() -> None:
-    """Testextracting the feature from a 2D slice"""
+    """Test extracting the feature from a 2D slice"""
     config = parse_config(
         config={"core": {"loader": "mpes"}},
         folder_config={},
@@ -75,7 +75,7 @@ def test_feature_extract() -> None:
     [True, False],
 )
 def test_splinewarp(include_center: bool) -> None:
-    """Test the generation of the splinewarp etimate.
+    """Test the generation of the splinewarp estimate.
 
     Args:
         include_center (bool): Option to include the center point.
@@ -111,7 +111,7 @@ def test_splinewarp(include_center: bool) -> None:
 
 
 def test_ascale() -> None:
-    """Test the generation of the splinewarp etimate with ascale parameter."""
+    """Test the generation of the splinewarp estimate with ascale parameter."""
     config = parse_config(
         config={"core": {"loader": "mpes"}},
         folder_config={},
@@ -233,44 +233,44 @@ transformations_list = [
 ]
 depends_on_list = [
     {
-        "root": "/entry/process/registration/tranformations/trans_x",
+        "root": "/entry/process/registration/transformations/trans_x",
         "axes": {"trans_x": "."},
     },
     {
-        "root": "/entry/process/registration/tranformations/trans_y",
+        "root": "/entry/process/registration/transformations/trans_y",
         "axes": {"trans_y": "."},
     },
     {
-        "root": "/entry/process/registration/tranformations/rot_z",
+        "root": "/entry/process/registration/transformations/rot_z",
         "axes": {"rot_z": "."},
     },
     {
-        "root": "/entry/process/registration/tranformations/trans_y",
+        "root": "/entry/process/registration/transformations/trans_y",
         "axes": {
             "trans_x": ".",
-            "trans_y": "/entry/process/registration/tranformations/trans_x",
+            "trans_y": "/entry/process/registration/transformations/trans_x",
         },
     },
     {
-        "root": "/entry/process/registration/tranformations/rot_z",
+        "root": "/entry/process/registration/transformations/rot_z",
         "axes": {
             "trans_x": ".",
-            "rot_z": "/entry/process/registration/tranformations/trans_x",
+            "rot_z": "/entry/process/registration/transformations/trans_x",
         },
     },
     {
-        "root": "/entry/process/registration/tranformations/rot_z",
+        "root": "/entry/process/registration/transformations/rot_z",
         "axes": {
             "trans_y": ".",
-            "rot_z": "/entry/process/registration/tranformations/trans_y",
+            "rot_z": "/entry/process/registration/transformations/trans_y",
         },
     },
     {
-        "root": "/entry/process/registration/tranformations/rot_z",
+        "root": "/entry/process/registration/transformations/rot_z",
         "axes": {
             "trans_x": ".",
-            "trans_y": "/entry/process/registration/tranformations/trans_x",
-            "rot_z": "/entry/process/registration/tranformations/trans_y",
+            "trans_y": "/entry/process/registration/transformations/trans_x",
+            "rot_z": "/entry/process/registration/transformations/trans_y",
         },
     },
 ]
@@ -323,7 +323,7 @@ def test_apply_registration(
     mc.add_features(features=features, rotsym=6)
     mc.spline_warp_estimate()
     mc.pose_adjustment(**transformations, apply=True)
-    # disable re-calculation of inverse defield to save time, as we are just testing meta data here
+    # disable re-calculation of inverse dfield to save time, as we are just testing meta data here
     mc.dfield_updated = False
     df, metadata = mc.apply_corrections(df=df)
     assert "Xm" in df.columns

@@ -22,7 +22,7 @@ file = package_dir + "/../tests/data/loader/mpes/Scan0030_2.h5"
 
 
 def test_copy_tool_folder() -> None:
-    """Test the folder copy functionalty of the CopyTool"""
+    """Test the folder copy functionality of the CopyTool"""
     dest_folder = tempfile.mkdtemp()
     gid = os.getgid()
     ct = CopyTool(
