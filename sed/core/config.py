@@ -25,7 +25,7 @@ def parse_config(
     default_config: (dict | str) = f"{package_dir}/config/default.yaml",
     verbose: bool = True,
 ) -> dict:
-    """Load the config dictionaryy from a file, or pass the provided config dictionary.
+    """Load the config dictionary from a file, or pass the provided config dictionary.
     The content of the loaded config dictionary is then completed from a set of pre-configured
     config files in hierarchical order, by adding missing items. These additional config files
     are searched for in different places on the system as detailed below. Alternatively, they
