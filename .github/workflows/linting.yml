@@ -34,3 +34,6 @@ jobs:
         if: ${{ always() }}
         run:
           poetry run mypy sed tests
+      - name: spellcheck
+        if: ${{ always() }}
+        uses: streetsidesoftware/cspell-action@v6
