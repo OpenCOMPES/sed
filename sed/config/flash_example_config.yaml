@@ -123,7 +123,7 @@ dataframe:
       group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
       slice: 3
 
-    # The auxillary channel has a special structure where the group further contains
+    # The auxiliary channel has a special structure where the group further contains
     # a multidimensional structure so further aliases are defined below
     dldAux:
       format: per_pulse
