@@ -25,8 +25,9 @@ def _get_project_meta():
     return tomlkit.parse(file_contents)["tool"]["poetry"]
 
 
+# -- Project information -----------------------------------------------------
 pkg_meta = _get_project_meta()
-project = str(pkg_meta["name"])
+project = "SED"
 copyright = "2024, OpenCOMPES team"
 author = "OpenCOMPES team"
 
@@ -46,6 +47,7 @@ extensions = [
     "sphinx.ext.todo",
     "sphinx.ext.coverage",
     "sphinx.ext.autosummary",
+    "sphinx.ext.viewcode",
     "sphinx.ext.coverage",
     "sphinx_autodoc_typehints",
     "bokeh.sphinxext.bokeh_autodoc",
@@ -54,6 +56,8 @@ extensions = [
     "myst_parser",
 ]
 
+
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "**.ipynb_checkpoints"]
 
 autoclass_content = "class"
 autodoc_member_order = "bysource"
@@ -99,7 +103,27 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 #
 html_theme = "pydata_sphinx_theme"
 
+html_theme_options = {
+    "github_url": "https://github.com/OpenCOMPES/sed",
+    "primary_sidebar_end": ["indices.html"],
+    "navbar_center": ["version-switcher", "navbar-nav"],
+    "show_nav_level": 2,
+    "show_version_warning_banner": True,
+    "switcher": {
+        "json_url": "_static/switcher.json",
+        "version_match": "0.1",
+    },
+    "content_footer_items": ["last-updated"],
+}
+
+html_context = {
+    "github_user": "OpenCOMPES",
+    "github_repo": "sed",
+    "github_version": "main",
+    "doc_path": "docs",
+}
+
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-# html_static_path = ["_static"]
+html_static_path = ["_static"]

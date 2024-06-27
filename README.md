@@ -1,3 +1,4 @@
+# Installation
 [![Documentation Status](https://github.com/OpenCOMPES/sed/actions/workflows/documentation.yml/badge.svg)](https://opencompes.github.io/sed/)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 ![](https://github.com/OpenCOMPES/sed/actions/workflows/linting.yml/badge.svg?branch=main)
@@ -9,13 +10,11 @@
 
 Backend to handle photoelectron resolved datastreams.
 
-# Table of Contents
+## Table of Contents
 [Installation](#installation)
-  - [For Users (pip)](#for-users-pip)
-  - [For Contributors (pip)](#for-contributors-pip)
-  - [For Maintainers (poetry)](#for-maintainers-poetry)
-
-# Installation
+- [For Users (pip)](#for-users-pip)
+- [For Contributors (pip)](#for-contributors-pip)
+- [For Maintainers (poetry)](#for-maintainers-poetry)
 
 ## For Users (pip)
 
@@ -52,7 +51,7 @@ pip install sed-processor[all]
 python -m ipykernel install --user --name=sed_kernel
 ```
 
-- If you do not use Jupyter Notebook or Jupyter Lab, you can skip the installing those dependencies
+- If you do not use Jupyter Notebook or Jupyter Lab, you can skip the installing those dependencies:
 
 ```bash
 pip install sed-processor
@@ -112,7 +111,7 @@ poetry shell
 - Install the dependencies from the `pyproject.toml` by typing:
 
 ```bash
-poetry install --with dev, docs
+poetry install --with dev,docs
 ```
 
 - If you wish to use the virtual environment created by Poetry to work in a Jupyter notebook, you first need to install the optional notebook dependencies and then create a Jupyter kernel for that.
