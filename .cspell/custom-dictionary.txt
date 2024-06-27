@@ -392,3 +392,14 @@ mypy
 pyupgrade
 nbstripout
 timeit
+pullrequest
+tibdex
+packetcoders
+easimon
+dpkg
+zain
+sohail
+pypi
+pypa
+cobertura
+coverallsapp
