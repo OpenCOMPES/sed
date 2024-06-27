@@ -31,9 +31,9 @@ dataframe:
   delay_column: "delay"
   # time length of a base time-of-flight bin in s
   tof_binwidth: 4.125e-12
-  # Binning factor of the tof_column-data compared to tof_binwidth (2^(tof_binning-1))
+  # Binning factor of the tof_column-data compared to tof_binwidth
   tof_binning: 1
-  # binning factor used for the adc coordinate (2^(adc_binning-1))
+  # binning factor used for the adc coordinate
   adc_binning: 1
   # list of columns to apply jitter to.
   jitter_cols: ["@x_column", "@y_column", "@tof_column"]
@@ -45,7 +45,7 @@ dataframe:
 energy:
   # Number of bins to use for energy calibration traces
   bins: 1000
-  # Bin ranges to use for energy calibration curves (for tof_binning=0)
+  # Bin ranges to use for energy calibration curves (for tof_binning=1)
   ranges: [100000, 150000]
   # Option to normalize energy calibration traces
   normalize: True

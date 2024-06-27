@@ -58,8 +58,8 @@ dataframe:
   time_stamp_alias: timeStamp
   # time length of a base time-of-flight bin in seconds
   tof_binwidth: 2.0576131995767355E-11
-  # binning parameter for time-of-flight data. 2**tof_binning bins per base bin
-  tof_binning: 3  # power of 2, 3 means 8 bins per step
+  # binning parameter for time-of-flight data.
+  tof_binning: 8
   # dataframe column containing sector ID. obtained from dldTimeSteps column
   sector_id_column: dldSectorID
   sector_delays: [0., 0., 0., 0., 0., 0., 0., 0.]

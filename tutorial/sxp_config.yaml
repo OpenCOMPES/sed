@@ -28,7 +28,7 @@ dataframe:
   corrected_tof_column: "tm"
   bias_column: "sampleBias"
   tof_binwidth: 6.875E-12 # in seconds
-  tof_binning: 0
+  tof_binning: 1
   jitter_cols: ["dldPosX", "dldPosY", "dldTimeSteps"]
 
   units:

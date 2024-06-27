@@ -144,9 +144,10 @@ class DelayCalibrator:
             t0_key = self._config["delay"].get("t0_key", "")
 
         if "adc_range" not in calibration.keys():
-            calibration["adc_range"] = np.asarray(
-                self._config["delay"]["adc_range"],
-            ) / 2 ** (self._config["dataframe"]["adc_binning"] - 1)
+            calibration["adc_range"] = (
+                np.asarray(self._config["delay"]["adc_range"])
+                / self._config["dataframe"]["adc_binning"]
+            )
 
         if "delay_range" not in calibration.keys():
             if "delay_range_mm" not in calibration.keys() or "time0" not in calibration.keys():

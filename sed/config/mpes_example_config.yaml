@@ -57,10 +57,10 @@ dataframe:
   delay_column: "delay"
   # time length of a base time-of-flight bin in ns
   tof_binwidth: 4.125e-12
-  # Binning factor of the tof_column-data compared to tof_binwidth (2^(tof_binning-1))
-  tof_binning: 2
-  # binning factor used for the adc coordinate (2^(adc_binning-1))
-  adc_binning: 3
+  # Binning factor of the tof_column-data compared to tof_binwidth
+  tof_binning: 4
+  # binning factor used for the adc coordinate
+  adc_binning: 4
   # Default units for dataframe entries
   units:
     X: 'step'
@@ -82,8 +82,8 @@ dataframe:
 energy:
   # Number of bins to use for energy calibration traces
   bins: 1000
-  # Bin ranges to use for energy calibration curves (for tof_binning=0)
-  ranges: [128000, 138000]
+  # Bin ranges to use for energy calibration curves (for tof_binning=1)
+  ranges: [256000, 276000]
   # hdf5 path to attribute storing bias information for a given file
   bias_key: "@KTOF:Lens:Sample:V"
   # Option to normalize energy calibration traces
@@ -102,7 +102,7 @@ energy:
   energy_scale: "kinetic"
   # Approximate position of the high-energy-cutoff in tof_column bins,
   # used for displaying a graph to choose the energy correction function parameters.
-  tof_fermi: 132250
+  tof_fermi: 264500
   # TOF range to visualize for the correction tool around tof_fermi
   tof_width: [-600, 1000]
   # x-integration range for the correction tool around the center pixel
@@ -142,7 +142,7 @@ momentum:
   # Bin numbers used for the respective axes
   bins: [512, 512, 300]
   # bin ranges to use (in unbinned detector coordinates)
-  ranges: [[-256, 1792], [-256, 1792], [132000, 136000]]
+  ranges: [[-256, 1792], [-256, 1792], [264000, 272000]]
   # The x/y pixel ranges of the detector
   detector_ranges: [[0, 2048], [0, 2048]]
   # The center pixel of the detector in the binned x/y coordinates
@@ -213,7 +213,7 @@ histogram:
   # Axes names starting with "@" refer to keys in the "dataframe" section
   axes: ["@x_column", "@y_column", "@tof_column", "@adc_column"]
   # default ranges to use for histogram visualization (in unbinned detector coordinates)
-  ranges: [[0, 1800], [0, 1800], [128000, 138000], [0, 32000]]
+  ranges: [[0, 1800], [0, 1800], [256000, 276000], [0, 32000]]
 
 metadata:
   # URL of the epics archiver request engine

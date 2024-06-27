@@ -2105,9 +2105,7 @@ class SedProcessor:
             bins = self._config["momentum"]["bins"]
         if ranges is None:
             ranges_ = list(self._config["momentum"]["ranges"])
-            ranges_[2] = np.asarray(ranges_[2]) / 2 ** (
-                self._config["dataframe"]["tof_binning"] - 1
-            )
+            ranges_[2] = np.asarray(ranges_[2]) / self._config["dataframe"]["tof_binning"]
             ranges = [cast(tuple[float, float], tuple(v)) for v in ranges_]
 
         assert self._dataframe is not None, "dataframe needs to be loaded first!"
@@ -2407,13 +2405,9 @@ class SedProcessor:
             ranges = list(self._config["histogram"]["ranges"])
             for loc, axis in enumerate(axes):
                 if axis == self._config["dataframe"]["tof_column"]:
-                    ranges[loc] = np.asarray(ranges[loc]) / 2 ** (
-                        self._config["dataframe"]["tof_binning"] - 1
-                    )
+                    ranges[loc] = np.asarray(ranges[loc]) / self._config["dataframe"]["tof_binning"]
                 elif axis == self._config["dataframe"]["adc_column"]:
-                    ranges[loc] = np.asarray(ranges[loc]) / 2 ** (
-                        self._config["dataframe"]["adc_binning"] - 1
-                    )
+                    ranges[loc] = np.asarray(ranges[loc]) / self._config["dataframe"]["adc_binning"]
 
         input_types = map(type, [axes, bins, ranges])
         allowed_types = [list, tuple]
