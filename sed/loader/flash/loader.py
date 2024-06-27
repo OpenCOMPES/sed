@@ -401,15 +401,15 @@ class FlashLoader(BaseLoader):
             DataFrame: The pandas DataFrame for the channel's data.
 
         Notes:
-            - For auxillary channels, the macrobunch resolved data is repeated 499 times to be
-              compared to electron resolved data for each auxillary channel. The data is then
+            - For auxiliary channels, the macrobunch resolved data is repeated 499 times to be
+              compared to electron resolved data for each auxiliary channel. The data is then
               converted to a multicolumn DataFrame.
             - For all other pulse resolved channels, the macrobunch resolved data is exploded
               to a DataFrame and the MultiIndex is set.
 
         """
 
-        # Special case for auxillary channels
+        # Special case for auxiliary channels
         if channel == "dldAux":
             # Checks the channel dictionary for correct slices and creates a multicolumn DataFrame
             data_frames = (
