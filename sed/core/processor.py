@@ -102,10 +102,10 @@ class SedProcessor:
         for key in config_kwds.keys():
             del kwds[key]
         self._config = parse_config(config, **config_kwds)
-        num_cores = self._config.get("binning", {}).get("num_cores", N_CPU - 1)
+        num_cores = self._config["core"].get("num_cores", N_CPU - 1)
         if num_cores >= N_CPU:
             num_cores = N_CPU - 1
-        self._config["binning"]["num_cores"] = num_cores
+        self._config["core"]["num_cores"] = num_cores
 
         if verbose is None:
             self.verbose = self._config["core"].get("verbose", False)
@@ -154,6 +154,7 @@ class SedProcessor:
                 self.ct = CopyTool(
                     source=self._config["core"]["copy_tool_source"],
                     dest=self._config["core"]["copy_tool_dest"],
+                    num_cores=self._config["core"]["num_cores"],
                     **self._config["core"].get("copy_tool_kwds", {}),
                 )
             except KeyError:
@@ -2160,7 +2161,7 @@ class SedProcessor:
                 - **pbar**: Option to show the tqdm progress bar. Defaults to
                   config["binning"]["pbar"].
                 - **n_cores**: Number of CPU cores to use for parallelization.
-                  Defaults to config["binning"]["num_cores"] or N_CPU-1.
+                  Defaults to config["core"]["num_cores"] or N_CPU-1.
                 - **threads_per_worker**: Limit the number of threads that
                   multiprocessing can spawn per binning thread. Defaults to
                   config["binning"]["threads_per_worker"].
@@ -2187,7 +2188,7 @@ class SedProcessor:
         hist_mode = kwds.pop("hist_mode", self._config["binning"]["hist_mode"])
         mode = kwds.pop("mode", self._config["binning"]["mode"])
         pbar = kwds.pop("pbar", self._config["binning"]["pbar"])
-        num_cores = kwds.pop("num_cores", self._config["binning"]["num_cores"])
+        num_cores = kwds.pop("num_cores", self._config["core"]["num_cores"])
         threads_per_worker = kwds.pop(
             "threads_per_worker",
             self._config["binning"]["threads_per_worker"],

@@ -1,6 +1,8 @@
 core:
   # The loader to use. The mpes loader allows for loading hdf5 files from the METIS momentum microscope.
   loader: mpes
+  # Number of parallel threads to use for parallelized jobs (e.g. binning, data conversion, copy, ...)
+  num_cores: 20
   # Option to use the copy tool to mirror data to a local storage location before processing.
   use_copy_tool: False
   # path to the root of the source data directory
@@ -9,8 +11,6 @@ core:
   copy_tool_dest: "/path/to/localDataStore/"
   # optional keywords for the copy tool:
   copy_tool_kwds:
-    # number of parallel copy jobs
-    ntasks: 20
     # group id to set for copied files and folders
     gid: 1001
 
@@ -199,8 +199,6 @@ binning:
   mode: "fast"
   # Whether to display a progress bar
   pbar: True
-  # Number of parallel binning threads to use
-  num_cores: 20
   # Number of multithreading threads per worker thread
   threads_per_worker: 4
   # API for numpy multithreading

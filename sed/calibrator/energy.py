@@ -209,7 +209,7 @@ class EnergyCalibrator:
         mode = kwds.pop("mode", self._config["binning"]["mode"])
         pbar = kwds.pop("pbar", self._config["binning"]["pbar"])
         try:
-            num_cores = kwds.pop("num_cores", self._config["binning"]["num_cores"])
+            num_cores = kwds.pop("num_cores", self._config["core"]["num_cores"])
         except KeyError:
             num_cores = psutil.cpu_count() - 1
         threads_per_worker = kwds.pop(
