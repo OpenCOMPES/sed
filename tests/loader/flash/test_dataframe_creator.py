@@ -125,19 +125,20 @@ def test_df_electron(config_dataframe, h5_paths):
     # check that there are no nan values in the dataframe
     assert ~result_df.isnull().values.any()
 
-    # Check that the values are dropped for pulseId index below 0 (ubid_offset)
-    print(
-        np.all(
-            result_df.values[:5]
-            != np.array(
-                [
-                    [556.0, 731.0, 42888.0],
-                    [549.0, 737.0, 42881.0],
-                    [671.0, 577.0, 39181.0],
-                    [671.0, 579.0, 39196.0],
-                    [714.0, 859.0, 37530.0],
-                ],
-            ),
+    # Check if first 5 values are as expected
+    # e.g. that the values are dropped for pulseId index below 0 (ubid_offset)
+    # however in this data the lowest value is 9 and offset was 5 so no values are dropped
+    assert np.all(
+        result_df.values[:5]
+        == np.array(
+            [
+                [556.0, 731.0, 42888.0],
+                [549.0, 737.0, 42881.0],
+                [671.0, 577.0, 39181.0],
+                [671.0, 579.0, 39196.0],
+                [714.0, 859.0, 37530.0],
+            ],
+            dtype=np.float32,
         ),
     )
     assert np.all(result_df.index.get_level_values("pulseId") >= 0)
@@ -168,10 +169,10 @@ def test_create_dataframe_per_pulse(config_dataframe, h5_paths):
     assert np.all(result_df.index.get_level_values("electronId") == 0)
 
     # pulse ids should span 0-499 on each train
-    assert np.all(
-        result_df.loc[1648851402].index.get_level_values("pulseId").values == np.arange(500),
-    )
-
+    for train_id in result_df.index.get_level_values("trainId"):
+        assert np.all(
+            result_df.loc[train_id].index.get_level_values("pulseId").values == np.arange(500),
+        )
     # assert index uniqueness
     assert result_df.index.is_unique
 
@@ -193,7 +194,7 @@ def test_create_dataframe_per_train(config_dataframe, h5_paths):
     assert isinstance(result_df, DataFrame)
 
     # check that all values are in the df for delayStage
-    np.all(result_df[channel].dropna() == data[()])
+    assert np.all(result_df[channel].dropna() == data[()])
 
     # check that dataframe contains all channels
     assert np.all(
@@ -201,11 +202,15 @@ def test_create_dataframe_per_train(config_dataframe, h5_paths):
         == set(get_channels(config_dataframe["channels"], ["per_train"], extend_aux=True)),
     )
 
-    # find unique index values among all per_train channels
+    # Ensure DataFrame has rows equal to unique keys from "per_train" channels, considering
+    # different channels may have data for different trains. This checks the DataFrame's
+    # completeness and integrity, especially important when channels record at varying trains.
     channels = get_channels(config_dataframe["channels"], ["per_train"])
     all_keys = Index([])
     for channel in channels:
+        # Append unique keys from each channel, considering only training data
         all_keys = all_keys.append(df.get_dataset_array(channel, slice_=True)[0])
+    # Verify DataFrame's row count matches unique train IDs count across channels
     assert result_df.shape[0] == len(all_keys.unique())
 
     # check index levels
@@ -225,7 +230,7 @@ def test_create_dataframe_per_train(config_dataframe, h5_paths):
     # hence the slicing
     subchannels = config_dataframe["channels"]["dldAux"]["dldAuxChannels"]
     for subchannel, index in subchannels.items():
-        np.all(df.df_train[subchannel].dropna().values == data[: key.size, index])
+        assert np.all(df.df_train[subchannel].dropna().values == data[: key.size, index])
 
     assert result_df.index.is_unique
 
@@ -254,7 +259,9 @@ def test_create_dataframe_per_file(config_dataframe, h5_paths):
 
 
 def test_get_index_dataset_key_error(config_dataframe, h5_paths):
-    """Test the creation of the index and dataset keys for a given channel."""
+    """
+    Test that a ValueError is raised when the dataset_key is missing for a channel in the config.
+    """
     config = config_dataframe
     channel = "dldPosX"
     df = DataFrameCreator(config, h5_paths[0])

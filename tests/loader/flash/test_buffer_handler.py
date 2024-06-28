@@ -1,3 +1,4 @@
+"""Test cases for the BufferHandler class in the Flash module."""
 from pathlib import Path
 
 import numpy as np
@@ -9,6 +10,11 @@ from sed.loader.flash.utils import get_channels
 
 
 def create_parquet_dir(config, folder):
+    """
+    Creates a directory for storing Parquet files based on the provided configuration
+    and folder name.
+    """
+
     parquet_path = Path(config["core"]["paths"]["data_parquet_dir"])
     parquet_path = parquet_path.joinpath(folder)
     parquet_path.mkdir(parents=True, exist_ok=True)
@@ -16,20 +22,36 @@ def create_parquet_dir(config, folder):
 
 
 def test_get_files_to_read(config, h5_paths):
+    """
+    Test the BufferHandler's ability to identify files that need to be read and
+    manage buffer file paths.
+
+    This test performs several checks to ensure the BufferHandler correctly identifies
+    which HDF5 files need to be read and properly manages the paths for saving buffer
+    files. It follows these steps:
+    1. Creates a directory structure for storing buffer files and initializes the BufferHandler.
+    2. Invokes the private method _get_files_to_read to populate the list of missing HDF5 files and
+       verify that initially, all provided files are considered missing.
+    3. Checks that the paths for saving buffer files are correctly generated.
+    4. Creates a single buffer file and reruns the check to ensure that the BufferHandler recognizes
+       one less missing file.
+    5. Cleans up by removing the created buffer file.
+    6. Tests the handling of prefix and suffix in buffer file names by rerunning the checks with
+       modified file name parameters.
+    """
     folder = create_parquet_dir(config, "get_files_to_read")
     subfolder = folder.joinpath("buffer")
     # set to false to avoid creating buffer files unnecessarily
     bh = BufferHandler(config)
     bh._get_files_to_read(h5_paths, folder, "", "", False)
 
-    assert len(bh.missing_h5_files) == len(h5_paths)
-    assert len(bh.save_paths) == len(h5_paths)
-
+    # check that all files are to be read
     assert np.all(bh.missing_h5_files == h5_paths)
 
     # create expected paths
     expected_buffer_paths = [Path(subfolder, f"{Path(path).stem}") for path in h5_paths]
 
+    # check that all buffer paths are correct
     assert np.all(bh.save_paths == expected_buffer_paths)
 
     # create only one buffer file
@@ -111,6 +133,14 @@ def test_buffer_schema_mismatch(config, h5_paths):
 
 
 def test_save_buffer_files(config, h5_paths):
+    """
+    Test the BufferHandler's ability to save buffer files serially and in parallel.
+
+    This test ensures that the BufferHandler can run both serially and in parallel, saving the
+    output to buffer files, and then it compares the resulting DataFrames to ensure they are
+    identical. This verifies that parallel processing does not affect the integrity of the data
+    saved. After the comparison, it cleans up by removing the created buffer files.
+    """
     folder_serial = create_parquet_dir(config, "save_buffer_files_serial")
     bh_serial = BufferHandler(config)
     bh_serial.run(h5_paths, folder_serial, debug=True)

@@ -1,8 +1,7 @@
 """Tests for utils functionality"""
-from pathlib import Path
-
 import pytest
 
+from .test_buffer_handler import create_parquet_dir
 from sed.loader.flash.utils import get_channels
 from sed.loader.flash.utils import initialize_paths
 
@@ -77,13 +76,6 @@ def test_get_channels_by_format(config_dataframe):
     ) == set(
         format_all_index_extend_aux,
     )
-
-
-def create_parquet_dir(config, folder):
-    parquet_path = Path(config["core"]["paths"]["data_parquet_dir"])
-    parquet_path = parquet_path.joinpath(folder)
-    parquet_path.mkdir(parents=True, exist_ok=True)
-    return parquet_path
 
 
 def test_parquet_init_error():

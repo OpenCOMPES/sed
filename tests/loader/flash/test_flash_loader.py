@@ -8,7 +8,7 @@ from typing import Literal
 
 import pytest
 
-from sed.core.config import parse_config
+from .test_buffer_handler import create_parquet_dir
 from sed.loader.flash.loader import FlashLoader
 
 package_dir = os.path.dirname(find_spec("sed").origin)
@@ -16,22 +16,12 @@ config_path = os.path.join(package_dir, "../tests/data/loader/flash/config.yaml"
 H5_PATH = "FLASH1_USER3_stream_2_run43878_file1_20230130T153807.1.h5"
 
 
-@pytest.fixture(name="config_file")
-def fixture_config_file() -> dict:
-    """Fixture providing a configuration file for FlashLoader tests.
-
-    Returns:
-        dict: The parsed configuration file.
-    """
-    return parse_config(config_path)
-
-
 @pytest.mark.parametrize(
     "sub_dir",
     ["online-0/fl1user3/", "express-0/fl1user3/", "FL1USER3/"],
 )
 def test_initialize_dirs(
-    config_file: dict,
+    config: dict,
     fs,
     sub_dir: Literal["online-0/fl1user3/", "express-0/fl1user3/", "FL1USER3/"],
 ) -> None:
@@ -42,15 +32,15 @@ def test_initialize_dirs(
     fs: A fixture for a fake file system.
     sub_dir (Literal["online-0/fl1user3/", "express-0/fl1user3/", "FL1USER3/"]): Sub-directory.
     """
-    config = config_file
-    del config["core"]["paths"]
-    config["core"]["beamtime_id"] = "12345678"
-    config["core"]["year"] = "2000"
+    config_ = config.copy()
+    del config_["core"]["paths"]
+    config_["core"]["beamtime_id"] = "12345678"
+    config_["core"]["year"] = "2000"
 
     # Find base path of beamline from config. Here, we use pg2
-    base_path = config["dataframe"]["beamtime_dir"]["pg2"]
+    base_path = config_["dataframe"]["beamtime_dir"]["pg2"]
     expected_path = (
-        Path(base_path) / config["core"]["year"] / "data" / config["core"]["beamtime_id"]
+        Path(base_path) / config_["core"]["year"] / "data" / config_["core"]["beamtime_id"]
     )
     # Create expected paths
     expected_raw_path = expected_path / "raw" / "hdf" / sub_dir
@@ -61,51 +51,93 @@ def test_initialize_dirs(
     fs.create_dir(expected_processed_path)
 
     # Instance of class with correct config and call initialize_dirs
-    fl = FlashLoader(config=config)
+    fl = FlashLoader(config=config_)
     fl._initialize_dirs()
     assert str(expected_raw_path) == fl.raw_dir
     assert str(expected_processed_path) == fl.parquet_dir
 
     # remove breamtimeid, year and daq from config to raise error
-    del config["core"]["beamtime_id"]
+    del config_["core"]["beamtime_id"]
     with pytest.raises(ValueError) as e:
         fl._initialize_dirs()
     print(e.value)
     assert "The beamtime_id and year are required." in str(e.value)
 
 
-def test_initialize_dirs_filenotfound(config_file: dict) -> None:
+def test_initialize_dirs_filenotfound(config: dict) -> None:
     """
     Test FileNotFoundError during the initialization of paths.
     """
     # Test the FileNotFoundError
-    config = config_file
-    del config["core"]["paths"]
-    config["core"]["beamtime_id"] = "11111111"
-    config["core"]["year"] = "2000"
+    config_ = config.copy()
+    del config_["core"]["paths"]
+    config_["core"]["beamtime_id"] = "11111111"
+    config_["core"]["year"] = "2000"
 
     # Instance of class with correct config and call initialize_dirs
     with pytest.raises(FileNotFoundError):
-        fl = FlashLoader(config=config)
+        fl = FlashLoader(config=config_)
         fl._initialize_dirs()
 
 
 def test_save_read_parquet_flash(config):
-    """Test ParquetHandler save and read parquet"""
-    config_ = config
-    config_["core"]["paths"]["data_parquet_dir"] = (
-        config_["core"]["paths"]["data_parquet_dir"] + "_flash_save_read/"
-    )
-    fl = FlashLoader(config=config_)
-    df1, _, _ = fl.read_dataframe(runs=[43878, 43879])
+    """
+    Test the functionality of saving and reading parquet files with FlashLoader.
 
+    This test performs three main actions:
+    1. First call to create and read parquet files. Verifies new files are created.
+    2. Second call with the same parameters to check that it only reads from
+    the existing parquet files without creating new ones. It asserts that the files' modification
+    times remain unchanged, indicating no new files were created or existing files overwritten.
+    3. Third call with `force_recreate=True` to force the recreation of parquet files.
+    It verifies that the files were indeed overwritten by checking that their modification
+    times have changed.
+    """
+    config_ = config.copy()
+    data_parquet_dir = create_parquet_dir(config_, "flash_save_read")
+    config_["core"]["paths"]["data_parquet_dir"] = data_parquet_dir
+    fl = FlashLoader(config=config_)
+
+    # First call: should create and read the parquet file
+    df1, _, _ = fl.read_dataframe(runs=[43878, 43879])
+    # Check if new files were created
+    data_parquet_dir = data_parquet_dir.joinpath("buffer")
+    new_files = {
+        file: os.path.getmtime(data_parquet_dir.joinpath(file))
+        for file in os.listdir(data_parquet_dir)
+    }
+    assert new_files
+
+    # Second call: should only read the parquet file, not create new ones
     df2, _, _ = fl.read_dataframe(runs=[43878, 43879])
 
+    # Verify no new files were created after the second call
+    final_files = {
+        file: os.path.getmtime(data_parquet_dir.joinpath(file))
+        for file in os.listdir(data_parquet_dir)
+    }
+    assert (
+        new_files == final_files
+    ), "Files were overwritten or new files were created after the second call."
 
-def test_get_elapsed_time_fid(config_file):
+    # Third call: We force_recreate the parquet files
+    df3, _, _ = fl.read_dataframe(runs=[43878, 43879], force_recreate=True)
+
+    # Verify files were overwritten
+    new_files = {
+        file: os.path.getmtime(data_parquet_dir.joinpath(file))
+        for file in os.listdir(data_parquet_dir)
+    }
+    assert new_files != final_files, "Files were not overwritten after the third call."
+
+    # remove the parquet files
+    [data_parquet_dir.joinpath(file).unlink() for file in new_files]
+
+
+def test_get_elapsed_time_fid(config):
     """Test get_elapsed_time method of FlashLoader class"""
     # Create an instance of FlashLoader
-    fl = FlashLoader(config=config_file)
+    fl = FlashLoader(config=config)
 
     # Mock the file_statistics and files
     fl.metadata = {
@@ -146,15 +178,15 @@ def test_get_elapsed_time_fid(config_file):
     assert "Timestamp metadata missing in file 0" in str(e.value)
 
 
-def test_get_elapsed_time_run(config_file):
-    config = config_file
-    config["core"]["paths"] = {
+def test_get_elapsed_time_run(config):
+    config_ = config.copy()
+    config_["core"]["paths"] = {
         "data_raw_dir": "tests/data/loader/flash/",
         "data_parquet_dir": "tests/data/loader/flash/parquet/get_elapsed_time_run",
     }
     """Test get_elapsed_time method of FlashLoader class"""
     # Create an instance of FlashLoader
-    fl = FlashLoader(config=config_file)
+    fl = FlashLoader(config=config_)
 
     fl.read_dataframe(runs=[43878, 43879])
     start, end = fl.metadata["file_statistics"]["0"]["time_stamps"]
@@ -173,10 +205,10 @@ def test_get_elapsed_time_run(config_file):
     assert elapsed_time == expected_elapsed_time_0 + expected_elapsed_time_1
 
 
-def test_available_runs(monkeypatch, config_file):
+def test_available_runs(monkeypatch, config):
     """Test available_runs property of FlashLoader class"""
     # Create an instance of FlashLoader
-    fl = FlashLoader(config=config_file)
+    fl = FlashLoader(config=config)
 
     # Mock the raw_dir and files
     fl.raw_dir = "/path/to/raw_dir"
