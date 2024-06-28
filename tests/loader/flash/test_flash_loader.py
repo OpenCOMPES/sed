@@ -110,9 +110,9 @@ def test_get_elapsed_time_fid(config_file):
     # Mock the file_statistics and files
     fl.metadata = {
         "file_statistics": {
-            0: {"time_stamps": [10, 20]},
-            1: {"time_stamps": [20, 30]},
-            2: {"time_stamps": [30, 40]},
+            "0": {"time_stamps": [10, 20]},
+            "1": {"time_stamps": [20, 30]},
+            "2": {"time_stamps": [30, 40]},
         },
     }
     fl.files = ["file0", "file1", "file2"]
@@ -136,8 +136,8 @@ def test_get_elapsed_time_fid(config_file):
     # Test KeyError when time_stamps is missing
     fl.metadata = {
         "file_statistics": {
-            0: {},
-            1: {"time_stamps": [20, 30]},
+            "0": {},
+            "1": {"time_stamps": [20, 30]},
         },
     }
     with pytest.raises(KeyError) as e:
@@ -157,9 +157,9 @@ def test_get_elapsed_time_run(config_file):
     fl = FlashLoader(config=config_file)
 
     fl.read_dataframe(runs=[43878, 43879])
-    start, end = fl.metadata["file_statistics"][0]["time_stamps"]
+    start, end = fl.metadata["file_statistics"]["0"]["time_stamps"]
     expected_elapsed_time_0 = end - start
-    start, end = fl.metadata["file_statistics"][1]["time_stamps"]
+    start, end = fl.metadata["file_statistics"]["1"]["time_stamps"]
     expected_elapsed_time_1 = end - start
 
     elapsed_time = fl.get_elapsed_time(runs=[43878])
@@ -169,7 +169,7 @@ def test_get_elapsed_time_run(config_file):
     assert elapsed_time == [expected_elapsed_time_0, expected_elapsed_time_1]
 
     elapsed_time = fl.get_elapsed_time(runs=[43878, 43879])
-    start, end = fl.metadata["file_statistics"][1]["time_stamps"]
+    start, end = fl.metadata["file_statistics"]["1"]["time_stamps"]
     assert elapsed_time == expected_elapsed_time_0 + expected_elapsed_time_1
 
 

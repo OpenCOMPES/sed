@@ -131,7 +131,7 @@ class FlashLoader(BaseLoader):
         for the specified data acquisition (daq).
 
         Args:
-            run_id (str): The run identifier to locate.
+            run_id (str | int): The run identifier to locate.
             folders (str | Sequence[str], optional): The directory(ies) where the raw
                 data is located. Defaults to config["core"]["base_folder"].
             extension (str, optional): The file extension. Defaults to "h5".
@@ -198,7 +198,7 @@ class FlashLoader(BaseLoader):
     ):
         return None, None
 
-    def get_elapsed_time(self, fids: Sequence[int] = None, **kwds):  # noqa: ARG002
+    def get_elapsed_time(self, fids: Sequence[int] = None, **kwds) -> float | list[float]:  # type: ignore[override]
         """
         Calculates the elapsed time.
 
@@ -210,7 +210,7 @@ class FlashLoader(BaseLoader):
                     the specified files or the elapsed time for each file. Defaults to True.
 
         Returns:
-            Union[float, List[float]]: The elapsed time(s) in seconds.
+            float | list[float]: The elapsed time(s) in seconds.
 
         Raises:
             KeyError: If a file ID in fids or a run ID in 'runs' does not exist in the metadata.
@@ -224,6 +224,7 @@ class FlashLoader(BaseLoader):
 
         def get_elapsed_time_from_fid(fid):
             try:
+                fid = str(fid)  # Ensure the key is a string
                 time_stamps = file_statistics[fid]["time_stamps"]
                 elapsed_time = max(time_stamps) - min(time_stamps)
             except KeyError as exc:
@@ -277,9 +278,9 @@ class FlashLoader(BaseLoader):
             folders (str | Sequence[str], optional): Path to folder(s) where files are stored
                 Path has priority such that if it's specified, the specified files will be ignored.
                 Defaults to None.
-            runs (str | Sequence[str], optional): Run identifier(s). Corresponding files will
-                be located in the location provided by ``folders``. Takes precedence over
-                ``files`` and ``folders``. Defaults to None.
+            runs (str | int | Sequence[str | int], optional): Run identifier(s).
+                Corresponding files will be located in the location provided by ``folders``.
+                Takes precedence over ``files`` and ``folders``. Defaults to None.
             ftype (str, optional): The file extension type. Defaults to "h5".
             metadata (dict, optional): Additional metadata. Defaults to None.
             collect_metadata (bool, optional): Whether to collect metadata. Defaults to False.

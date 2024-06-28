@@ -20,7 +20,7 @@ def get_channels(
     Returns a list of channels associated with the specified format(s).
 
     Args:
-        formats (Union[str, List[str]]): The desired format(s)
+        formats (str | list[str]): The desired format(s)
         ('per_pulse', 'per_electron', 'per_train', 'all').
         index (bool): If True, includes channels from the multiindex.
         extend_aux (bool): If True, includes channels from the 'dldAuxChannels' dictionary,
@@ -99,7 +99,16 @@ def initialize_paths(
     the specified parameters during initialization.
 
     Args:
-        paths (List[Path]): Optional custom paths for the Parquet files.
+        filenames (str | list[str]): The name(s) of the file(s).
+        folder (Path): The folder where the files are saved.
+        subfolder (str): The subfolder where the files are saved.
+        prefix (str): The prefix for the file name.
+        suffix (str): The suffix for the file name.
+        extension (str): The extension for the file.
+        paths (list[Path]): Custom paths for the files.
+
+    Returns:
+        list[Path]: The paths for the files.
     """
     # if filenames is string, convert it to a list
     if isinstance(filenames, str):

@@ -227,7 +227,7 @@ def get_timestamp_stats(meta: pq.FileMetaData, time_stamp_col: str) -> tuple[int
     return min(timestamps), max(timestamps)
 
 
-def get_parquet_metadata(file_paths: list[Path], time_stamp_col: str) -> dict[int, dict]:
+def get_parquet_metadata(file_paths: list[Path], time_stamp_col: str) -> dict[str, dict]:
     """
     Extracts and organizes metadata from a list of Parquet files.
 
@@ -235,11 +235,11 @@ def get_parquet_metadata(file_paths: list[Path], time_stamp_col: str) -> dict[in
     extract the minimum and maximum timestamps. "row_groups" entry is removed from FileMetaData.
 
     Args:
-        file_paths (List[Path]): A list of paths to the Parquet files.
+        file_paths (list[Path]): A list of paths to the Parquet files.
         time_stamp_col (str): The name of the column containing the timestamps.
 
     Returns:
-        Dict[str, Dict]: A dictionary file index as key and the values as metadata of each file.
+        dict[str, dict]: A dictionary file index as key and the values as metadata of each file.
     """
     organized_metadata = {}
     for i, file_path in enumerate(file_paths):
@@ -261,6 +261,6 @@ def get_parquet_metadata(file_paths: list[Path], time_stamp_col: str) -> dict[in
         metadata_dict.pop("row_groups", None)
 
         # Add the metadata dictionary to the organized_metadata dictionary
-        organized_metadata[i] = metadata_dict
+        organized_metadata[str(i)] = metadata_dict
 
     return organized_metadata

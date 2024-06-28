@@ -119,7 +119,7 @@ class BufferHandler:
 
     def _save_buffer_file(self, h5_path: Path, parquet_path: Path) -> None:
         """
-        Creates a single buffer file. Useful because h5py.File cannot be pickled if left open.
+        Creates a single buffer file.
 
         Args:
             h5_path (Path): Path to the H5 file.

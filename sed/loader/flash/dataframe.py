@@ -96,7 +96,7 @@ class DataFrameCreator:
 
         return key, dataset
 
-    def pulse_dataset(self, offset: int) -> tuple[pd.MultiIndex, slice | np.ndarray]:
+    def pulse_index(self, offset: int) -> tuple[pd.MultiIndex, slice | np.ndarray]:
         """
         Creates a multi-level index that combines train IDs and pulse IDs, and handles
         sorting and electron counting within each pulse.
@@ -150,9 +150,9 @@ class DataFrameCreator:
         Returns:
             pd.DataFrame: The pandas DataFrame for the 'per_electron' channel's data.
         """
-        offset = self._config["ubid_offset"]
+        offset = self._config.get("ubid_offset", 5)  # 5 is the default value
         # Here we get the multi-index and the indexer to sort the data
-        index, indexer = self.pulse_dataset(offset)
+        index, indexer = self.pulse_index(offset)
 
         # Get the relevant channels and their slice index
         channels = get_channels(self._config["channels"], "per_electron")
