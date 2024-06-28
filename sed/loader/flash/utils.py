@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+# TODO: move to config
 MULTI_INDEX = ["trainId", "pulseId", "electronId"]
 PULSE_ALIAS = MULTI_INDEX[1]
 DLD_AUX_ALIAS = "dldAux"
