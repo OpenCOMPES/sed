@@ -170,7 +170,7 @@ class BufferHandler:
         )
         self.metadata["file_statistics"] = file_metadata
 
-        channels: list[str] = get_channels(
+        fill_channels: list[str] = get_channels(
             self._config["channels"],
             ["per_pulse", "per_train"],
             extend_aux=True,
@@ -180,19 +180,18 @@ class BufferHandler:
 
         dataframe = forward_fill_lazy(
             df=dataframe,
-            columns=channels,
+            columns=fill_channels,
             before=overlap,
             iterations=self._config.get("forward_fill_iterations", 2),
         )
         self.metadata["forward_fill"] = {
-            "columns": channels,
+            "columns": fill_channels,
             "overlap": overlap,
             "iterations": self._config.get("forward_fill_iterations", 2),
         }
 
-        # Drop rows with nan values in the tof column
-        tof_column = self._config.get("tof_column", "dldTimeSteps")
-        df_electron = dataframe.dropna(subset=tof_column)
+        # Drop rows with nan values in electron channels
+        df_electron = dataframe.dropna(subset=get_channels(["per_electron"]))
 
         # Set the dtypes of the channels here as there should be no null values
         channel_dtypes = get_channels(self._config["channels"], "all")
@@ -212,7 +211,7 @@ class BufferHandler:
             self.metadata.update(meta)
 
         self.df_electron = df_electron.astype(dtypes)
-        self.df_pulse = dataframe[index + channels]
+        self.df_pulse = dataframe[index + fill_channels]
 
     def run(
         self,
