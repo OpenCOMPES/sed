@@ -182,7 +182,9 @@ class BufferHandler:
         }
 
         # Drop rows with nan values in electron channels
-        df_electron = dataframe.dropna(subset=get_channels(["per_electron"]))
+        df_electron = dataframe.dropna(
+            subset=get_channels(self._config["channels"], ["per_electron"]),
+        )
 
         # Set the dtypes of the channels here as there should be no null values
         channel_dtypes = get_channels(self._config["channels"], "all")

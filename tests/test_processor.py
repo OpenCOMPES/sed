@@ -644,7 +644,7 @@ def test_align_dld_sectors() -> None:
     assert "dldSectorID" in processor.dataframe.columns
 
     sector_delays = np.asarray([10, -10, 20, -20, 30, -30, 40, -40])
-
+    print(processor.dataframe[processor.dataframe["dldSectorID"] == 0]["dldTimeSteps"].compute())
     tof_ref = []
     for i in range(len(sector_delays)):
         tof_ref.append(
