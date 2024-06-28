@@ -10,11 +10,11 @@ from sed.loader.flash.dataframe import DataFrameCreator
 from sed.loader.flash.utils import get_channels
 
 
-def test_get_index_dataset_key(config_dataframe, h5_file):
+def test_get_index_dataset_key(config_dataframe, h5_paths):
     """Test the creation of the index and dataset keys for a given channel."""
     config = config_dataframe
     channel = "dldPosX"
-    df = DataFrameCreator(config, h5_file)
+    df = DataFrameCreator(config, h5_paths[0])
     index_key, dataset_key = df.get_index_dataset_key(channel)
     assert index_key == config["channels"][channel]["index_key"]
     assert dataset_key == config["channels"][channel]["dataset_key"]
@@ -25,10 +25,10 @@ def test_get_index_dataset_key(config_dataframe, h5_file):
         df.get_index_dataset_key(channel)
 
 
-def test_get_dataset_array(config_dataframe, h5_file):
+def test_get_dataset_array(config_dataframe, h5_paths):
     """Test the creation of a h5py dataset for a given channel."""
 
-    df = DataFrameCreator(config_dataframe, h5_file)
+    df = DataFrameCreator(config_dataframe, h5_paths[0])
     channel = "dldPosX"
 
     train_id, dset = df.get_dataset_array(channel)
@@ -50,11 +50,11 @@ def test_get_dataset_array(config_dataframe, h5_file):
     assert dset.shape[1] == 500
 
 
-def test_empty_get_dataset_array(config_dataframe, h5_file, h5_file_copy):
+def test_empty_get_dataset_array(config_dataframe, h5_paths, h5_file_copy):
     """Test the method when given an empty dataset."""
 
     channel = "gmdTunnel"
-    df = DataFrameCreator(config_dataframe, h5_file)
+    df = DataFrameCreator(config_dataframe, h5_paths[0])
     train_id, dset = df.get_dataset_array(channel)
 
     channel_index_key = "/FL1/Photon Diagnostic/GMD/Pulse resolved energy/energy tunnel/index"
@@ -69,7 +69,7 @@ def test_empty_get_dataset_array(config_dataframe, h5_file, h5_file_copy):
         shape=(train_id.shape[0], 0),
     )
 
-    df = DataFrameCreator(config_dataframe, h5_file)
+    df = DataFrameCreator(config_dataframe, h5_paths[0])
     df.h5_file = h5_file_copy
     train_id, dset_empty = df.get_dataset_array(channel)
 
@@ -78,10 +78,10 @@ def test_empty_get_dataset_array(config_dataframe, h5_file, h5_file_copy):
     assert dset_empty.shape[1] == 0
 
 
-def test_pulse_index(config_dataframe, h5_file):
+def test_pulse_index(config_dataframe, h5_paths):
     """Test the creation of the pulse index for electron resolved data"""
 
-    df = DataFrameCreator(config_dataframe, h5_file)
+    df = DataFrameCreator(config_dataframe, h5_paths[0])
     pulse_index, pulse_array = df.get_dataset_array("pulseId", slice_=True)
     index, indexer = df.pulse_index(config_dataframe["ubid_offset"])
     # Check if the index_per_electron is a MultiIndex and has the correct levels
@@ -113,9 +113,9 @@ def test_pulse_index(config_dataframe, h5_file):
     assert index.is_monotonic_increasing
 
 
-def test_df_electron(config_dataframe, h5_file):
+def test_df_electron(config_dataframe, h5_paths):
     """Test the creation of a pandas DataFrame for a channel of type [per electron]."""
-    df = DataFrameCreator(config_dataframe, h5_file)
+    df = DataFrameCreator(config_dataframe, h5_paths[0])
 
     result_df = df.df_electron
 
@@ -151,9 +151,9 @@ def test_df_electron(config_dataframe, h5_file):
     )
 
 
-def test_create_dataframe_per_pulse(config_dataframe, h5_file):
+def test_create_dataframe_per_pulse(config_dataframe, h5_paths):
     """Test the creation of a pandas DataFrame for a channel of type [per pulse]."""
-    df = DataFrameCreator(config_dataframe, h5_file)
+    df = DataFrameCreator(config_dataframe, h5_paths[0])
     result_df = df.df_pulse
     # Check that the result_df is a DataFrame and has the correct shape
     assert isinstance(result_df, DataFrame)
@@ -181,9 +181,9 @@ def test_create_dataframe_per_pulse(config_dataframe, h5_file):
     )
 
 
-def test_create_dataframe_per_train(config_dataframe, h5_file):
+def test_create_dataframe_per_train(config_dataframe, h5_paths):
     """Test the creation of a pandas DataFrame for a channel of type [per train]."""
-    df = DataFrameCreator(config_dataframe, h5_file)
+    df = DataFrameCreator(config_dataframe, h5_paths[0])
     result_df = df.df_train
 
     channel = "delayStage"
@@ -230,20 +230,20 @@ def test_create_dataframe_per_train(config_dataframe, h5_file):
     assert result_df.index.is_unique
 
 
-def test_group_name_not_in_h5(config_dataframe, h5_file):
+def test_group_name_not_in_h5(config_dataframe, h5_paths):
     """Test ValueError when the group_name for a channel does not exist in the H5 file."""
     channel = "dldPosX"
     config = config_dataframe
     config["channels"][channel]["dataset_key"] = "foo"
-    df = DataFrameCreator(config, h5_file)
+    df = DataFrameCreator(config, h5_paths[0])
 
     with pytest.raises(KeyError):
         df.df_electron
 
 
-def test_create_dataframe_per_file(config_dataframe, h5_file):
+def test_create_dataframe_per_file(config_dataframe, h5_paths):
     """Test the creation of pandas DataFrames for a given file."""
-    df = DataFrameCreator(config_dataframe, h5_file)
+    df = DataFrameCreator(config_dataframe, h5_paths[0])
     result_df = df.df
 
     # Check that the result_df is a DataFrame and has the correct shape
@@ -253,11 +253,11 @@ def test_create_dataframe_per_file(config_dataframe, h5_file):
     assert result_df.shape[0] == len(all_keys.unique())
 
 
-def test_get_index_dataset_key_error(config_dataframe, h5_file):
+def test_get_index_dataset_key_error(config_dataframe, h5_paths):
     """Test the creation of the index and dataset keys for a given channel."""
     config = config_dataframe
     channel = "dldPosX"
-    df = DataFrameCreator(config, h5_file)
+    df = DataFrameCreator(config, h5_paths[0])
 
     del config["channels"][channel]["dataset_key"]
     with pytest.raises(ValueError):

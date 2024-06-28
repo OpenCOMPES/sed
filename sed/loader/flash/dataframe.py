@@ -1,12 +1,10 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import h5py
 import numpy as np
-from pandas import concat
-from pandas import DataFrame
-from pandas import Index
-from pandas import MultiIndex
-from pandas import Series
+import pandas as pd
 
 from sed.loader.flash.utils import get_channels
 
@@ -16,16 +14,15 @@ class DataFrameCreator:
     Utility class for creating pandas DataFrames from HDF5 files with multiple channels.
     """
 
-    def __init__(self, config_dataframe: dict, h5_file: h5py.File) -> None:
+    def __init__(self, config_dataframe: dict, h5_path: Path) -> None:
         """
         Initializes the DataFrameCreator class.
 
         Args:
             config_dataframe (dict): The configuration dictionary with only the dataframe key.
-            h5_file (h5py.File): The open h5 file.
+            h5_path (Path): Path to the h5 file.
         """
-        self.h5_file: h5py.File = h5_file
-        self.failed_files_error: list[str] = []
+        self.h5_file = h5py.File(h5_path, "r")
         self.multi_index = get_channels(index=True)
         self._config = config_dataframe
 
@@ -59,7 +56,7 @@ class DataFrameCreator:
         self,
         channel: str,
         slice_: bool = False,
-    ) -> tuple[Index, h5py.Dataset]:
+    ) -> tuple[pd.Index, h5py.Dataset]:
         """
         Returns a numpy array for a given channel name.
 
@@ -68,13 +65,13 @@ class DataFrameCreator:
             slice_ (bool): If True, applies slicing on the dataset.
 
         Returns:
-            tuple[Index, h5py.Dataset]: A tuple containing the train ID Index and the numpy array
-            for the channel's data.
+            tuple[pd.Index, h5py.Dataset]: A tuple containing the train ID
+            pd.Index and the numpy array for the channel's data.
         """
         # Get the data from the necessary h5 file and channel
         index_key, dataset_key = self.get_index_dataset_key(channel)
 
-        key = Index(self.h5_file[index_key], name="trainId")  # macrobunch
+        key = pd.Index(self.h5_file[index_key], name="trainId")  # macrobunch
         dataset = self.h5_file[dataset_key]
 
         if slice_:
@@ -88,7 +85,7 @@ class DataFrameCreator:
 
         return key, dataset
 
-    def pulse_index(self, offset: int) -> tuple[MultiIndex, slice | np.ndarray]:
+    def pulse_index(self, offset: int) -> tuple[pd.MultiIndex, slice | np.ndarray]:
         """
         Computes the index for the 'per_electron' data.
 
@@ -96,7 +93,7 @@ class DataFrameCreator:
             offset (int): The offset value.
 
         Returns:
-            tuple[MultiIndex, np.ndarray]: A tuple containing the computed MultiIndex and
+            tuple[pd.MultiIndex, np.ndarray]: A tuple containing the computed pd.MultiIndex and
             the indexer.
         """
         # Get the pulseId and the index_train
@@ -105,8 +102,8 @@ class DataFrameCreator:
         index_train_repeat = np.repeat(index_train, dataset_pulse.shape[1])
         # Explode the pulse dataset and subtract by the ubid_offset
         pulse_ravel = dataset_pulse.ravel() - offset
-        # Create a MultiIndex with the index_train and the pulse
-        microbunches = MultiIndex.from_arrays((index_train_repeat, pulse_ravel)).dropna()
+        # Create a pd.MultiIndex with the index_train and the pulse
+        microbunches = pd.MultiIndex.from_arrays((index_train_repeat, pulse_ravel)).dropna()
 
         # Only sort if necessary
         indexer = slice(None)
@@ -118,7 +115,7 @@ class DataFrameCreator:
         electrons = np.concatenate([np.arange(count) for count in electron_counts])
 
         # Final index constructed here
-        index = MultiIndex.from_arrays(
+        index = pd.MultiIndex.from_arrays(
             (
                 microbunches.get_level_values(0),
                 microbunches.get_level_values(1).astype(int),
@@ -129,15 +126,15 @@ class DataFrameCreator:
         return index, indexer
 
     @property
-    def df_electron(self) -> DataFrame:
+    def df_electron(self) -> pd.DataFrame:
         """
         Returns a pandas DataFrame for a given channel name of type [per electron].
 
         Returns:
-            DataFrame: The pandas DataFrame for the 'per_electron' channel's data.
+            pd.DataFrame: The pandas DataFrame for the 'per_electron' channel's data.
         """
         offset = self._config["ubid_offset"]
-        # Index
+        # pd.Index
         index, indexer = self.pulse_index(offset)
 
         # Data logic
@@ -155,21 +152,21 @@ class DataFrameCreator:
                 channel: dataset[:, slice_, :].ravel()
                 for channel, slice_ in zip(channels, slice_index)
             }
-            dataframe = DataFrame(data_dict)
-        # Otherwise, we need to create a Series for each channel and concatenate them
+            dataframe = pd.DataFrame(data_dict)
+        # Otherwise, we need to create a pd.Series for each channel and concatenate them
         else:
             series = {
-                channel: Series(self.get_dataset_array(channel, slice_=True)[1].ravel())
+                channel: pd.Series(self.get_dataset_array(channel, slice_=True)[1].ravel())
                 for channel in channels
             }
-            dataframe = concat(series, axis=1)
+            dataframe = pd.concat(series, axis=1)
 
         drop_vals = np.arange(-offset, 0)
 
         # Few things happen here:
         # Drop all NaN values like while creating the multiindex
         # if necessary, the data is sorted with [indexer]
-        # MultiIndex is set
+        # pd.MultiIndex is set
         # Finally, the offset values are dropped
         return (
             dataframe.dropna()
@@ -179,33 +176,36 @@ class DataFrameCreator:
         )
 
     @property
-    def df_pulse(self) -> DataFrame:
+    def df_pulse(self) -> pd.DataFrame:
         """
         Returns a pandas DataFrame for a given channel name of type [per pulse].
 
         Returns:
-            DataFrame: The pandas DataFrame for the 'per_pulse' channel's data.
+            pd.DataFrame: The pandas DataFrame for the 'per_pulse' channel's data.
         """
         series = []
         channels = get_channels(self._config["channels"], "per_pulse")
         for channel in channels:
             # get slice
             key, dataset = self.get_dataset_array(channel, slice_=True)
-            index = MultiIndex.from_product(
+            index = pd.MultiIndex.from_product(
                 (key, np.arange(0, dataset.shape[1]), [0]),
                 names=self.multi_index,
             )
-            series.append(Series(dataset[()].ravel(), index=index, name=channel))
+            series.append(pd.Series(dataset[()].ravel(), index=index, name=channel))
 
-        return concat(series, axis=1)  # much faster when concatenating similarly indexed data first
+        return pd.concat(
+            series,
+            axis=1,
+        )  # much faster when concatenating similarly indexed data first
 
     @property
-    def df_train(self) -> DataFrame:
+    def df_train(self) -> pd.DataFrame:
         """
         Returns a pandas DataFrame for a given channel name of type [per train].
 
         Returns:
-            DataFrame: The pandas DataFrame for the 'per_train' channel's data.
+            pd.DataFrame: The pandas DataFrame for the 'per_train' channel's data.
         """
         series = []
 
@@ -213,18 +213,18 @@ class DataFrameCreator:
 
         for channel in channels:
             key, dataset = self.get_dataset_array(channel, slice_=True)
-            index = MultiIndex.from_product(
+            index = pd.MultiIndex.from_product(
                 (key, [0], [0]),
                 names=self.multi_index,
             )
             if channel == "dldAux":
                 aux_channels = self._config["channels"]["dldAux"]["dldAuxChannels"].items()
                 for name, slice_aux in aux_channels:
-                    series.append(Series(dataset[: key.size, slice_aux], index, name=name))
+                    series.append(pd.Series(dataset[: key.size, slice_aux], index, name=name))
             else:
-                series.append(Series(dataset, index, name=channel))
+                series.append(pd.Series(dataset, index, name=channel))
 
-        return concat(series, axis=1)
+        return pd.concat(series, axis=1)
 
     def validate_channel_keys(self) -> None:
         """
@@ -236,18 +236,18 @@ class DataFrameCreator:
         for channel in self._config["channels"]:
             index_key, dataset_key = self.get_index_dataset_key(channel)
             if index_key not in self.h5_file:
-                raise KeyError(f"Index key '{index_key}' doesn't exist in the file.")
+                raise KeyError(f"pd.Index key '{index_key}' doesn't exist in the file.")
             if dataset_key not in self.h5_file:
                 raise KeyError(f"Dataset key '{dataset_key}' doesn't exist in the file.")
 
     @property
-    def df(self) -> DataFrame:
+    def df(self) -> pd.DataFrame:
         """
         Joins the 'per_electron', 'per_pulse', and 'per_train' using join operation,
         returning a single dataframe.
 
         Returns:
-            DataFrame: The combined pandas DataFrame.
+            pd.DataFrame: The combined pandas DataFrame.
         """
 
         self.validate_channel_keys()

@@ -5,7 +5,6 @@ from itertools import compress
 from pathlib import Path
 
 import dask.dataframe as dd
-import h5py
 import pyarrow.parquet as pq
 from joblib import delayed
 from joblib import Parallel
@@ -126,17 +125,9 @@ class BufferHandler:
             h5_path (Path): Path to the H5 file.
             parquet_path (Path): Path to the buffer file.
         """
-        # Open the h5 file in read mode
-        h5_file = h5py.File(h5_path, "r")
 
-        # Create a DataFrameCreator instance with the configuration and the h5 file
-        dfc = DataFrameCreator(config_dataframe=self._config, h5_file=h5_file)
-
-        # Get the DataFrame from the DataFrameCreator instance
-        df = dfc.df
-
-        # Close the h5 file
-        h5_file.close()
+        # Create a DataFrameCreator instance and the h5 file
+        df = DataFrameCreator(config_dataframe=self._config, h5_path=h5_path).df
 
         # Reset the index of the DataFrame and save it as a parquet file
         df.reset_index().to_parquet(parquet_path)
