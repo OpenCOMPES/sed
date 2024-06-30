@@ -39,7 +39,7 @@ class DataFrameCreator:
 
     def get_index_dataset_key(self, channel: str) -> tuple[str, str]:
         """
-        Checks if 'group_name' and converts to 'index_key' and 'dataset_key' if so.
+        Checks if 'index_key' and 'dataset_key' exists and returns that.
 
         Args:
             channel (str): The name of the channel.
@@ -54,7 +54,7 @@ class DataFrameCreator:
 
         if "index_key" in channel_config and "dataset_key" in channel_config:
             return channel_config["index_key"], channel_config["dataset_key"]
-        else:
+        elif "group_name" in channel_config:
             print("'group_name' is no longer supported.")
 
         raise ValueError(

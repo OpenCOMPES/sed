@@ -140,14 +140,15 @@ class BufferHandler:
             debug (bool): Flag to enable debug mode, which serializes the creation.
         """
         n_cores = min(len(self.missing_h5_files), self.n_cores)
+        paths = zip(self.missing_h5_files, self.save_paths)
         if n_cores > 0:
             if debug:
-                for h5_path, parquet_path in zip(self.missing_h5_files, self.save_paths):
+                for h5_path, parquet_path in paths:
                     self._save_buffer_file(h5_path, parquet_path)
             else:
                 Parallel(n_jobs=n_cores, verbose=10)(
                     delayed(self._save_buffer_file)(h5_path, parquet_path)
-                    for h5_path, parquet_path in zip(self.missing_h5_files, self.save_paths)
+                    for h5_path, parquet_path in paths
                 )
 
     def _fill_dataframes(self):

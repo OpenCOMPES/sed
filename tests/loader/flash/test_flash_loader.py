@@ -60,7 +60,6 @@ def test_initialize_dirs(
     del config_["core"]["beamtime_id"]
     with pytest.raises(ValueError) as e:
         fl._initialize_dirs()
-    print(e.value)
     assert "The beamtime_id and year are required." in str(e.value)
 
 

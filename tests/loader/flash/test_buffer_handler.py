@@ -1,4 +1,5 @@
 """Test cases for the BufferHandler class in the Flash module."""
+from copy import deepcopy
 from pathlib import Path
 
 import numpy as np
@@ -157,6 +158,43 @@ def test_save_buffer_files(config, h5_paths):
     # remove buffer files
     [path.unlink() for path in bh_serial.buffer_paths]
     [path.unlink() for path in bh_parallel.buffer_paths]
+
+
+def test_save_buffer_files_exception(config, h5_paths, h5_file_copy, tmp_path):
+    """Test function to verify exception handling when running code in parallel."""
+    folder_parallel = create_parquet_dir(config, "save_buffer_files_exception")
+    config_ = deepcopy(config)
+
+    # check exception in case of missing channel in config
+    channel = "dldPosX"
+    del config_["dataframe"]["channels"][channel]["index_key"]
+
+    # testing exception in parallel execution
+    with pytest.raises(ValueError):
+        bh = BufferHandler(config_)
+        bh.run(h5_paths, folder_parallel, debug=False)
+
+    # check exception message with empty dataset
+    config_ = deepcopy(config)
+    channel = "testChannel"
+    channel_index_key = "test/dataset/empty/index"
+    empty_dataset_key = "test/dataset/empty/value"
+    config_["dataframe"]["channels"][channel] = {
+        "index_key": channel_index_key,
+        "dataset_key": empty_dataset_key,
+        "format": "per_train",
+    }
+
+    # create an empty dataset
+    h5_file_copy.create_dataset(
+        name=empty_dataset_key,
+        shape=0,
+    )
+
+    # expect key error because of missing index dataset
+    with pytest.raises(KeyError):
+        bh = BufferHandler(config_)
+        bh.run([tmp_path / "copy.h5"], folder_parallel, debug=False, force_recreate=True)
 
 
 def test_get_filled_dataframe(config, h5_paths):
