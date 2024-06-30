@@ -5,10 +5,12 @@ core:
   loader: flash
   # the beamline where experiment took place
   beamline: pg2
-  # the ID number of the beamtimme
+  # the ID number of the beamtime
   beamtime_id: 11013410
   # the year of the beamtime
   year: 2023
+  # the instrument used
+  instrument: hextof # hextof, wespe, etc
 
   # The paths to the raw and parquet data directories. If these are not
   # provided, the loader will try to find the data based on year beamtimeID etc
@@ -52,18 +54,20 @@ dataframe:
   tof_ns_column: dldTime
   # dataframe column containing corrected time-of-flight data
   corrected_tof_column: "tm"
+  # the time stamp column
+  time_stamp_alias: timeStamp
   # time length of a base time-of-flight bin in seconds
   tof_binwidth: 2.0576131995767355E-11
   # binning parameter for time-of-flight data. 2**tof_binning bins per base bin
   tof_binning: 3  # power of 2, 3 means 8 bins per step
   # dataframe column containing sector ID. obtained from dldTimeSteps column
   sector_id_column: dldSectorID
-
   sector_delays: [0., 0., 0., 0., 0., 0., 0., 0.]
   # the delay stage column
   delay_column: delayStage
   # the corrected pump-probe time axis
   corrected_delay_column: pumpProbeTime
+  # the columns to be used for jitter correction
   jitter_cols: ["dldPosX", "dldPosY", "dldTimeSteps"]
 
   units:
@@ -89,30 +93,34 @@ dataframe:
   # channelAlias:
   #   format: per_pulse/per_electron/per_train
   #   group_name: the hdf5 group path
-  #   slice: if the group contains multidim data, where to slice
+  #   slice: if the group contains multidimensional data, where to slice
 
   channels:
     # The timestamp
     timeStamp:
       format: per_train
-      group_name: "/uncategorised/FLASH.DIAG/TIMINGINFO/TIME1.BUNCH_FIRST_INDEX.1/"
+      index_key: "/uncategorised/FLASH.DIAG/TIMINGINFO/TIME1.BUNCH_FIRST_INDEX.1/index"
+      dataset_key: "/uncategorised/FLASH.DIAG/TIMINGINFO/TIME1.BUNCH_FIRST_INDEX.1/time"
 
     # pulse ID is a necessary channel for using the loader.
     pulseId:
       format: per_electron
-      group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
+      index_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/index"
+      dataset_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/value"
       slice: 2
 
     # detector x position
     dldPosX:
       format: per_electron
-      group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
+      index_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/index"
+      dataset_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/value"
       slice: 1
 
     # detector y position
     dldPosY:
       format: per_electron
-      group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
+      index_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/index"
+      dataset_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/value"
       slice: 0
 
     # Detector time-of-flight channel
@@ -120,14 +128,16 @@ dataframe:
     # also the dldSectorID channel
     dldTimeSteps:
       format: per_electron
-      group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
+      index_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/index"
+      dataset_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/value"
       slice: 3
 
     # The auxillary channel has a special structure where the group further contains
-    # a multidim structure so further aliases are defined below
+    # a multidimensional structure so further aliases are defined below
     dldAux:
       format: per_pulse
-      group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
+      index_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/index"
+      dataset_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/value"
       slice: 4
       dldAuxChannels:
         sampleBias: 0
@@ -141,29 +151,35 @@ dataframe:
     # ADC containing the pulser sign (1: value approx. 35000, 0: 33000)
     pulserSignAdc:
       format: per_pulse
-      group_name: "/FL1/Experiment/PG/SIS8300 100MHz ADC/CH6/TD/"
+      index_key: "/FL1/Experiment/PG/SIS8300 100MHz ADC/CH6/TD/index"
+      dataset_key: "/FL1/Experiment/PG/SIS8300 100MHz ADC/CH6/TD/value"
 
     # the energy of the monochromatized beam. This is a quasi-static value.
     # there is a better channel which still needs implementation.
     monochromatorPhotonEnergy:
       format: per_train
-      group_name: "/FL1/Beamlines/PG/Monochromator/monochromator photon energy/"
+      index_key: "/FL1/Beamlines/PG/Monochromator/monochromator photon energy/index"
+      dataset_key: "/FL1/Beamlines/PG/Monochromator/monochromator photon energy/value"
 
     # The GMDs can not be read yet...
     gmdBda:
       format: per_train
-      group_name: "/FL1/Photon Diagnostic/GMD/Average energy/energy BDA/"
+      index_key: "/FL1/Photon Diagnostic/GMD/Average energy/energy BDA/index"
+      dataset_key: "/FL1/Photon Diagnostic/GMD/Average energy/energy BDA/value"
+
     # Beam Arrival Monitor, vital for pump-probe experiments as it can compensate sase
     # timing fluctuations.
     # Here we use the DBC2 BAM as the "normal" one is broken.
     bam:
         format: per_pulse
-        group_name: "/uncategorised/FLASH.SDIAG/BAM.DAQ/FL0.DBC2.ARRIVAL_TIME.ABSOLUTE.SA1.COMP/"
+        index_key: "/uncategorised/FLASH.SDIAG/BAM.DAQ/FL0.DBC2.ARRIVAL_TIME.ABSOLUTE.SA1.COMP/index"
+        dataset_key: "/uncategorised/FLASH.SDIAG/BAM.DAQ/FL0.DBC2.ARRIVAL_TIME.ABSOLUTE.SA1.COMP/value"
 
     # The delay Stage position, encoding the pump-probe delay
     delayStage:
       format: per_train
-      group_name: "/zraw/FLASH.SYNC/LASER.LOCK.EXP/F1.PG.OSC/FMC0.MD22.1.ENCODER_POSITION.RD/dGroup/"
+      index_key: "/zraw/FLASH.SYNC/LASER.LOCK.EXP/F1.PG.OSC/FMC0.MD22.1.ENCODER_POSITION.RD/dGroup/index"
+      dataset_key: "/zraw/FLASH.SYNC/LASER.LOCK.EXP/F1.PG.OSC/FMC0.MD22.1.ENCODER_POSITION.RD/dGroup/value"
 
   # The prefixes of the stream names for different DAQ systems for parsing filenames
   # (Not to be changed by user)

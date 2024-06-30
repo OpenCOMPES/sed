@@ -62,7 +62,7 @@ def hdf5_to_dataframe(
     if channels is None:
         channels = get_datasets_and_aliases(
             h5file=test_proc,
-            seach_pattern="Stream",
+            search_pattern="Stream",
         )
 
     electron_channels = []
@@ -165,7 +165,7 @@ def hdf5_to_timed_dataframe(
     if channels is None:
         channels = get_datasets_and_aliases(
             h5file=test_proc,
-            seach_pattern="Stream",
+            search_pattern="Stream",
         )
 
     electron_channels = []
@@ -249,7 +249,7 @@ def add_value(partition: ddf.DataFrame, name: str, value: float) -> ddf.DataFram
 
 def get_datasets_and_aliases(
     h5file: h5py.File,
-    seach_pattern: str = None,
+    search_pattern: str = None,
     alias_key: str = "Name",
 ) -> dict[str, Any]:
     """Read datasets and aliases from a provided hdf5 file handle
@@ -257,7 +257,7 @@ def get_datasets_and_aliases(
     Args:
         h5file (h5py.File):
             The hdf5 file handle
-        seach_pattern (str, optional):
+        search_pattern (str, optional):
             Search pattern to select groups. Defaults to include all groups.
         alias_key (str, optional):
             Attribute key where aliases are stored. Defaults to "Name".
@@ -270,10 +270,10 @@ def get_datasets_and_aliases(
     dataset_names = list(h5file)
 
     # Filter the group names
-    if seach_pattern is None:
+    if search_pattern is None:
         filtered_dataset_names = dataset_names
     else:
-        filtered_dataset_names = [name for name in dataset_names if seach_pattern in name]
+        filtered_dataset_names = [name for name in dataset_names if search_pattern in name]
 
     alias_dict = {}
     for name in filtered_dataset_names:
@@ -394,7 +394,7 @@ def hdf5_to_timed_array(
             timestamp of a file. Defaults to "FirstEventTimeStamp".
 
     Returns:
-        np.ndarray: the array of the values at evently spaced timing obtained from
+        np.ndarray: the array of the values at evenly spaced timing obtained from
         the ms_markers.
     """
 
@@ -445,7 +445,7 @@ def hdf5_to_timed_array(
 
 
 def get_attribute(h5group: h5py.Group, attribute: str) -> str:
-    """Reads, decodes and returns an attrubute from an hdf5 group
+    """Reads, decodes and returns an attribute from an hdf5 group
 
     Args:
         h5group (h5py.Group):
@@ -502,7 +502,7 @@ def get_elapsed_time(
             are stored. Defaults to "msMarkers".
 
     Return:
-        float: The acquision time of the file in seconds.
+        float: The acquisition time of the file in seconds.
     """
     secs = h5file[ms_markers_key].len() / 1000
 
@@ -583,7 +583,7 @@ class MpesLoader(BaseLoader):
                 files will be ignored. Defaults to None.
             runs (str | Sequence[str], optional): Run identifier(s). Corresponding
                 files will be located in the location provided by ``folders``. Takes
-                precendence over ``files`` and ``folders``. Defaults to None.
+                precedence over ``files`` and ``folders``. Defaults to None.
             ftype (str, optional): File extension to use. If a folder path is given,
                 all files with the specified extension are read into the dataframe
                 in the reading order. Defaults to "h5".
@@ -903,7 +903,7 @@ class MpesLoader(BaseLoader):
                 print("Contrast aperture size not found.")
 
         # Storing the lens modes corresponding to lens voltages.
-        # Use lens volages present in first lens_mode entry.
+        # Use lens voltages present in first lens_mode entry.
         lens_list = self._config["metadata"]["lens_mode_config"][
             next(iter(self._config["metadata"]["lens_mode_config"]))
         ].keys()

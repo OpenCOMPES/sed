@@ -101,7 +101,7 @@ class DelayCalibrator:
 
         Returns:
             tuple[pd.DataFrame | dask.dataframe.DataFrame, dict]: dataframe with added column
-            and delay calibration metdata dictionary.
+            and delay calibration metadata dictionary.
         """
         # pylint: disable=duplicate-code
         if calibration is None:
@@ -406,7 +406,7 @@ def mm_to_ps(
     delay_mm: float | np.ndarray,
     time0_mm: float,
 ) -> float | np.ndarray:
-    """Converts a delaystage position in mm into a relative delay in picoseconds
+    """Converts a delay stage position in mm into a relative delay in picoseconds
     (double pass).
 
     Args:

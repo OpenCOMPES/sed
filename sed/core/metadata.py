@@ -57,6 +57,8 @@ class MetaHandler:
         INDENT_FACTOR = 20
         html = ""
         for key, value in attributes.items():
+            # Ensure the key is a string
+            key = str(key)
             # Format key
             formatted_key = key.replace("_", " ").title()
             formatted_key = f"<b>{formatted_key}</b>"
@@ -101,7 +103,7 @@ class MetaHandler:
         Args:
             entry: dictionary containing the metadata to add.
             name: name of the dictionary key under which to add entry.
-            duplicate_policy: Control behaviour in case the 'name' key
+            duplicate_policy: Control behavior in case the 'name' key
                 is already present in the metadata dictionary. Can be any of:
 
                     - "raise": raises a DuplicateEntryError.
