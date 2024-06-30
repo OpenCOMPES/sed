@@ -51,14 +51,12 @@ class SXPLoader(BaseLoader):
         self.index_per_pulse: MultiIndex = None
         self.failed_files_error: list[str] = []
         self.array_indices: list[list[slice]] = None
+        self.raw_dir: str = None
+        self.parquet_dir: str = None
 
-    def initialize_paths(self) -> tuple[list[Path], Path]:
+    def _initialize_dirs(self):
         """
         Initializes the paths based on the configuration.
-
-        Returns:
-            tuple[List[Path], Path]: A tuple containing a list of raw data directories
-            paths and the parquet data directory path.
 
         Raises:
             ValueError: If required values are missing from the configuration.
@@ -101,7 +99,8 @@ class SXPLoader(BaseLoader):
 
         data_parquet_dir.mkdir(parents=True, exist_ok=True)
 
-        return data_raw_dir, data_parquet_dir
+        self.raw_dir = data_raw_dir
+        self.parquet_dir = data_parquet_dir
 
     def get_files_from_run_id(
         self,
@@ -654,7 +653,7 @@ class SXPLoader(BaseLoader):
             df = df.dropna(subset=self._config["dataframe"].get("tof_column", "dldTimeSteps"))
             # correct the 3 bit shift which encodes the detector ID in the 8s time
             if self._config["dataframe"].get("split_sector_id_from_dld_time", False):
-                df = split_dld_time_from_sector_id(df, config=self._config)
+                df, _ = split_dld_time_from_sector_id(df, config=self._config)
             return df
 
     def create_buffer_file(self, h5_path: Path, parquet_path: Path) -> bool | Exception:
@@ -943,7 +942,7 @@ class SXPLoader(BaseLoader):
         """
         t0 = time.time()
 
-        data_raw_dir, data_parquet_dir = self.initialize_paths()
+        self._initialize_dirs()
 
         # Prepare a list of names for the runs to read and parquets to write
         if runs is not None:
@@ -953,7 +952,7 @@ class SXPLoader(BaseLoader):
             for run in runs:
                 run_files = self.get_files_from_run_id(
                     run_id=run,
-                    folders=[str(folder.resolve()) for folder in data_raw_dir],
+                    folders=[str(Path(folder).resolve()) for folder in self.raw_dir],
                     extension=ftype,
                     daq=self._config["dataframe"]["daq"],
                 )
@@ -971,7 +970,7 @@ class SXPLoader(BaseLoader):
                 metadata=metadata,
             )
 
-        df, df_timed = self.parquet_handler(data_parquet_dir, **kwds)
+        df, df_timed = self.parquet_handler(Path(self.parquet_dir), **kwds)
 
         if collect_metadata:
             metadata = self.gather_metadata(
