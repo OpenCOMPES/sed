@@ -252,8 +252,8 @@ def get_parquet_metadata(file_paths: list[Path], time_stamp_col: str) -> dict[st
 
         # Get the timestamp min and max
         try:
-            timestamps = get_timestamp_stats(file_meta, time_stamp_col)
-            metadata_dict["time_stamps"] = timestamps
+            start, end = get_timestamp_stats(file_meta, time_stamp_col)
+            metadata_dict["time_stamps"] = np.array([start, end])
         except ValueError:
             pass
 
