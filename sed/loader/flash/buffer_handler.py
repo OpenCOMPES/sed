@@ -11,6 +11,7 @@ from joblib import Parallel
 
 from sed.core.dfops import forward_fill_lazy
 from sed.loader.flash.dataframe import DataFrameCreator
+from sed.loader.flash.dataframe import SXPDataFrameCreator
 from sed.loader.flash.utils import get_channels
 from sed.loader.flash.utils import initialize_paths
 from sed.loader.utils import get_parquet_metadata
@@ -34,6 +35,7 @@ class BufferHandler:
         """
         self._config = config["dataframe"]
         self.n_cores = config["core"].get("num_cores", os.cpu_count() - 1)
+        self.instrument = config["core"].get("instrument", "hextof")  # default is hextof
 
         self.buffer_paths: list[Path] = []
         self.missing_h5_files: list[Path] = []
@@ -125,9 +127,11 @@ class BufferHandler:
             h5_path (Path): Path to the H5 file.
             parquet_path (Path): Path to the buffer file.
         """
+        # Determine the appropriate class based on the instrument
+        DataFrameClass = SXPDataFrameCreator if self.instrument == "sxp" else DataFrameCreator
 
-        # Create a DataFrameCreator instance and the h5 file
-        df = DataFrameCreator(config_dataframe=self._config, h5_path=h5_path).df
+        # Create an instance and get the DataFrame
+        df = DataFrameClass(config_dataframe=self._config, h5_path=h5_path).df
 
         # Reset the index of the DataFrame and save it as a parquet file
         df.reset_index().to_parquet(parquet_path)

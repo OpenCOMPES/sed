@@ -83,7 +83,7 @@ def test_pulse_index(config_dataframe, h5_paths):
 
     df = DataFrameCreator(config_dataframe, h5_paths[0])
     pulse_index, pulse_array = df.get_dataset_array("pulseId", slice_=True)
-    index, indexer = df.pulse_index(config_dataframe["ubid_offset"])
+    index, indexer = df.pulse_index(config_dataframe["ubid_offset"], pulse_index, pulse_array)
     # Check if the index_per_electron is a MultiIndex and has the correct levels
     assert isinstance(index, MultiIndex)
     assert set(index.names) == {"trainId", "pulseId", "electronId"}

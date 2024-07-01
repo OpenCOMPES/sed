@@ -69,7 +69,7 @@ class DataFrameCreator:
         slice_: bool = False,
     ) -> tuple[pd.Index, h5py.Dataset]:
         """
-        Returns a numpy array for a given channel name.
+        Returns a pandas index and numpy array for a given channel name.
 
         Args:
             channel (str): The name of the channel.
@@ -91,12 +91,17 @@ class DataFrameCreator:
                 dataset = np.take(dataset, slice_index, axis=1)
         # If np_array is size zero, fill with NaNs
         if dataset.shape[0] == 0:
-            # Fill the np_array with NaN values of the same shape as train_id
+            # Fill the np_array with NaN values of the same shape as train_index
             dataset = np.full_like(key, np.nan, dtype=np.double)
 
         return key, dataset
 
-    def pulse_index(self, offset: int) -> tuple[pd.MultiIndex, slice | np.ndarray]:
+    def electron_index(
+        self,
+        offset: int,
+        train_index,
+        pulse_dataset,
+    ) -> tuple[pd.MultiIndex, slice | np.ndarray]:
         """
         Creates a multi-level index that combines train IDs and pulse IDs, and handles
         sorting and electron counting within each pulse.
@@ -108,8 +113,6 @@ class DataFrameCreator:
             tuple[pd.MultiIndex, np.ndarray]: A tuple containing the computed pd.MultiIndex and
             the indexer.
         """
-        # Get the pulse_dataset and the train_index
-        train_index, pulse_dataset = self.get_dataset_array("pulseId", slice_=True)
         # pulse_dataset comes as a 2D array, resolved per train. Here it is flattened
         # the daq has an offset so no pulses are missed. This offset is subtracted here
         pulse_ravel = pulse_dataset.ravel() - offset
@@ -151,8 +154,10 @@ class DataFrameCreator:
             pd.DataFrame: The pandas DataFrame for the 'per_electron' channel's data.
         """
         offset = self._config.get("ubid_offset", 5)  # 5 is the default value
+        # Get the pulse_dataset and the train_index
+        train_index, pulse_dataset = self.get_dataset_array("pulseId", slice_=True)
         # Here we get the multi-index and the indexer to sort the data
-        index, indexer = self.pulse_index(offset)
+        index, indexer = self.electron_index(offset, train_index, pulse_dataset)
 
         # Get the relevant channels and their slice index
         channels = get_channels(self._config["channels"], "per_electron")
@@ -292,3 +297,127 @@ class DataFrameCreator:
             .join(self.df_train, on=self.multi_index, how="outer")
             .sort_index()
         )
+
+
+class SXPDataFrameCreator(DataFrameCreator):
+    def __init__(self, config_dataframe: dict, h5_path: Path) -> None:
+        """
+        Initializes the DataFrameCreator.
+
+        Args:
+            config_dataframe (dict): The configuration dictionary with only the dataframe key.
+            h5_path (Path): Path to the h5 file.
+        """
+        super().__init__(config_dataframe, h5_path)
+
+    def get_dataset_array(
+        self,
+        channel: str,
+        slice_: bool = False,  # noqa: ARG002
+    ) -> tuple[pd.Index, np.ndarray]:
+        """
+        Gets the scaled and sliced dataset array for a given channel,
+        based on the max_hits and scale parameters in channel config.
+
+        Args:
+            channel (str): The name of the channel.
+
+        Returns:
+            Tuple[pd.Index, np.ndarray]: A tuple containing the train ID pd.Series and the
+            numpy array for the channel's data.
+
+        """
+        # Uses the parent class method to get datasets
+        key, dataset = super().get_dataset_array(channel)
+        max_hits = self._config["channels"][channel].get("max_hits", None)
+        scale = self._config["channels"][channel].get("scale", None)
+
+        if len(dataset.shape) == 2 and max_hits:
+            dataset = dataset[:, :max_hits]
+
+        if scale:
+            dataset = dataset / float(scale)
+
+        return key, dataset
+
+    def electron_index(self, offset, train_index, pulse_dataset) -> pd.MultiIndex:
+        """
+        Computes the index for the 'per_electron' data.
+
+        Args:
+            offset (int): The offset value.
+
+        Returns:
+            pd.MultiIndex: computed pd.MultiIndex
+        """
+        _, train_dataset = self.get_dataset_array("trainId")
+        train_index_tmp = train_index
+
+        train_index = []
+        pulse_indexes = []
+
+        for i, _ in enumerate(train_index_tmp):
+            num_trains = self._config.get("num_trains", None)
+            if num_trains:
+                try:
+                    num_valid_hits = np.where(np.diff(pulse_dataset[i].astype(np.int32)) < 0)[0][
+                        num_trains - 1
+                    ]
+                    train_dataset[i, num_valid_hits:] = 0
+                    pulse_dataset[i, num_valid_hits:] = 0
+                except IndexError:
+                    pass
+
+            train_ends = np.where(np.diff(pulse_dataset[i].astype(np.int32)) < -1)[0]
+            index = 0
+            for train, train_end in enumerate(train_ends):
+                train_index.append(train_index_tmp[i] + np.uint(train))
+                pulse_indexes.append(pulse_dataset[i, index:train_end])
+                index = train_end + 1
+
+        return super().electron_index(offset, train_index, pulse_indexes)
+
+    @property
+    def df_electron(self) -> pd.DataFrame:
+        """
+        Returns a pandas pd.DataFrame for 'per_electron' data.
+
+        Returns:
+            pd.DataFrame: The pandas pd.DataFrame for the 'per_electron' data.
+        """
+        offset = self._config.get("ubid_offset", 0)
+        # Get the pulse_dataset and the train_index
+        train_index_tmp, pulse_dataset = self.get_dataset_array("pulseId")
+        # Get the channels for the dataframe
+        channels = get_channels(self._config["channels"], "per_electron")
+        if not channels:
+            return pd.DataFrame()
+
+        series = []
+        for channel in channels:
+            array_indices, index = self.electron_index(offset, train_index_tmp, pulse_dataset)
+            _, np_array = self.get_dataset_array(channel)
+            if array_indices is None or len(array_indices) != np_array.shape[0]:
+                raise RuntimeError(
+                    "train_indexes not set correctly, internal inconstency detected.",
+                )
+            train_data = []
+            for i, _ in enumerate(array_indices):
+                for indices in array_indices[i]:
+                    train_data.append(np_array[i, indices])
+
+            drop_vals = np.arange(-offset, 0)
+            series.append(
+                pd.Series((train for train in train_data), name=channel)
+                .explode()
+                .dropna()
+                .to_frame()
+                .set_index(index)
+                .drop(
+                    index=drop_vals,
+                    level=1,
+                    errors="ignore",
+                ),
+            )
+
+        return pd.concat(series, axis=1)
