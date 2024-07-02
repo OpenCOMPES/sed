@@ -1,5 +1,7 @@
 """Module tests.calibrator.energy, tests for the sed.calibrator.energy module
 """
+from __future__ import annotations
+
 import csv
 import glob
 import itertools
@@ -7,7 +9,6 @@ import os
 from copy import deepcopy
 from importlib.util import find_spec
 from typing import Any
-from typing import Dict
 from typing import Literal
 
 import dask.dataframe
@@ -391,7 +392,7 @@ def test_energy_correction(correction_type: str, correction_kwd: dict) -> None:
         config=config,
         loader=get_loader("mpes", config=config),
     )
-    correction: Dict[Any, Any] = {
+    correction: dict[Any, Any] = {
         "correction_type": correction_type,
         "amplitude": amplitude,
         "center": center,
@@ -437,7 +438,7 @@ def test_adjust_energy_correction_raises(correction_type: str) -> None:
         config=config,
         loader=get_loader("mpes", config=config),
     )
-    correction_dict: Dict[str, Any] = {
+    correction_dict: dict[str, Any] = {
         "correction_type": correction_type,
         "amplitude": amplitude,
         "center": center,
@@ -482,7 +483,7 @@ def test_energy_correction_from_dict_kwds(correction_type: str, correction_kwd: 
         config=config,
         loader=get_loader("mpes", config=config),
     )
-    correction_dict: Dict[str, Any] = {
+    correction_dict: dict[str, Any] = {
         "correction_type": correction_type,
         "amplitude": amplitude,
         "center": center,
@@ -542,7 +543,7 @@ def test_apply_energy_correction_raises(correction_type: str) -> None:
         config=config,
         loader=get_loader("mpes", config=config),
     )
-    correction_dict: Dict[str, Any] = {
+    correction_dict: dict[str, Any] = {
         "correction_type": correction_type,
         "amplitude": amplitude,
         "center": center,
@@ -621,7 +622,7 @@ def test_add_offsets_functionality(energy_scale: str) -> None:
     exp_vals -= df["off2"] * scale_sign
     exp_vals += df["off3"].mean() * scale_sign
     np.testing.assert_allclose(res["energy"].values, exp_vals.values)
-    exp_meta: Dict[str, Any] = {}
+    exp_meta: dict[str, Any] = {}
     exp_meta["applied"] = True
     exp_meta["offsets"] = ec.offsets
     assert meta == exp_meta
@@ -655,7 +656,7 @@ def test_add_offsets_functionality(energy_scale: str) -> None:
 
 def test_add_offset_raises() -> None:
     """test if add_offset raises the correct errors"""
-    cfg_dict: Dict[str, Any] = {
+    cfg_dict: dict[str, Any] = {
         "energy": {
             "calibration": {
                 "energy_scale": "kinetic",
@@ -714,7 +715,7 @@ def test_add_offset_raises() -> None:
 
 def test_align_dld_sectors() -> None:
     """test functionality and error handling of align_dld_sectors"""
-    cfg_dict: Dict[str, Any] = {
+    cfg_dict: dict[str, Any] = {
         "dataframe": {
             "tof_column": "dldTimeSteps",
             "sector_id_column": "dldSectorId",

@@ -1,5 +1,7 @@
 """Module tests.processor, tests for the sed.core.processor module
 """
+from __future__ import annotations
+
 import csv
 import glob
 import itertools
@@ -8,9 +10,6 @@ import tempfile
 from importlib.util import find_spec
 from pathlib import Path
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Tuple
 
 import dask.dataframe as ddf
 import numpy as np
@@ -556,7 +555,7 @@ def test_energy_calibration_workflow(energy_scale: str, calibration_method: str)
     ref_id = 5
     rng = (66100, 67000)
     processor.find_bias_peaks(ranges=rng, ref_id=ref_id, infer_others=True, apply=True)
-    ranges: List[Tuple[Any, ...]] = [
+    ranges: list[tuple[Any, ...]] = [
         (64638.0, 65386.0),
         (64913.0, 65683.0),
         (65188.0, 65991.0),
@@ -645,7 +644,6 @@ def test_align_dld_sectors() -> None:
     assert "dldSectorID" in processor.dataframe.columns
 
     sector_delays = np.asarray([10, -10, 20, -20, 30, -30, 40, -40])
-
     tof_ref = []
     for i in range(len(sector_delays)):
         tof_ref.append(
@@ -999,7 +997,7 @@ def test_get_normalization_histogram() -> None:
     # np.testing.assert_allclose(histogram1, histogram2)
 
 
-metadata: Dict[Any, Any] = {}
+metadata: dict[Any, Any] = {}
 metadata["entry_title"] = "Title"
 # user
 metadata["user0"] = {}

@@ -1,5 +1,7 @@
 """This is a code that performs several tests for the settings loader.
 """
+from __future__ import annotations
+
 import copy
 import os
 import tempfile

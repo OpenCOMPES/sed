@@ -4,6 +4,8 @@ both console and file logging handlers, allowing different log levels for each. 
 log files are stored in a user-specific log directory.
 
 """
+from __future__ import annotations
+
 import logging
 import os
 import sys

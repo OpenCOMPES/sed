@@ -1,3 +1,6 @@
+"""Tests for FlashLoader metadata functionality"""
+from __future__ import annotations
+
 import pytest
 
 from sed.loader.flash.metadata import MetadataRetriever

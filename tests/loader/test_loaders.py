@@ -1,11 +1,12 @@
 """Test cases for loaders used to load dataframes
 """
+from __future__ import annotations
+
 import os
 from copy import deepcopy
 from importlib.util import find_spec
 from pathlib import Path
 from typing import cast
-from typing import List
 
 import dask.dataframe as ddf
 import pytest
@@ -52,7 +53,7 @@ def get_loader_name_from_loader_object(loader: BaseLoader) -> str:
     return ""
 
 
-def get_all_loaders() -> List[ParameterSet]:
+def get_all_loaders() -> list[ParameterSet]:
     """Scans through the loader list and returns them for pytest parametrization"""
     loaders = []
 
@@ -163,9 +164,9 @@ def test_has_correct_read_dataframe_func(loader: BaseLoader, read_type: str) -> 
 
     if loader.__name__ in {"flash", "sxp"}:
         loader = cast(FlashLoader, loader)
-        _, parquet_data_dir = loader.initialize_paths()
-        for file in os.listdir(Path(parquet_data_dir, "buffer")):
-            os.remove(Path(parquet_data_dir, "buffer", file))
+        loader._initialize_dirs()
+        for file in os.listdir(Path(loader.parquet_dir, "buffer")):
+            os.remove(Path(loader.parquet_dir, "buffer", file))
 
 
 @pytest.mark.parametrize("loader", get_all_loaders())
@@ -196,9 +197,9 @@ def test_timed_dataframe(loader: BaseLoader) -> None:
             if loaded_timed_dataframe is None:
                 if loader.__name__ in {"flash", "sxp"}:
                     loader = cast(FlashLoader, loader)
-                    _, parquet_data_dir = loader.initialize_paths()
-                    for file in os.listdir(Path(parquet_data_dir, "buffer")):
-                        os.remove(Path(parquet_data_dir, "buffer", file))
+                    loader._initialize_dirs()
+                    for file in os.listdir(Path(loader.parquet_dir, "buffer")):
+                        os.remove(Path(loader.parquet_dir, "buffer", file))
                 pytest.skip("Not implemented")
             assert isinstance(loaded_timed_dataframe, ddf.DataFrame)
             assert set(loaded_timed_dataframe.columns).issubset(set(loaded_dataframe.columns))
@@ -206,9 +207,9 @@ def test_timed_dataframe(loader: BaseLoader) -> None:
 
     if loader.__name__ in {"flash", "sxp"}:
         loader = cast(FlashLoader, loader)
-        _, parquet_data_dir = loader.initialize_paths()
-        for file in os.listdir(Path(parquet_data_dir, "buffer")):
-            os.remove(Path(parquet_data_dir, "buffer", file))
+        loader._initialize_dirs()
+        for file in os.listdir(Path(loader.parquet_dir, "buffer")):
+            os.remove(Path(loader.parquet_dir, "buffer", file))
 
 
 @pytest.mark.parametrize("loader", get_all_loaders())
@@ -240,9 +241,9 @@ def test_get_count_rate(loader: BaseLoader) -> None:
             if loaded_time is None and loaded_countrate is None:
                 if loader.__name__ in {"flash", "sxp"}:
                     loader = cast(FlashLoader, loader)
-                    _, parquet_data_dir = loader.initialize_paths()
-                    for file in os.listdir(Path(parquet_data_dir, "buffer")):
-                        os.remove(Path(parquet_data_dir, "buffer", file))
+                    loader._initialize_dirs()
+                    for file in os.listdir(Path(loader.parquet_dir, "buffer")):
+                        os.remove(Path(loader.parquet_dir, "buffer", file))
                 pytest.skip("Not implemented")
             assert len(loaded_time) == len(loaded_countrate)
             loaded_time2, loaded_countrate2 = loader.get_count_rate(fids=[0])
@@ -251,9 +252,9 @@ def test_get_count_rate(loader: BaseLoader) -> None:
 
     if loader.__name__ in {"flash", "sxp"}:
         loader = cast(FlashLoader, loader)
-        _, parquet_data_dir = loader.initialize_paths()
-        for file in os.listdir(Path(parquet_data_dir, "buffer")):
-            os.remove(Path(parquet_data_dir, "buffer", file))
+        loader._initialize_dirs()
+        for file in os.listdir(Path(loader.parquet_dir, "buffer")):
+            os.remove(Path(loader.parquet_dir, "buffer", file))
 
 
 @pytest.mark.parametrize("loader", get_all_loaders())
@@ -283,11 +284,11 @@ def test_get_elapsed_time(loader: BaseLoader) -> None:
             )
             elapsed_time = loader.get_elapsed_time()
             if elapsed_time is None:
-                if loader.__name__ in {"flash", "sxp"}:
+                if loader.__name__ in {"sxp"}:
                     loader = cast(FlashLoader, loader)
-                    _, parquet_data_dir = loader.initialize_paths()
-                    for file in os.listdir(Path(parquet_data_dir, "buffer")):
-                        os.remove(Path(parquet_data_dir, "buffer", file))
+                    loader._initialize_dirs()
+                    for file in os.listdir(Path(loader.parquet_dir, "buffer")):
+                        os.remove(Path(loader.parquet_dir, "buffer", file))
                 pytest.skip("Not implemented")
             assert elapsed_time > 0
             elapsed_time2 = loader.get_elapsed_time(fids=[0])
@@ -296,9 +297,9 @@ def test_get_elapsed_time(loader: BaseLoader) -> None:
 
     if loader.__name__ in {"flash", "sxp"}:
         loader = cast(FlashLoader, loader)
-        _, parquet_data_dir = loader.initialize_paths()
-        for file in os.listdir(Path(parquet_data_dir, "buffer")):
-            os.remove(Path(parquet_data_dir, "buffer", file))
+        loader._initialize_dirs()
+        for file in os.listdir(Path(loader.parquet_dir, "buffer")):
+            os.remove(Path(loader.parquet_dir, "buffer", file))
 
 
 def test_mpes_timestamps() -> None:

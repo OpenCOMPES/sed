@@ -1,8 +1,9 @@
 """This module contains diagnostic output functions for the sed module
 
 """
-from typing import Sequence
-from typing import Tuple
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import bokeh.plotting as pbk
 import matplotlib.pyplot as plt
@@ -54,7 +55,7 @@ def grid_histogram(
     ncol: int,
     rvs: Sequence,
     rvbins: Sequence,
-    rvranges: Sequence[Tuple[float, float]],
+    rvranges: Sequence[tuple[float, float]],
     backend: str = "bokeh",
     legend: bool = True,
     histkwds: dict = None,
@@ -68,7 +69,7 @@ def grid_histogram(
         ncol (int): Number of columns in the plot grid.
         rvs (Sequence): List of names for the random variables (rvs).
         rvbins (Sequence): Bin values for all random variables.
-        rvranges (Sequence[Tuple[float, float]]): Value ranges of all random variables.
+        rvranges (Sequence[tuple[float, float]]): Value ranges of all random variables.
         backend (str, optional): Backend for making the plot ('matplotlib' or 'bokeh').
             Defaults to "bokeh".
         legend (bool, optional): Option to include a legend in each histogram plot.

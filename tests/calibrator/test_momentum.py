@@ -1,11 +1,12 @@
 """Module tests.calibrator.momentum, tests for the sed.calibrator.momentum module
 """
+from __future__ import annotations
+
 import csv
 import glob
 import os
 from importlib.util import find_spec
 from typing import Any
-from typing import Dict
 
 import numpy as np
 import pytest
@@ -280,8 +281,8 @@ depends_on_list = [
     zip(transformations_list, depends_on_list),
 )
 def test_apply_registration(
-    transformations: Dict[Any, Any],
-    depends_on: Dict[Any, Any],
+    transformations: dict[Any, Any],
+    depends_on: dict[Any, Any],
 ) -> None:
     """Test the application of the distortion correction to the dataframe."""
     config = parse_config(

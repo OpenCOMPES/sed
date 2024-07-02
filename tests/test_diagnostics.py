@@ -1,5 +1,7 @@
 """Module tests.diagnostics, tests for the sed.diagnostics module
 """
+from __future__ import annotations
+
 import glob
 import itertools
 import os
