@@ -129,6 +129,11 @@ class BufferHandler:
         # Create a DataFrameCreator instance and the h5 file
         df = DataFrameCreator(config_dataframe=self._config, h5_path=h5_path).df
 
+        # Drop rows with nan values in electron channels
+        df = df.dropna(
+            subset=get_channels(self._config["channels"], ["per_electron"]),
+        )
+
         # Reset the index of the DataFrame and save it as a parquet file
         df.reset_index().to_parquet(parquet_path)
 
@@ -182,11 +187,6 @@ class BufferHandler:
             "iterations": self._config.get("forward_fill_iterations", 2),
         }
 
-        # Drop rows with nan values in electron channels
-        df_electron = dataframe.dropna(
-            subset=get_channels(self._config["channels"], ["per_electron"]),
-        )
-
         # Set the dtypes of the channels here as there should be no null values
         channel_dtypes = get_channels(self._config["channels"], "all")
         config_channels = self._config["channels"]
@@ -199,13 +199,14 @@ class BufferHandler:
         # Correct the 3-bit shift which encodes the detector ID in the 8s time
         if self._config.get("split_sector_id_from_dld_time", False):
             df_electron, meta = split_dld_time_from_sector_id(
-                df_electron,
+                dataframe,
                 config=self._config,
             )
             self.metadata.update(meta)
 
         self.df_electron = df_electron.astype(dtypes)
-        self.df_pulse = dataframe[index + fill_channels]
+        df_pulse = dataframe[index + fill_channels]
+        self.df_pulse = df_pulse[df_pulse["electronId"] == 0]
 
     def run(
         self,
