@@ -13,6 +13,7 @@ import shutil
 from datetime import datetime
 
 import dask as d
+import psutil
 from dask.diagnostics import ProgressBar
 
 
@@ -36,11 +37,13 @@ class CopyTool:
             "safetyMargin",
             1 * 2**30,
         )  # Default 500 GB safety margin
-        self.gid = kwds.pop("gid", 5050)
+        self.gid = kwds.pop("gid", 1001)
         self.scheduler = kwds.pop("scheduler", "threads")
 
-        # Default to 25 concurrent copy tasks
-        self.ntasks = int(kwds.pop("ntasks", 25))
+        # Default to 20 concurrent copy tasks
+        self.num_cores = kwds.pop("num_cores", 20)
+        if self.num_cores >= psutil.cpu_count():
+            self.num_cores = psutil.cpu_count() - 1
 
     def copy(
         self,
@@ -162,7 +165,7 @@ class CopyTool:
                 d.compute(
                     *copy_tasks,
                     scheduler=self.scheduler,
-                    num_workers=self.ntasks,
+                    num_workers=self.num_cores,
                     **compute_kwds,
                 )
             print("Copy finished!")

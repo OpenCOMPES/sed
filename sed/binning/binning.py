@@ -267,7 +267,7 @@ def bin_dataframe(
             Defaults to None.
         pbar (bool, optional): Option to show the tqdm progress bar. Defaults to True.
         n_cores (int, optional): Number of CPU cores to use for parallelization.
-            Defaults to all but one of the available cores. Defaults to N_CPU-1.
+            Defaults to all but one of the available cores.
         threads_per_worker (int, optional): Limit the number of threads that
             multiprocessing can spawn. Defaults to 4.
         threadpool_api (str, optional): The API to use for multiprocessing.
