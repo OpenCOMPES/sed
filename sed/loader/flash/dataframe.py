@@ -51,17 +51,13 @@ class DataFrameCreator:
             ValueError: If 'index_key' and 'dataset_key' are not provided.
         """
         channel_config = self._config["channels"][channel]
-
+        group_err = ""
         if "index_key" in channel_config and "dataset_key" in channel_config:
             return channel_config["index_key"], channel_config["dataset_key"]
         elif "group_name" in channel_config:
-            print("'group_name' is no longer supported.")
-
-        raise ValueError(
-            "For channel:",
-            channel,
-            "Provide both 'index_key' and 'dataset_key'.",
-        )
+            group_err = "'group_name' is no longer supported."
+        error = f"{group_err} For channel: {channel}, provide both 'index_key' and 'dataset_key'."
+        raise ValueError(error)
 
     def get_dataset_array(
         self,
