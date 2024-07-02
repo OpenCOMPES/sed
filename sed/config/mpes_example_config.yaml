@@ -7,7 +7,7 @@ core:
   copy_tool_source: "/path/to/data/"
   # path to the root or the local data storage
   copy_tool_dest: "/path/to/localDataStore/"
-  # optional keyworkds for the copy tool:
+  # optional keywords for the copy tool:
   copy_tool_kwds:
     # number of parallel copy jobs
     ntasks: 20
@@ -25,11 +25,11 @@ dataframe:
     Stream_4: "ADC"
   # dataframe column name for the time stamp column
   time_stamp_alias: "timeStamps"
-  # hdf5 group name containing eventIDs occuring at every millisecond (used to calculate timestamps)
+  # hdf5 group name containing eventIDs occurring at every millisecond (used to calculate timestamps)
   ms_markers_group: "msMarkers"
   # hdf5 attribute containing the timestamp of the first event in a file
   first_event_time_stamp_key: "FirstEventTimeStamp"
-  # Time stepping in seconds of the succesive events in the timed dataframe
+  # Time stepping in seconds of the successive events in the timed dataframe
   timed_dataframe_unit_time: 0.001
   # list of columns to apply jitter to
   jitter_cols: ["X", "Y", "t", "ADC"]
@@ -96,7 +96,7 @@ energy:
   fastdtw_radius: 2
   # Window around a peak to make sure that no other peaks are present
   peak_window: 7
-  # Mehtod to use for energy calibration
+  # Method to use for energy calibration
   calibration_method: "lmfit"
   # Energy scale to use for energy calibration
   energy_scale: "kinetic"
@@ -105,11 +105,11 @@ energy:
   tof_fermi: 132250
   # TOF range to visualize for the correction tool around tof_fermi
   tof_width: [-600, 1000]
-  # x-intergration range for the correction tool around the center pixel
+  # x-integration range for the correction tool around the center pixel
   x_width: [-20, 20]
-  # y-intergration range for the correction tool around the center pixel
+  # y-integration range for the correction tool around the center pixel
   y_width: [-20, 20]
-  # High intensity cutoff for the visulaization tool
+  # High intensity cutoff for the visualization tool
   color_clip: 300
   correction:
     # Correction type
@@ -155,9 +155,9 @@ momentum:
   sigma_radius: 1
   # default momentum calibration
   calibration:
-    # x momentum scaleing factor
+    # x momentum scaling factor
     kx_scale: 0.010729535670610963
-    # y momentum scaleing factor
+    # y momentum scaling factor
     ky_scale: 0.010729535670610963
     # x BZ center pixel
     x_center: 256.0
@@ -195,7 +195,7 @@ delay:
 binning:
   # Histogram computation mode to use.
   hist_mode: "numba"
-  # Mode for hostogram recombination to use
+  # Mode for histogram recombination to use
   mode: "fast"
   # Whether to display a progress bar
   pbar: True
@@ -209,7 +209,7 @@ binning:
 histogram:
   # number of bins used for histogram visualization
   bins: [80, 80, 80, 80]
-  # default axes to use for histgram visualization.
+  # default axes to use for histogram visualization.
   # Axes names starting with "@" refer to keys in the "dataframe" section
   axes: ["@x_column", "@y_column", "@tof_column", "@adc_column"]
   # default ranges to use for histogram visualization (in unbinned detector coordinates)
@@ -307,6 +307,6 @@ nexus:
   reader: "mpes"
   # NeXus application definition to use for saving
   definition: "NXmpes"
-  # List conatining additional input files to be handed to the pynxtools converter tool,
+  # List containing additional input files to be handed to the pynxtools converter tool,
   # e.g. containing a configuration file, and additional metadata.
   input_files: ["../sed/config/NXmpes_config.json"]

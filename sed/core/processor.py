@@ -331,7 +331,7 @@ class SedProcessor:
         """Getter attribute for the normalization histogram
 
         Returns:
-            xr.DataArray: The normalizazion histogram
+            xr.DataArray: The normalization histogram
         """
         if self._normalization_histogram is None:
             raise ValueError("No normalization histogram available, generate histogram first!")
@@ -542,7 +542,7 @@ class SedProcessor:
     ):
         """2. Step of the distortion correction workflow: Define feature points in
         momentum space. They can be either manually selected using a GUI tool, be
-        ptovided as list of feature points, or auto-generated using a
+        provided as list of feature points, or auto-generated using a
         feature-detection algorithm.
 
         Args:
@@ -591,7 +591,7 @@ class SedProcessor:
         **kwds,
     ):
         """3. Step of the distortion correction workflow: Generate the correction
-        function restoring the symmetry in the image using a splinewarp algortihm.
+        function restoring the symmetry in the image using a splinewarp algorithm.
 
         Args:
             use_center (bool, optional): Option to use the position of the
@@ -688,7 +688,7 @@ class SedProcessor:
 
         Args:
             transformations (dict, optional): Dictionary with transformations.
-                Defaults to self.transformations or config["momentum"]["transformtions"].
+                Defaults to self.transformations or config["momentum"]["transformations"].
             apply (bool, optional): Option to directly apply the provided
                 transformations. Defaults to False.
             use_correction (bool, option): Whether to use the spline warp correction
@@ -707,7 +707,7 @@ class SedProcessor:
         if verbose is None:
             verbose = self.verbose
 
-        # Generate homomorphy as default if no distortion correction has been applied
+        # Generate homography as default if no distortion correction has been applied
         if self.mc.slice_corrected is None:
             if self.mc.slice is None:
                 self.mc.slice = np.zeros(self._config["momentum"]["bins"][0:2])
@@ -854,7 +854,7 @@ class SedProcessor:
                 second point used for momentum calibration.
                 Defaults to config["momentum"]["center_pixel"].
             k_distance (float, optional): Momentum distance between point a and b.
-                Needs to be provided if no specific k-koordinates for the two points
+                Needs to be provided if no specific k-coordinates for the two points
                 are given. Defaults to None.
             k_coord_a (Union[np.ndarray, List[float]], optional): Momentum coordinate
                 of the first point used for calibration. Used if equiscale is False.
@@ -991,7 +991,7 @@ class SedProcessor:
         apply=False,
         **kwds,
     ):
-        """1. step of the energy crrection workflow: Opens an interactive plot to
+        """1. step of the energy correction workflow: Opens an interactive plot to
         adjust the parameters for the TOF/energy correction. Also pre-bins the data if
         they are not present yet.
 
@@ -1070,7 +1070,7 @@ class SedProcessor:
         verbose: bool = None,
         **kwds,
     ):
-        """2. step of the energy correction workflow: Apply the enery correction
+        """2. step of the energy correction workflow: Apply the energy correction
         parameters stored in the class to the dataframe.
 
         Args:
@@ -1245,7 +1245,7 @@ class SedProcessor:
             radius (int, optional): Radius parameter for fast_dtw.
                 Defaults to config["energy"]["fastdtw_radius"].
             peak_window (int, optional): Peak_window parameter for the peak detection
-                algorthm. amount of points that have to have to behave monotoneously
+                algorithm. amount of points that have to have to behave monotonously
                 around a peak. Defaults to config["energy"]["peak_window"].
             apply (bool, optional): Option to directly apply the provided parameters.
                 Defaults to False.
@@ -1960,7 +1960,7 @@ class SedProcessor:
         """Add jitter to the selected dataframe columns.
 
         Args:
-            cols (List[str], optional): The colums onto which to apply jitter.
+            cols (List[str], optional): The columns onto which to apply jitter.
                 Defaults to config["dataframe"]["jitter_cols"].
             amps (Union[float, Sequence[float]], optional): Amplitude scalings for the
                 jittering noise. If one number is given, the same is used for all axes.
@@ -2155,7 +2155,7 @@ class SedProcessor:
             ranges (Sequence[Tuple[float, float]], optional): list of tuples containing
                 the start and end point of the binning range. Defaults to None.
             normalize_to_acquisition_time (Union[bool, str]): Option to normalize the
-                result to the acquistion time. If a "slow" axis was scanned, providing
+                result to the acquisition time. If a "slow" axis was scanned, providing
                 the name of the scanned axis will compute and apply the corresponding
                 normalization histogram. Defaults to False.
             **kwds: Keyword arguments:
@@ -2382,12 +2382,12 @@ class SedProcessor:
         Args:
             dfpid (int): Number of the data frame partition to look at.
             ncol (int, optional): Number of columns in the plot grid. Defaults to 2.
-            bins (Sequence[int], optional): Number of bins to use for the speicified
+            bins (Sequence[int], optional): Number of bins to use for the specified
                 axes. Defaults to config["histogram"]["bins"].
             axes (Sequence[str], optional): Names of the axes to display.
                 Defaults to config["histogram"]["axes"].
             ranges (Sequence[Tuple[float, float]], optional): Value ranges of all
-                specified axes. Defaults toconfig["histogram"]["ranges"].
+                specified axes. Defaults to config["histogram"]["ranges"].
             backend (str, optional): Backend of the plotting library
                 ('matplotlib' or 'bokeh'). Defaults to "bokeh".
             legend (bool, optional): Option to include a legend in the histogram plots.
@@ -2469,7 +2469,7 @@ class SedProcessor:
                 - "*.h5", "*.hdf5": Saves an HDF5 file.
                 - "*.nxs", "*.nexus": Saves a NeXus file.
 
-            **kwds: Keyword argumens, which are passed to the writer functions:
+            **kwds: Keyword arguments, which are passed to the writer functions:
                 For TIFF writing:
 
                 - **alias_dict**: Dictionary of dimension aliases to use.
@@ -2480,9 +2480,9 @@ class SedProcessor:
 
                 For NeXus:
 
-                - **reader**: Name of the nexustools reader to use.
+                - **reader**: Name of the pynxtools reader to use.
                   Defaults to config["nexus"]["reader"]
-                - **definiton**: NeXus application definition to use for saving.
+                - **definition**: NeXus application definition to use for saving.
                   Must be supported by the used ``reader``. Defaults to
                   config["nexus"]["definition"]
                 - **input_files**: A list of input files to pass to the reader.
