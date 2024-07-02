@@ -999,12 +999,12 @@ def test_get_normalization_histogram() -> None:
 
 metadata: dict[Any, Any] = {}
 metadata["entry_title"] = "Title"
-# User
+# user
 metadata["user0"] = {}
 metadata["user0"]["name"] = "Name"
 metadata["user0"]["email"] = "email"
 metadata["user0"]["affiliation"] = "affiliation"
-# Instrument
+# instrument
 metadata["instrument"] = {}
 # analyzer
 metadata["instrument"]["analyzer"] = {}
