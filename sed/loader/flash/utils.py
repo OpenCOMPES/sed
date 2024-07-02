@@ -70,7 +70,7 @@ def get_channels(
                 for key in available_channels
                 if channel_dict[key]["format"] == format_ and key != DLD_AUX_ALIAS
             )
-            # Include 'dldAuxChannels' if the format is 'per_pulse' and extend_aux is True.
+            # Include 'dldAuxChannels' if the format is 'per_train' and extend_aux is True.
             # Otherwise, include 'dldAux'.
             if format_ == FORMATS[2] and DLD_AUX_ALIAS in available_channels:
                 if extend_aux:

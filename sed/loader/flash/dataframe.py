@@ -203,6 +203,12 @@ class DataFrameCreator:
         series = []
         # Get the relevant channel names
         channels = get_channels(self._config["channels"], "per_pulse")
+        # check if dldAux is in the channels and raise error if so
+        if "dldAux" in channels:
+            raise ValueError(
+                "dldAux is a 'per_train' channel. "
+                "Please choose 'per_train' as the format for dldAux.",
+            )
         # For each channel, a pd.Series is created and appended to the list
         for channel in channels:
             # train_index and (sliced) data is returned

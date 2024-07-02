@@ -131,7 +131,7 @@ class BufferHandler:
 
         # Drop rows with nan values in electron channels
         df = df.dropna(
-            subset=get_channels(self._config["channels"], ["per_electron"]),
+            subset=get_channels(self._config["channels"], "per_electron"),
         )
 
         # Reset the index of the DataFrame and save it as a parquet file
