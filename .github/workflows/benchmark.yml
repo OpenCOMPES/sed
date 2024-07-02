@@ -34,7 +34,10 @@ jobs:
       - name: Install project dependencies
         run: poetry install
 
-      # Run benchmakrs
+      - name: Install project dependencies
+        run: poetry install
+
+      # Run benchmarks
       - name: Run benchmarks on python 3.8
         run: |
           poetry run pytest --full-trace --show-capture=no -sv benchmarks/benchmark_*.py

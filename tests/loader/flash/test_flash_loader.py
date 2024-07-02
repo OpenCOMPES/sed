@@ -56,7 +56,7 @@ def test_initialize_dirs(
     assert str(expected_raw_path) == fl.raw_dir
     assert str(expected_processed_path) == fl.parquet_dir
 
-    # remove breamtimeid, year and daq from config to raise error
+    # remove beamtime_id, year and daq from config to raise error
     del config_["core"]["beamtime_id"]
     with pytest.raises(ValueError) as e:
         fl._initialize_dirs()

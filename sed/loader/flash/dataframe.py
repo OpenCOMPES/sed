@@ -249,7 +249,7 @@ class DataFrameCreator:
                 (key, [0], [0]),
                 names=self.multi_index,
             )
-            # Auxillary dataset (which is stored in the same dataset as other DLD channels)
+            # Auxiliary dataset (which is stored in the same dataset as other DLD channels)
             # contains multiple channels inside. Even though they are resolved per train,
             # they come in pulse format, so the extra values are sliced and individual channels are
             # created and appended to the list
