@@ -575,18 +575,15 @@ def test_energy_calibration_workflow(energy_scale: str, calibration_method: str)
     with pytest.raises(ValueError):
         processor.calibrate_energy_axis(
             ref_energy=ref_energy,
-            ref_id=ref_id,
             energy_scale="myfantasyscale",
         )
     with pytest.raises(NotImplementedError):
         processor.calibrate_energy_axis(
             ref_energy=ref_energy,
-            ref_id=ref_id,
             method="myfantasymethod",
         )
     processor.calibrate_energy_axis(
         ref_energy=ref_energy,
-        ref_id=ref_id,
         energy_scale=energy_scale,
         method=calibration_method,
     )
