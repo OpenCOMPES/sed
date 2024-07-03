@@ -138,6 +138,7 @@ def add_time_stamped_data(
         data (np.ndarray): Values corresponding at the time stamps in time_stamps
         dest_column (str): destination column name
         time_stamp_column (str): Time stamp column name
+        **kwds: Keyword arguments passed to map_partitions
 
     Returns:
         dask.dataframe.DataFrame: Dataframe with added column
@@ -177,7 +178,11 @@ def map_columns_2d(
         map_2d (Callable): 2D mapping function.
         x_column (str): The X column of the dataframe to apply mapping to.
         y_column (str): The Y column of the dataframe to apply mapping to.
-        **kwds: Additional arguments for the 2D mapping function.
+        **kwds:
+            - *new_x_column": Name of the new x-column. Default is to overwrite the x-column.
+            - *new_y_column": Name of the new y-column. Default is to overwrite the y-column.
+
+            Additional keyword argument are passed to the 2D mapping function.
 
     Returns:
         pd.DataFrame | dask.dataframe.DataFrame: Dataframe with mapped columns.

@@ -33,7 +33,7 @@ def hdf5_to_dataframe(
     time_stamp_alias: str = "timeStamps",
     ms_markers_key: str = "msMarkers",
     first_event_time_stamp_key: str = "FirstEventTimeStamp",
-    **kwds,
+    test_fid: int = 0,
 ) -> ddf.DataFrame:
     """Function to read a selection of hdf5-files, and generate a delayed dask
     dataframe from provided groups in the files. Optionally, aliases can be defined.
@@ -51,12 +51,12 @@ def hdf5_to_dataframe(
             Defaults to "msMarkers".
         first_event_time_stamp_key (str): h5 attribute containing the start
             timestamp of a file. Defaults to "FirstEventTimeStamp".
+        test_fid(int, optional): File ID to use for extracting shape information.
 
     Returns:
         ddf.DataFrame: The delayed Dask DataFrame
     """
     # Read a file to parse the file structure
-    test_fid = kwds.pop("test_fid", 0)
     test_proc = h5py.File(files[test_fid])
 
     if channels is None:
@@ -135,7 +135,7 @@ def hdf5_to_timed_dataframe(
     time_stamp_alias: str = "timeStamps",
     ms_markers_key: str = "msMarkers",
     first_event_time_stamp_key: str = "FirstEventTimeStamp",
-    **kwds,
+    test_fid: int = 0,
 ) -> ddf.DataFrame:
     """Function to read a selection of hdf5-files, and generate a delayed dask
     dataframe from provided groups in the files. Optionally, aliases can be defined.
@@ -154,12 +154,12 @@ def hdf5_to_timed_dataframe(
             Defaults to "msMarkers".
         first_event_time_stamp_key (str): h5 attribute containing the start
             timestamp of a file. Defaults to "FirstEventTimeStamp".
+        test_fid(int, optional): File ID to use for extracting shape information.
 
     Returns:
         ddf.DataFrame: The delayed Dask DataFrame
     """
     # Read a file to parse the file structure
-    test_fid = kwds.pop("test_fid", 0)
     test_proc = h5py.File(files[test_fid])
 
     if channels is None:
@@ -595,8 +595,7 @@ class MpesLoader(BaseLoader):
                 the dataframe from ms-Markers in the files. Defaults to False.
             **kwds: Keyword parameters.
 
-                - **hdf5_groupnames** : List of groupnames to look for in the file.
-                - **hdf5_aliases**: Dictionary of aliases for the groupnames.
+                - **channels** : Dict of channel informations.
                 - **time_stamp_alias**: Alias for the timestamp column
                 - **ms_markers_key**: HDF5 path of the millisecond marker column.
                 - **first_event_time_stamp_key**: Attribute name containing the start
@@ -613,7 +612,7 @@ class MpesLoader(BaseLoader):
             dataframe and metadata read from specified files.
         """
         # if runs is provided, try to locate the respective files relative to the provided folder.
-        if runs is not None:  # pylint: disable=duplicate-code
+        if runs is not None:
             files = []
             if isinstance(runs, (str, int)):
                 runs = [runs]
@@ -628,7 +627,6 @@ class MpesLoader(BaseLoader):
                 metadata=metadata,
             )
         else:
-            # pylint: disable=duplicate-code
             super().read_dataframe(
                 files=files,
                 folders=folders,
@@ -696,7 +694,7 @@ class MpesLoader(BaseLoader):
         run_id: str,
         folders: str | Sequence[str] = None,
         extension: str = "h5",
-        **kwds,  # noqa: ARG002
+        **kwds,
     ) -> list[str]:
         """Locate the files for a given run identifier.
 
@@ -705,11 +703,16 @@ class MpesLoader(BaseLoader):
             folders (str | Sequence[str], optional): The directory(ies) where the raw
                 data is located. Defaults to config["core"]["base_folder"]
             extension (str, optional): The file extension. Defaults to "h5".
-            kwds: Keyword arguments
+            kwds: Keyword arguments, not used in this loader.
 
         Return:
             list[str]: List of file path strings to the location of run data.
         """
+        if len(kwds) > 0:
+            raise TypeError(
+                f"get_files_from_run_id() got unexpected keyword arguments {kwds.keys()}.",
+            )
+
         if folders is None:
             folders = self._config["core"]["paths"]["data_raw_dir"]
 
@@ -979,6 +982,9 @@ class MpesLoader(BaseLoader):
             ),
         )
 
+        if len(kwds) > 0:
+            raise TypeError(f"get_count_rate() got unexpected keyword arguments {kwds.keys()}.")
+
         secs_list = []
         count_rate_list = []
         accumulated_time = 0
@@ -1020,6 +1026,9 @@ class MpesLoader(BaseLoader):
                 "msMarkers",
             ),
         )
+
+        if len(kwds) > 0:
+            raise TypeError(f"get_elapsed_time() got unexpected keyword arguments {kwds.keys()}.")
 
         secs = 0.0
         for fid in fids:

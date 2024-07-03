@@ -423,6 +423,10 @@ def test_momentum_calibration_two_points() -> None:
     # Test with passing calibration parameters
     calibration = mc.calibration.copy()
     calibration.pop("creation_date")
+    calibration.pop("grid")
+    calibration.pop("extent")
+    calibration.pop("kx_axis")
+    calibration.pop("ky_axis")
     df, _, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
         folders=df_folder,
         collect_metadata=False,

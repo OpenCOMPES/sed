@@ -96,6 +96,7 @@ class SedProcessor:
                 Defaults to config["core"]["verbose"] or False.
             **kwds: Keyword arguments passed to parse_config and to the reader.
         """
+        # split off config keywords
         config_kwds = {
             key: value for key, value in kwds.items() if key in parse_config.__code__.co_varnames
         }
@@ -275,6 +276,7 @@ class SedProcessor:
         Args:
             attributes (dict): The attributes dictionary object to add.
             name (str): Key under which to add the dictionary to the attributes.
+            **kwds: Additional keywords are passed to the ``MetaHandler.add()`` function.
         """
         self._attributes.add(
             entry=attributes,
@@ -385,7 +387,10 @@ class SedProcessor:
             folder (str, optional): Folder path to pass to the loader.
                 Defaults to None.
             collect_metadata (bool, optional): Option for collecting metadata in the reader.
-            **kwds: Keyword parameters passed to the reader.
+            **kwds:
+                - *timed_dataframe*: timed dataframe if dataframe is provided.
+
+                Additional keyword parameters are passed to ``loader.read_dataframe()``.
 
         Raises:
             ValueError: Raised if no valid input is provided.
@@ -931,7 +936,7 @@ class SedProcessor:
                 Defaults to False.
             verbose (bool, optional): Option to print out diagnostic information.
                 Defaults to config["core"]["verbose"].
-            **kwds: Keyword args passed to ``DelayCalibrator.append_delay_axis``.
+            **kwds: Keyword args passed to ``MomentumCalibrator.append_k_axis``.
         """
         if verbose is None:
             verbose = self.verbose
@@ -1601,7 +1606,7 @@ class SedProcessor:
                 Defaults to False.
             verbose (bool, optional): Option to print out diagnostic information.
                 Defaults to config["core"]["verbose"].
-            **kwds: additional arguments are passed to ``EnergyCalibrator.tof_step_to_ns()``.
+            **kwds: additional arguments are passed to ``EnergyCalibrator.append_tof_ns_axis()``.
 
         """
         if verbose is None:
@@ -1734,12 +1739,10 @@ class SedProcessor:
                 if len(self.dc.calibration) == 0:
                     try:
                         datafile = self._files[0]
-                    except IndexError:
-                        print(
-                            "No datafile available, specify either",
-                            " 'datafile' or 'delay_range'",
-                        )
-                        raise
+                    except IndexError as exc:
+                        raise IndexError(
+                            "No datafile available, specify either 'datafile' or 'delay_range'",
+                        ) from exc
 
             df, metadata = self.dc.append_delay_axis(
                 self._dataframe,
@@ -2023,7 +2026,11 @@ class SedProcessor:
                 If omitted, data are retrieved from the epics archiver.
             archiver_channel (str, optional): EPICS archiver channel from which to retrieve data.
                 Either this or data and time_stamps have to be present.
-            **kwds: additional keyword arguments passed to ``add_time_stamped_data``.
+            **kwds:
+
+                - **time_stamp_column**: Dataframe column containing time-stamp data
+
+                Additional keyword arguments passed to ``add_time_stamped_data``.
         """
         time_stamp_column = kwds.pop(
             "time_stamp_column",
@@ -2322,6 +2329,12 @@ class SedProcessor:
             raise ValueError(f"Axis '{axis}' not found in binned data!")
 
         df_partitions: int | Sequence[int] = kwds.pop("df_partitions", None)
+
+        if len(kwds) > 0:
+            raise TypeError(
+                f"get_normalization_histogram() got unexpected keyword arguments {kwds.keys()}.",
+            )
+
         if isinstance(df_partitions, int):
             df_partitions = list(range(0, min(df_partitions, self._dataframe.npartitions)))
         if use_time_stamps or self._timed_dataframe is None:
