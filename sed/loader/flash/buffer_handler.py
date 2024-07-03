@@ -137,6 +137,31 @@ class BufferHandler:
         # Reset the index of the DataFrame and save it as a parquet file
         df.reset_index().to_parquet(parquet_path)
 
+    def get_dataframes(self, h5_path) -> tuple[dd.DataFrame, dd.DataFrame]:
+        """
+        Returns the electron and pulse dataframes.
+
+        Args:
+            h5_paths (List[Path]): List of paths to H5 files.
+            folder (Path): Path to the folder for buffer files.
+
+        Returns:
+            Tuple[dd.DataFrame, dd.DataFrame]: The electron and pulse dataframes.
+        """
+        df = DataFrameCreator(config_dataframe=self._config, h5_path=h5_path).df
+        fill_channels: list[str] = get_channels(
+            self._config["channels"],
+            ["per_pulse", "per_train"],
+            extend_aux=True,
+        )
+        df[fill_channels] = df[fill_channels].ffill()
+        df_electron = df.dropna(
+            subset=get_channels(self._config["channels"], "per_electron"),
+        ).reset_index()
+        df_pulse = df[fill_channels].loc[:, :, 0].reset_index()
+
+        return df_electron, df_pulse
+
     def _save_buffer_files(self, debug: bool) -> None:
         """
         Creates the buffer files.
