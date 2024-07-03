@@ -281,7 +281,7 @@ class DataFrameCreator:
     @property
     def df(self) -> pd.DataFrame:
         """
-        Joins the 'per_electron', 'per_pulse', and 'per_train' using join operation,
+        Joins the 'per_electron', 'per_pulse', and 'per_train' using concat operation,
         returning a single dataframe.
 
         Returns:
@@ -289,8 +289,6 @@ class DataFrameCreator:
         """
 
         self.validate_channel_keys()
-        return (
-            self.df_electron.join(self.df_pulse, on=self.multi_index, how="outer")
-            .join(self.df_train, on=self.multi_index, how="outer")
-            .sort_index()
-        )
+        # been tested with merge, join and concat
+        # concat offers best performance, almost 3 times faster
+        return pd.concat((self.df_electron, self.df_pulse, self.df_train), axis=1).sort_index()
