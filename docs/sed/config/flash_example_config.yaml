@@ -1,0 +1,193 @@
+# This file contains the default configuration for the flash loader.
+
+core:
+  # defines the loader
+  loader: flash
+  # the beamline where experiment took place
+  beamline: pg2
+  # the ID number of the beamtimme
+  beamtime_id: 11013410
+  # the year of the beamtime
+  year: 2023
+
+  # The paths to the raw and parquet data directories. If these are not
+  # provided, the loader will try to find the data based on year beamtimeID etc
+  paths:
+    # location of the raw data.
+    data_raw_dir: "tests/data/loader/flash/"
+    # location of the intermediate parquet files.
+    data_parquet_dir: "tests/data/loader/flash/parquet"
+
+binning:
+  # Since this will run on maxwell most probably, we have a lot of cores at our disposal
+  num_cores: 100
+
+dataframe:
+  # The name of the DAQ system to use. Necessary to resolve the filenames/paths.
+  daq: fl1user3
+  # The offset correction to the pulseId
+  ubid_offset: 5
+
+  # the number of iterations to fill the pulseId forward.
+  forward_fill_iterations: 2
+  # if true, removes the 3 bits reserved for dldSectorID from the dldTimeSteps column
+  split_sector_id_from_dld_time: True
+  # bits reserved for dldSectorID in the dldTimeSteps column
+  sector_id_reserved_bits: 3
+  # dataframe column containing x coordinates
+  x_column: dldPosX
+  # dataframe column containing corrected x coordinates
+  corrected_x_column: "X"
+  # dataframe column containing kx coordinates
+  kx_column: "kx"
+  # dataframe column containing y coordinates
+  y_column: dldPosY
+  # dataframe column containing corrected y coordinates
+  corrected_y_column: "Y"
+  # dataframe column containing kx coordinates
+  ky_column: "ky"
+  # dataframe column containing time-of-flight data
+  tof_column: dldTimeSteps
+  # dataframe column containing time-of-flight data in ns
+  tof_ns_column: dldTime
+  # dataframe column containing corrected time-of-flight data
+  corrected_tof_column: "tm"
+  # time length of a base time-of-flight bin in seconds
+  tof_binwidth: 2.0576131995767355E-11
+  # binning parameter for time-of-flight data. 2**tof_binning bins per base bin
+  tof_binning: 3  # power of 2, 3 means 8 bins per step
+  # dataframe column containing sector ID. obtained from dldTimeSteps column
+  sector_id_column: dldSectorID
+
+  sector_delays: [0., 0., 0., 0., 0., 0., 0., 0.]
+  # the delay stage column
+  delay_column: delayStage
+  # the corrected pump-probe time axis
+  corrected_delay_column: pumpProbeTime
+  jitter_cols: ["dldPosX", "dldPosY", "dldTimeSteps"]
+
+  units:
+    # These are the units of the columns
+    dldPosX: 'step'
+    dldPosY: 'step'
+    dldTimeSteps: 'step'
+    tof_voltage: 'V'
+    extractorVoltage: 'V'
+    extractorCurrent: 'A'
+    cryoTemperature: 'K'
+    sampleTemperature: 'K'
+    dldTime: 'ns'
+    delay: 'ps'
+    timeStamp: 's'
+    energy: 'eV'
+    E: 'eV'
+    kx: '1/A'
+    ky: '1/A'
+
+  # The channels to load.
+  # channels have the following structure:
+  # channelAlias:
+  #   format: per_pulse/per_electron/per_train
+  #   group_name: the hdf5 group path
+  #   slice: if the group contains multidim data, where to slice
+
+  channels:
+    # The timestamp
+    timeStamp:
+      format: per_train
+      group_name: "/uncategorised/FLASH.DIAG/TIMINGINFO/TIME1.BUNCH_FIRST_INDEX.1/"
+
+    # pulse ID is a necessary channel for using the loader.
+    pulseId:
+      format: per_electron
+      group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
+      slice: 2
+
+    # detector x position
+    dldPosX:
+      format: per_electron
+      group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
+      slice: 1
+
+    # detector y position
+    dldPosY:
+      format: per_electron
+      group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
+      slice: 0
+
+    # Detector time-of-flight channel
+    # if split_sector_id_from_dld_time is set to True, This this will generate
+    # also the dldSectorID channel
+    dldTimeSteps:
+      format: per_electron
+      group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
+      slice: 3
+
+    # The auxillary channel has a special structure where the group further contains
+    # a multidim structure so further aliases are defined below
+    dldAux:
+      format: per_pulse
+      group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
+      slice: 4
+      dldAuxChannels:
+        sampleBias: 0
+        tofVoltage: 1
+        extractorVoltage: 2
+        extractorCurrent: 3
+        cryoTemperature: 4
+        sampleTemperature: 5
+        dldTimeBinSize: 15
+
+    # ADC containing the pulser sign (1: value approx. 35000, 0: 33000)
+    pulserSignAdc:
+      format: per_pulse
+      group_name: "/FL1/Experiment/PG/SIS8300 100MHz ADC/CH6/TD/"
+
+    # the energy of the monochromatized beam. This is a quasi-static value.
+    # there is a better channel which still needs implementation.
+    monochromatorPhotonEnergy:
+      format: per_train
+      group_name: "/FL1/Beamlines/PG/Monochromator/monochromator photon energy/"
+
+    # The GMDs can not be read yet...
+    gmdBda:
+      format: per_train
+      group_name: "/FL1/Photon Diagnostic/GMD/Average energy/energy BDA/"
+    # Beam Arrival Monitor, vital for pump-probe experiments as it can compensate sase
+    # timing fluctuations.
+    # Here we use the DBC2 BAM as the "normal" one is broken.
+    bam:
+        format: per_pulse
+        group_name: "/uncategorised/FLASH.SDIAG/BAM.DAQ/FL0.DBC2.ARRIVAL_TIME.ABSOLUTE.SA1.COMP/"
+
+    # The delay Stage position, encoding the pump-probe delay
+    delayStage:
+      format: per_train
+      group_name: "/zraw/FLASH.SYNC/LASER.LOCK.EXP/F1.PG.OSC/FMC0.MD22.1.ENCODER_POSITION.RD/dGroup/"
+
+  # The prefixes of the stream names for different DAQ systems for parsing filenames
+  # (Not to be changed by user)
+  stream_name_prefixes:
+    pbd: "GMD_DATA_gmd_data"
+    pbd2: "FL2PhotDiag_pbd2_gmd_data"
+    fl1user1: "FLASH1_USER1_stream_2"
+    fl1user2: "FLASH1_USER2_stream_2"
+    fl1user3: "FLASH1_USER3_stream_2"
+    fl2user1: "FLASH2_USER1_stream_2"
+    fl2user2: "FLASH2_USER2_stream_2"
+
+  # The beamtime directories for different DAQ systems.
+  # (Not to be changed by user)
+  beamtime_dir:
+    pg2: "/asap3/flash/gpfs/pg2/"
+
+# metadata collection from scicat
+# metadata:
+#   scicat_url: <URL>
+#   scicat_token: <TOKEN>
+
+# The nexus collection routine shall be finalized soon for both instruments
+# nexus:
+#   reader: "flash"
+#   definition: "NXmpes"
+#   input_files: ["NXmpes_config_HEXTOF_light.json"]

@@ -2,27 +2,40 @@
 myst:
   html_meta:
     "description lang=en": |
-      Top-level documentation for pydata-sphinx theme, with links to the rest
+      Top-level documentation for sed, with links to the rest
       of the site..
 html_theme.sidebar_secondary.remove: true
 ---
 
-# The PyData Sphinx Theme
+# SED documentation
 
-A clean, Bootstrap-based Sphinx theme by and for [the PyData community](https://pydata.org).
-
-
-```{seealso}
-If you are looking for a Sphinx theme that puts all of its sub-pages in the sidebar, the [Sphinx Book Theme](https://sphinx-book-theme.readthedocs.io/) has a similar look and feel, and [Furo](https://pradyunsg.me/furo/quickstart/) is another excellent choice. You can also see [the Sphinx Themes Gallery](https://sphinx-themes.org) for more ideas.
-```
-
-Information about using, configuration, and customizing this theme.
+SED (Single Event Data Frame) is a collection of routines and utilities to handle photoelectron resolved datastreams.
+It features lazy evaluation of dataframe processing using dask, numba-accelerated multi-dimensional binning, calibration and correction for trARPES (Time- and angle-resolved photoemission spectroscopy) datasets.
+The package ensures provenance and FAIR data through metadata tracking, usage of the community defined NeXus format.
 
 ```{toctree}
 :maxdepth: 2
 
 user_guide/index
 
+```
+
+## Examples
+
+Several example notebooks to demonstrate the functionality of SED for end-to-end data analysis workflows.
+
+```{toctree}
+:maxdepth: 2
+
+workflows/index
+```
+
+## API
+
+```{toctree}
+:maxdepth: 2
+
+misc/contribution
 ```
 
 ## Community and contribution guide
@@ -33,21 +46,4 @@ Information about the community behind this theme and how you can contribute.
 :maxdepth: 2
 
 sed/api
-
-```
-
-## Examples
-
-Several example pages to demonstrate the functionality of this theme when used alongside other Sphinx extensions.
-
-```{toctree}
-:maxdepth: 2
-
-tutorial/index
-```
-
-```{toctree}
-:hidden:
-
-Changelog <https://github.com/pydata/pydata-sphinx-theme/releases>
 ```

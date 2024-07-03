@@ -4,7 +4,8 @@
         "subdirs": [
             "Scan049_1",
             "energycal_2019_01_08"
-        ]
+        ],
+        "data_path": "/Users/zain/Documents/Work/sed_fresh_copy/sed/tutorial/datasets/WSe2"
     },
     "Gd_W110": {
         "url": "https://zenodo.org/records/10658470/files/single_event_data.zip",

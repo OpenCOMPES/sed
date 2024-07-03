@@ -1,0 +1,124 @@
+core:
+  # The loader to use. The generic loader allows for loading various files types directly using dask.
+  loader: generic
+
+dataframe:
+  # dataframe column containing x coordinates
+  x_column: "X"
+  # dataframe column containing y coordinates
+  y_column: "Y"
+  # dataframe column containing time-of-flight data
+  tof_column: "t"
+  # dataframe column containing time-of-flight data in nanoseconds
+  tof_ns_column: "t_ns"
+  # dataframe column containing analog-to-digital data
+  adc_column: "ADC"
+  # dataframe column containing bias voltage data
+  bias_column: "sampleBias"
+  # dataframe column containing corrected x coordinates
+  corrected_x_column: "Xm"
+  # dataframe column containing corrected y coordinates
+  corrected_y_column: "Ym"
+  # dataframe column containing corrected time-of-flight data
+  corrected_tof_column: "tm"
+  # dataframe column containing kx coordinates
+  kx_column: "kx"
+  # dataframe column containing ky coordinates
+  ky_column: "ky"
+  # dataframe column containing energy data
+  energy_column: "energy"
+  # dataframe column containing delay data
+  delay_column: "delay"
+  # time length of a base time-of-flight bin in s
+  tof_binwidth: 4.125e-12
+  # Binning factor of the tof_column-data compared to tof_binwidth (2^(tof_binning-1))
+  tof_binning: 1
+  # binning factor used for the adc coordinate (2^(adc_binning-1))
+  adc_binning: 1
+  # list of columns to apply jitter to.
+  jitter_cols: ["@x_column", "@y_column", "@tof_column"]
+  # Jitter amplitude or list of jitter amplitudes. Should equal half the digitial step size of each jitter_column
+  jitter_amps: 0.5
+  # Time stepping in seconds of the succesive events in the timed dataframe
+  timed_dataframe_unit_time: 0.001
+
+energy:
+  # Number of bins to use for energy calibration traces
+  bins: 1000
+  # Bin ranges to use for energy calibration curves (for tof_binning=0)
+  ranges: [100000, 150000]
+  # Option to normalize energy calibration traces
+  normalize: True
+  # Pixel range for smoothing
+  normalize_span: 7
+  # Spline order for smoothing
+  normalize_order: 1
+  # Radius parameter for fastdtw algorithm to find path correspondence
+  fastdtw_radius: 2
+  # Window around a peak to make sure that no other peaks are present
+  peak_window: 7
+  # Mehtod to use for energy calibration
+  calibration_method: "lmfit"
+  # Energy scale to use for energy calibration
+  energy_scale: "kinetic"
+  # Approximate position of the high-energy-cutoff in tof_column bins,
+  # used for displaying a graph to choose the energy correction function parameters.
+  tof_fermi: 132250
+  # TOF range to visualize for the correction tool around tof_fermi
+  tof_width: [-600, 1000]
+  # x-intergration range for the correction tool around the center pixel
+  x_width: [-20, 20]
+  # y-intergration range for the correction tool around the center pixel
+  y_width: [-20, 20]
+  # High intensity cutoff for the visulaization tool
+  color_clip: 300
+
+
+momentum:
+  # binning axes to use for momentum correction/calibration.
+  # Axes names starting with "@" refer to keys in the "dataframe" section
+  axes: ["@x_column", "@y_column", "@tof_column"]
+  # Bin numbers used for the respective axes
+  bins: [512, 512, 300]
+  # bin ranges to use (in unbinned detector coordinates)
+  ranges: [[-256, 1792], [-256, 1792], [132000, 138000]]
+  # The x/y pixel ranges of the detector
+  detector_ranges: [[0, 2048], [0, 2048]]
+  # The center pixel of the detector in the binned x/y coordinates
+  center_pixel: [256, 256]
+  # Sigma parameter for feature selection (intensity above background)
+  sigma: 5
+  # FWHM parameter for feature selection (width of features to extract)
+  fwhm: 8
+  # Sigma_radius parameter for feature selection (variation of radius size)
+  sigma_radius: 1
+
+delay:
+  # value ranges of the analog-to-digital converter axes used for encoding the delay stage position
+  # (in unbinned coordinates)
+  adc_range: [1900, 25600]
+  # pump probe time overlap in ps
+  time0: 0
+  # if to flip the time axis
+  flip_time_axis: False
+
+binning:
+  # Histogram computation mode to use.
+  hist_mode: "numba"
+  # Mode for hostogram recombination to use
+  mode: fast
+  # Whether to display a progress bar
+  pbar: True
+  # Number of multithreading threads per worker thread
+  threads_per_worker: 4
+  # API for numpy multithreading
+  threadpool_API: "blas"
+
+histogram:
+  # number of bins used for histogram visualization
+  bins: [80, 80, 80]
+  # default axes to use for histgram visualization.
+  # Axes names starting with "@" refer to keys in the "dataframe" section
+  axes: ["@x_column", "@y_column", "@tof_column"]
+  # default ranges to use for histogram visualization (in unbinned detector coordinates)
+  ranges: [[0, 1800], [0, 1800], [0, 150000]]
