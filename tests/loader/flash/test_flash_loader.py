@@ -125,10 +125,11 @@ def test_save_read_parquet_flash(config: dict) -> None:
     assert new_files != final_files, "Files were not overwritten after the third call."
 
     # remove the parquet files
-    [data_parquet_dir.joinpath(file).unlink() for file in new_files]
+    for file in new_files:
+        data_parquet_dir.joinpath(file).unlink()
 
 
-def test_get_elapsed_time_fid(config: dict):
+def test_get_elapsed_time_fid(config: dict) -> None:
     """Test get_elapsed_time method of FlashLoader class"""
     # Create an instance of FlashLoader
     fl = FlashLoader(config=config)
@@ -172,7 +173,7 @@ def test_get_elapsed_time_fid(config: dict):
     assert "Timestamp metadata missing in file 0" in str(e.value)
 
 
-def test_get_elapsed_time_run(config: dict):
+def test_get_elapsed_time_run(config: dict) -> None:
     """Test get_elapsed_time method of FlashLoader class"""
     config_ = config.copy()
     data_parquet_dir = create_parquet_dir(config_, "get_elapsed_time_run")
@@ -201,7 +202,7 @@ def test_get_elapsed_time_run(config: dict):
         Path(fl.parquet_dir, "buffer").joinpath(file).unlink()
 
 
-def test_available_runs(monkeypatch: pytest.MonkeyPatch, config: dict):
+def test_available_runs(monkeypatch: pytest.MonkeyPatch, config: dict) -> None:
     """Test available_runs property of FlashLoader class"""
     # Create an instance of FlashLoader
     fl = FlashLoader(config=config)
