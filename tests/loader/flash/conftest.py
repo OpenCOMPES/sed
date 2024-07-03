@@ -23,7 +23,7 @@ def fixture_config_file():
     Returns:
         dict: The parsed configuration file.
     """
-    return parse_config(config_path)
+    return parse_config(config_path, folder_config={}, user_config={}, system_config={})
 
 
 @pytest.fixture(name="config_dataframe")
@@ -33,7 +33,9 @@ def fixture_config_file_dataframe():
     Returns:
         dict: The parsed configuration file.
     """
-    return parse_config(config_path)["dataframe"]
+    return parse_config(config_path, folder_config={}, user_config={}, system_config={})[
+        "dataframe"
+    ]
 
 
 @pytest.fixture(name="h5_file")

@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import os
-from importlib.util import find_spec
 from pathlib import Path
 from typing import Literal
 
@@ -10,10 +9,6 @@ import pytest
 
 from .test_buffer_handler import create_parquet_dir
 from sed.loader.flash.loader import FlashLoader
-
-package_dir = os.path.dirname(find_spec("sed").origin)
-config_path = os.path.join(package_dir, "../tests/data/loader/flash/config.yaml")
-H5_PATH = "FLASH1_USER3_stream_2_run43878_file1_20230130T153807.1.h5"
 
 
 @pytest.mark.parametrize(
@@ -79,7 +74,7 @@ def test_initialize_dirs_filenotfound(config: dict) -> None:
         fl._initialize_dirs()
 
 
-def test_save_read_parquet_flash(config):
+def test_save_read_parquet_flash(config: dict) -> None:
     """
     Test the functionality of saving and reading parquet files with FlashLoader.
 
@@ -133,7 +128,7 @@ def test_save_read_parquet_flash(config):
     [data_parquet_dir.joinpath(file).unlink() for file in new_files]
 
 
-def test_get_elapsed_time_fid(config):
+def test_get_elapsed_time_fid(config: dict):
     """Test get_elapsed_time method of FlashLoader class"""
     # Create an instance of FlashLoader
     fl = FlashLoader(config=config)
@@ -177,13 +172,11 @@ def test_get_elapsed_time_fid(config):
     assert "Timestamp metadata missing in file 0" in str(e.value)
 
 
-def test_get_elapsed_time_run(config):
-    config_ = config.copy()
-    config_["core"]["paths"] = {
-        "data_raw_dir": "tests/data/loader/flash/",
-        "data_parquet_dir": "tests/data/loader/flash/parquet/get_elapsed_time_run",
-    }
+def test_get_elapsed_time_run(config: dict):
     """Test get_elapsed_time method of FlashLoader class"""
+    config_ = config.copy()
+    data_parquet_dir = create_parquet_dir(config_, "get_elapsed_time_run")
+    config_["core"]["paths"]["data_parquet_dir"] = data_parquet_dir
     # Create an instance of FlashLoader
     fl = FlashLoader(config=config_)
 
@@ -203,8 +196,12 @@ def test_get_elapsed_time_run(config):
     start, end = fl.metadata["file_statistics"]["1"]["time_stamps"]
     assert elapsed_time == expected_elapsed_time_0 + expected_elapsed_time_1
 
+    # remove the parquet files
+    for file in os.listdir(Path(fl.parquet_dir, "buffer")):
+        Path(fl.parquet_dir, "buffer").joinpath(file).unlink()
 
-def test_available_runs(monkeypatch, config):
+
+def test_available_runs(monkeypatch: pytest.MonkeyPatch, config: dict):
     """Test available_runs property of FlashLoader class"""
     # Create an instance of FlashLoader
     fl = FlashLoader(config=config)
