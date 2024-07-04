@@ -27,7 +27,7 @@ def _get_project_meta():
 
 pkg_meta = _get_project_meta()
 project = str(pkg_meta["name"])
-copyright = "2022, OpenCOMPES team"
+copyright = "2024, OpenCOMPES team"
 author = "OpenCOMPES team"
 
 # The short X.Y version

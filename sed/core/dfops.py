@@ -30,7 +30,7 @@ def apply_jitter(
             with added jitter. Defaults to None.
         amps (Union[float, Sequence[float]], optional): Amplitude scalings for the
             jittering noise. If one number is given, the same is used for all axes.
-            For normal noise, the added noise will have sdev [-amp, +amp], for
+            For normal noise, the added noise will have stdev [-amp, +amp], for
             uniform noise it will cover the interval [-amp, +amp].
             Defaults to 0.5.
         jitter_type (str, optional): the type of jitter to add. 'uniform' or 'normal'
@@ -204,7 +204,7 @@ def forward_fill_lazy(
 
     Allows forward filling between partitions. This is useful for dataframes
     that have sparse data, such as those with many NaNs.
-    Runnin the forward filling multiple times can fix the issue of having
+    Running the forward filling multiple times can fix the issue of having
     entire partitions consisting of NaNs. By default we run this twice, which
     is enough to fix the issue for dataframes with no consecutive partitions of NaNs.
 
@@ -331,11 +331,12 @@ def offset_by_other_columns(
         df (dask.dataframe.DataFrame): Dataframe to use. Currently supports only dask dataframes.
         target_column (str): Name of the column to apply the offset to.
         offset_columns (str): Name of the column(s) to use for the offset.
-        weights (flot): weights to apply on each column before adding. Used also for changing sign.
-        reductions (str, optional): Reduction function to use for the offset. Defaults to "mean".
-            Currently, only mean is supported.
-        preserve_mean (bool, optional): Whether to subtract the mean of the offset column.
-            Defaults to False. If a list is given, it must have the same length as
+        weights (Union[float, Sequence[float]]): weights to apply on each column before adding.
+            Used also for changing sign.
+        reductions (Union[str, Sequence[str]], optional): Reduction function to use for the offset.
+            Defaults to "mean". Currently, only mean is supported.
+        preserve_mean (Union[bool, Sequence[bool]], optional): Whether to subtract the mean of the
+            offset column. Defaults to False. If a list is given, it must have the same length as
             offset_columns. Otherwise the value passed is used for all columns.
         inplace (bool, optional): Whether to apply the offset inplace.
             If false, the new column will have the name provided by rename, or has the same name as

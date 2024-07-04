@@ -48,7 +48,7 @@ def recursive_write_metadata(h5group: h5py.Group, node: dict):
                 print(f"Saved {key} as string.")
             except BaseException as exc:
                 raise ValueError(
-                    f"Unknown error occured, cannot save {item} of type {type(item)}.",
+                    f"Unknown error occurred, cannot save {item} of type {type(item)}.",
                 ) from exc
 
 
@@ -141,7 +141,7 @@ def load_h5(faddr: str, mode: str = "r") -> xr.DataArray:
         ValueError: Raised if data or axes are not found in the file.
 
     Returns:
-        xr.DataArray: output xarra data
+        xr.DataArray: output xarray data
     """
     with h5py.File(faddr, mode) as h5_file:
         # Reading data array

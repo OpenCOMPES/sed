@@ -353,7 +353,7 @@
   },
   "/ENTRY[entry]/PROCESS[process]/REGISTRATION[registration]": {
     "depends_on": "@attrs:metadata/momentum_correction/registration/depends_on",
-    "TRANSFORMATIONS[tranformations]": {
+    "TRANSFORMATIONS[transformations]": {
       "AXISNAME[trans_x]": "@attrs:metadata/momentum_correction/registration/trans_x/value",
       "AXISNAME[trans_x]/@transformation_type": "@attrs:metadata/momentum_correction/registration/trans_x/type",
       "AXISNAME[trans_x]/@units": "@attrs:metadata/momentum_correction/registration/trans_x/units",

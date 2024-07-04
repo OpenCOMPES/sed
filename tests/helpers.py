@@ -18,7 +18,7 @@ def simulate_binned_data(shape: tuple, dims: list) -> xr.DataArray:
     """
     assert len(dims) == len(
         shape,
-    ), "number of dimesions and data shape must coincide"
+    ), "number of dimensions and data shape must coincide"
 
     return xr.DataArray(
         data=np.random.rand(*shape),

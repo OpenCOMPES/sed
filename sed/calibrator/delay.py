@@ -103,7 +103,7 @@ class DelayCalibrator:
 
         Returns:
             Union[pd.DataFrame, dask.dataframe.DataFrame]: dataframe with added column
-            and delay calibration metdata dictionary.
+            and delay calibration metadata dictionary.
         """
         # pylint: disable=duplicate-code
         if calibration is None:
@@ -407,7 +407,7 @@ def mm_to_ps(
     delay_mm: Union[float, np.ndarray],
     time0_mm: float,
 ) -> Union[float, np.ndarray]:
-    """Converts a delaystage position in mm into a relative delay in picoseconds
+    """Converts a delay stage position in mm into a relative delay in picoseconds
     (double pass).
 
     Args:
