@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-from itertools import compress
 from pathlib import Path
 
 import dask.dataframe as dd
@@ -12,9 +11,72 @@ from joblib import Parallel
 from sed.core.dfops import forward_fill_lazy
 from sed.loader.flash.dataframe import DataFrameCreator
 from sed.loader.flash.utils import get_channels
-from sed.loader.flash.utils import initialize_paths
 from sed.loader.utils import get_parquet_metadata
 from sed.loader.utils import split_dld_time_from_sector_id
+
+
+class FilePaths:
+    """
+    A class for handling the paths to the raw and buffer files of electron and timed dataframes.
+    A list of file sets (dict) are created for each H5 file containing the paths to the raw file
+    and the electron and timed buffer files.
+    """
+
+    SUBDIRECTORIES = ["electron", "timed"]
+
+    def __init__(self, h5_paths: list[Path], processed_folder: Path, suffix: str) -> None:
+        suffix = f"_{suffix}" if suffix else ""
+        buffer_folder = processed_folder / "buffer"
+
+        # Create subdirectories if they do not exist
+        for subfolder in self.SUBDIRECTORIES:
+            (buffer_folder / subfolder).mkdir(parents=True, exist_ok=True)
+
+        # a list of file sets containing the paths to the raw, electron and timed buffer files
+        self._file_paths = [
+            {
+                "raw": h5_path,
+                **{
+                    subfolder: buffer_folder / subfolder / f"{h5_path.stem}{suffix}"
+                    for subfolder in self.SUBDIRECTORIES
+                },
+            }
+            for h5_path in h5_paths
+        ]
+
+    def __getitem__(self, key) -> list[Path] | dict[str, Path]:
+        if isinstance(key, str):
+            return [file_set[key] for file_set in self._file_paths]
+        return self._file_paths[key]
+
+    def __iter__(self):
+        return iter(self._file_paths)
+
+    def __len__(self):
+        return len(self._file_paths)
+
+    @property
+    def raw(self):
+        return self["raw"]
+
+    @property
+    def electron(self):
+        return self["electron"]
+
+    @property
+    def timed(self):
+        return self["timed"]
+
+    def to_process(self, force_recreate: bool = False) -> list[dict[str, Path]]:
+        """Returns a list of file sets that need to be processed."""
+        if not force_recreate:
+            return [
+                file_set
+                for file_set in self
+                if any(not file_set[key].exists() for key in self.SUBDIRECTORIES)
+            ]
+        else:
+            return list(self)
 
 
 class BufferHandler:
@@ -32,13 +94,9 @@ class BufferHandler:
         Args:
             config (dict): The configuration dictionary.
         """
-        self._config = config["dataframe"]
-        self.n_cores = config["core"].get("num_cores", os.cpu_count() - 1)
-
-        self.buffer_paths: list[Path] = []
-        self.missing_h5_files: list[Path] = []
-        self.save_paths: list[Path] = []
-
+        self._config: dict = config["dataframe"]
+        self.n_cores: int = config["core"].get("num_cores", os.cpu_count() - 1)
+        self.file_paths: FilePaths = None
         self.df_electron: dd.DataFrame = None
         self.df_pulse: dd.DataFrame = None
         self.metadata: dict = {}
@@ -50,13 +108,14 @@ class BufferHandler:
         Raises:
             ValueError: If the schema of the Parquet files does not match the configuration.
         """
-        existing_parquet_filenames = [file for file in self.buffer_paths if file.exists()]
-        parquet_schemas = [pq.read_schema(file) for file in existing_parquet_filenames]
+        buffer_filenames = self.file_paths.electron + self.file_paths.timed
+        existing = [file for file in buffer_filenames if file.exists()]
+        parquet_schemas = [pq.read_schema(file) for file in existing]
         config_schema_set = set(
             get_channels(self._config["channels"], formats="all", index=True, extend_aux=True),
         )
 
-        for filename, schema in zip(existing_parquet_filenames, parquet_schemas):
+        for filename, schema in zip(existing, parquet_schemas):
             # for retro compatibility when sectorID was also saved in buffer
             if self._config["sector_id_column"] in schema.names:
                 config_schema_set.add(
@@ -79,153 +138,78 @@ class BufferHandler:
                     "Please check the configuration file or set force_recreate to True.",
                 )
 
-    def _get_files_to_read(
-        self,
-        h5_paths: list[Path],
-        folder: Path,
-        prefix: str,
-        suffix: str,
-        force_recreate: bool,
-    ) -> None:
+    def _save_buffer_file(self, paths: dict[str, Path]) -> None:
         """
-        Determines the list of files to read and the corresponding buffer files to create.
+        Creates the electron and timed buffer files from the raw H5 file.
+        First the dataframe is accessed and forward filled in the non-electron channels.
+        Then the data types are set. For the electron dataframe, all values not in the electron
+        channels are dropped. For the timed dataframe, only the train and pulse channels are taken
+        and it pulse resolved (no longer electron resolved). Both are saved as parquet files.
 
         Args:
-            h5_paths (List[Path]): List of paths to H5 files.
-            folder (Path): Path to the folder for buffer files.
-            prefix (str): Prefix for buffer file names.
-            suffix (str): Suffix for buffer file names.
-            force_recreate (bool): Flag to force recreation of buffer files.
-        """
-        # Getting the paths of the buffer files, with subfolder as buffer and no extension
-        self.buffer_paths = initialize_paths(
-            filenames=[h5_path.stem for h5_path in h5_paths],
-            folder=folder,
-            subfolder="buffer",
-            prefix=prefix,
-            suffix=suffix,
-            extension="",
-        )
-        # read only the files that do not exist or if force_recreate is True
-        files_to_read = [
-            force_recreate or not parquet_path.exists() for parquet_path in self.buffer_paths
-        ]
-
-        # Get the list of H5 files to read and the corresponding buffer files to create
-        self.missing_h5_files = list(compress(h5_paths, files_to_read))
-        self.save_paths = list(compress(self.buffer_paths, files_to_read))
-
-        print(f"Reading files: {len(self.missing_h5_files)} new files of {len(h5_paths)} total.")
-
-    def _save_buffer_file(self, h5_path: Path, parquet_path: Path) -> None:
-        """
-        Creates a single buffer file.
-
-        Args:
-            h5_path (Path): Path to the H5 file.
-            parquet_path (Path): Path to the buffer file.
+            paths (dict[str, Path]): Dictionary containing the paths to the H5 and buffer files.
         """
 
         # Create a DataFrameCreator instance and the h5 file
-        df = DataFrameCreator(config_dataframe=self._config, h5_path=h5_path).df
+        df = DataFrameCreator(config_dataframe=self._config, h5_path=paths["raw"]).df
+
+        config_channels = self._config["channels"]
+
+        fill_channels: list[str] = get_channels(
+            config_channels,
+            ["per_pulse", "per_train"],
+            extend_aux=True,
+        )
+        # forward fill all the non-electron channels
+        df[fill_channels] = df[fill_channels].ffill()
 
         # Reset the index of the DataFrame and save it as a parquet file
-        df.reset_index().to_parquet(parquet_path)
+        # Set the dtypes
+        channel_dtypes = get_channels(config_channels, "all")
+        dtypes = {
+            channel: config_channels[channel].get("dtype")
+            for channel in channel_dtypes
+            if config_channels[channel].get("dtype") is not None
+        }
 
-    def get_dataframe(self, h5_path) -> tuple[dd.DataFrame, dd.DataFrame]:
-        """
-        Returns the electron and pulse dataframes.
-
-        Args:
-            h5_paths (List[Path]): List of paths to H5 files.
-            folder (Path): Path to the folder for buffer files.
-
-        Returns:
-            Tuple[dd.DataFrame, dd.DataFrame]: The electron and pulse dataframes.
-        """
-        df = DataFrameCreator(config_dataframe=self._config, h5_path=h5_path).df
-        fill_channels: list[str] = get_channels(
-            self._config["channels"],
-            ["per_pulse", "per_train"],
-            extend_aux=True,
-        )
-        df[fill_channels] = df[fill_channels].ffill()
-        df_electron = df.dropna(
+        # electron resolved dataframe
+        df.dropna(
             subset=get_channels(self._config["channels"], "per_electron"),
-        ).reset_index()
-        df_pulse = df[fill_channels].loc[:, :, 0].reset_index()
+        ).reset_index().astype(dtypes).to_parquet(paths["electron"])
 
-        return df_electron, df_pulse
+        # timed resolved dataframe
+        df[fill_channels].loc[:, :, 0].reset_index().astype(dtypes).to_parquet(paths["timed"])
 
-    def get_dataframes(self, h5_paths):
+    def _save_buffer_files(self, force_recreate: bool, debug: bool) -> None:
         """
-        Returns the electron and pulse dataframes.
+        Creates the buffer files that are missing.
 
         Args:
-            h5_paths (List[Path]): List of paths to H5 files.
-            folder (Path): Path to the folder for buffer files.
-
-        Returns:
-            Tuple[dd.DataFrame, dd.DataFrame]: The electron and pulse dataframes.
-        """
-        n_cores = min(len(h5_paths), self.n_cores)
-
-        # Helper function to process each h5_path
-        def process_path(h5_path):
-            df_electron, df_pulse = self.get_dataframe(h5_path)
-            length = len(df_electron)
-            df_electron = dd.from_pandas(df_electron, npartitions=1)
-            df_pulse = dd.from_pandas(df_pulse, npartitions=1)
-            return df_electron, df_pulse, length
-
-        # Parallelize the loop with joblib
-        results = Parallel(n_jobs=n_cores, verbose=10)(
-            delayed(process_path)(h5_path) for h5_path in h5_paths
-        )
-
-        # Unpack results
-        df_electrons, df_pulses, lengths = zip(*results)
-
-        df_electron = dd.concat(list(df_electrons))
-        fill_channels: list[str] = get_channels(
-            self._config["channels"],
-            ["per_pulse", "per_train"],
-            extend_aux=True,
-        )
-        self.df_electron = forward_fill_lazy(
-            df=df_electron,
-            columns=fill_channels,
-            before=min(lengths),
-            iterations=1,
-        )
-        self.df_pulse = dd.concat(list(df_pulses))
-
-    def _save_buffer_files(self, debug: bool) -> None:
-        """
-        Creates the buffer files.
-
-        Args:
+            force_recreate (bool): Flag to force recreation of buffer files.
             debug (bool): Flag to enable debug mode, which serializes the creation.
         """
-        n_cores = min(len(self.missing_h5_files), self.n_cores)
-        paths = zip(self.missing_h5_files, self.save_paths)
+        to_process = self.file_paths.to_process(force_recreate)
+        print(f"Reading files: {len(to_process)} new files of {len(self.file_paths)} total.")
+        n_cores = min(len(to_process), self.n_cores)
         if n_cores > 0:
             if debug:
-                for h5_path, parquet_path in paths:
-                    self._save_buffer_file(h5_path, parquet_path)
+                for file_set in to_process:
+                    self._save_buffer_file(file_set)
             else:
                 Parallel(n_jobs=n_cores, verbose=10)(
-                    delayed(self._save_buffer_file)(h5_path, parquet_path)
-                    for h5_path, parquet_path in paths
+                    delayed(self._save_buffer_file)(file_set) for file_set in to_process
                 )
 
     def _fill_dataframes(self):
         """
         Reads all parquet files into one dataframe using dask and fills NaN values.
         """
-        dataframe = dd.read_parquet(self.buffer_paths, calculate_divisions=True)
+
+        df_electron = dd.read_parquet(self.file_paths.electron, calculate_divisions=True)
+        df_pulse = dd.read_parquet(self.file_paths.timed, calculate_divisions=True)
+
         file_metadata = get_parquet_metadata(
-            self.buffer_paths,
+            self.file_paths.electron,
             time_stamp_col=self._config.get("time_stamp_alias", "timeStamp"),
         )
         self.metadata["file_statistics"] = file_metadata
@@ -235,32 +219,28 @@ class BufferHandler:
             ["per_pulse", "per_train"],
             extend_aux=True,
         )
-        index: list[str] = get_channels(index=True)
         overlap = min(file["num_rows"] for file in file_metadata.values())
 
-        dataframe = forward_fill_lazy(
-            df=dataframe,
+        df_electron = forward_fill_lazy(
+            df=df_electron,
             columns=fill_channels,
             before=overlap,
             iterations=self._config.get("forward_fill_iterations", 2),
         )
+
         self.metadata["forward_fill"] = {
             "columns": fill_channels,
             "overlap": overlap,
             "iterations": self._config.get("forward_fill_iterations", 2),
         }
 
-        # Set the dtypes of the channels here as there should be no null values
-        channel_dtypes = get_channels(self._config["channels"], "all")
-        config_channels = self._config["channels"]
-        dtypes = {
-            channel: config_channels[channel].get("dtype")
-            for channel in channel_dtypes
-            if config_channels[channel].get("dtype") is not None
-        }
-        df_electron = dataframe.dropna(
-            subset=get_channels(self._config["channels"], "per_electron"),
+        df_pulse = forward_fill_lazy(
+            df=df_pulse,
+            columns=fill_channels,
+            before=overlap,
+            iterations=self._config.get("forward_fill_iterations", 2),
         )
+
         # Correct the 3-bit shift which encodes the detector ID in the 8s time
         if self._config.get("split_sector_id_from_dld_time", False):
             df_electron, meta = split_dld_time_from_sector_id(
@@ -269,16 +249,14 @@ class BufferHandler:
             )
             self.metadata.update(meta)
 
-        self.df_electron = df_electron.astype(dtypes)
-        df_pulse = dataframe[index + fill_channels]
-        self.df_pulse = df_pulse[df_pulse["electronId"] == 0]
+        self.df_electron = df_electron
+        self.df_pulse = df_pulse
 
     def run(
         self,
         h5_paths: list[Path],
         folder: Path,
         force_recreate: bool = False,
-        prefix: str = "",
         suffix: str = "",
         debug: bool = False,
     ) -> None:
@@ -287,18 +265,17 @@ class BufferHandler:
 
         Args:
             h5_paths (List[Path]): List of paths to H5 files.
-            folder (Path): Path to the folder for buffer files.
+            folder (Path): Path to the folder for processed files.
             force_recreate (bool): Flag to force recreation of buffer files.
-            prefix (str): Prefix for buffer file names.
             suffix (str): Suffix for buffer file names.
             debug (bool): Flag to enable debug mode.):
         """
 
-        self._get_files_to_read(h5_paths, folder, prefix, suffix, force_recreate)
+        self.file_paths = FilePaths(h5_paths, folder, suffix)
 
         if not force_recreate:
             self._schema_check()
 
-        self._save_buffer_files(debug)
+        self._save_buffer_files(force_recreate, debug)
 
         self._fill_dataframes()

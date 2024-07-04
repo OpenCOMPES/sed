@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
 
 # TODO: move to config
 MULTI_INDEX = ["trainId", "pulseId", "electronId"]
@@ -81,55 +80,3 @@ def get_channels(
                     channels.extend([DLD_AUX_ALIAS])
 
     return channels
-
-
-def initialize_paths(
-    filenames: str | list[str] = None,
-    folder: Path = None,
-    subfolder: str = "",
-    prefix: str = "",
-    suffix: str = "",
-    extension: str = "parquet",
-    paths: list[Path] = None,
-) -> list[Path]:
-    """
-    Initialize the paths for files to be saved/loaded.
-
-    If custom paths are provided, they will be used. Otherwise, paths will be generated based on
-    the specified parameters during initialization.
-
-    Args:
-        filenames (str | list[str]): The name(s) of the file(s).
-        folder (Path): The folder where the files are saved.
-        subfolder (str): The subfolder where the files are saved.
-        prefix (str): The prefix for the file name.
-        suffix (str): The suffix for the file name.
-        extension (str): The extension for the file.
-        paths (list[Path]): Custom paths for the files.
-
-    Returns:
-        list[Path]: The paths for the files.
-    """
-    # if filenames is string, convert it to a list
-    if isinstance(filenames, str):
-        filenames = [filenames]
-
-    # Check if the folder and Parquet paths are provided
-    if not folder and not paths:
-        raise ValueError("Please provide folder or paths.")
-    if folder and not filenames:
-        raise ValueError("With folder, please provide filenames.")
-
-    # Otherwise create the full path for the Parquet file
-    directory = folder.joinpath(subfolder)
-    directory.mkdir(parents=True, exist_ok=True)
-
-    if extension:
-        extension = f".{extension}"  # if extension is provided, it is prepended with a dot
-    if prefix:
-        prefix = f"{prefix}_"
-    if suffix:
-        suffix = f"_{suffix}"
-    paths = [directory.joinpath(Path(f"{prefix}{name}{suffix}{extension}")) for name in filenames]
-
-    return paths
