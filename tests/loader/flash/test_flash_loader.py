@@ -39,7 +39,7 @@ def test_initialize_dirs(
     )
     # Create expected paths
     expected_raw_path = expected_path / "raw" / "hdf" / sub_dir
-    expected_processed_path = expected_path / "processed" / "parquet"
+    expected_processed_path = expected_path / "processed"
 
     # Create a fake file system for testing
     fs.create_dir(expected_raw_path)
@@ -49,7 +49,7 @@ def test_initialize_dirs(
     fl = FlashLoader(config=config_)
     fl._initialize_dirs()
     assert str(expected_raw_path) == fl.raw_dir
-    assert str(expected_processed_path) == fl.parquet_dir
+    assert str(expected_processed_path) == fl.processed_dir
 
     # remove beamtime_id, year and daq from config to raise error
     del config_["core"]["beamtime_id"]
@@ -89,7 +89,7 @@ def test_save_read_parquet_flash(config: dict) -> None:
     """
     config_ = config.copy()
     data_parquet_dir = create_parquet_dir(config_, "flash_save_read")
-    config_["core"]["paths"]["data_parquet_dir"] = data_parquet_dir
+    config_["core"]["paths"]["processed"] = data_parquet_dir
     fl = FlashLoader(config=config_)
 
     # First call: should create and read the parquet file
@@ -174,6 +174,11 @@ def test_get_elapsed_time_fid(config: dict) -> None:
 
 
 def test_get_elapsed_time_run(config: dict) -> None:
+    config_ = config.copy()
+    config_["core"]["paths"] = {
+        "raw": "tests/data/loader/flash/",
+        "processed": "tests/data/loader/flash/parquet/get_elapsed_time_run",
+    }
     """Test get_elapsed_time method of FlashLoader class"""
     config_ = config.copy()
     data_parquet_dir = create_parquet_dir(config_, "get_elapsed_time_run")

@@ -17,7 +17,7 @@ def create_parquet_dir(config: dict, folder: str) -> Path:
     and folder name.
     """
 
-    parquet_path = Path(config["core"]["paths"]["data_parquet_dir"])
+    parquet_path = Path(config["core"]["paths"]["processed"])
     parquet_path = parquet_path.joinpath(folder)
     parquet_path.mkdir(parents=True, exist_ok=True)
     return parquet_path
