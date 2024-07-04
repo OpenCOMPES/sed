@@ -264,10 +264,10 @@ class FlashLoader(BaseLoader):
         ftype: str = "h5",
         metadata: dict = {},
         collect_metadata: bool = False,
-        detector: str = "",
-        force_recreate: bool = False,
+        # detector: str = "",
+        # force_recreate: bool = False,
         parquet_dir: str | Path = None,
-        debug: bool = False,
+        # debug: bool = False,
         **kwds,
     ) -> tuple[dd.DataFrame, dd.DataFrame, dict]:
         """
@@ -329,13 +329,14 @@ class FlashLoader(BaseLoader):
         # Obtain the parquet filenames, metadata, and schema from the method
         # which handles buffer file creation/reading
         h5_paths = [Path(file) for file in self.files]
-        bh.run(
-            h5_paths=h5_paths,
-            folder=parquet_dir,
-            force_recreate=force_recreate,
-            suffix=detector,
-            debug=debug,
-        )
+        # bh.run(
+        #     h5_paths=h5_paths,
+        #     folder=parquet_dir,
+        #     force_recreate=force_recreate,
+        #     suffix=detector,
+        #     debug=debug,
+        # )
+        bh.get_dataframes(h5_paths)
         df = bh.df_electron
         df_timed = bh.df_pulse
 

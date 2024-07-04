@@ -132,7 +132,7 @@ class BufferHandler:
         # Reset the index of the DataFrame and save it as a parquet file
         df.reset_index().to_parquet(parquet_path)
 
-    def get_dataframes(self, h5_path) -> tuple[dd.DataFrame, dd.DataFrame]:
+    def get_dataframe(self, h5_path) -> tuple[dd.DataFrame, dd.DataFrame]:
         """
         Returns the electron and pulse dataframes.
 
@@ -156,6 +156,49 @@ class BufferHandler:
         df_pulse = df[fill_channels].loc[:, :, 0].reset_index()
 
         return df_electron, df_pulse
+
+    def get_dataframes(self, h5_paths):
+        """
+        Returns the electron and pulse dataframes.
+
+        Args:
+            h5_paths (List[Path]): List of paths to H5 files.
+            folder (Path): Path to the folder for buffer files.
+
+        Returns:
+            Tuple[dd.DataFrame, dd.DataFrame]: The electron and pulse dataframes.
+        """
+        n_cores = min(len(h5_paths), self.n_cores)
+
+        # Helper function to process each h5_path
+        def process_path(h5_path):
+            df_electron, df_pulse = self.get_dataframe(h5_path)
+            length = len(df_electron)
+            df_electron = dd.from_pandas(df_electron, npartitions=1)
+            df_pulse = dd.from_pandas(df_pulse, npartitions=1)
+            return df_electron, df_pulse, length
+
+        # Parallelize the loop with joblib
+        results = Parallel(n_jobs=n_cores, verbose=10)(
+            delayed(process_path)(h5_path) for h5_path in h5_paths
+        )
+
+        # Unpack results
+        df_electrons, df_pulses, lengths = zip(*results)
+
+        df_electron = dd.concat(list(df_electrons))
+        fill_channels: list[str] = get_channels(
+            self._config["channels"],
+            ["per_pulse", "per_train"],
+            extend_aux=True,
+        )
+        self.df_electron = forward_fill_lazy(
+            df=df_electron,
+            columns=fill_channels,
+            before=min(lengths),
+            iterations=1,
+        )
+        self.df_pulse = dd.concat(list(df_pulses))
 
     def _save_buffer_files(self, debug: bool) -> None:
         """
