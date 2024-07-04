@@ -129,11 +129,6 @@ class BufferHandler:
         # Create a DataFrameCreator instance and the h5 file
         df = DataFrameCreator(config_dataframe=self._config, h5_path=h5_path).df
 
-        # Drop rows with nan values in electron channels
-        df = df.dropna(
-            subset=get_channels(self._config["channels"], "per_electron"),
-        )
-
         # Reset the index of the DataFrame and save it as a parquet file
         df.reset_index().to_parquet(parquet_path)
 
@@ -220,11 +215,13 @@ class BufferHandler:
             for channel in channel_dtypes
             if config_channels[channel].get("dtype") is not None
         }
-
+        df_electron = dataframe.dropna(
+            subset=get_channels(self._config["channels"], "per_electron"),
+        )
         # Correct the 3-bit shift which encodes the detector ID in the 8s time
         if self._config.get("split_sector_id_from_dld_time", False):
             df_electron, meta = split_dld_time_from_sector_id(
-                dataframe,
+                df_electron,
                 config=self._config,
             )
             self.metadata.update(meta)
