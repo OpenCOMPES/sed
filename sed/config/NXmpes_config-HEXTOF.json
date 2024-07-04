@@ -121,6 +121,10 @@
     "detector_voltage": 2250.0,
     "detector_voltage/@units": "V"
   },
+  "/ENTRY[entry]/INSTRUMENT[instrument]/MONOCHROMATOR[monochromator]": {
+    "energy_dispersion": "@attrs:metadata/scientificMetadata/Source/dispersion/value",
+    "energy_dispersion/@units": "@attrs:metadata/scientificMetadata/Source/dispersion/unit"
+  },
   "/ENTRY[entry]/INSTRUMENT[instrument]/sourceTYPE[source_probe]": {
     "name": "@attrs:metadata/scientificMetadata/Source/name",
     "probe": "@attrs:metadata/scientificMetadata/Source/probe",
