@@ -146,6 +146,19 @@ def test_additional_parameter_to_loader() -> None:
     )
     assert processor.files[0].find("json") > -1
 
+    # check that illegal keywords raise:
+    with pytest.raises(TypeError):
+        processor = SedProcessor(
+            folder=df_folder_generic,
+            ftype="json",
+            config=config,
+            folder_config={},
+            user_config={},
+            system_config={},
+            verbose=True,
+            illegal_keyword=True,
+        )
+
 
 def test_repr() -> None:
     """test the ___repr___ method"""
@@ -165,6 +178,9 @@ def test_repr() -> None:
     processor_str = str(processor)
     assert processor_str.find("ADC") > 0
     assert processor_str.find("key1") > 0
+
+    with pytest.raises(TypeError):
+        processor.load(files=files, metadata={"test": {"key1": "value1"}}, illegal_keyword=True)
 
 
 def test_attributes_setters() -> None:
@@ -227,6 +243,17 @@ def test_copy_tool() -> None:
     assert processor.use_copy_tool is True
     processor.load(files=files)
     assert processor.files[0].find(dest_folder) > -1
+
+    # test illegal keywords:
+    config["core"]["copy_tool_kwds"] = {"gid": os.getgid(), "illegal_keyword": True}
+    with pytest.raises(TypeError):
+        processor = SedProcessor(
+            config=config,
+            folder_config={},
+            user_config={},
+            system_config={},
+            verbose=True,
+        )
 
 
 feature4 = np.array([[203.2, 341.96], [299.16, 345.32], [304.38, 149.88], [199.52, 152.48]])
