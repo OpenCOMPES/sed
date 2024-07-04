@@ -17,27 +17,29 @@ H5_PATHS = [H5_PATH, "FLASH1_USER3_stream_2_run43879_file1_20230130T153807.1.h5"
 
 
 @pytest.fixture(name="config")
-def fixture_config_file():
+def fixture_config_file() -> dict:
     """Fixture providing a configuration file for FlashLoader tests.
 
     Returns:
         dict: The parsed configuration file.
     """
-    return parse_config(config_path)
+    return parse_config(config_path, folder_config={}, user_config={}, system_config={})
 
 
 @pytest.fixture(name="config_dataframe")
-def fixture_config_file_dataframe():
+def fixture_config_file_dataframe() -> dict:
     """Fixture providing a configuration file for FlashLoader tests.
 
     Returns:
         dict: The parsed configuration file.
     """
-    return parse_config(config_path)["dataframe"]
+    return parse_config(config_path, folder_config={}, user_config={}, system_config={})[
+        "dataframe"
+    ]
 
 
 @pytest.fixture(name="h5_file")
-def fixture_h5_file():
+def fixture_h5_file() -> h5py.File:
     """Fixture providing an open h5 file.
 
     Returns:
@@ -47,7 +49,7 @@ def fixture_h5_file():
 
 
 @pytest.fixture(name="h5_file_copy")
-def fixture_h5_file_copy(tmp_path):
+def fixture_h5_file_copy(tmp_path: Path) -> h5py.File:
     """Fixture providing a copy of an open h5 file.
 
     Returns:
@@ -63,7 +65,7 @@ def fixture_h5_file_copy(tmp_path):
 
 
 @pytest.fixture(name="h5_paths")
-def fixture_h5_paths():
+def fixture_h5_paths() -> list[Path]:
     """Fixture providing a list of h5 file paths.
 
     Returns:
