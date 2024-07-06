@@ -1,4 +1,6 @@
 """Tests for DataFrameCreator functionality"""
+from pathlib import Path
+
 import h5py
 import numpy as np
 import pytest
@@ -10,7 +12,7 @@ from sed.loader.flash.dataframe import DataFrameCreator
 from sed.loader.flash.utils import get_channels
 
 
-def test_get_index_dataset_key(config_dataframe, h5_paths):
+def test_get_index_dataset_key(config_dataframe: dict, h5_paths: list[Path]) -> None:
     """Test the creation of the index and dataset keys for a given channel."""
     config = config_dataframe
     channel = "dldPosX"
@@ -25,7 +27,7 @@ def test_get_index_dataset_key(config_dataframe, h5_paths):
         df.get_index_dataset_key(channel)
 
 
-def test_get_dataset_array(config_dataframe, h5_paths):
+def test_get_dataset_array(config_dataframe: dict, h5_paths: list[Path]) -> None:
     """Test the creation of a h5py dataset for a given channel."""
 
     df = DataFrameCreator(config_dataframe, h5_paths[0])
@@ -50,7 +52,11 @@ def test_get_dataset_array(config_dataframe, h5_paths):
     assert dset.shape[1] == 500
 
 
-def test_empty_get_dataset_array(config_dataframe, h5_paths, h5_file_copy):
+def test_empty_get_dataset_array(
+    config_dataframe: dict,
+    h5_paths: list[Path],
+    h5_file_copy: h5py.File,
+) -> None:
     """Test the method when given an empty dataset."""
 
     channel = "gmdTunnel"
@@ -78,7 +84,7 @@ def test_empty_get_dataset_array(config_dataframe, h5_paths, h5_file_copy):
     assert dset_empty.shape[1] == 0
 
 
-def test_pulse_index(config_dataframe, h5_paths):
+def test_pulse_index(config_dataframe: dict, h5_paths: list[Path]) -> None:
     """Test the creation of the pulse index for electron resolved data"""
 
     df = DataFrameCreator(config_dataframe, h5_paths[0])
@@ -113,7 +119,7 @@ def test_pulse_index(config_dataframe, h5_paths):
     assert index.is_monotonic_increasing
 
 
-def test_df_electron(config_dataframe, h5_paths):
+def test_df_electron(config_dataframe: dict, h5_paths: list[Path]) -> None:
     """Test the creation of a pandas DataFrame for a channel of type [per electron]."""
     df = DataFrameCreator(config_dataframe, h5_paths[0])
 
@@ -152,7 +158,7 @@ def test_df_electron(config_dataframe, h5_paths):
     )
 
 
-def test_create_dataframe_per_pulse(config_dataframe, h5_paths):
+def test_create_dataframe_per_pulse(config_dataframe: dict, h5_paths: list[Path]) -> None:
     """Test the creation of a pandas DataFrame for a channel of type [per pulse]."""
     df = DataFrameCreator(config_dataframe, h5_paths[0])
     result_df = df.df_pulse
@@ -182,7 +188,7 @@ def test_create_dataframe_per_pulse(config_dataframe, h5_paths):
     )
 
 
-def test_create_dataframe_per_train(config_dataframe, h5_paths):
+def test_create_dataframe_per_train(config_dataframe: dict, h5_paths: list[Path]) -> None:
     """Test the creation of a pandas DataFrame for a channel of type [per train]."""
     df = DataFrameCreator(config_dataframe, h5_paths[0])
     result_df = df.df_train
@@ -235,7 +241,7 @@ def test_create_dataframe_per_train(config_dataframe, h5_paths):
     assert result_df.index.is_unique
 
 
-def test_group_name_not_in_h5(config_dataframe, h5_paths):
+def test_group_name_not_in_h5(config_dataframe: dict, h5_paths: list[Path]) -> None:
     """Test ValueError when the group_name for a channel does not exist in the H5 file."""
     channel = "dldPosX"
     config = config_dataframe
@@ -246,7 +252,7 @@ def test_group_name_not_in_h5(config_dataframe, h5_paths):
         df.df_electron
 
 
-def test_create_dataframe_per_file(config_dataframe, h5_paths):
+def test_create_dataframe_per_file(config_dataframe: dict, h5_paths: list[Path]) -> None:
     """Test the creation of pandas DataFrames for a given file."""
     df = DataFrameCreator(config_dataframe, h5_paths[0])
     result_df = df.df
@@ -258,7 +264,7 @@ def test_create_dataframe_per_file(config_dataframe, h5_paths):
     assert result_df.shape[0] == len(all_keys.unique())
 
 
-def test_get_index_dataset_key_error(config_dataframe, h5_paths):
+def test_get_index_dataset_key_error(config_dataframe: dict, h5_paths: list[Path]) -> None:
     """
     Test that a ValueError is raised when the dataset_key is missing for a channel in the config.
     """

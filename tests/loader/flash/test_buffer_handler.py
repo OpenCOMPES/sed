@@ -5,12 +5,13 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
+from h5py import File
 
 from sed.loader.flash.buffer_handler import BufferHandler
 from sed.loader.flash.utils import get_channels
 
 
-def create_parquet_dir(config, folder):
+def create_parquet_dir(config: dict, folder: str) -> Path:
     """
     Creates a directory for storing Parquet files based on the provided configuration
     and folder name.
@@ -22,7 +23,7 @@ def create_parquet_dir(config, folder):
     return parquet_path
 
 
-def test_get_files_to_read(config, h5_paths):
+def test_get_files_to_read(config: dict, h5_paths: list[Path]) -> None:
     """
     Test the BufferHandler's ability to identify files that need to be read and
     manage buffer file paths.
@@ -73,7 +74,7 @@ def test_get_files_to_read(config, h5_paths):
     assert np.all(bh.save_paths == expected_buffer_paths)
 
 
-def test_buffer_schema_mismatch(config, h5_paths):
+def test_buffer_schema_mismatch(config: dict, h5_paths: list[Path]) -> None:
     """
     Test function to verify schema mismatch handling in the FlashLoader's 'read_dataframe' method.
 
@@ -130,10 +131,11 @@ def test_buffer_schema_mismatch(config, h5_paths):
     assert "Missing in config: {'gmdTunnel2'}" in expected_error
 
     # Clean up created buffer files after the test
-    [path.unlink() for path in bh.buffer_paths]
+    for path in bh.buffer_paths:
+        path.unlink()
 
 
-def test_save_buffer_files(config, h5_paths):
+def test_save_buffer_files(config: dict, h5_paths: list[Path]) -> None:
     """
     Test the BufferHandler's ability to save buffer files serially and in parallel.
 
@@ -156,11 +158,18 @@ def test_save_buffer_files(config, h5_paths):
     pd.testing.assert_frame_equal(df_serial, df_parallel)
 
     # remove buffer files
-    [path.unlink() for path in bh_serial.buffer_paths]
-    [path.unlink() for path in bh_parallel.buffer_paths]
+    for path in bh_serial.buffer_paths:
+        path.unlink()
+    for path in bh_parallel.buffer_paths:
+        path.unlink()
 
 
-def test_save_buffer_files_exception(config, h5_paths, h5_file_copy, tmp_path):
+def test_save_buffer_files_exception(
+    config: dict,
+    h5_paths: list[Path],
+    h5_file_copy: File,
+    tmp_path: Path,
+) -> None:
     """Test function to verify exception handling when running code in parallel."""
     folder_parallel = create_parquet_dir(config, "save_buffer_files_exception")
     config_ = deepcopy(config)
@@ -197,7 +206,7 @@ def test_save_buffer_files_exception(config, h5_paths, h5_file_copy, tmp_path):
         bh.run([tmp_path / "copy.h5"], folder_parallel, debug=False, force_recreate=True)
 
 
-def test_get_filled_dataframe(config, h5_paths):
+def test_get_filled_dataframe(config: dict, h5_paths: list[Path]) -> None:
     """Test function to verify the creation of a filled dataframe from the buffer files."""
     folder = create_parquet_dir(config, "get_filled_dataframe")
     bh = BufferHandler(config)
@@ -215,4 +224,5 @@ def test_get_filled_dataframe(config, h5_paths):
     )
     assert np.all(list(bh.df_pulse.columns) == channel_pulse)
     # remove buffer files
-    [path.unlink() for path in bh.buffer_paths]
+    for path in bh.buffer_paths:
+        path.unlink()
