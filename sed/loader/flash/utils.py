@@ -17,6 +17,7 @@ def get_channels(
 ) -> list[str]:
     """
     Returns a list of channels associated with the specified format(s).
+    'all' returns all channels but 'pulseId' and 'dldAux' (if not extended).
 
     Args:
         formats (str | list[str]): The desired format(s)
@@ -80,3 +81,23 @@ def get_channels(
                     channels.extend([DLD_AUX_ALIAS])
 
     return channels
+
+
+def get_dtypes(channels_dict: dict, formats: str | list[str], extend_aux: bool = False) -> dict:
+    """Returns a dictionary of channels and their corresponding data types.
+
+    Args:
+        channels_dict (dict): The dictionary containing the channels.
+        formats (str | list[str]): The desired format(s).
+        extend_aux (bool): If True, includes channels from the 'dldAuxChannels' dictionary,
+                else includes 'dldAux'.
+
+    Returns:
+        dict: A dictionary of channels and their corresponding data types.
+    """
+    channels = get_channels(channels_dict, formats, extend_aux)
+    return {
+        channel: channels_dict[channel].get("dtype")
+        for channel in channels
+        if channels_dict[channel].get("dtype") is not None
+    }
