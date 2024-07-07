@@ -628,8 +628,8 @@ def test_align_dld_sectors() -> None:
         user_config={},
         system_config={},
     )
-    config["core"]["paths"]["data_parquet_dir"] = (
-        config["core"]["paths"]["data_parquet_dir"] + "_align_dld_sectors"
+    config["core"]["paths"]["processed"] = (
+        config["core"]["paths"]["processed"] + "_align_dld_sectors"
     )
     processor = SedProcessor(
         folder=df_folder + "../flash/",
@@ -670,7 +670,7 @@ def test_align_dld_sectors() -> None:
     np.testing.assert_allclose(tof_ref_array, tof_aligned_array + sector_delays[:, np.newaxis])
 
     # cleanup flash intermediaries
-    parquet_data_dir = config["core"]["paths"]["data_parquet_dir"]
+    parquet_data_dir = config["core"]["paths"]["processed"]
     for file in os.listdir(Path(parquet_data_dir, "buffer")):
         os.remove(Path(parquet_data_dir, "buffer", file))
 
