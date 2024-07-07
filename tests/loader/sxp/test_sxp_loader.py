@@ -150,7 +150,7 @@ def test_data_keys_not_in_h5(config_file: dict, key_type: str):
     sl = SXPLoader(config=config)
 
     with pytest.raises(ValueError) as e:
-        sl.create_dataframe_per_file(config["core"]["paths"]["data_raw_dir"] + H5_PATH)
+        sl.create_dataframe_per_file(config["core"]["paths"]["raw"] + H5_PATH)
 
     assert str(e.value.args[0]) == f"The {key_type} for channel dldPosX does not exist."
 
