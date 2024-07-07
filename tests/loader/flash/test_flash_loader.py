@@ -137,9 +137,11 @@ def test_get_elapsed_time_fid(config: dict) -> None:
     # Mock the file_statistics and files
     fl.metadata = {
         "file_statistics": {
-            "0": {"time_stamps": [10, 20]},
-            "1": {"time_stamps": [20, 30]},
-            "2": {"time_stamps": [30, 40]},
+            "timed": {
+                "0": {"time_stamps": [10, 20]},
+                "1": {"time_stamps": [20, 30]},
+                "2": {"time_stamps": [30, 40]},
+            },
         },
     }
     fl.files = ["file0", "file1", "file2"]
@@ -163,8 +165,10 @@ def test_get_elapsed_time_fid(config: dict) -> None:
     # Test KeyError when time_stamps is missing
     fl.metadata = {
         "file_statistics": {
-            "0": {},
-            "1": {"time_stamps": [20, 30]},
+            "timed": {
+                "0": {},
+                "1": {"time_stamps": [20, 30]},
+            },
         },
     }
     with pytest.raises(KeyError) as e:
@@ -174,12 +178,12 @@ def test_get_elapsed_time_fid(config: dict) -> None:
 
 
 def test_get_elapsed_time_run(config: dict) -> None:
+    """Test get_elapsed_time method of FlashLoader class"""
     config_ = config.copy()
     config_["core"]["paths"] = {
         "raw": "tests/data/loader/flash/",
         "processed": "tests/data/loader/flash/parquet/get_elapsed_time_run",
     }
-    """Test get_elapsed_time method of FlashLoader class"""
     config_ = config.copy()
     data_parquet_dir = create_parquet_dir(config_, "get_elapsed_time_run")
     config_["core"]["paths"]["data_parquet_dir"] = data_parquet_dir
@@ -187,9 +191,9 @@ def test_get_elapsed_time_run(config: dict) -> None:
     fl = FlashLoader(config=config_)
 
     fl.read_dataframe(runs=[43878, 43879])
-    start, end = fl.metadata["file_statistics"]["0"]["time_stamps"]
+    start, end = fl.metadata["file_statistics"]["electron"]["0"]["time_stamps"]
     expected_elapsed_time_0 = end - start
-    start, end = fl.metadata["file_statistics"]["1"]["time_stamps"]
+    start, end = fl.metadata["file_statistics"]["electron"]["1"]["time_stamps"]
     expected_elapsed_time_1 = end - start
 
     elapsed_time = fl.get_elapsed_time(runs=[43878])
@@ -199,12 +203,12 @@ def test_get_elapsed_time_run(config: dict) -> None:
     assert elapsed_time == [expected_elapsed_time_0, expected_elapsed_time_1]
 
     elapsed_time = fl.get_elapsed_time(runs=[43878, 43879])
-    start, end = fl.metadata["file_statistics"]["1"]["time_stamps"]
+    start, end = fl.metadata["file_statistics"]["electron"]["1"]["time_stamps"]
     assert elapsed_time == expected_elapsed_time_0 + expected_elapsed_time_1
 
     # remove the parquet files
-    for file in os.listdir(Path(fl.parquet_dir, "buffer")):
-        Path(fl.parquet_dir, "buffer").joinpath(file).unlink()
+    for file in os.listdir(Path(fl.processed_dir, "buffer")):
+        Path(fl.processed_dir, "buffer").joinpath(file).unlink()
 
 
 def test_available_runs(monkeypatch: pytest.MonkeyPatch, config: dict) -> None:

@@ -51,12 +51,12 @@ def get_channels(
 
     if formats:
         # If 'formats' is a list, check if all elements are valid.
+        err_msg = (
+            "Invalid format. Please choose from 'per_electron', 'per_pulse', 'per_train', 'all'."
+        )
         for format_ in formats:
             if format_ not in FORMATS + ["all"]:
-                raise ValueError(
-                    "Invalid format. Please choose from 'per_electron', 'per_pulse',\
-                    'per_train', 'all'.",
-                )
+                raise ValueError(err_msg)
 
         # Get the available channels excluding 'pulseId'.
         available_channels = list(channel_dict.keys())
@@ -83,19 +83,18 @@ def get_channels(
     return channels
 
 
-def get_dtypes(channels_dict: dict, formats: str | list[str], extend_aux: bool = False) -> dict:
+def get_dtypes(channels_dict: dict, formats: str | list[str]) -> dict:
     """Returns a dictionary of channels and their corresponding data types.
+    Currently Auxiliary channels are not included in the dtype dictionary.
 
     Args:
         channels_dict (dict): The dictionary containing the channels.
         formats (str | list[str]): The desired format(s).
-        extend_aux (bool): If True, includes channels from the 'dldAuxChannels' dictionary,
-                else includes 'dldAux'.
 
     Returns:
         dict: A dictionary of channels and their corresponding data types.
     """
-    channels = get_channels(channels_dict, formats, extend_aux)
+    channels = get_channels(channel_dict=channels_dict, formats=formats)
     return {
         channel: channels_dict[channel].get("dtype")
         for channel in channels

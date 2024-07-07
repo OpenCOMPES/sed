@@ -52,7 +52,7 @@ class SXPLoader(BaseLoader):
         self.failed_files_error: list[str] = []
         self.array_indices: list[list[slice]] = None
         self.raw_dir: str = None
-        self.parquet_dir: str = None
+        self.processed_dir: str = None
 
     def _initialize_dirs(self):
         """
@@ -65,14 +65,14 @@ class SXPLoader(BaseLoader):
         # Parses to locate the raw beamtime directory from config file
         if (
             "paths" in self._config["core"]
-            and self._config["core"]["paths"].get("data_raw_dir", "")
-            and self._config["core"]["paths"].get("data_parquet_dir", "")
+            and self._config["core"]["paths"].get("raw", "")
+            and self._config["core"]["paths"].get("processed", "")
         ):
             data_raw_dir = [
-                Path(self._config["core"]["paths"].get("data_raw_dir", "")),
+                Path(self._config["core"]["paths"].get("raw", "")),
             ]
             data_parquet_dir = Path(
-                self._config["core"]["paths"].get("data_parquet_dir", ""),
+                self._config["core"]["paths"].get("processed", ""),
             )
 
         else:
@@ -100,7 +100,7 @@ class SXPLoader(BaseLoader):
         data_parquet_dir.mkdir(parents=True, exist_ok=True)
 
         self.raw_dir = data_raw_dir
-        self.parquet_dir = data_parquet_dir
+        self.processed_dir = data_parquet_dir
 
     def get_files_from_run_id(
         self,
@@ -970,7 +970,7 @@ class SXPLoader(BaseLoader):
                 metadata=metadata,
             )
 
-        df, df_timed = self.parquet_handler(Path(self.parquet_dir), **kwds)
+        df, df_timed = self.parquet_handler(Path(self.processed_dir), **kwds)
 
         if collect_metadata:
             metadata = self.gather_metadata(

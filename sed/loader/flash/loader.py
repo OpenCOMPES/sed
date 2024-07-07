@@ -215,7 +215,7 @@ class FlashLoader(BaseLoader):
             KeyError: If a file ID in fids or a run ID in 'runs' does not exist in the metadata.
         """
         try:
-            file_statistics = self.metadata["file_statistics"]
+            file_statistics = self.metadata["file_statistics"]["timed"]
         except Exception as exc:
             raise KeyError(
                 "File statistics missing. Use 'read_dataframe' first.",
@@ -335,8 +335,8 @@ class FlashLoader(BaseLoader):
             suffix=detector,
             debug=debug,
         )
-        df = bh.df_electron
-        df_timed = bh.df_pulse
+        df = bh.df["electron"]
+        df_timed = bh.df["timed"]
 
         if self.instrument == "wespe":
             df, df_timed = wespe_convert(df, df_timed)
