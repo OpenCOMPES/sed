@@ -49,7 +49,8 @@ dataframe:
   tof_ns_column: dldTime
   # dataframe column containing corrected time-of-flight data
   corrected_tof_column: "tm"
-
+  # the time stamp column
+  time_stamp_alias: timeStamp
   # time length of a base time-of-flight bin in seconds
   tof_binwidth: 2.0576131995767355E-11
   # binning parameter for time-of-flight data. 2**tof_binning bins per base bin

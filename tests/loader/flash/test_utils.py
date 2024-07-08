@@ -1,4 +1,6 @@
 """Tests for utils functionality"""
+from pathlib import Path
+
 import pytest
 
 from .test_buffer_handler import create_parquet_dir
@@ -23,7 +25,7 @@ TRAIN_CHANNELS_EXTENDED = [
 INDEX_CHANNELS = ["trainId", "pulseId", "electronId"]
 
 
-def test_get_channels_by_format(config_dataframe):
+def test_get_channels_by_format(config_dataframe: dict) -> None:
     """
     Test function to verify the 'get_channels' method in FlashLoader class for
     retrieving channels based on formats and index inclusion.
@@ -78,7 +80,7 @@ def test_get_channels_by_format(config_dataframe):
     )
 
 
-def test_parquet_init_error():
+def test_parquet_init_error() -> None:
     """Test ParquetHandler initialization error"""
     with pytest.raises(ValueError) as e:
         _ = initialize_paths(filenames="test")
@@ -86,12 +88,12 @@ def test_parquet_init_error():
     assert "Please provide folder or paths." in str(e.value)
 
     with pytest.raises(ValueError) as e:
-        _ = initialize_paths(folder="test")
+        _ = initialize_paths(folder=Path("test"))
 
     assert "With folder, please provide filenames." in str(e.value)
 
 
-def test_initialize_paths(config):
+def test_initialize_paths(config: dict) -> None:
     """Test ParquetHandler initialization"""
     folder = create_parquet_dir(config, "parquet_init")
 
