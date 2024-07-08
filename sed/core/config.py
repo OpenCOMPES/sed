@@ -175,10 +175,10 @@ def load_config(config_path: str) -> dict:
 def save_config(config_dict: dict, config_path: str, overwrite: bool = False):
     """Function to save a given config dictionary to a json or yaml file. Normally, it loads any
     existing file of the given name, and keeps any existing dictionary keys not present in the
-    provided dictionary. The overwrite option creates a fully empty dictionry first.
+    provided dictionary. The overwrite option creates a fully empty dictionary first.
 
     Args:
-        config_dict (dict): The dictionry to save.
+        config_dict (dict): The dictionary to save.
         config_path (str): A string containing the path to the file where to save the dictionary
             to.
         overwrite (bool, optional): Option to overwrite an existing file with the given dictionary.
