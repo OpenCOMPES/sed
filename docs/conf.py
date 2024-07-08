@@ -110,7 +110,7 @@ html_theme_options = {
     "show_nav_level": 2,
     "show_version_warning_banner": True,
     "switcher": {
-        "json_url": "https://raw.githubusercontent.com/OpenCOMPES/sed/pydata-docs-theme/docs/_static/switcher.json",
+        "json_url": "https://raw.githubusercontent.com/OpenCOMPES/docs/main/sed/switcher.json",
         "version_match": version,
     },
     "content_footer_items": ["last-updated"],
