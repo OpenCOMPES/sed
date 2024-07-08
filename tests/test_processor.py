@@ -283,7 +283,7 @@ feature7 = np.array(
 )
 feature_list = [feature4, feature5, feature6, feature7]
 
-adjust_params = {
+adjust_params: dict[str, Any] = {
     "scale": np.random.randint(1, 10) / 10 + 0.5,
     "xtrans": np.random.randint(1, 50),
     "ytrans": np.random.randint(1, 50),
@@ -359,11 +359,11 @@ def test_pose_adjustment() -> None:
         verbose=True,
     )
     # pose adjustment w/o loaded image
-    processor.pose_adjustment(**adjust_params, use_correction=False, apply=True)  # type: ignore
+    processor.pose_adjustment(**adjust_params, use_correction=False, apply=True)
 
     processor.bin_and_load_momentum_calibration(apply=True)
     # test pose adjustment
-    processor.pose_adjustment(**adjust_params, use_correction=False, apply=True)  # type: ignore
+    processor.pose_adjustment(**adjust_params, use_correction=False, apply=True)
 
     processor = SedProcessor(
         folder=df_folder,
@@ -383,7 +383,7 @@ def test_pose_adjustment() -> None:
         apply=True,
     )
     processor.generate_splinewarp(use_center=True)
-    processor.pose_adjustment(**adjust_params, apply=True)  # type: ignore[arg-type]
+    processor.pose_adjustment(**adjust_params, apply=True)
     processor.apply_momentum_correction()
     assert "Xm" in processor.dataframe.columns
     assert "Ym" in processor.dataframe.columns
