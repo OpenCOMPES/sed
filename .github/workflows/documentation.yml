@@ -90,7 +90,6 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: sphinx-docs
-          path: docs
 
       - name: Determine version folder
         id: version-folder
@@ -105,7 +104,7 @@ jobs:
       - name: Copy documentation to the right version folder
         run: |
           mkdir -p docs-repo/${{ steps.version-folder.outputs.folder }}
-          cp -r docs/_build/* docs-repo/${{ steps.version-folder.outputs.folder }}
+          cp -r sphinx-docs/* docs-repo/${{ steps.version-folder.outputs.folder }}
 
       - name: Push changes
         run: |
