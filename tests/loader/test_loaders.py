@@ -46,6 +46,9 @@ def get_loader_name_from_loader_object(loader: BaseLoader) -> str:
                     loader_name,
                     "config.yaml",
                 ),
+                folder_config={},
+                user_config={},
+                system_config={},
             ),
         )
         if loader.__name__ is gotten_loader.__name__:
