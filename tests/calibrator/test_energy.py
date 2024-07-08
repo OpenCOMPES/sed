@@ -181,7 +181,7 @@ def test_calibrate_append(energy_scale: str, calibration_method: str) -> None:
         calibration_method (str): method used for calibration
     """
     config = parse_config(
-        config={"dataframe": {"tof_binning": 2}},
+        config={"dataframe": {"tof_binning": 4}},
         folder_config={},
         user_config={},
         system_config={},
@@ -279,7 +279,7 @@ def test_append_tof_ns_axis() -> None:
         "dataframe": {
             "tof_column": "t",
             "tof_ns_column": "t_ns",
-            "tof_binning": 1,
+            "tof_binning": 2,
             "tof_binwidth": 1e-9,
         },
     }
@@ -289,7 +289,7 @@ def test_append_tof_ns_axis() -> None:
     # from kwds
     df, _, _ = loader.read_dataframe(folders=df_folder, collect_metadata=False)
     ec = EnergyCalibrator(config=config, loader=loader)
-    df, _ = ec.append_tof_ns_axis(df, binwidth=2e-9, binning=1)
+    df, _ = ec.append_tof_ns_axis(df, binwidth=2e-9, binning=2)
     assert config["dataframe"]["tof_ns_column"] in df.columns
     np.testing.assert_allclose(df[ec.tof_column], df[ec.tof_ns_column] / 4)
 
@@ -301,7 +301,7 @@ def test_append_tof_ns_axis() -> None:
     np.testing.assert_allclose(df[ec.tof_column], df[ec.tof_ns_column] / 2)
 
 
-amplitude = 2.5  # pylint: disable=invalid-name
+amplitude = 2.5
 center = (730, 730)
 sample = np.array(
     [
