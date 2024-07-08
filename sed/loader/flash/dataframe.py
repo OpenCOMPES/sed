@@ -221,8 +221,10 @@ class DataFrameCreator:
             )
             # The dataset is opened and converted to numpy array by [()]
             # and flattened to resolve per pulse
-            # The pd.Series is created with the MultiIndex and appended to the list
-            series.append(pd.Series(dataset[()].ravel(), index=index, name=channel))
+            channel_series = pd.Series(dataset[()].ravel(), index=index, name=channel)
+            # sometimes pulse columns have more pulses than valid ones such as with bam channel
+            # so we remove all 0 values from the series
+            series.append(channel_series[channel_series != 0])  # TODO: put this in metadata
 
         # All the channels are concatenated to a single DataFrame
         return pd.concat(
