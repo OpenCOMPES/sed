@@ -105,10 +105,8 @@ class EnergyCalibrator:
         self.binning: int = self._config["dataframe"]["tof_binning"]
         self.x_width = self._config["energy"]["x_width"]
         self.y_width = self._config["energy"]["y_width"]
-        self.tof_width = np.asarray(
-            self._config["energy"]["tof_width"],
-        ) / 2 ** (self.binning - 1)
-        self.tof_fermi = self._config["energy"]["tof_fermi"] / 2 ** (self.binning - 1)
+        self.tof_width = np.asarray(self._config["energy"]["tof_width"]) / self.binning
+        self.tof_fermi = self._config["energy"]["tof_fermi"] / self.binning
         self.color_clip = self._config["energy"]["color_clip"]
         self.sector_delays = self._config["dataframe"].get("sector_delays", None)
         self.sector_id_column = self._config["dataframe"].get("sector_id_column", None)
@@ -204,26 +202,21 @@ class EnergyCalibrator:
         if bins is None:
             bins = [self._config["energy"]["bins"]]
         if ranges is None:
-            ranges_ = [
-                np.array(self._config["energy"]["ranges"]) / 2 ** (self.binning - 1),
-            ]
+            ranges_ = [np.array(self._config["energy"]["ranges"]) / self.binning]
             ranges = [cast(tuple[float, float], tuple(v)) for v in ranges_]
         # pylint: disable=duplicate-code
         hist_mode = kwds.pop("hist_mode", self._config["binning"]["hist_mode"])
         mode = kwds.pop("mode", self._config["binning"]["mode"])
         pbar = kwds.pop("pbar", self._config["binning"]["pbar"])
         try:
-            num_cores = kwds.pop("num_cores", self._config["binning"]["num_cores"])
+            num_cores = kwds.pop("num_cores", self._config["core"]["num_cores"])
         except KeyError:
             num_cores = psutil.cpu_count() - 1
         threads_per_worker = kwds.pop(
             "threads_per_worker",
             self._config["binning"]["threads_per_worker"],
         )
-        threadpool_api = kwds.pop(
-            "threadpool_API",
-            self._config["binning"]["threadpool_API"],
-        )
+        threadpool_api = kwds.pop("threadpool_API", self._config["binning"]["threadpool_API"])
 
         read_biases = False
         if biases is None:
@@ -2171,10 +2164,7 @@ def fit_energy_calibration(
         name="t0",
         value=t0_pars.get("value", 1e-6),
         min=t0_pars.get("min", -np.inf),
-        max=t0_pars.get(
-            "max",
-            (min(pos) - 1) * binwidth * 2**binning,
-        ),
+        max=t0_pars.get("max", (min(pos) - 1) * binwidth * binning),
         vary=t0_pars.get("vary", True),
     )
     E0_pars = kwds.pop("E0", {})  # pylint: disable=invalid-name
@@ -2364,7 +2354,7 @@ def tof2ev(
 
     #         m_e/2 [eV]                      bin width [s]
     energy = (
-        2.84281e-12 * sign * (tof_distance / (t * binwidth * 2**binning - time_offset)) ** 2
+        2.84281e-12 * sign * (tof_distance / (t * binwidth * binning - time_offset)) ** 2
         + energy_offset
     )
 
@@ -2414,5 +2404,5 @@ def tof2ns(
     Returns:
         float: Converted time in nanoseconds.
     """
-    val = t * 1e9 * binwidth * 2.0**binning
+    val = t * 1e9 * binwidth * binning
     return val
