@@ -108,7 +108,7 @@ class BaseLoader(ABC):
 
         elif files is None:
             raise ValueError(
-                "Either folder, file paths, or runs should be provided!",
+                "Either folders, files, or runs have to be provided!",
             )
 
         if files is not None:

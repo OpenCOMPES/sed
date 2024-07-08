@@ -78,6 +78,13 @@ def hdf5_to_dataframe(
                     f"Entry \"{channel['dataset_key']}\" for channel \"{name}\" not found.",
                     "Skipping the channel.",
                 )
+        elif channel["format"] != "per_file":
+            raise ValueError(
+                f"Invalid 'format':{channel['format']} for channel {name}.",
+            )
+
+    if not electron_channels:
+        raise ValueError("No valid 'per_electron' channels found.")
 
     if time_stamps:
         column_names.append(time_stamp_alias)
@@ -181,6 +188,13 @@ def hdf5_to_timed_dataframe(
                     f"Entry \"{channel['dataset_key']}\" for channel \"{name}\" not found.",
                     "Skipping the channel.",
                 )
+        elif channel["format"] != "per_file":
+            raise ValueError(
+                f"Invalid 'format':{channel['format']} for channel {name}.",
+            )
+
+    if not electron_channels:
+        raise ValueError("No valid 'per_electron' channels found.")
 
     if time_stamps:
         column_names.append(time_stamp_alias)
