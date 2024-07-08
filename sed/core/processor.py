@@ -1345,13 +1345,13 @@ class SedProcessor:
                 backend="bokeh",
             )
             print("E/TOF relationship:")
-            self.ec.view(
-                traces=self.ec.calibration["axis"][None, :] + self.ec.biases[0],
-                xaxis=self.ec.tof,
-                backend="matplotlib",
-                show_legend=False,
-            )
             if energy_scale == "kinetic":
+                self.ec.view(
+                    traces=self.ec.calibration["axis"][None, :] + self.ec.biases[0],
+                    xaxis=self.ec.tof,
+                    backend="matplotlib",
+                    show_legend=False,
+                )
                 plt.scatter(
                     self.ec.peaks[:, 0],
                     -(self.ec.biases - self.ec.biases[0]) + ref_energy,
@@ -1359,6 +1359,12 @@ class SedProcessor:
                     c="k",
                 )
             elif energy_scale == "binding":
+                self.ec.view(
+                    traces=self.ec.calibration["axis"][None, :] - self.ec.biases[0],
+                    xaxis=self.ec.tof,
+                    backend="matplotlib",
+                    show_legend=False,
+                )
                 plt.scatter(
                     self.ec.peaks[:, 0],
                     self.ec.biases - self.ec.biases[0] + ref_energy,
