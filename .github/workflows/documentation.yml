@@ -97,15 +97,15 @@ jobs:
         run: |
           if [[ $GITHUB_REF == refs/tags/* ]]; then
             VERSION=${GITHUB_REF#refs/tags/}
-            echo "::set-output name=folder::sed/$VERSION"
+            echo "{folder}={sed/$VERSION}" >> $GITHUB_OUTPUT
           else
-            echo "::set-output name=folder::sed/latest"
+            echp "{folder}={sed/latest}" >> $GITHUB_OUTPUT
           fi
 
       - name: Copy documentation to the right version folder
         run: |
           mkdir -p docs-repo/${{ steps.version-folder.outputs.folder }}
-          cp -r docs/_build/html/* docs-repo/${{ steps.version-folder.outputs.folder }}
+          cp -r docs/_build/* docs-repo/${{ steps.version-folder.outputs.folder }}
 
       - name: Push changes
         run: |
