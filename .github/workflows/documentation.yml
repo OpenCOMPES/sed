@@ -84,7 +84,7 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           name: sphinx-docs
-          path: $GITHUB_WORKSPACE/_build
+          path: _build
 
   # this job pushes the built documentation to the docs repository
   push:
