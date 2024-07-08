@@ -388,6 +388,10 @@ def test_pose_adjustment() -> None:
     assert "Xm" in processor.dataframe.columns
     assert "Ym" in processor.dataframe.columns
 
+    # illegal keywords:
+    with pytest.raises(TypeError):
+        processor.pose_adjustment(**adjust_params, apply=True, illegal_kwd=True)
+
 
 def test_pose_adjustment_save_load() -> None:
     """Test for the saving and loading of pose correction and application of momentum correction
@@ -889,6 +893,10 @@ def test_compute() -> None:
     assert result.data.shape == tuple(bins)
     assert result.data.sum(axis=(0, 1, 2, 3)) > 0
 
+    # illegal keywords:
+    with pytest.raises(TypeError):
+        processor.compute(illegal_kwd=True)
+
 
 def test_compute_with_filter() -> None:
     """Test binning of final result using filters"""
@@ -1019,6 +1027,10 @@ def test_get_normalization_histogram() -> None:
     # histogram1 = processor.get_normalization_histogram(axis="ADC")
     # histogram2 = processor.get_normalization_histogram(axis="ADC", use_time_stamps="True")
     # np.testing.assert_allclose(histogram1, histogram2)
+
+    # illegal keywords:
+    with pytest.raises(TypeError):
+        histogram1 = processor.get_normalization_histogram(axis="ADC", illegal_kwd=True)
 
 
 metadata: dict[Any, Any] = {}

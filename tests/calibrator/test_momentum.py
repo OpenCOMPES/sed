@@ -69,6 +69,10 @@ def test_feature_extract() -> None:
     assert len(mc.pcent) == 2
     assert len(mc.pouter_ord) == 6
 
+    # illegal keywords
+    with pytest.raises(TypeError):
+        mc.feature_extract(features=np.ndarray([1, 2]), illegal_kwd=True)
+
 
 @pytest.mark.parametrize(
     "include_center",
@@ -168,6 +172,10 @@ def test_pose_correction() -> None:
     dfield = np.array([mc.cdeform_field, mc.rdeform_field])
     mc.pose_adjustment(scale=1.2, xtrans=8, ytrans=7, angle=-4, apply=True)
     assert np.all(np.array([mc.cdeform_field, mc.rdeform_field]) != dfield)
+
+    # Illegal keywords:
+    with pytest.raises(TypeError):
+        mc.reset_deformation(illegal_kwd=True)
 
 
 def test_apply_correction() -> None:
@@ -352,6 +360,10 @@ def test_apply_registration(
                 metadata["registration"]["center"],
             )
 
+    # illegal keywords:
+    with pytest.raises(TypeError):
+        mc.pose_adjustment(illegal_kwd=True)
+
 
 def test_momentum_calibration_equiscale() -> None:
     """Test the calibration using one point and the k-distance,
@@ -384,6 +396,10 @@ def test_momentum_calibration_equiscale() -> None:
     assert "ky" in df.columns
     for key, value in mc.calibration.items():
         np.testing.assert_equal(metadata["calibration"][key], value)
+
+    # illegal keywords:
+    with pytest.raises(TypeError):
+        mc.append_k_axis(df, illegal_kwd=True)
 
 
 def test_momentum_calibration_two_points() -> None:

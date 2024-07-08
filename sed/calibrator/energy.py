@@ -2279,7 +2279,7 @@ def poly_energy_calibration(
             - **'kinetic'**: increasing energy with decreasing TOF.
             - **'binding'**: increasing energy with increasing TOF.
 
-        **kwds: Keyword arguments passed to ``lsqr``.
+        **kwds: Keyword arguments passed to ``lstsq`` or ``lsqr``.
 
     Returns:
         dict: A dictionary of fitting parameters including the following,
@@ -2317,7 +2317,7 @@ def poly_energy_calibration(
 
     # Solve for the a vector (polynomial coefficients) using least squares
     if method == "lstsq":
-        sol = lstsq(t_mat, bvec, rcond=None)
+        sol = lstsq(t_mat, bvec, rcond=None, **kwds)
     elif method == "lsqr":
         sol = lsqr(t_mat, bvec, **kwds)
     poly_a = sol[0]
