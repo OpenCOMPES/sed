@@ -109,6 +109,7 @@ html_theme_options = {
     "navbar_center": ["version-switcher", "navbar-nav"],
     "show_nav_level": 2,
     "show_version_warning_banner": True,
+    # maybe better to use _static/switcher.json on github pages link instead of the following
     "switcher": {
         "json_url": "https://raw.githubusercontent.com/OpenCOMPES/docs/main/sed/switcher.json",
         "version_match": version,
