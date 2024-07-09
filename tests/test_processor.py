@@ -1030,6 +1030,10 @@ def test_save() -> None:
         user_config=package_dir + "/../sed/config/mpes_example_config.yaml",
         system_config={},
     )
+    config["metadata"]["lens_mode_config"]["6kV_kmodem4.0_30VTOF_453ns_focus.sav"][
+        "MCPfront"
+    ] = 21.0
+    config["metadata"]["lens_mode_config"]["6kV_kmodem4.0_30VTOF_453ns_focus.sav"]["Z1"] = 2450
     processor = SedProcessor(
         folder=df_folder,
         config=config,
@@ -1060,6 +1064,7 @@ def test_save() -> None:
     processor.save(
         "output.nxs",
         input_files=df_folder + "../../../../sed/config/NXmpes_config.json",
+        fail=True,
     )
     assert os.path.isfile("output.nxs")
     os.remove("output.nxs")

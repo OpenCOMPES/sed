@@ -2,7 +2,6 @@
   "/@default": "entry",
   "/ENTRY[entry]/@default": "data",
   "/ENTRY[entry]/definition": "NXmpes",
-  "/ENTRY[entry]/definition/@version": "None",
   "/ENTRY[entry]/title": "@attrs:metadata/entry_title",
   "/ENTRY[entry]/start_time": "@attrs:metadata/timing/acquisition_start",
   "/ENTRY[entry]/experiment_institution": "Fritz Haber Institute - Max Planck Society",
