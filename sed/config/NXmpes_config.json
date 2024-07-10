@@ -14,9 +14,9 @@
   "/ENTRY[entry]/collection_time": "@attrs:metadata/timing/collection_time",
   "/ENTRY[entry]/collection_time/@units": "s",
   "/ENTRY[entry]/USER[user]": {
-    "name": "@attrs:metadata/user0/name",
+    "name": "!@attrs:metadata/user0/name",
     "role": "@attrs:metadata/user0/role",
-    "affiliation": "@attrs:metadata/user0/affiliation",
+    "affiliation": "!@attrs:metadata/user0/affiliation",
     "address": "@attrs:metadata/user0/address",
     "email": "@attrs:metadata/user0/email"
   },
@@ -44,7 +44,7 @@
     "pressure_gauge": {
       "name": "sample_chamber_pressure",
       "measurement": "pressure",
-      "value": "@attrs:metadata/file/trARPES:XGS600:PressureAC:P_RD",
+      "value": "!@attrs:metadata/file/trARPES:XGS600:PressureAC:P_RD",
       "value/@units": "mbar"
     }
   },
@@ -62,19 +62,19 @@
     ],
     "slow_axes": "@attrs:metadata/instrument/analyzer/slow_axes",
     "energy_resolution": {
-      "resolution": "@attrs:metadata/instrument/analyzer/energy_resolution",
+      "resolution": "!@attrs:metadata/instrument/analyzer/energy_resolution",
       "resolution/@units": "meV",
       "physical_quantity": "energy",
       "type": "estimated"
     },
     "momentum_resolution": {
-      "resolution": "@attrs:metadata/instrument/analyzer/momentum_resolution",
+      "resolution": "!@attrs:metadata/instrument/analyzer/momentum_resolution",
       "resolution/@units": "1/angstrom",
       "physical_quantity": "momentum",
       "type": "estimated"
     },
     "spatial_resolution": {
-      "resolution": "@attrs:metadata/instrument/analyzer/spatial_resolution",
+      "resolution": "!@attrs:metadata/instrument/analyzer/spatial_resolution",
       "resolution/@units": "µm",
       "physical_quantity": "length",
       "type": "estimated"
@@ -172,7 +172,7 @@
   "/ENTRY[entry]/INSTRUMENT[instrument]/beamTYPE[beam_probe]": {
     "distance": 0.0,
     "distance/@units": "mm",
-    "incident_energy": "@attrs:metadata/instrument/beam/probe/incident_energy",
+    "incident_energy": "!@attrs:metadata/instrument/beam/probe/incident_energy",
     "incident_energy/@units": "eV",
     "incident_energy_spread": "@attrs:metadata/instrument/beam/probe/incident_energy_spread",
     "incident_energy_spread/@units": "eV",
@@ -196,7 +196,7 @@
   "/ENTRY[entry]/INSTRUMENT[instrument]/beamTYPE[beam_pump]": {
     "distance": 0.0,
     "distance/@units": "mm",
-    "incident_energy": "@attrs:metadata/instrument/beam/pump/incident_energy",
+    "incident_energy": "!@attrs:metadata/instrument/beam/pump/incident_energy",
     "incident_energy/@units": "eV",
     "incident_energy_spread": "@attrs:metadata/instrument/beam/pump/incident_energy_spread",
     "incident_energy_spread/@units": "eV",
@@ -220,13 +220,13 @@
     "temperature_sensor": {
       "name": "sample_temperature",
       "measurement": "temperature",
-      "value": "@attrs:metadata/file/trARPES:Carving:TEMP_RBV",
+      "value": "!@attrs:metadata/file/trARPES:Carving:TEMP_RBV",
       "value/@units": "K"
     },
     "sample_bias_voltmeter": {
       "name": "sample_bias",
       "measurement": "voltage",
-      "value": "@attrs:metadata/file/KTOF:Lens:Sample:V",
+      "value": "!@attrs:metadata/file/KTOF:Lens:Sample:V",
       "value/@units": "V"
     },
     "depends_on": "/entry/instrument/manipulator/transformations/trans_z",

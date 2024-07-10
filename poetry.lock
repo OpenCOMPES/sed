@@ -3461,18 +3461,18 @@ xrd = ["pynxtools-xrd"]
 
 [[package]]
 name = "pynxtools-mpes"
-version = "0.1.0"
+version = "0.1.1"
 description = ""
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "pynxtools_mpes-0.1.0-py3-none-any.whl", hash = "sha256:7632a5473b54435210605e330b0ffb014a57169594a20440cd88fc1667d3d407"},
-    {file = "pynxtools_mpes-0.1.0.tar.gz", hash = "sha256:0ea950a5d84f25e1437ceb86c70e13b380a9f1b77b3cdcfc44b4ee569ee5232d"},
+    {file = "pynxtools_mpes-0.1.1-py3-none-any.whl", hash = "sha256:44e5d1881d9e36cd5977831e4edf7cc96ef1dc595e0725119f255986cc5f658b"},
+    {file = "pynxtools_mpes-0.1.1.tar.gz", hash = "sha256:e8f2eed853ebc7e28d24ba077994f6a3dd1848a3a3dcc7cbd1e115ff76ee7e46"},
 ]
 
 [package.dependencies]
 h5py = ">=3.6.0"
-pynxtools = ">=0.3.2"
+pynxtools = ">=0.4.0"
 PyYAML = ">=6.0"
 xarray = ">=0.20.2"
 
@@ -4574,13 +4574,13 @@ files = [
 
 [[package]]
 name = "tomlkit"
-version = "0.12.5"
+version = "0.13.0"
 description = "Style preserving TOML library"
 optional = false
-python-versions = ">=3.7"
+python-versions = ">=3.8"
 files = [
-    {file = "tomlkit-0.12.5-py3-none-any.whl", hash = "sha256:af914f5a9c59ed9d0762c7b64d3b5d5df007448eb9cd2edc8a46b1eafead172f"},
-    {file = "tomlkit-0.12.5.tar.gz", hash = "sha256:eef34fba39834d4d6b73c9ba7f3e4d1c417a4e56f89a7e96e090dd0d24b8fb3c"},
+    {file = "tomlkit-0.13.0-py3-none-any.whl", hash = "sha256:7075d3042d03b80f603482d69bf0c8f345c2b30e41699fd8883227f89972b264"},
+    {file = "tomlkit-0.13.0.tar.gz", hash = "sha256:08ad192699734149f5b97b45f1f18dad7eb1b6d16bc72ad0c2335772650d7b72"},
 ]
 
 [[package]]
@@ -4981,4 +4981,4 @@ notebook = ["ipykernel", "jupyter", "jupyterlab", "jupyterlab-h5web"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8, <3.11.9"
-content-hash = "cb6db6227768ea52e82997d6957a284fbb2e032754dcdaad7a24a6b8aaf7c9db"
+content-hash = "057e4efe41accaed35121d701cebfcc1ec3984fa415797114a10685a00ea3179"
