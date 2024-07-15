@@ -1,6 +1,6 @@
 # Configuration
 
-The config module contains a mechanis to collect configuration parameters from various sources and configuration files, and to combine them in a hierachical manner into a single, consistent configuration dictionary.
+The config module contains a mechanism to collect configuration parameters from various sources and configuration files, and to combine them in a hierarchical manner into a single, consistent configuration dictionary.
 It will load an (optional) provided config file, or alternatively use a passed python dictionary as initial config dictionary, and subsequently look for the following additional config files to load:
 
 * ``folder_config``: A config file of name :file:`sed_config.yaml` in the current working directory. This is mostly intended to pass calibration parameters of the workflow between different notebook instances.

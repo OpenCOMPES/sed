@@ -72,7 +72,7 @@ Development Workflow
 
 3. **Write Tests:** If your contribution introduces new features or fixes a bug, add tests to cover your changes.
 
-4. **Run Tests:** To ensure no funtionality is broken, run the tests:
+4. **Run Tests:** To ensure no functionality is broken, run the tests:
 
     .. code-block:: bash
 

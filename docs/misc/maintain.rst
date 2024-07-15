@@ -140,7 +140,7 @@ To create a release, follow these steps:
    c. **If you don't see update on PyPI:**
 
       - Visit the GitHub Actions page and monitor the Release workflow (https://github.com/OpenCOMPES/sed/actions/workflows/release.yml).
-      - Check if errors occured.
+      - Check if errors occurred during the release process.
 
 
 **Understanding the Release Workflow**
