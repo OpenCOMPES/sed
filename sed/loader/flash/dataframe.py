@@ -125,7 +125,9 @@ class DataFrameCreator:
         # the number of electrons in each pulse. Here the values are counted
         electron_counts = pulse_index.value_counts(sort=False).values
         # Now we resolve each pulse to its electrons
-        electron_index = np.concatenate([np.arange(count) for count in electron_counts])
+        electron_index = np.concatenate(
+            [np.arange(count, dtype="uint16") for count in electron_counts],
+        )
 
         # Final multi-index constructed here
         index = pd.MultiIndex.from_arrays(
@@ -258,9 +260,16 @@ class DataFrameCreator:
             # they come in pulse format, so the extra values are sliced and individual channels are
             # created and appended to the list
             if channel == "dldAux":
-                aux_channels = self._config["channels"]["dldAux"]["dldAuxChannels"].items()
-                for name, slice_aux in aux_channels:
-                    series.append(pd.Series(dataset[: key.size, slice_aux], index, name=name))
+                aux_channels = self._config["channels"]["dldAux"]["aux_channels"].items()
+                for name, values in aux_channels:
+                    series.append(
+                        pd.Series(
+                            dataset[: key.size, values["slice"]],
+                            index,
+                            name=name,
+                            dtype=values["dtype"],
+                        ),
+                    )
             else:
                 series.append(pd.Series(dataset, index, name=channel))
         # All the channels are concatenated to a single DataFrame

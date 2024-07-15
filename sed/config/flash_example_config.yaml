@@ -118,6 +118,7 @@ dataframe:
       index_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/index"
       dataset_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/value"
       slice: 2
+      dtype: uint16
 
     # detector x position
     dldPosX:
@@ -125,6 +126,7 @@ dataframe:
       index_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/index"
       dataset_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/value"
       slice: 1
+      dtype: uint16
 
     # detector y position
     dldPosY:
@@ -132,6 +134,7 @@ dataframe:
       index_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/index"
       dataset_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/value"
       slice: 0
+      dtype: uint16
 
     # Detector time-of-flight channel
     # if split_sector_id_from_dld_time is set to True, This this will generate
@@ -141,6 +144,7 @@ dataframe:
       index_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/index"
       dataset_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/value"
       slice: 3
+      dtype: uint32
 
     # The auxiliary channel has a special structure where the group further contains
     # a multidimensional structure so further aliases are defined below
@@ -149,14 +153,28 @@ dataframe:
       index_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/index"
       dataset_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/value"
       slice: 4
-      dldAuxChannels:
-        sampleBias: 0
-        tofVoltage: 1
-        extractorVoltage: 2
-        extractorCurrent: 3
-        cryoTemperature: 4
-        sampleTemperature: 5
-        dldTimeBinSize: 15
+      aux_channels:
+        sampleBias:
+          slice: 0
+          dtype: float64
+        tofVoltage:
+          slice: 1
+          dtype: float64
+        extractorVoltage:
+          slice: 2
+          dtype: float64
+        extractorCurrent:
+          slice: 3
+          dtype: float64
+        cryoTemperature:
+          slice: 4
+          dtype: float64
+        sampleTemperature:
+          slice: 5
+          dtype: float64
+        dldTimeBinSize:
+          slice: 15
+          dtype: float64
 
     # ADC containing the pulser sign (1: value approx. 35000, 0: 33000)
     pulserSignAdc:

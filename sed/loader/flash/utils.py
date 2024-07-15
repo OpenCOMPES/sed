@@ -5,7 +5,7 @@ from __future__ import annotations
 MULTI_INDEX = ["trainId", "pulseId", "electronId"]
 PULSE_ALIAS = MULTI_INDEX[1]
 DLD_AUX_ALIAS = "dldAux"
-DLDAUX_CHANNELS = "dldAuxChannels"
+AUX_CHANNELS = "aux_channels"
 FORMATS = ["per_electron", "per_pulse", "per_train"]
 
 
@@ -75,7 +75,7 @@ def get_channels(
             if format_ == FORMATS[2] and DLD_AUX_ALIAS in available_channels:
                 if extend_aux:
                     channels.extend(
-                        channel_dict[DLD_AUX_ALIAS][DLDAUX_CHANNELS].keys(),
+                        channel_dict[DLD_AUX_ALIAS][AUX_CHANNELS].keys(),
                     )
                 else:
                     channels.extend([DLD_AUX_ALIAS])
