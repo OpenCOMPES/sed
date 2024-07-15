@@ -66,6 +66,11 @@ jobs:
           cd $GITHUB_WORKSPACE/docs
           poetry run python scripts/build_flash_parquets.py
 
+      # to be removed later. This theme doesn't support <3.9 python and our lock file contains 3.8
+      - name: install pydata-sphinx-theme
+        run: |
+          poetry run pip install pydata-sphinx-theme
+
       - name: build Sphinx docs
         run: poetry run sphinx-build -b html $GITHUB_WORKSPACE/docs $GITHUB_WORKSPACE/_build
 
