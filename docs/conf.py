@@ -25,8 +25,9 @@ def _get_project_meta():
     return tomlkit.parse(file_contents)["tool"]["poetry"]
 
 
+# -- Project information -----------------------------------------------------
 pkg_meta = _get_project_meta()
-project = str(pkg_meta["name"])
+project = "SED"
 copyright = "2024, OpenCOMPES team"
 author = "OpenCOMPES team"
 
@@ -41,12 +42,12 @@ release = version
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    "sphinx_rtd_theme",
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
     "sphinx.ext.todo",
     "sphinx.ext.coverage",
     "sphinx.ext.autosummary",
+    "sphinx.ext.viewcode",
     "sphinx.ext.coverage",
     "sphinx_autodoc_typehints",
     "bokeh.sphinxext.bokeh_autodoc",
@@ -55,6 +56,8 @@ extensions = [
     "myst_parser",
 ]
 
+
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "**.ipynb_checkpoints"]
 
 autoclass_content = "class"
 autodoc_member_order = "bysource"
@@ -98,7 +101,28 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = "sphinx_rtd_theme"
+html_theme = "pydata_sphinx_theme"
+
+html_theme_options = {
+    "github_url": "https://github.com/OpenCOMPES/sed",
+    "primary_sidebar_end": ["indices.html"],
+    "navbar_center": ["version-switcher", "navbar-nav"],
+    "show_nav_level": 2,
+    "show_version_warning_banner": True,
+    # maybe better to use _static/switcher.json on github pages link instead of the following
+    "switcher": {
+        "json_url": "https://raw.githubusercontent.com/OpenCOMPES/docs/main/sed/switcher.json",
+        "version_match": version,
+    },
+    "content_footer_items": ["last-updated"],
+}
+
+html_context = {
+    "github_user": "OpenCOMPES",
+    "github_repo": "sed",
+    "github_version": "main",
+    "doc_path": "docs",
+}
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
