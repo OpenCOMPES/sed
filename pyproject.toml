@@ -3,7 +3,7 @@ name = "sed-processor"
 packages = [
     {include = "sed"}
 ]
-version = "0.1.10a7"
+version = "0.1.10a8"
 description = "Single Event Data Frame Processor: Backend to handle photoelectron resolved datastreams"
 authors = ["OpenCOMPES team <sed-processor@mpes.science>"]
 readme = "README.md"
@@ -31,14 +31,13 @@ pynxtools-mpes = ">=0.1.1"
 pynxtools = ">=0.5.0"
 pyyaml = ">=6.0.0"
 scipy = ">=1.8.0"
-setuptools = ">70"
 symmetrize = ">=0.5.5"
 threadpoolctl = ">=3.1.0"
 tifffile = ">=2022.2.9"
 tqdm = ">=4.62.3"
 xarray = ">=0.20.2"
 joblib = ">=1.2.0"
-pyarrow = ">=14.0.1"
+pyarrow = ">=14.0.1, <17.0"
 jupyter = {version = ">=1.0.0", optional = true}
 ipykernel = {version = ">=6.9.1", optional = true}
 jupyterlab = {version = "^3.4.0", optional = true}
