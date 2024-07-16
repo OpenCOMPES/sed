@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import glob
 import itertools
+import logging
 import os
 import tempfile
 from importlib.util import find_spec
@@ -15,6 +16,8 @@ import dask.dataframe as ddf
 import numpy as np
 import pytest
 import xarray as xr
+import yaml
+from pynxtools.dataconverter.convert import ValidationFailed
 
 from sed import SedProcessor
 from sed.core.config import parse_config
@@ -1017,7 +1020,7 @@ metadata["sample"]["preparation_date"] = "2019-01-13T10:00:00+00:00"
 metadata["sample"]["name"] = "Sample Name"
 
 
-def test_save() -> None:
+def test_save(caplog) -> None:
     """Test the save functionality"""
     config = parse_config(
         config={"dataframe": {"tof_binning": 1}},
@@ -1025,6 +1028,11 @@ def test_save() -> None:
         user_config=package_dir + "/../sed/config/mpes_example_config.yaml",
         system_config={},
     )
+    config["metadata"]["lens_mode_config"]["6kV_kmodem4.0_30VTOF_453ns_focus.sav"][
+        "MCPfront"
+    ] = 21.0
+    config["metadata"]["lens_mode_config"]["6kV_kmodem4.0_30VTOF_453ns_focus.sav"]["Z1"] = 2450
+    config["metadata"]["lens_mode_config"]["6kV_kmodem4.0_30VTOF_453ns_focus.sav"]["F"] = 69.23
     processor = SedProcessor(
         folder=df_folder,
         config=config,
@@ -1052,9 +1060,41 @@ def test_save() -> None:
     processor.save("output.h5")
     assert os.path.isfile("output.h5")
     os.remove("output.h5")
+    # convert using the fail=True keyword. This ensures that the pynxtools backend will throw
+    # and error if any validation problems occur.
     processor.save(
         "output.nxs",
         input_files=df_folder + "../../../../sed/config/NXmpes_config.json",
+        fail=True,
     )
     assert os.path.isfile("output.nxs")
+    # Test that a validation error is raised if a required field is missing
+    del processor.binned.attrs["metadata"]["sample"]["name"]
+    with pytest.raises(ValidationFailed):
+        processor.save(
+            "result.nxs",
+            input_files=df_folder + "../../../../sed/config/NXmpes_config.json",
+            fail=True,
+        )
+    # Check that the issues are raised as warnings per default:
+    caplog.clear()
+    with open("temp_eln.yaml", "w") as f:
+        yaml.dump({"Instrument": {"undocumented_field": "undocumented entry"}}, f)
+    with caplog.at_level(logging.WARNING):
+        processor.save(
+            "result.nxs",
+            input_files=[df_folder + "../../../../sed/config/NXmpes_config.json"],
+            eln_data="temp_eln.yaml",
+        )
+        assert (
+            caplog.messages[0]
+            == "The data entry corresponding to /ENTRY[entry]/SAMPLE[sample]/name is required and "
+            "hasn't been supplied by the reader."
+        )
+        assert (
+            caplog.messages[1]
+            == "Field /ENTRY[entry]/INSTRUMENT[instrument]/undocumented_field written without "
+            "documentation."
+        )
     os.remove("output.nxs")
+    os.remove("temp_eln.yaml")
