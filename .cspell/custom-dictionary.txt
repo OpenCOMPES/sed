@@ -37,6 +37,7 @@ bysource
 caldir
 calib
 calibdict
+caplog
 cdeform
 cdeformfield
 cdisp
