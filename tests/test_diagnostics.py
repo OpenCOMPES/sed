@@ -42,3 +42,7 @@ def test_plot_histogram(ncols: int, backend: str) -> None:
             axes[loc] = config["dataframe"].get(axis.strip("@"))
     values = {axis: dataframe[axis].compute() for axis in axes}
     grid_histogram(values, ncols, axes, bins, ranges, backend)
+
+    # illegal keywords:
+    with pytest.raises(TypeError):
+        grid_histogram(values, ncols, axes, bins, ranges, backend, illegal_kwd=True)

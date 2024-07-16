@@ -149,6 +149,19 @@ def test_additional_parameter_to_loader() -> None:
     )
     assert processor.files[0].find("json") > -1
 
+    # check that illegal keywords raise:
+    with pytest.raises(TypeError):
+        processor = SedProcessor(
+            folder=df_folder_generic,
+            ftype="json",
+            config=config,
+            folder_config={},
+            user_config={},
+            system_config={},
+            verbose=True,
+            illegal_keyword=True,
+        )
+
 
 def test_repr() -> None:
     """test the ___repr___ method"""
@@ -168,6 +181,9 @@ def test_repr() -> None:
     processor_str = str(processor)
     assert processor_str.find("ADC") > 0
     assert processor_str.find("key1") > 0
+
+    with pytest.raises(TypeError):
+        processor.load(files=files, metadata={"test": {"key1": "value1"}}, illegal_keyword=True)
 
 
 def test_attributes_setters() -> None:
@@ -231,6 +247,17 @@ def test_copy_tool() -> None:
     processor.load(files=files)
     assert processor.files[0].find(dest_folder) > -1
 
+    # test illegal keywords:
+    config["core"]["copy_tool_kwds"] = {"gid": os.getgid(), "illegal_keyword": True}
+    with pytest.raises(TypeError):
+        processor = SedProcessor(
+            config=config,
+            folder_config={},
+            user_config={},
+            system_config={},
+            verbose=True,
+        )
+
 
 feature4 = np.array([[203.2, 341.96], [299.16, 345.32], [304.38, 149.88], [199.52, 152.48]])
 feature5 = np.array(
@@ -259,7 +286,7 @@ feature7 = np.array(
 )
 feature_list = [feature4, feature5, feature6, feature7]
 
-adjust_params = {
+adjust_params: dict[str, Any] = {
     "scale": np.random.randint(1, 10) / 10 + 0.5,
     "xtrans": np.random.randint(1, 50),
     "ytrans": np.random.randint(1, 50),
@@ -335,11 +362,11 @@ def test_pose_adjustment() -> None:
         verbose=True,
     )
     # pose adjustment w/o loaded image
-    processor.pose_adjustment(**adjust_params, use_correction=False, apply=True)  # type: ignore
+    processor.pose_adjustment(**adjust_params, use_correction=False, apply=True)
 
     processor.bin_and_load_momentum_calibration(apply=True)
     # test pose adjustment
-    processor.pose_adjustment(**adjust_params, use_correction=False, apply=True)  # type: ignore
+    processor.pose_adjustment(**adjust_params, use_correction=False, apply=True)
 
     processor = SedProcessor(
         folder=df_folder,
@@ -359,10 +386,14 @@ def test_pose_adjustment() -> None:
         apply=True,
     )
     processor.generate_splinewarp(use_center=True)
-    processor.pose_adjustment(**adjust_params, apply=True)  # type: ignore[arg-type]
+    processor.pose_adjustment(**adjust_params, apply=True)
     processor.apply_momentum_correction()
     assert "Xm" in processor.dataframe.columns
     assert "Ym" in processor.dataframe.columns
+
+    # illegal keywords:
+    with pytest.raises(TypeError):
+        processor.pose_adjustment(**adjust_params, apply=True, illegal_kwd=True)
 
 
 def test_pose_adjustment_save_load() -> None:
@@ -865,6 +896,10 @@ def test_compute() -> None:
     assert result.data.shape == tuple(bins)
     assert result.data.sum(axis=(0, 1, 2, 3)) > 0
 
+    # illegal keywords:
+    with pytest.raises(TypeError):
+        processor.compute(illegal_kwd=True)
+
 
 def test_compute_with_filter() -> None:
     """Test binning of final result using filters"""
@@ -995,6 +1030,10 @@ def test_get_normalization_histogram() -> None:
     # histogram1 = processor.get_normalization_histogram(axis="ADC")
     # histogram2 = processor.get_normalization_histogram(axis="ADC", use_time_stamps="True")
     # np.testing.assert_allclose(histogram1, histogram2)
+
+    # illegal keywords:
+    with pytest.raises(TypeError):
+        histogram1 = processor.get_normalization_histogram(axis="ADC", illegal_kwd=True)
 
 
 metadata: dict[Any, Any] = {}

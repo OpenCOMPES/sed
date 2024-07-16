@@ -300,8 +300,10 @@ class EnergyCalibrator:
                 Defaults to 7.
             apply (bool, optional): Option to directly apply the provided parameters.
                 Defaults to False.
-            **kwds:
-                keyword arguments for trace alignment (see ``find_correspondence()``).
+            **kwds: keyword arguments
+                - *labels*: List of labels for plotting. Default uses the bias voltages.
+                - *figsize* Figure size.
+                Additional keyword arguments are passed to ``find_correspondence()``.
         """
         if traces is None:
             traces = self.traces_normed
@@ -310,8 +312,7 @@ class EnergyCalibrator:
             ranges=ranges,
             ref_id=ref_id,
             traces=traces,
-            infer_others=True,
-            mode="replace",
+            **kwds,
         )
         self.feature_extract(peak_window=peak_window)
 
@@ -325,25 +326,12 @@ class EnergyCalibrator:
         for itr, color in zip(range(len(traces)), colors):
             trace = traces[itr, :]
             # main traces
-            ax.plot(
-                self.tof,
-                trace,
-                ls="-",
-                color=color,
-                linewidth=1,
-                label=labels[itr],
-            )
+            ax.plot(self.tof, trace, ls="-", color=color, linewidth=1, label=labels[itr])
             # segments:
             seg = self.featranges[itr]
             cond = (self.tof >= seg[0]) & (self.tof <= seg[1])
             tofseg, traceseg = self.tof[cond], trace[cond]
-            (line,) = ax.plot(
-                tofseg,
-                traceseg,
-                ls="-",
-                color=color,
-                linewidth=3,
-            )
+            (line,) = ax.plot(tofseg, traceseg, ls="-", color=color, linewidth=3)
             plot_segs.append(line)
             # markers
             (scatt,) = ax.plot(
@@ -359,7 +347,7 @@ class EnergyCalibrator:
         ax.set_title("")
 
         def update(refid, ranges):
-            self.add_ranges(ranges, refid, traces=traces)
+            self.add_ranges(ranges, refid, traces=traces, **kwds)
             self.feature_extract(peak_window=7)
             for itr, _ in enumerate(self.traces_normed):
                 seg = self.featranges[itr]
@@ -403,6 +391,7 @@ class EnergyCalibrator:
                 ranges_slider.value,
                 refid_slider.value,
                 traces=self.traces_normed,
+                **kwds,
             )
             self.feature_extract(peak_window=7)
             ranges_slider.close()
@@ -918,6 +907,10 @@ class EnergyCalibrator:
                 Defaults to config["energy"]["tof_binwidth"].
             binning (int, optional): Time-of-flight binning factor.
                 Defaults to config["energy"]["tof_binning"].
+            **kwds:
+
+                - **binwidth**: Binwidth in ns.
+                - **binning**: Binning factor of the TOF column.
 
         Returns:
             tuple[pd.DataFrame | dask.dataframe.DataFrame, dict]: Dataframe with the new columns
@@ -925,6 +918,10 @@ class EnergyCalibrator:
         """
         binwidth = kwds.pop("binwidth", self.binwidth)
         binning = kwds.pop("binning", self.binning)
+
+        if len(kwds) > 0:
+            raise TypeError(f"append_tof_ns_axis() got unexpected keyword arguments {kwds.keys()}.")
+
         if tof_column is None:
             if self.corrected_tof_column in df.columns:
                 tof_column = self.corrected_tof_column
@@ -1846,6 +1843,8 @@ def find_correspondence(
         sig_still (np.ndarray): Reference 1D signals.
         sig_mov (np.ndarray): 1D signal to be aligned.
         **kwds: keyword arguments for ``fastdtw.fastdtw()``
+            - *dist_metric*: Distance metric to use for time warping. Defaults to None.
+            - *radius*: Radius to use for time warping. Defaults to 1.
 
     Returns:
         np.ndarray: Pixel-wise path correspondences between two input 1D arrays
@@ -1853,6 +1852,10 @@ def find_correspondence(
     """
     dist = kwds.pop("dist_metric", None)
     rad = kwds.pop("radius", 1)
+
+    if len(kwds) > 0:
+        raise TypeError(f"find_correspondence() got unexpected keyword arguments {kwds.keys()}.")
+
     _, pathcorr = fastdtw(sig_still, sig_mov, dist=dist, radius=rad)
     return np.asarray(pathcorr)
 
@@ -2161,8 +2164,14 @@ def fit_energy_calibration(
             return model
         return model - data
 
-    pars = Parameters()
     d_pars = kwds.pop("d", {})
+    t0_pars = kwds.pop("t0", {})
+    E0_pars = kwds.pop("E0", {})
+
+    if len(kwds) > 0:
+        raise TypeError(f"fit_energy_calibration() got unexpected keyword arguments {kwds.keys()}.")
+
+    pars = Parameters()
     pars.add(
         name="d",
         value=d_pars.get("value", 1),
@@ -2170,7 +2179,6 @@ def fit_energy_calibration(
         max=d_pars.get("max", np.inf),
         vary=d_pars.get("vary", True),
     )
-    t0_pars = kwds.pop("t0", {})
     pars.add(
         name="t0",
         value=t0_pars.get("value", 1e-6),
@@ -2178,7 +2186,6 @@ def fit_energy_calibration(
         max=t0_pars.get("max", (min(pos) - 1) * binwidth * binning),
         vary=t0_pars.get("vary", True),
     )
-    E0_pars = kwds.pop("E0", {})  # pylint: disable=invalid-name
     pars.add(
         name="E0",
         value=E0_pars.get("value", min(vals)),
@@ -2253,14 +2260,16 @@ def poly_energy_calibration(
             (1=no change, 2=double, etc). Defaults to 1.
         method (str, optional): Method for determining the energy calibration.
 
-            - **'lmfit'**: Energy calibration using lmfit and 1/t^2 form.
-            - **'lstsq'**, **'lsqr'**: Energy calibration using polynomial form..
+            - **'lstsq'**: Use ``numpy.linalg.lstsq``.
+            - **'lsqr'**: Use ``scipy.sparse.linalg.lsqr``
 
             Defaults to "lstsq".
         energy_scale (str, optional): Direction of increasing energy scale.
 
             - **'kinetic'**: increasing energy with decreasing TOF.
             - **'binding'**: increasing energy with increasing TOF.
+
+        **kwds: Keyword arguments passed to ``lstsq`` or ``lsqr``.
 
     Returns:
         dict: A dictionary of fitting parameters including the following,
@@ -2298,7 +2307,7 @@ def poly_energy_calibration(
 
     # Solve for the a vector (polynomial coefficients) using least squares
     if method == "lstsq":
-        sol = lstsq(t_mat, bvec, rcond=None)
+        sol = lstsq(t_mat, bvec, rcond=None, **kwds)
     elif method == "lsqr":
         sol = lsqr(t_mat, bvec, **kwds)
     poly_a = sol[0]
