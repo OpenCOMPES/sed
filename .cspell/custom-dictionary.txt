@@ -403,3 +403,7 @@ pypi
 pypa
 cobertura
 coverallsapp
+viewcode
+pydata
+ALLUSERPROFILE
+webfactory
