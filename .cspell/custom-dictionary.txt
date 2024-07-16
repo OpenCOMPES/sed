@@ -38,6 +38,7 @@ caldir
 calib
 calibdict
 caplog
+capsys
 cdeform
 cdeformfield
 cdisp
@@ -77,6 +78,7 @@ datastreams
 datestring
 ddir
 delaxes
+delayeds
 Desy
 dfield
 dfops

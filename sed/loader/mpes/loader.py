@@ -10,6 +10,7 @@ import glob
 import json
 import os
 from collections.abc import Sequence
+from typing import Any
 from urllib.error import HTTPError
 from urllib.error import URLError
 from urllib.request import urlopen
@@ -27,11 +28,10 @@ from sed.loader.base.loader import BaseLoader
 
 def hdf5_to_dataframe(
     files: Sequence[str],
-    group_names: Sequence[str] = None,
-    alias_dict: dict[str, str] = None,
+    channels: dict[str, Any] = None,
     time_stamps: bool = False,
     time_stamp_alias: str = "timeStamps",
-    ms_markers_group: str = "msMarkers",
+    ms_markers_key: str = "msMarkers",
     first_event_time_stamp_key: str = "FirstEventTimeStamp",
     **kwds,
 ) -> ddf.DataFrame:
@@ -40,17 +40,14 @@ def hdf5_to_dataframe(
 
     Args:
         files (List[str]): A list of the file paths to load.
-        group_names (List[str], optional): hdf5 group names to load. Defaults to load
-            all groups containing "Stream"
-        alias_dict (dict[str, str], optional): Dictionary of aliases for the dataframe
-            columns. Keys are the hdf5 groupnames, and values the aliases. If an alias
-            is not found, its group name is used. Defaults to read the attribute
-            "Name" from each group.
+        channels (dict[str, str], optional): hdf5 channels names to load. Each entry in the dict
+            should contain the keys "format" and "dataset_key". Defaults to load all groups
+            containing "Stream", and to read the attribute "Name" from each group.
         time_stamps (bool, optional): Option to calculate time stamps. Defaults to
             False.
         time_stamp_alias (str): Alias name for the timestamp column.
             Defaults to "timeStamps".
-        ms_markers_group (str): h5 column containing timestamp information.
+        ms_markers_key (str): hdf5 path containing timestamp information.
             Defaults to "msMarkers".
         first_event_time_stamp_key (str): h5 attribute containing the start
             timestamp of a file. Defaults to "FirstEventTimeStamp".
@@ -58,30 +55,45 @@ def hdf5_to_dataframe(
     Returns:
         ddf.DataFrame: The delayed Dask DataFrame
     """
-    if group_names is None:
-        group_names = []
-    if alias_dict is None:
-        alias_dict = {}
-
     # Read a file to parse the file structure
     test_fid = kwds.pop("test_fid", 0)
     test_proc = h5py.File(files[test_fid])
-    if group_names == []:
-        group_names, alias_dict = get_groups_and_aliases(
+
+    if channels is None:
+        channels = get_datasets_and_aliases(
             h5file=test_proc,
             search_pattern="Stream",
         )
 
-    column_names = [alias_dict.get(group, group) for group in group_names]
+    electron_channels = []
+    column_names = []
+
+    for name, channel in channels.items():
+        if channel["format"] == "per_electron":
+            if channel["dataset_key"] in test_proc:
+                electron_channels.append(channel)
+                column_names.append(name)
+            else:
+                print(
+                    f"Entry \"{channel['dataset_key']}\" for channel \"{name}\" not found.",
+                    "Skipping the channel.",
+                )
+        elif channel["format"] != "per_file":
+            raise ValueError(
+                f"Invalid 'format':{channel['format']} for channel {name}.",
+            )
+
+    if not electron_channels:
+        raise ValueError("No valid 'per_electron' channels found.")
 
     if time_stamps:
         column_names.append(time_stamp_alias)
 
     test_array = hdf5_to_array(
         h5file=test_proc,
-        group_names=group_names,
+        channels=electron_channels,
         time_stamps=time_stamps,
-        ms_markers_group=ms_markers_group,
+        ms_markers_key=ms_markers_key,
         first_event_time_stamp_key=first_event_time_stamp_key,
     )
 
@@ -90,9 +102,9 @@ def hdf5_to_dataframe(
         da.from_delayed(
             dask.delayed(hdf5_to_array)(
                 h5file=h5py.File(f),
-                group_names=group_names,
+                channels=electron_channels,
                 time_stamps=time_stamps,
-                ms_markers_group=ms_markers_group,
+                ms_markers_key=ms_markers_key,
                 first_event_time_stamp_key=first_event_time_stamp_key,
             ),
             dtype=test_array.dtype,
@@ -102,16 +114,33 @@ def hdf5_to_dataframe(
     ]
     array_stack = da.concatenate(arrays, axis=1).T
 
-    return ddf.from_dask_array(array_stack, columns=column_names)
+    dataframe = ddf.from_dask_array(array_stack, columns=column_names)
+
+    for name, channel in channels.items():
+        if channel["format"] == "per_file":
+            if channel["dataset_key"] in test_proc.attrs:
+                values = [float(get_attribute(h5py.File(f), channel["dataset_key"])) for f in files]
+                delayeds = [
+                    add_value(partition, name, value)
+                    for partition, value in zip(dataframe.partitions, values)
+                ]
+                dataframe = ddf.from_delayed(delayeds)
+
+            else:
+                print(
+                    f"Entry \"{channel['dataset_key']}\" for channel \"{name}\" not found.",
+                    "Skipping the channel.",
+                )
+
+    return dataframe
 
 
 def hdf5_to_timed_dataframe(
     files: Sequence[str],
-    group_names: Sequence[str] = None,
-    alias_dict: dict[str, str] = None,
+    channels: dict[str, Any] = None,
     time_stamps: bool = False,
     time_stamp_alias: str = "timeStamps",
-    ms_markers_group: str = "msMarkers",
+    ms_markers_key: str = "msMarkers",
     first_event_time_stamp_key: str = "FirstEventTimeStamp",
     **kwds,
 ) -> ddf.DataFrame:
@@ -121,17 +150,14 @@ def hdf5_to_timed_dataframe(
 
     Args:
         files (List[str]): A list of the file paths to load.
-        group_names (List[str], optional): hdf5 group names to load. Defaults to load
-            all groups containing "Stream"
-        alias_dict (dict[str, str], optional): Dictionary of aliases for the dataframe
-            columns. Keys are the hdf5 groupnames, and values the aliases. If an alias
-            is not found, its group name is used. Defaults to read the attribute
-            "Name" from each group.
+        channels (dict[str, str], optional): hdf5 channels names to load. Each entry in the dict
+            should contain the keys "format" and "groupName". Defaults to load all groups
+            containing "Stream", and to read the attribute "Name" from each group.
         time_stamps (bool, optional): Option to calculate time stamps. Defaults to
             False.
         time_stamp_alias (str): Alias name for the timestamp column.
             Defaults to "timeStamps".
-        ms_markers_group (str): h5 column containing timestamp information.
+        ms_markers_key (str): hdf5 dataset containing timestamp information.
             Defaults to "msMarkers".
         first_event_time_stamp_key (str): h5 attribute containing the start
             timestamp of a file. Defaults to "FirstEventTimeStamp".
@@ -139,30 +165,45 @@ def hdf5_to_timed_dataframe(
     Returns:
         ddf.DataFrame: The delayed Dask DataFrame
     """
-    if group_names is None:
-        group_names = []
-    if alias_dict is None:
-        alias_dict = {}
-
     # Read a file to parse the file structure
     test_fid = kwds.pop("test_fid", 0)
     test_proc = h5py.File(files[test_fid])
-    if group_names == []:
-        group_names, alias_dict = get_groups_and_aliases(
+
+    if channels is None:
+        channels = get_datasets_and_aliases(
             h5file=test_proc,
             search_pattern="Stream",
         )
 
-    column_names = [alias_dict.get(group, group) for group in group_names]
+    electron_channels = []
+    column_names = []
+
+    for name, channel in channels.items():
+        if channel["format"] == "per_electron":
+            if channel["dataset_key"] in test_proc:
+                electron_channels.append(channel)
+                column_names.append(name)
+            else:
+                print(
+                    f"Entry \"{channel['dataset_key']}\" for channel \"{name}\" not found.",
+                    "Skipping the channel.",
+                )
+        elif channel["format"] != "per_file":
+            raise ValueError(
+                f"Invalid 'format':{channel['format']} for channel {name}.",
+            )
+
+    if not electron_channels:
+        raise ValueError("No valid 'per_electron' channels found.")
 
     if time_stamps:
         column_names.append(time_stamp_alias)
 
     test_array = hdf5_to_timed_array(
         h5file=test_proc,
-        group_names=group_names,
+        channels=electron_channels,
         time_stamps=time_stamps,
-        ms_markers_group=ms_markers_group,
+        ms_markers_key=ms_markers_key,
         first_event_time_stamp_key=first_event_time_stamp_key,
     )
 
@@ -171,9 +212,9 @@ def hdf5_to_timed_dataframe(
         da.from_delayed(
             dask.delayed(hdf5_to_timed_array)(
                 h5file=h5py.File(f),
-                group_names=group_names,
+                channels=electron_channels,
                 time_stamps=time_stamps,
-                ms_markers_group=ms_markers_group,
+                ms_markers_key=ms_markers_key,
                 first_event_time_stamp_key=first_event_time_stamp_key,
             ),
             dtype=test_array.dtype,
@@ -183,15 +224,49 @@ def hdf5_to_timed_dataframe(
     ]
     array_stack = da.concatenate(arrays, axis=1).T
 
-    return ddf.from_dask_array(array_stack, columns=column_names)
+    dataframe = ddf.from_dask_array(array_stack, columns=column_names)
+
+    for name, channel in channels.items():
+        if channel["format"] == "per_file":
+            if channel["dataset_key"] in test_proc.attrs:
+                values = [float(get_attribute(h5py.File(f), channel["dataset_key"])) for f in files]
+                delayeds = [
+                    add_value(partition, name, value)
+                    for partition, value in zip(dataframe.partitions, values)
+                ]
+                dataframe = ddf.from_delayed(delayeds)
+
+            else:
+                print(
+                    f"Entry \"{channel['dataset_key']}\" for channel \"{name}\" not found.",
+                    "Skipping the channel.",
+                )
+
+    return dataframe
 
 
-def get_groups_and_aliases(
+@dask.delayed
+def add_value(partition: ddf.DataFrame, name: str, value: float) -> ddf.DataFrame:
+    """Dask delayed helper function to add a value to each dataframe partition
+
+    Args:
+        partition (ddf.DataFrame): Dask dataframe partition
+        name (str): Name of the column to add
+        value (float): value to add to this partition
+
+    Returns:
+        ddf.DataFrame: Dataframe partition with added column
+    """
+    partition[name] = value
+    return partition
+
+
+def get_datasets_and_aliases(
     h5file: h5py.File,
     search_pattern: str = None,
     alias_key: str = "Name",
-) -> tuple[list[str], dict[str, str]]:
-    """Read groups and aliases from a provided hdf5 file handle
+) -> dict[str, Any]:
+    """Read datasets and aliases from a provided hdf5 file handle
 
     Args:
         h5file (h5py.File):
@@ -202,31 +277,33 @@ def get_groups_and_aliases(
             Attribute key where aliases are stored. Defaults to "Name".
 
     Returns:
-        tuple[list[str], dict[str, str]]:
-            The list of groupnames and the alias dictionary parsed from the file
+        dict[str, Any]:
+        A dict of aliases and groupnames parsed from the file
     """
     # get group names:
-    group_names = list(h5file)
+    dataset_names = list(h5file)
 
     # Filter the group names
     if search_pattern is None:
-        filtered_group_names = group_names
+        filtered_dataset_names = dataset_names
     else:
-        filtered_group_names = [name for name in group_names if search_pattern in name]
+        filtered_dataset_names = [name for name in dataset_names if search_pattern in name]
 
     alias_dict = {}
-    for name in filtered_group_names:
+    for name in filtered_dataset_names:
         alias_dict[name] = get_attribute(h5file[name], alias_key)
 
-    return filtered_group_names, alias_dict
+    return {
+        alias_dict[name]: {"format": "per_electron", "dataset_key": name}
+        for name in filtered_dataset_names
+    }
 
 
 def hdf5_to_array(
     h5file: h5py.File,
-    group_names: Sequence[str],
-    data_type: str = "float32",
+    channels: Sequence[dict[str, Any]],
     time_stamps=False,
-    ms_markers_group: str = "msMarkers",
+    ms_markers_key: str = "msMarkers",
     first_event_time_stamp_key: str = "FirstEventTimeStamp",
 ) -> np.ndarray:
     """Reads the content of the given groups in an hdf5 file, and returns a
@@ -235,13 +312,11 @@ def hdf5_to_array(
     Args:
         h5file (h5py.File):
             hdf5 file handle to read from
-        group_names (str):
-            group names to read
-        data_type (str, optional):
-            Data type of the output data. Defaults to "float32".
+        channels (Sequence[dict[str, any]]):
+            channel dicts containing group names and types to read.
         time_stamps (bool, optional):
             Option to calculate time stamps. Defaults to False.
-        ms_markers_group (str): h5 column containing timestamp information.
+        ms_markers_group (str): hdf5 dataset containing timestamp information.
             Defaults to "msMarkers".
         first_event_time_stamp_key (str): h5 attribute containing the start
             timestamp of a file. Defaults to "FirstEventTimeStamp".
@@ -251,13 +326,19 @@ def hdf5_to_array(
     """
 
     # Delayed array for loading an HDF5 file of reasonable size (e.g. < 1GB)
-
     # Read out groups:
     data_list = []
-    for group in group_names:
-        g_dataset = np.asarray(h5file[group])
-        if bool(data_type):
-            g_dataset = g_dataset.astype(data_type)
+    for channel in channels:
+        if channel["format"] == "per_electron":
+            g_dataset = np.asarray(h5file[channel["dataset_key"]])
+        else:
+            raise ValueError(
+                f"Invalid 'format':{channel['format']} for channel {channel['dataset_key']}.",
+            )
+        if "dtype" in channel.keys():
+            g_dataset = g_dataset.astype(channel["dtype"])
+        else:
+            g_dataset = g_dataset.astype("float32")
         data_list.append(g_dataset)
 
     # calculate time stamps
@@ -266,7 +347,7 @@ def hdf5_to_array(
         time_stamp_data = np.zeros(len(data_list[0]))
         # the ms marker contains a list of events that occurred at full ms intervals.
         # It's monotonically increasing, and can contain duplicates
-        ms_marker = np.asarray(h5file[ms_markers_group])
+        ms_marker = np.asarray(h5file[ms_markers_key])
 
         # try to get start timestamp from "FirstEventTimeStamp" attribute
         try:
@@ -306,10 +387,9 @@ def hdf5_to_array(
 
 def hdf5_to_timed_array(
     h5file: h5py.File,
-    group_names: Sequence[str],
-    data_type: str = "float32",
+    channels: Sequence[dict[str, Any]],
     time_stamps=False,
-    ms_markers_group: str = "msMarkers",
+    ms_markers_key: str = "msMarkers",
     first_event_time_stamp_key: str = "FirstEventTimeStamp",
 ) -> np.ndarray:
     """Reads the content of the given groups in an hdf5 file, and returns a
@@ -318,13 +398,11 @@ def hdf5_to_timed_array(
     Args:
         h5file (h5py.File):
             hdf5 file handle to read from
-        group_names (str):
-            group names to read
-        data_type (str, optional):
-            Data type of the output data. Defaults to "float32".
+        channels (Sequence[dict[str, any]]):
+            channel dicts containing group names and types to read.
         time_stamps (bool, optional):
             Option to calculate time stamps. Defaults to False.
-        ms_markers_group (str): h5 column containing timestamp information.
+        ms_markers_group (str): hdf5 dataset containing timestamp information.
             Defaults to "msMarkers".
         first_event_time_stamp_key (str): h5 attribute containing the start
             timestamp of a file. Defaults to "FirstEventTimeStamp".
@@ -338,15 +416,21 @@ def hdf5_to_timed_array(
 
     # Read out groups:
     data_list = []
-    ms_marker = np.asarray(h5file[ms_markers_group])
-    for group in group_names:
-        g_dataset = np.asarray(h5file[group])
-        if bool(data_type):
-            g_dataset = g_dataset.astype(data_type)
-
+    ms_marker = np.asarray(h5file[ms_markers_key])
+    for channel in channels:
         timed_dataset = np.zeros_like(ms_marker)
-        for i, point in enumerate(ms_marker):
-            timed_dataset[i] = g_dataset[int(point) - 1]
+        if channel["format"] == "per_electron":
+            g_dataset = np.asarray(h5file[channel["dataset_key"]])
+            for i, point in enumerate(ms_marker):
+                timed_dataset[i] = g_dataset[int(point) - 1]
+        else:
+            raise ValueError(
+                f"Invalid 'format':{channel['format']} for channel {channel['dataset_key']}.",
+            )
+        if "dtype" in channel.keys():
+            timed_dataset = timed_dataset.astype(channel["dtype"])
+        else:
+            timed_dataset = timed_dataset.astype("float32")
 
         data_list.append(timed_dataset)
 
@@ -398,20 +482,20 @@ def get_attribute(h5group: h5py.Group, attribute: str) -> str:
 
 def get_count_rate(
     h5file: h5py.File,
-    ms_markers_group: str = "msMarkers",
+    ms_markers_key: str = "msMarkers",
 ) -> tuple[np.ndarray, np.ndarray]:
     """Create count rate in the file from the msMarker column.
 
     Args:
         h5file (h5py.File): The h5file from which to get the count rate.
-        ms_markers_group (str, optional): The hdf5 group where the millisecond markers
+        ms_markers_key (str, optional): The hdf5 path where the millisecond markers
             are stored. Defaults to "msMarkers".
 
     Returns:
         tuple[np.ndarray, np.ndarray]: The count rate in Hz and the seconds into the
         scan.
     """
-    ms_markers = np.asarray(h5file[ms_markers_group])
+    ms_markers = np.asarray(h5file[ms_markers_key])
     secs = np.arange(0, len(ms_markers)) / 1000
     msmarker_spline = sint.InterpolatedUnivariateSpline(secs, ms_markers, k=1)
     rate_spline = msmarker_spline.derivative()
@@ -422,19 +506,19 @@ def get_count_rate(
 
 def get_elapsed_time(
     h5file: h5py.File,
-    ms_markers_group: str = "msMarkers",
+    ms_markers_key: str = "msMarkers",
 ) -> float:
     """Return the elapsed time in the file from the msMarkers wave
 
     Args:
         h5file (h5py.File): The h5file from which to get the count rate.
-        ms_markers_group (str, optional): The hdf5 group where the millisecond markers
+        ms_markers_key (str, optional): The hdf5 path where the millisecond markers
             are stored. Defaults to "msMarkers".
 
     Return:
         float: The acquisition time of the file in seconds.
     """
-    secs = h5file[ms_markers_group].len() / 1000
+    secs = h5file[ms_markers_key].len() / 1000
 
     return secs
 
@@ -528,7 +612,7 @@ class MpesLoader(BaseLoader):
                 - **hdf5_groupnames** : List of groupnames to look for in the file.
                 - **hdf5_aliases**: Dictionary of aliases for the groupnames.
                 - **time_stamp_alias**: Alias for the timestamp column
-                - **ms_markers_group**: Group name of the millisecond marker column.
+                - **ms_markers_key**: HDF5 path of the millisecond marker column.
                 - **first_event_time_stamp_key**: Attribute name containing the start
                   timestamp of the file.
 
@@ -567,13 +651,9 @@ class MpesLoader(BaseLoader):
                 metadata=metadata,
             )
 
-        hdf5_groupnames = kwds.pop(
-            "hdf5_groupnames",
-            self._config.get("dataframe", {}).get("hdf5_groupnames", []),
-        )
-        hdf5_aliases = kwds.pop(
-            "hdf5_aliases",
-            self._config.get("dataframe", {}).get("hdf5_aliases", {}),
+        channels = kwds.pop(
+            "channels",
+            self._config.get("dataframe", {}).get("channels", None),
         )
         time_stamp_alias = kwds.pop(
             "time_stamp_alias",
@@ -582,10 +662,10 @@ class MpesLoader(BaseLoader):
                 "timeStamps",
             ),
         )
-        ms_markers_group = kwds.pop(
-            "ms_markers_group",
+        ms_markers_key = kwds.pop(
+            "ms_markers_key",
             self._config.get("dataframe", {}).get(
-                "ms_markers_group",
+                "ms_markers_key",
                 "msMarkers",
             ),
         )
@@ -598,21 +678,19 @@ class MpesLoader(BaseLoader):
         )
         df = hdf5_to_dataframe(
             files=self.files,
-            group_names=hdf5_groupnames,
-            alias_dict=hdf5_aliases,
+            channels=channels,
             time_stamps=time_stamps,
             time_stamp_alias=time_stamp_alias,
-            ms_markers_group=ms_markers_group,
+            ms_markers_key=ms_markers_key,
             first_event_time_stamp_key=first_event_time_stamp_key,
             **kwds,
         )
         timed_df = hdf5_to_timed_dataframe(
             files=self.files,
-            group_names=hdf5_groupnames,
-            alias_dict=hdf5_aliases,
+            channels=channels,
             time_stamps=time_stamps,
             time_stamp_alias=time_stamp_alias,
-            ms_markers_group=ms_markers_group,
+            ms_markers_key=ms_markers_key,
             first_event_time_stamp_key=first_event_time_stamp_key,
             **kwds,
         )
@@ -678,16 +756,23 @@ class MpesLoader(BaseLoader):
             tuple[float, float]: A tuple containing the start and end time stamps
         """
         h5file = h5py.File(self.files[0])
+        channels = []
+        for channel in self._config["dataframe"]["channels"].values():
+            if channel["format"] == "per_electron":
+                channels = [channel]
+                break
+        if not channels:
+            raise ValueError("No valid 'per_electron' channels found.")
         timestamps = hdf5_to_array(
             h5file,
-            group_names=self._config["dataframe"]["hdf5_groupnames"],
+            channels=channels,
             time_stamps=True,
         )
         ts_from = timestamps[-1][1]
         h5file = h5py.File(self.files[-1])
         timestamps = hdf5_to_array(
             h5file,
-            group_names=self._config["dataframe"]["hdf5_groupnames"],
+            channels=channels,
             time_stamps=True,
         )
         ts_to = timestamps[-1][-1]
@@ -891,7 +976,7 @@ class MpesLoader(BaseLoader):
                 include. Defaults to list of all file ids.
             kwds: Keyword arguments:
 
-                - **ms_markers_group**: Name of the hdf5 group containing the ms-markers
+                - **ms_markers_key**: HDF5 path of the ms-markers
 
         Returns:
             tuple[np.ndarray, np.ndarray]: Arrays containing countrate and seconds
@@ -900,10 +985,10 @@ class MpesLoader(BaseLoader):
         if fids is None:
             fids = range(0, len(self.files))
 
-        ms_markers_group = kwds.pop(
-            "ms_markers_group",
+        ms_markers_key = kwds.pop(
+            "ms_markers_key",
             self._config.get("dataframe", {}).get(
-                "ms_markers_group",
+                "ms_markers_key",
                 "msMarkers",
             ),
         )
@@ -914,7 +999,7 @@ class MpesLoader(BaseLoader):
         for fid in fids:
             count_rate_, secs_ = get_count_rate(
                 h5py.File(self.files[fid]),
-                ms_markers_group=ms_markers_group,
+                ms_markers_key=ms_markers_key,
             )
             secs_list.append((accumulated_time + secs_).T)
             count_rate_list.append(count_rate_.T)
@@ -934,7 +1019,7 @@ class MpesLoader(BaseLoader):
                 include. Defaults to list of all file ids.
             kwds: Keyword arguments:
 
-                - **ms_markers_group**: Name of the hdf5 group containing the ms-markers
+                - **ms_markers_key**: HDF5 path of the millisecond marker column.
 
         Return:
             float: The elapsed time in the files in seconds.
@@ -942,10 +1027,10 @@ class MpesLoader(BaseLoader):
         if fids is None:
             fids = range(0, len(self.files))
 
-        ms_markers_group = kwds.pop(
-            "ms_markers_group",
+        ms_markers_key = kwds.pop(
+            "ms_markers_key",
             self._config.get("dataframe", {}).get(
-                "ms_markers_group",
+                "ms_markers_key",
                 "msMarkers",
             ),
         )
@@ -954,7 +1039,7 @@ class MpesLoader(BaseLoader):
         for fid in fids:
             secs += get_elapsed_time(
                 h5py.File(self.files[fid]),
-                ms_markers_group=ms_markers_group,
+                ms_markers_key=ms_markers_key,
             )
 
         return secs

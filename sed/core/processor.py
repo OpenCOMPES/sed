@@ -1290,7 +1290,6 @@ class SedProcessor:
     # 3. Fit the energy calibration relation
     def calibrate_energy_axis(
         self,
-        ref_id: int,
         ref_energy: float,
         method: str = None,
         energy_scale: str = None,
@@ -1303,10 +1302,7 @@ class SedProcessor:
         approximation, and a d^2/(t-t0)^2 relation.
 
         Args:
-            ref_id (int): id of the trace at the bias where the reference energy is
-                given.
-            ref_energy (float): Absolute energy of the detected feature at the bias
-                of ref_id
+            ref_energy (float): Binding/kinetic energy of the detected feature.
             method (str, optional): Method for determining the energy calibration.
 
                 - **'lmfit'**: Energy calibration using lmfit and 1/t^2 form.
@@ -1333,7 +1329,6 @@ class SedProcessor:
             energy_scale = self._config["energy"]["energy_scale"]
 
         self.ec.calibrate(
-            ref_id=ref_id,
             ref_energy=ref_energy,
             method=method,
             energy_scale=energy_scale,
@@ -1350,23 +1345,29 @@ class SedProcessor:
                 backend="bokeh",
             )
             print("E/TOF relationship:")
-            self.ec.view(
-                traces=self.ec.calibration["axis"][None, :],
-                xaxis=self.ec.tof,
-                backend="matplotlib",
-                show_legend=False,
-            )
             if energy_scale == "kinetic":
+                self.ec.view(
+                    traces=self.ec.calibration["axis"][None, :] + self.ec.biases[0],
+                    xaxis=self.ec.tof,
+                    backend="matplotlib",
+                    show_legend=False,
+                )
                 plt.scatter(
                     self.ec.peaks[:, 0],
-                    -(self.ec.biases - self.ec.biases[ref_id]) + ref_energy,
+                    -(self.ec.biases - self.ec.biases[0]) + ref_energy,
                     s=50,
                     c="k",
                 )
             elif energy_scale == "binding":
+                self.ec.view(
+                    traces=self.ec.calibration["axis"][None, :] - self.ec.biases[0],
+                    xaxis=self.ec.tof,
+                    backend="matplotlib",
+                    show_legend=False,
+                )
                 plt.scatter(
                     self.ec.peaks[:, 0],
-                    self.ec.biases - self.ec.biases[ref_id] + ref_energy,
+                    self.ec.biases - self.ec.biases[0] + ref_energy,
                     s=50,
                     c="k",
                 )
@@ -1419,6 +1420,7 @@ class SedProcessor:
     def append_energy_axis(
         self,
         calibration: dict = None,
+        bias_voltage: float = None,
         preview: bool = False,
         verbose: bool = None,
         **kwds,
@@ -1432,6 +1434,9 @@ class SedProcessor:
             calibration (dict, optional): Calibration dict containing calibration
                 parameters. Overrides calibration from class or config.
                 Defaults to None.
+            bias_voltage (float, optional): Sample bias voltage of the scan data. If omitted,
+                the bias voltage is being read from the dataframe. If it is not found there,
+                a warning is printed and the calibrated data might have an offset.
             preview (bool): Option to preview the first elements of the data frame.
             verbose (bool, optional): Option to print out diagnostic information.
                 Defaults to config["core"]["verbose"].
@@ -1449,6 +1454,7 @@ class SedProcessor:
             df, metadata = self.ec.append_energy_axis(
                 df=self._dataframe,
                 calibration=calibration,
+                bias_voltage=bias_voltage,
                 verbose=verbose,
                 **kwds,
             )
@@ -1456,6 +1462,7 @@ class SedProcessor:
                 tdf, _ = self.ec.append_energy_axis(
                     df=self._timed_dataframe,
                     calibration=calibration,
+                    bias_voltage=bias_voltage,
                     verbose=False,
                     **kwds,
                 )
