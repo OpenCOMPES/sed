@@ -847,8 +847,8 @@ class MpesLoader(BaseLoader):
             if np.allclose(
                 lens_volts,
                 lens_volts_config,
-                rtol=0.02,
-            ):  # Equal upto 2% tolerance
+                rtol=0.005,
+            ):  # Equal upto 0.5% tolerance
                 metadata["instrument"]["analyzer"]["lens_mode"] = mode
                 break
         else:
