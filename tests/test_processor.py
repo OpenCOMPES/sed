@@ -1088,7 +1088,8 @@ def test_save(caplog) -> None:
     with caplog.at_level(logging.WARNING):
         processor.save(
             "result.nxs",
-            input_files=[df_folder + "../../../../sed/config/NXmpes_config.json", "temp_eln.yaml"],
+            input_files=[df_folder + "../../../../sed/config/NXmpes_config.json"],
+            eln_data="temp_eln.yaml",
         )
         assert (
             caplog.messages[0]
