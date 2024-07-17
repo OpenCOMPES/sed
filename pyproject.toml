@@ -28,7 +28,7 @@ numpy = ">=1.18"
 pandas = ">=1.4.1"
 psutil = ">=5.9.0"
 pynxtools-mpes = ">=0.1.1"
-pynxtools = ">=0.5.0"
+pynxtools = ">=0.5.1"
 pyyaml = ">=6.0.0"
 scipy = ">=1.8.0"
 symmetrize = ">=0.5.5"
@@ -59,7 +59,7 @@ types-pyyaml = ">=6.0.12.12"
 types-requests = ">=2.31.0.9"
 pyfakefs = ">=5.3.0"
 requests-mock = "^1.11.0"
-
+pre-commit = ">=3.0.0"
 
 [tool.poetry.group.docs]
 optional = true
