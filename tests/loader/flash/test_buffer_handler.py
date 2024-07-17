@@ -33,10 +33,10 @@ def test_buffer_file_paths(config: dict, h5_paths: list[Path]) -> None:
     which HDF5 files need to be read and properly manages the paths for saving buffer
     files. It follows these steps:
     1. Creates a directory structure for storing buffer files and initializes the BufferHandler.
-    2. Checks if the to_process method populates the dict of missing file sets and
+    2. Checks if the file_sets_to_process method populates the dict of missing file sets and
        verify that initially, all provided files are considered missing.
     3. Checks that the paths for saving buffer files are correctly generated.
-    4. Creates a single buffer file and reruns to_process to ensure that the BufferHandler
+    4. Creates a single buffer file and reruns file_sets_to_process to ensure that the BufferHandler
         recognizes one less missing file.
     5. Checks if the force_recreate parameter forces the BufferHandler to consider all files
     6. Cleans up by removing the created buffer file.
@@ -47,7 +47,7 @@ def test_buffer_file_paths(config: dict, h5_paths: list[Path]) -> None:
     fp = BufferFilePaths(h5_paths, folder, "")
 
     # check that all files are to be read
-    assert len(fp.to_process()) == len(h5_paths)
+    assert len(fp.file_sets_to_process()) == len(h5_paths)
     print(folder)
     # create expected paths
     expected_buffer_electron_paths = [
@@ -71,10 +71,10 @@ def test_buffer_file_paths(config: dict, h5_paths: list[Path]) -> None:
     # check again for files to read and expect one less file
     fp = BufferFilePaths(h5_paths, folder, "")
     # check that only one file is to be read
-    assert len(fp.to_process()) == len(h5_paths) - 1
+    assert len(fp.file_sets_to_process()) == len(h5_paths) - 1
 
     # check that both files are to be read if force_recreate is set to True
-    assert len(fp.to_process(force_recreate=True)) == len(h5_paths)
+    assert len(fp.file_sets_to_process(force_recreate=True)) == len(h5_paths)
 
     # remove buffer files
     Path(path["electron"]).unlink()
