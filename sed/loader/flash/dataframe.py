@@ -302,4 +302,12 @@ class DataFrameCreator:
         self.validate_channel_keys()
         # been tested with merge, join and concat
         # concat offers best performance, almost 3 times faster
-        return pd.concat((self.df_electron, self.df_pulse, self.df_train), axis=1).sort_index()
+        dataframe = (
+            pd.concat((self.df_electron, self.df_pulse, self.df_train), axis=1)
+            .sort_index()
+            .reset_index()
+        )
+        # we can set dtype to uint16 for index pulseId and electronId
+        dataframe["pulseId"] = dataframe["pulseId"].astype("uint16")
+        dataframe["electronId"] = dataframe["electronId"].astype("uint16")
+        return dataframe.set_index("trainId")

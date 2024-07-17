@@ -206,37 +206,38 @@ def split_dld_time_from_sector_id(
     return df, {"split_dld_time_from_sector_id": metadata}
 
 
-def get_timestamp_stats(meta: pq.FileMetaData, time_stamp_col: str) -> tuple[int, int]:
+def get_stats(meta: pq.FileMetaData) -> dict[str, list[int]]:
     """
-    Extracts the minimum and maximum timestamps from the metadata of a Parquet file.
+    Extracts the minimum and maximum of all columns from the metadata of a Parquet file.
 
     Args:
         meta (pq.FileMetaData): The metadata of the Parquet file.
-        time_stamp_col (str): The name of the column containing the timestamps.
 
     Returns:
         Tuple[int, int]: The minimum and maximum timestamps.
     """
-    idx = meta.schema.names.index(time_stamp_col)
-    timestamps = []
-    for i in range(meta.num_row_groups):
-        stats = meta.row_group(i).column(idx).statistics
-        timestamps.append(stats.min)
-        timestamps.append(stats.max)
+    min_max = {}
+    for idx, name in enumerate(meta.schema.names):
+        col = []
+        for i in range(meta.num_row_groups):
+            stats = meta.row_group(i).column(idx).statistics
+            col.append(stats.min)
+            col.append(stats.max)
+        min_max[name] = [min(col), max(col)]
 
-    return min(timestamps), max(timestamps)
+    return min_max
 
 
-def get_parquet_metadata(file_paths: list[Path], time_stamp_col: str) -> dict[str, dict]:
+def get_parquet_metadata(file_paths: list[Path]) -> dict[str, dict]:
     """
     Extracts and organizes metadata from a list of Parquet files.
 
-    For each file, the function reads the metadata, adds the filename, and attempts to
-    extract the minimum and maximum timestamps. "row_groups" entry is removed from FileMetaData.
+    For each file, the function reads the metadata, adds the filename,
+    and extracts the minimum and maximum timestamps.
+    "row_groups" entry is removed from FileMetaData.
 
     Args:
         file_paths (list[Path]): A list of paths to the Parquet files.
-        time_stamp_col (str): The name of the column containing the timestamps.
 
     Returns:
         dict[str, dict]: A dictionary file index as key and the values as metadata of each file.
@@ -250,12 +251,8 @@ def get_parquet_metadata(file_paths: list[Path], time_stamp_col: str) -> dict[st
         # Add the filename to the metadata dictionary
         metadata_dict["filename"] = str(file_path.name)
 
-        # Get the timestamp min and max
-        try:
-            start, end = get_timestamp_stats(file_meta, time_stamp_col)
-            metadata_dict["time_stamps"] = np.array([start, end])
-        except ValueError:
-            pass
+        # Get column min and max values
+        metadata_dict["columns"] = get_stats(file_meta)
 
         # Remove "row_groups" as they contain a lot of info that is not needed
         metadata_dict.pop("row_groups", None)

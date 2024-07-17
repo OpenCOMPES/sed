@@ -156,7 +156,7 @@ dataframe:
       aux_channels:
         sampleBias:
           slice: 0
-          dtype: float64
+          dtype: float32
         tofVoltage:
           slice: 1
           dtype: float64

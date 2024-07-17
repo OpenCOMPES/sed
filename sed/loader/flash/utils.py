@@ -83,20 +83,26 @@ def get_channels(
     return channels
 
 
-def get_dtypes(channels_dict: dict, formats: str | list[str]) -> dict:
+def get_dtypes(channels_dict: dict, formats: str | list[str], extend_aux: bool = False) -> dict:
     """Returns a dictionary of channels and their corresponding data types.
     Currently Auxiliary channels are not included in the dtype dictionary.
 
     Args:
         channels_dict (dict): The dictionary containing the channels.
         formats (str | list[str]): The desired format(s).
+        extend_aux (bool): If True, includes auxiliary channels.
 
     Returns:
         dict: A dictionary of channels and their corresponding data types.
     """
-    channels = get_channels(channel_dict=channels_dict, formats=formats)
-    return {
-        channel: channels_dict[channel].get("dtype")
-        for channel in channels
-        if channels_dict[channel].get("dtype") is not None
-    }
+    channels = get_channels(channel_dict=channels_dict, formats=formats, extend_aux=extend_aux)
+    dtypes = {}
+    for channel in channels:
+        try:
+            dtypes[channel] = channels_dict[channel].get("dtype")
+        except KeyError:
+            try:
+                dtypes[channel] = channels_dict["dldAux"][channel].get("dtype")
+            except KeyError:
+                dtypes[channel] = None
+    return dtypes
