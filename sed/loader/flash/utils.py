@@ -83,21 +83,19 @@ def get_channels(
     return channels
 
 
-def get_dtypes(channels_dict: dict, formats: str | list[str], extend_aux: bool = False) -> dict:
+def get_dtypes(channels_dict: dict, df_cols: list) -> dict:
     """Returns a dictionary of channels and their corresponding data types.
     Currently Auxiliary channels are not included in the dtype dictionary.
 
     Args:
-        channels_dict (dict): The dictionary containing the channels.
-        formats (str | list[str]): The desired format(s).
-        extend_aux (bool): If True, includes auxiliary channels.
+        channels_dict (dict): The config dictionary containing the channels.
+        df_cols (list): A list of channels in the DataFrame.
 
     Returns:
         dict: A dictionary of channels and their corresponding data types.
     """
-    channels = get_channels(channel_dict=channels_dict, formats=formats, extend_aux=extend_aux)
     dtypes = {}
-    for channel in channels:
+    for channel in df_cols:
         try:
             dtypes[channel] = channels_dict[channel].get("dtype")
         except KeyError:
