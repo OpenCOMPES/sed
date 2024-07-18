@@ -6,7 +6,7 @@ core:
   # the beamline where experiment took place
   beamline: pg2
   # the ID number of the beamtime
-  beamtime_id: 11013410
+  beamtime_id: 11019101
   # the year of the beamtime
   year: 2023
 
@@ -14,9 +14,9 @@ core:
   # provided, the loader will try to find the data based on year beamtimeID etc
   paths:
     # location of the raw data.
-    data_raw_dir: "tests/data/loader/flash/"
+    data_raw_dir: ""
     # location of the intermediate parquet files.
-    data_parquet_dir: "tests/data/loader/flash/parquet"
+    data_parquet_dir: ""
 
 binning:
   # Since this will run on maxwell most probably, we have a lot of cores at our disposal
