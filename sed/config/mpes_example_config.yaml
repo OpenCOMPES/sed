@@ -15,18 +15,10 @@ core:
     gid: 1001
 
 dataframe:
-  # hdf5 group names to read from the h5 files (for mpes reader)
-  hdf5_groupnames: ["Stream_0", "Stream_1", "Stream_2", "Stream_4"]
-  # aliases to assign to the dataframe columns for the corresponding hdf5 streams
-  hdf5_aliases:
-    Stream_0: "X"
-    Stream_1: "Y"
-    Stream_2: "t"
-    Stream_4: "ADC"
   # dataframe column name for the time stamp column
   time_stamp_alias: "timeStamps"
   # hdf5 group name containing eventIDs occurring at every millisecond (used to calculate timestamps)
-  ms_markers_group: "msMarkers"
+  ms_markers_key: "msMarkers"
   # hdf5 attribute containing the timestamp of the first event in a file
   first_event_time_stamp_key: "FirstEventTimeStamp"
   # Time stepping in seconds of the successive events in the timed dataframe
@@ -41,6 +33,8 @@ dataframe:
   tof_column: "t"
   # dataframe column containing analog-to-digital data
   adc_column: "ADC"
+  # dataframe column containing bias voltage data
+  bias_column: "sampleBias"
   # dataframe column containing corrected x coordinates
   corrected_x_column: "Xm"
   # dataframe column containing corrected y coordinates
@@ -78,6 +72,29 @@ dataframe:
     E: 'eV'
     kx: '1/A'
     ky: '1/A'
+
+  # dataframe channels and group names to read from the h5 files
+  channels:
+    # The X-channel
+    X:
+      format: per_electron
+      dataset_key: "Stream_0"
+    # The Y-channel
+    Y:
+      format: per_electron
+      dataset_key: "Stream_1"
+    # The tof-channel
+    t:
+      format: per_electron
+      dataset_key: "Stream_2"
+    # The ADC-channel
+    ADC:
+      format: per_electron
+      dataset_key: "Stream_4"
+    # The sample Bias-channel
+    sampleBias:
+      format: per_file
+      dataset_key: "KTOF:Lens:Sample:V"
 
 energy:
   # Number of bins to use for energy calibration traces

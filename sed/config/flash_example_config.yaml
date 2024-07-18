@@ -8,7 +8,7 @@ core:
   # the beamline where experiment took place
   beamline: pg2
   # the ID number of the beamtime
-  beamtime_id: 11013410
+  beamtime_id: 11019101
   # the year of the beamtime
   year: 2023
   # the instrument used
@@ -18,9 +18,9 @@ core:
   # provided, the loader will try to find the data based on year beamtimeID etc
   paths:
     # location of the raw data.
-    raw: "tests/data/loader/flash/"
+    raw: ""
     # location of the intermediate parquet files.
-    processed: "tests/data/loader/flash/parquet"
+    processed: ""
 
 binning:
   # Histogram computation mode to use.

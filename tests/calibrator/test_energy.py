@@ -131,6 +131,10 @@ def test_feature_extract() -> None:
         ((tof[1] - tof[0]) * np.asarray(rand) + 65000) + diff,
     )
 
+    # illegal keywords
+    with pytest.raises(TypeError):
+        ec.add_ranges(ranges=rng, ref_id=ref_id, illegal_kwd=True)
+
 
 def test_adjust_ranges() -> None:
     """Test the interactive function for adjusting the feature ranges"""
@@ -162,6 +166,10 @@ def test_adjust_ranges() -> None:
         ec.peaks[:, 0],
         ((tof[1] - tof[0]) * np.asarray(rand) + 65000) + diff,
     )
+
+    # illegal keywords
+    with pytest.raises(TypeError):
+        ec.adjust_ranges(ranges=rng, ref_id=ref_id, apply=True, illegal_kwd=True)
 
 
 energy_scales = ["kinetic", "binding"]
@@ -195,11 +203,9 @@ def test_calibrate_append(energy_scale: str, calibration_method: str) -> None:
     ref_id = 5
     ec.add_ranges(ranges=rng, ref_id=ref_id)
     ec.feature_extract()
-    refid = 4
     e_ref = -0.5
     calibdict = ec.calibrate(
         ref_energy=e_ref,
-        ref_id=refid,
         energy_scale=energy_scale,
         method=calibration_method,
     )
@@ -216,6 +222,15 @@ def test_calibrate_append(energy_scale: str, calibration_method: str) -> None:
         np.testing.assert_equal(
             metadata["calibration"][key],
             value,
+        )
+
+    # illegal keywords
+    with pytest.raises(TypeError):
+        calibdict = ec.calibrate(
+            ref_energy=e_ref,
+            energy_scale=energy_scale,
+            method=calibration_method,
+            illegal_kwd=True,
         )
 
 
@@ -301,6 +316,12 @@ def test_append_tof_ns_axis() -> None:
     df, _ = ec.append_tof_ns_axis(df)
     assert config["dataframe"]["tof_ns_column"] in df.columns
     np.testing.assert_allclose(df[ec.tof_column], df[ec.tof_ns_column] / 2)
+
+    # illegal keywords:
+    df, _, _ = loader.read_dataframe(folders=df_folder, collect_metadata=False)
+    ec = EnergyCalibrator(config=config, loader=loader)
+    with pytest.raises(TypeError):
+        df, _ = ec.append_tof_ns_axis(df, illegal_kwd=True)
 
 
 amplitude = 2.5

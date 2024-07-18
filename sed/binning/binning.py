@@ -207,7 +207,7 @@ def bin_dataframe(
     threads_per_worker: int = 4,
     threadpool_api: str = "blas",
     return_partitions: bool = False,
-    **kwds,
+    compute_kwds: dict = {},
 ) -> xr.DataArray:
     """Computes the n-dimensional histogram on columns of a dataframe,
     parallelized.
@@ -275,7 +275,7 @@ def bin_dataframe(
         return_partitions (bool, optional): Option to return a hypercube of dimension
             n+1, where the last dimension corresponds to the dataframe partitions.
             Defaults to False.
-        **kwds: Keyword arguments passed to ``dask.compute()``
+        compute_kwds (dict, optional): Dict of Keyword arguments passed to ``dask.compute()``
 
     Raises:
         Warning: Warns if there are unimplemented features the user is trying to use.
@@ -335,7 +335,7 @@ def bin_dataframe(
                 )
 
             if len(core_tasks) > 0:
-                core_results = dask.compute(*core_tasks, **kwds)
+                core_results = dask.compute(*core_tasks, **compute_kwds)
 
                 if return_partitions:
                     for core_result in core_results:
@@ -376,7 +376,7 @@ def bin_dataframe(
                         combine_tasks.append(
                             dask.delayed(reduce)(_arraysum, combine_parts),
                         )
-                    combine_results = dask.compute(*combine_tasks, **kwds)
+                    combine_results = dask.compute(*combine_tasks, **compute_kwds)
                     # Directly fill into target array. This is much faster than
                     # the (not so parallel) reduce/concatenation used before,
                     # and uses less memory.

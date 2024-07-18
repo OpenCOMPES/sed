@@ -317,7 +317,7 @@ class MomentumCorrector:
         direction: str = "ccw",
         rotsym: int = 6,
         symscores: bool = True,
-        **kwds,
+        symtype: str = "rotation",
     ):
         """Add features as reference points provided as np.ndarray. If provided,
         detects the center of the points and orders the points.
@@ -331,9 +331,7 @@ class MomentumCorrector:
                 Direction for ordering the points. Defaults to "ccw".
             symscores (bool, optional):
                 Option to calculate symmetry scores. Defaults to False.
-            **kwds: Keyword arguments.
-
-                - **symtype** (str): Type of symmetry scores to calculate
+            symtype (str, optional): Type of symmetry scores to calculate
                   if symscores is True. Defaults to "rotation".
 
         Raises:
@@ -374,7 +372,6 @@ class MomentumCorrector:
             self.calc_geometric_distances()
 
         if symscores is True:
-            symtype = kwds.pop("symtype", "rotation")
             self.csm_original = self.calc_symmetry_scores(symtype=symtype)
 
         if self.rotsym == 6 and self.pcent is not None:
@@ -407,7 +404,8 @@ class MomentumCorrector:
             symscores (bool, optional):
                 Option for calculating symmetry scores. Defaults to True.
             **kwds:
-                Extra keyword arguments for ``symmetrize.pointops.peakdetect2d()``.
+                Extra keyword arguments for ``symmetrize.pointops.peakdetect2d()`` and
+                ``add_features()``.
 
         Raises:
             NotImplementedError:
@@ -419,6 +417,15 @@ class MomentumCorrector:
             else:
                 raise ValueError("No image loaded for feature extraction!")
 
+        # split off config keywords
+        feature_kwds = {
+            key: value
+            for key, value in kwds.items()
+            if key in self.add_features.__code__.co_varnames
+        }
+        for key in feature_kwds.keys():
+            del kwds[key]
+
         if feature_type == "points":
             # Detect the point landmarks
             self.peaks = po.peakdetect2d(image, **kwds)
@@ -428,7 +435,7 @@ class MomentumCorrector:
                 direction=direction,
                 rotsym=rotsym,
                 symscores=symscores,
-                **kwds,
+                **feature_kwds,
             )
         else:
             raise NotImplementedError
@@ -461,7 +468,7 @@ class MomentumCorrector:
             apply (bool, optional): Option to directly store the features in the class.
                 Defaults to False.
             **kwds:
-                Extra keyword arguments for ``symmetrize.pointops.peakdetect2d()``.
+                Keyword arguments for ``add_features``.
 
         Raises:
             ValueError: If no valid image is found from which to ge the coordinates.
@@ -540,11 +547,7 @@ class MomentumCorrector:
 
             fig.canvas.draw_idle()
 
-            self.add_features(
-                features=features,
-                rotsym=rotsym,
-                **kwds,
-            )
+            self.add_features(features=features, rotsym=rotsym, **kwds)
 
         apply_button = ipw.Button(description="apply")
         display(apply_button)
@@ -627,6 +630,9 @@ class MomentumCorrector:
                 - **new_centers**: (dict): User-specified center positions for the
                   reference and target sets. {'lmkcenter': (row, col),
                   'targcenter': (row, col)}
+
+                Additional keywords are passed to ``tpsWarping()``.
+
         Returns:
             np.ndarray: The corrected image.
         """
@@ -676,7 +682,7 @@ class MomentumCorrector:
                         "No valid landmarks defined, and no landmarks found in configuration!",
                     ) from exc
 
-                self.add_features(features=features, rotsym=rotsym, include_center=include_center)
+                self.add_features(features=features, rotsym=rotsym)
 
         else:
             self.correction["creation_date"] = datetime.now().timestamp()
@@ -711,6 +717,7 @@ class MomentumCorrector:
 
         self.prefs = kwds.pop("landmarks", self.pouter_ord)
         self.ptargs = kwds.pop("targets", [])
+        newcenters = kwds.pop("new_centers", {})
 
         # Generate the target point set
         if not self.ptargs:
@@ -732,7 +739,6 @@ class MomentumCorrector:
                 self.ptargs = np.column_stack((self.ptargs.T, self.pcent)).T
 
             else:  # Add different centers to the reference and target sets
-                newcenters = kwds.pop("new_centers", {})
                 self.prefs = np.column_stack(
                     (self.prefs.T, newcenters["lmkcenter"]),
                 ).T
@@ -829,6 +835,10 @@ class MomentumCorrector:
         """
         image = kwds.pop("image", self.slice)
         coordtype = kwds.pop("coordtype", "cartesian")
+
+        if len(kwds) > 0:
+            raise TypeError(f"reset_deformation() got unexpected keyword arguments {kwds.keys()}.")
+
         coordmat = sym.coordinate_matrix_2D(
             image,
             coordtype=coordtype,
@@ -892,7 +902,12 @@ class MomentumCorrector:
             mapkwds (dict, optional): Additional arguments passed to
                 ``scipy.ndimage.map_coordinates()``. Defaults to None.
             **kwds: keyword arguments.
-                Additional arguments in specific deformation field.
+
+                - **image**: Image to use. Defaults to self.slice.
+                - **stackaxis**: Stacking axis for coordinate transformation matrices.
+                  Defaults to 0.
+
+                Additional arguments are passed to the specific deformation field generators.
                 See ``symmetrize.sym`` module.
         Returns:
             np.ndarray: The corrected image.
@@ -1081,8 +1096,14 @@ class MomentumCorrector:
             transformations = deepcopy(self.transformations)
 
         if len(kwds) > 0:
-            for key, value in kwds.items():
-                transformations[key] = value
+            for key in ["scale", "xtrans", "ytrans", "angle"]:
+                if key in kwds:
+                    transformations[key] = kwds.pop(key)
+
+            if len(kwds) > 0:
+                raise TypeError(
+                    f"pose_adjustment() got unexpected keyword arguments {kwds.keys()}.",
+                )
 
         elif "creation_date" in transformations and verbose:
             datestring = datetime.fromtimestamp(transformations["creation_date"]).strftime(
@@ -1253,7 +1274,7 @@ class MomentumCorrector:
 
         return self.inverse_dfield
 
-    def view(  # pylint: disable=dangerous-default-value
+    def view(
         self,
         image: np.ndarray = None,
         origin: str = "lower",
@@ -1311,6 +1332,13 @@ class MomentumCorrector:
         if annotated:
             tsr, tsc = kwds.pop("textshift", (3, 3))
             txtsize = kwds.pop("textsize", 12)
+
+        # Handle unexpected kwds:
+        handled_kwds = {"figsize"}
+        if not set(kwds.keys()).issubset(handled_kwds):
+            raise TypeError(
+                f"view() got unexpected keyword arguments {set(kwds.keys()) - handled_kwds}.",
+            )
 
         if backend == "matplotlib":
             fig_plt, ax = plt.subplots(figsize=figsize)
@@ -1678,7 +1706,6 @@ class MomentumCorrector:
         new_x_column: str = None,
         new_y_column: str = None,
         verbose: bool = True,
-        **kwds,
     ) -> tuple[pd.DataFrame | dask.dataframe.DataFrame, dict]:
         """Calculate and replace the X and Y values with their distortion-corrected
         version.
@@ -1698,13 +1725,6 @@ class MomentumCorrector:
                 Defaults to config["momentum"]["corrected_y_column"].
             verbose (bool, optional): Option to report the used landmarks for correction.
                 Defaults to True.
-            **kwds: Keyword arguments:
-
-                - **dfield**: Inverse dfield
-                - **cdeform_field**, **rdeform_field**: Column- and row-wise forward
-                  deformation fields.
-
-                Additional keyword arguments are passed to ``apply_dfield``.
 
         Returns:
             tuple[pd.DataFrame | dask.dataframe.DataFrame, dict]: Dataframe with
@@ -1748,7 +1768,6 @@ class MomentumCorrector:
             new_x_column=new_x_column,
             new_y_column=new_y_column,
             detector_ranges=self.detector_ranges,
-            **kwds,
         )
 
         metadata = self.gather_correction_metadata()
@@ -1885,9 +1904,22 @@ class MomentumCorrector:
             calibration = deepcopy(self.calibration)
 
         if len(kwds) > 0:
-            for key, value in kwds.items():
-                calibration[key] = value
+            for key in [
+                "rstart",
+                "cstart",
+                "x_center",
+                "y_center",
+                "kx_scale",
+                "ky_scale",
+                "rstep",
+                "cstep",
+            ]:
+                if key in kwds:
+                    calibration[key] = kwds.pop(key)
             calibration["creation_date"] = datetime.now().timestamp()
+
+            if len(kwds) > 0:
+                raise TypeError(f"append_k_axis() got unexpected keyword arguments {kwds.keys()}.")
 
         try:
             (df[new_x_column], df[new_y_column]) = detector_coordinates_2_k_coordinates(

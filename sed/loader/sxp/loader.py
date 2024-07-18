@@ -141,6 +141,11 @@ class SXPLoader(BaseLoader):
 
         daq = kwds.pop("daq", self._config.get("dataframe", {}).get("daq"))
 
+        if len(kwds) > 0:
+            raise TypeError(
+                f"get_files_from_run_id() got unexpected keyword arguments {kwds.keys()}.",
+            )
+
         stream_name_postfix = stream_name_postfixes.get(daq, "")
         # Generate the file patterns to search for in the directory
         file_pattern = f"**/{stream_name_prefixes[daq]}{run_id}{stream_name_postfix}*." + extension
@@ -931,6 +936,7 @@ class SXPLoader(BaseLoader):
             ftype (str, optional): The file extension type. Defaults to "h5".
             metadata (dict, optional): Additional metadata. Defaults to None.
             collect_metadata (bool, optional): Whether to collect metadata. Defaults to False.
+            **kwds: Keyword arguments passed to ``parquet_handler``.
 
         Returns:
             tuple[dd.DataFrame, dd.DataFrame, dict]: A tuple containing the concatenated DataFrame,

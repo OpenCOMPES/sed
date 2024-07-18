@@ -96,6 +96,7 @@ class SedProcessor:
                 Defaults to config["core"]["verbose"] or False.
             **kwds: Keyword arguments passed to parse_config and to the reader.
         """
+        # split off config keywords
         config_kwds = {
             key: value for key, value in kwds.items() if key in parse_config.__code__.co_varnames
         }
@@ -276,6 +277,7 @@ class SedProcessor:
         Args:
             attributes (dict): The attributes dictionary object to add.
             name (str): Key under which to add the dictionary to the attributes.
+            **kwds: Additional keywords are passed to the ``MetaHandler.add()`` function.
         """
         self._attributes.add(
             entry=attributes,
@@ -386,7 +388,10 @@ class SedProcessor:
             folder (str, optional): Folder path to pass to the loader.
                 Defaults to None.
             collect_metadata (bool, optional): Option for collecting metadata in the reader.
-            **kwds: Keyword parameters passed to the reader.
+            **kwds:
+                - *timed_dataframe*: timed dataframe if dataframe is provided.
+
+                Additional keyword parameters are passed to ``loader.read_dataframe()``.
 
         Raises:
             ValueError: Raised if no valid input is provided.
@@ -932,7 +937,7 @@ class SedProcessor:
                 Defaults to False.
             verbose (bool, optional): Option to print out diagnostic information.
                 Defaults to config["core"]["verbose"].
-            **kwds: Keyword args passed to ``DelayCalibrator.append_delay_axis``.
+            **kwds: Keyword args passed to ``MomentumCalibrator.append_k_axis``.
         """
         if verbose is None:
             verbose = self.verbose
@@ -1290,7 +1295,6 @@ class SedProcessor:
     # 3. Fit the energy calibration relation
     def calibrate_energy_axis(
         self,
-        ref_id: int,
         ref_energy: float,
         method: str = None,
         energy_scale: str = None,
@@ -1303,10 +1307,7 @@ class SedProcessor:
         approximation, and a d^2/(t-t0)^2 relation.
 
         Args:
-            ref_id (int): id of the trace at the bias where the reference energy is
-                given.
-            ref_energy (float): Absolute energy of the detected feature at the bias
-                of ref_id
+            ref_energy (float): Binding/kinetic energy of the detected feature.
             method (str, optional): Method for determining the energy calibration.
 
                 - **'lmfit'**: Energy calibration using lmfit and 1/t^2 form.
@@ -1333,7 +1334,6 @@ class SedProcessor:
             energy_scale = self._config["energy"]["energy_scale"]
 
         self.ec.calibrate(
-            ref_id=ref_id,
             ref_energy=ref_energy,
             method=method,
             energy_scale=energy_scale,
@@ -1350,23 +1350,29 @@ class SedProcessor:
                 backend="bokeh",
             )
             print("E/TOF relationship:")
-            self.ec.view(
-                traces=self.ec.calibration["axis"][None, :],
-                xaxis=self.ec.tof,
-                backend="matplotlib",
-                show_legend=False,
-            )
             if energy_scale == "kinetic":
+                self.ec.view(
+                    traces=self.ec.calibration["axis"][None, :] + self.ec.biases[0],
+                    xaxis=self.ec.tof,
+                    backend="matplotlib",
+                    show_legend=False,
+                )
                 plt.scatter(
                     self.ec.peaks[:, 0],
-                    -(self.ec.biases - self.ec.biases[ref_id]) + ref_energy,
+                    -(self.ec.biases - self.ec.biases[0]) + ref_energy,
                     s=50,
                     c="k",
                 )
             elif energy_scale == "binding":
+                self.ec.view(
+                    traces=self.ec.calibration["axis"][None, :] - self.ec.biases[0],
+                    xaxis=self.ec.tof,
+                    backend="matplotlib",
+                    show_legend=False,
+                )
                 plt.scatter(
                     self.ec.peaks[:, 0],
-                    self.ec.biases - self.ec.biases[ref_id] + ref_energy,
+                    self.ec.biases - self.ec.biases[0] + ref_energy,
                     s=50,
                     c="k",
                 )
@@ -1419,6 +1425,7 @@ class SedProcessor:
     def append_energy_axis(
         self,
         calibration: dict = None,
+        bias_voltage: float = None,
         preview: bool = False,
         verbose: bool = None,
         **kwds,
@@ -1432,6 +1439,9 @@ class SedProcessor:
             calibration (dict, optional): Calibration dict containing calibration
                 parameters. Overrides calibration from class or config.
                 Defaults to None.
+            bias_voltage (float, optional): Sample bias voltage of the scan data. If omitted,
+                the bias voltage is being read from the dataframe. If it is not found there,
+                a warning is printed and the calibrated data might have an offset.
             preview (bool): Option to preview the first elements of the data frame.
             verbose (bool, optional): Option to print out diagnostic information.
                 Defaults to config["core"]["verbose"].
@@ -1449,6 +1459,7 @@ class SedProcessor:
             df, metadata = self.ec.append_energy_axis(
                 df=self._dataframe,
                 calibration=calibration,
+                bias_voltage=bias_voltage,
                 verbose=verbose,
                 **kwds,
             )
@@ -1456,6 +1467,7 @@ class SedProcessor:
                 tdf, _ = self.ec.append_energy_axis(
                     df=self._timed_dataframe,
                     calibration=calibration,
+                    bias_voltage=bias_voltage,
                     verbose=False,
                     **kwds,
                 )
@@ -1601,7 +1613,7 @@ class SedProcessor:
                 Defaults to False.
             verbose (bool, optional): Option to print out diagnostic information.
                 Defaults to config["core"]["verbose"].
-            **kwds: additional arguments are passed to ``EnergyCalibrator.tof_step_to_ns()``.
+            **kwds: additional arguments are passed to ``EnergyCalibrator.append_tof_ns_axis()``.
 
         """
         if verbose is None:
@@ -1734,12 +1746,10 @@ class SedProcessor:
                 if len(self.dc.calibration) == 0:
                     try:
                         datafile = self._files[0]
-                    except IndexError:
-                        print(
-                            "No datafile available, specify either",
-                            " 'datafile' or 'delay_range'",
-                        )
-                        raise
+                    except IndexError as exc:
+                        raise IndexError(
+                            "No datafile available, specify either 'datafile' or 'delay_range'",
+                        ) from exc
 
             df, metadata = self.dc.append_delay_axis(
                 self._dataframe,
@@ -2023,7 +2033,11 @@ class SedProcessor:
                 If omitted, data are retrieved from the epics archiver.
             archiver_channel (str, optional): EPICS archiver channel from which to retrieve data.
                 Either this or data and time_stamps have to be present.
-            **kwds: additional keyword arguments passed to ``add_time_stamped_data``.
+            **kwds:
+
+                - **time_stamp_column**: Dataframe column containing time-stamp data
+
+                Additional keyword arguments passed to ``add_time_stamped_data``.
         """
         time_stamp_column = kwds.pop(
             "time_stamp_column",
@@ -2320,6 +2334,12 @@ class SedProcessor:
             raise ValueError(f"Axis '{axis}' not found in binned data!")
 
         df_partitions: int | Sequence[int] = kwds.pop("df_partitions", None)
+
+        if len(kwds) > 0:
+            raise TypeError(
+                f"get_normalization_histogram() got unexpected keyword arguments {kwds.keys()}.",
+            )
+
         if isinstance(df_partitions, int):
             df_partitions = list(range(0, min(df_partitions, self._dataframe.npartitions)))
         if use_time_stamps or self._timed_dataframe is None:

@@ -242,7 +242,12 @@ class FlashLoader(BaseLoader):
             return sum(get_elapsed_time_from_fid(fid) for fid in fids)
 
         elapsed_times = []
-        runs = kwds.get("runs")
+        runs = kwds.pop("runs", None)
+        aggregate = kwds.pop("aggregate", True)
+
+        if len(kwds) > 0:
+            raise TypeError(f"get_elapsed_time() got unexpected keyword arguments {kwds.keys()}.")
+
         if runs is not None:
             elapsed_times = [get_elapsed_time_from_run(run) for run in runs]
         else:
@@ -250,7 +255,7 @@ class FlashLoader(BaseLoader):
                 fids = range(len(self.files))
             elapsed_times = [get_elapsed_time_from_fid(fid) for fid in fids]
 
-        if kwds.get("aggregate", True):
+        if aggregate:
             elapsed_times = sum(elapsed_times)
 
         return elapsed_times
@@ -283,6 +288,7 @@ class FlashLoader(BaseLoader):
             ftype (str, optional): The file extension type. Defaults to "h5".
             metadata (dict, optional): Additional metadata. Defaults to None.
             collect_metadata (bool, optional): Whether to collect metadata. Defaults to False.
+            **kwds: Additional keyword arguments passed to ``parse_metadata``.
 
         Returns:
             tuple[dd.DataFrame, dd.DataFrame, dict]: A tuple containing the concatenated DataFrame

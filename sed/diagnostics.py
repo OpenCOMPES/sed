@@ -24,7 +24,10 @@ def plot_single_hist(
         histvals (np.ndarray): Histogram counts (e.g. vertical axis).
         edges (np.ndarray): Histogram edge values (e.g. horizontal axis).
         legend (str, optional): Text for the plot legend. Defaults to None.
-        **kwds: Keyword arguments for ``bokeh.plotting.figure().quad()``.
+        **kwds:
+            - *tooltip*: Tooltip formatting tuple. Defaults to [("(x, y)", "($x, $y)")]
+
+            Additional keyword arguments are passed to ``bokeh.plotting.figure().quad()``.
 
     Returns:
         pbk.figure: An instance of 'bokeh.plotting.figure' as a plot handle.
@@ -77,7 +80,8 @@ def grid_histogram(
         histkwds (dict, optional): Keyword arguments for histogram plots.
             Defaults to None.
         legkwds (dict, optional): Keyword arguments for legends. Defaults to None.
-        **kwds: Additional keyword arguments.
+        **kwds:
+            - *figsize*: Figure size. Defaults to (14, 8)
     """
     if histkwds is None:
         histkwds = {}
@@ -85,6 +89,9 @@ def grid_histogram(
         legkwds = {}
 
     figsz = kwds.pop("figsize", (14, 8))
+
+    if len(kwds) > 0:
+        raise TypeError(f"grid_histogram() got unexpected keyword arguments {kwds.keys()}.")
 
     if backend == "matplotlib":
         nrv = len(rvs)
