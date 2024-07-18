@@ -251,6 +251,10 @@ def test_get_count_rate(loader: BaseLoader) -> None:
             assert len(loaded_time2) == len(loaded_countrate2)
             assert len(loaded_time2) < len(loaded_time)
 
+            # illegal keywords
+            with pytest.raises(TypeError):
+                loader.get_count_rate(illegal_kwd=True)
+
     if loader.__name__ in {"flash", "sxp"}:
         loader = cast(FlashLoader, loader)
         loader._initialize_dirs()
@@ -295,6 +299,10 @@ def test_get_elapsed_time(loader: BaseLoader) -> None:
             elapsed_time2 = loader.get_elapsed_time(fids=[0])
             assert elapsed_time2 > 0
             assert elapsed_time > elapsed_time2
+
+            # illegal keywords
+            with pytest.raises(TypeError):
+                loader.get_elapsed_time(illegal_kwd=True)
 
     if loader.__name__ in {"flash", "sxp"}:
         loader = cast(FlashLoader, loader)

@@ -23,6 +23,11 @@ class CopyTool:
     Args:
         source (str): Source path for the copy tool.
         dest (str): Destination path for the copy tool.
+        **kwds:
+            - *safetyMargin*: Size in Byte to keep free. Defaults to 500 GBytes.
+            - *gid*: Group id to which file ownership will be set. Defaults to 1001.
+            - *scheduler*: Dask scheduler to use. Defaults to "threads".
+            - *ntasks*: number of cores to use for copying. Defaults to 25.
     """
 
     def __init__(
@@ -45,6 +50,9 @@ class CopyTool:
         if self.num_cores >= psutil.cpu_count():
             self.num_cores = psutil.cpu_count() - 1
 
+        if len(kwds) > 0:
+            raise TypeError(f"CopyTool() got unexpected keyword arguments {kwds.keys()}.")
+
     def copy(
         self,
         source: str,
@@ -56,6 +64,7 @@ class CopyTool:
         Args:
             source (str): source path
             force_copy (bool, optional): re-copy all files. Defaults to False.
+            **compute_kwds: Keyword arguments passed to dask.compute()
 
         Raises:
             FileNotFoundError: Raised if the source path is not found or empty.

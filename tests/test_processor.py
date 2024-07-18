@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import glob
 import itertools
+import logging
 import os
 import tempfile
 from importlib.util import find_spec
@@ -15,6 +16,8 @@ import dask.dataframe as ddf
 import numpy as np
 import pytest
 import xarray as xr
+import yaml
+from pynxtools.dataconverter.convert import ValidationFailed
 
 from sed import SedProcessor
 from sed.core.config import parse_config
@@ -146,6 +149,19 @@ def test_additional_parameter_to_loader() -> None:
     )
     assert processor.files[0].find("json") > -1
 
+    # check that illegal keywords raise:
+    with pytest.raises(TypeError):
+        processor = SedProcessor(
+            folder=df_folder_generic,
+            ftype="json",
+            config=config,
+            folder_config={},
+            user_config={},
+            system_config={},
+            verbose=True,
+            illegal_keyword=True,
+        )
+
 
 def test_repr() -> None:
     """test the ___repr___ method"""
@@ -165,6 +181,9 @@ def test_repr() -> None:
     processor_str = str(processor)
     assert processor_str.find("ADC") > 0
     assert processor_str.find("key1") > 0
+
+    with pytest.raises(TypeError):
+        processor.load(files=files, metadata={"test": {"key1": "value1"}}, illegal_keyword=True)
 
 
 def test_attributes_setters() -> None:
@@ -228,6 +247,17 @@ def test_copy_tool() -> None:
     processor.load(files=files)
     assert processor.files[0].find(dest_folder) > -1
 
+    # test illegal keywords:
+    config["core"]["copy_tool_kwds"] = {"gid": os.getgid(), "illegal_keyword": True}
+    with pytest.raises(TypeError):
+        processor = SedProcessor(
+            config=config,
+            folder_config={},
+            user_config={},
+            system_config={},
+            verbose=True,
+        )
+
 
 feature4 = np.array([[203.2, 341.96], [299.16, 345.32], [304.38, 149.88], [199.52, 152.48]])
 feature5 = np.array(
@@ -256,7 +286,7 @@ feature7 = np.array(
 )
 feature_list = [feature4, feature5, feature6, feature7]
 
-adjust_params = {
+adjust_params: dict[str, Any] = {
     "scale": np.random.randint(1, 10) / 10 + 0.5,
     "xtrans": np.random.randint(1, 50),
     "ytrans": np.random.randint(1, 50),
@@ -332,11 +362,11 @@ def test_pose_adjustment() -> None:
         verbose=True,
     )
     # pose adjustment w/o loaded image
-    processor.pose_adjustment(**adjust_params, use_correction=False, apply=True)  # type: ignore
+    processor.pose_adjustment(**adjust_params, use_correction=False, apply=True)
 
     processor.bin_and_load_momentum_calibration(apply=True)
     # test pose adjustment
-    processor.pose_adjustment(**adjust_params, use_correction=False, apply=True)  # type: ignore
+    processor.pose_adjustment(**adjust_params, use_correction=False, apply=True)
 
     processor = SedProcessor(
         folder=df_folder,
@@ -356,10 +386,14 @@ def test_pose_adjustment() -> None:
         apply=True,
     )
     processor.generate_splinewarp(use_center=True)
-    processor.pose_adjustment(**adjust_params, apply=True)  # type: ignore[arg-type]
+    processor.pose_adjustment(**adjust_params, apply=True)
     processor.apply_momentum_correction()
     assert "Xm" in processor.dataframe.columns
     assert "Ym" in processor.dataframe.columns
+
+    # illegal keywords:
+    with pytest.raises(TypeError):
+        processor.pose_adjustment(**adjust_params, apply=True, illegal_kwd=True)
 
 
 def test_pose_adjustment_save_load() -> None:
@@ -575,18 +609,15 @@ def test_energy_calibration_workflow(energy_scale: str, calibration_method: str)
     with pytest.raises(ValueError):
         processor.calibrate_energy_axis(
             ref_energy=ref_energy,
-            ref_id=ref_id,
             energy_scale="myfantasyscale",
         )
     with pytest.raises(NotImplementedError):
         processor.calibrate_energy_axis(
             ref_energy=ref_energy,
-            ref_id=ref_id,
             method="myfantasymethod",
         )
     processor.calibrate_energy_axis(
         ref_energy=ref_energy,
-        ref_id=ref_id,
         energy_scale=energy_scale,
         method=calibration_method,
     )
@@ -865,6 +896,10 @@ def test_compute() -> None:
     assert result.data.shape == tuple(bins)
     assert result.data.sum(axis=(0, 1, 2, 3)) > 0
 
+    # illegal keywords:
+    with pytest.raises(TypeError):
+        processor.compute(illegal_kwd=True)
+
 
 def test_compute_with_filter() -> None:
     """Test binning of final result using filters"""
@@ -996,6 +1031,10 @@ def test_get_normalization_histogram() -> None:
     # histogram2 = processor.get_normalization_histogram(axis="ADC", use_time_stamps="True")
     # np.testing.assert_allclose(histogram1, histogram2)
 
+    # illegal keywords:
+    with pytest.raises(TypeError):
+        histogram1 = processor.get_normalization_histogram(axis="ADC", illegal_kwd=True)
+
 
 metadata: dict[Any, Any] = {}
 metadata["entry_title"] = "Title"
@@ -1020,7 +1059,7 @@ metadata["sample"]["preparation_date"] = "2019-01-13T10:00:00+00:00"
 metadata["sample"]["name"] = "Sample Name"
 
 
-def test_save() -> None:
+def test_save(caplog) -> None:
     """Test the save functionality"""
     config = parse_config(
         config={"dataframe": {"tof_binning": 1}},
@@ -1028,6 +1067,11 @@ def test_save() -> None:
         user_config=package_dir + "/../sed/config/mpes_example_config.yaml",
         system_config={},
     )
+    config["metadata"]["lens_mode_config"]["6kV_kmodem4.0_30VTOF_453ns_focus.sav"][
+        "MCPfront"
+    ] = 21.0
+    config["metadata"]["lens_mode_config"]["6kV_kmodem4.0_30VTOF_453ns_focus.sav"]["Z1"] = 2450
+    config["metadata"]["lens_mode_config"]["6kV_kmodem4.0_30VTOF_453ns_focus.sav"]["F"] = 69.23
     processor = SedProcessor(
         folder=df_folder,
         config=config,
@@ -1055,9 +1099,41 @@ def test_save() -> None:
     processor.save("output.h5")
     assert os.path.isfile("output.h5")
     os.remove("output.h5")
+    # convert using the fail=True keyword. This ensures that the pynxtools backend will throw
+    # and error if any validation problems occur.
     processor.save(
         "output.nxs",
         input_files=df_folder + "../../../../sed/config/NXmpes_config.json",
+        fail=True,
     )
     assert os.path.isfile("output.nxs")
+    # Test that a validation error is raised if a required field is missing
+    del processor.binned.attrs["metadata"]["sample"]["name"]
+    with pytest.raises(ValidationFailed):
+        processor.save(
+            "result.nxs",
+            input_files=df_folder + "../../../../sed/config/NXmpes_config.json",
+            fail=True,
+        )
+    # Check that the issues are raised as warnings per default:
+    caplog.clear()
+    with open("temp_eln.yaml", "w") as f:
+        yaml.dump({"Instrument": {"undocumented_field": "undocumented entry"}}, f)
+    with caplog.at_level(logging.WARNING):
+        processor.save(
+            "result.nxs",
+            input_files=[df_folder + "../../../../sed/config/NXmpes_config.json"],
+            eln_data="temp_eln.yaml",
+        )
+        assert (
+            caplog.messages[0]
+            == "The data entry corresponding to /ENTRY[entry]/SAMPLE[sample]/name is required and "
+            "hasn't been supplied by the reader."
+        )
+        assert (
+            caplog.messages[1]
+            == "Field /ENTRY[entry]/INSTRUMENT[instrument]/undocumented_field written without "
+            "documentation."
+        )
     os.remove("output.nxs")
+    os.remove("temp_eln.yaml")
