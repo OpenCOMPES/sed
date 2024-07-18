@@ -92,7 +92,7 @@ class BufferHandler:
         self.fp: BufferFilePaths = None
         self.df: dict[str, dd.DataFrame] = {typ: None for typ in DF_TYP}
         self.fill_channels: list[str] = get_channels(
-            self._config["channels"],
+            self._config,
             ["per_pulse", "per_train"],
             extend_aux=True,
         )
@@ -146,7 +146,7 @@ class BufferHandler:
 
         # Reset the index of the DataFrame and save both the electron and timed dataframes
         # electron resolved dataframe
-        electron_channels = get_channels(self._config["channels"], "per_electron")
+        electron_channels = get_channels(self._config, "per_electron")
         dtypes = get_dtypes(self._config["channels"], df.columns.values)
         df.dropna(subset=electron_channels).astype(dtypes).reset_index().to_parquet(
             paths["electron"],
@@ -248,12 +248,12 @@ class BufferHandler:
 
         if not force_recreate:
             schema_set = set(
-                get_channels(self._config["channels"], formats="all", index=True, extend_aux=True),
+                get_channels(self._config, formats="all", index=True, extend_aux=True),
             )
             self._schema_check(self.fp["electron"], schema_set)
             schema_set = set(
                 get_channels(
-                    self._config["channels"],
+                    self._config,
                     formats=["per_pulse", "per_train"],
                     index=True,
                     extend_aux=True,

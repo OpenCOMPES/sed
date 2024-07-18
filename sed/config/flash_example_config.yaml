@@ -66,6 +66,10 @@ dataframe:
   corrected_tof_column: "tm"
   # the time stamp column
   time_stamp_alias: timeStamp
+  # auxiliary channel alias
+  aux_alias: dldAux
+  # aux subchannels alias
+  aux_subchannels_alias: dldAuxChannels
   # time length of a base time-of-flight bin in seconds
   tof_binwidth: 2.0576131995767355E-11
   # binning parameter for time-of-flight data.
@@ -102,8 +106,10 @@ dataframe:
   # channels have the following structure:
   # channelAlias:
   #   format: per_pulse/per_electron/per_train
-  #   group_name: the hdf5 group path
+  #   index_key: the hdf5 index key
+  #   dataset_key: the hdf5 dataset key
   #   slice: if the group contains multidimensional data, where to slice
+  #   dtype: the datatype of the data
 
   channels:
     # The timestamp
@@ -153,7 +159,7 @@ dataframe:
       index_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/index"
       dataset_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/value"
       slice: 4
-      aux_channels:
+      dldAuxChannels:
         sampleBias:
           slice: 0
           dtype: float32

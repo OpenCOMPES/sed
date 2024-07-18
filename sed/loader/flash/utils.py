@@ -4,13 +4,11 @@ from __future__ import annotations
 # TODO: move to config
 MULTI_INDEX = ["trainId", "pulseId", "electronId"]
 PULSE_ALIAS = MULTI_INDEX[1]
-DLD_AUX_ALIAS = "dldAux"
-AUX_CHANNELS = "aux_channels"
 FORMATS = ["per_electron", "per_pulse", "per_train"]
 
 
 def get_channels(
-    channel_dict: dict = None,
+    config_dataframe: dict = {},
     formats: str | list[str] = None,
     index: bool = False,
     extend_aux: bool = False,
@@ -20,15 +18,20 @@ def get_channels(
     'all' returns all channels but 'pulseId' and 'dldAux' (if not extended).
 
     Args:
+        config_dataframe (dict): The config dictionary containing the dataframe keys.
         formats (str | list[str]): The desired format(s)
         ('per_pulse', 'per_electron', 'per_train', 'all').
         index (bool): If True, includes channels from the multiindex.
-        extend_aux (bool): If True, includes channels from the 'dldAuxChannels' dictionary,
-                else includes 'dldAux'.
+        extend_aux (bool): If True, includes channels from the subchannels of the auxiliary channel.
+                else just includes the auxiliary channel alias.
 
     Returns:
         List[str]: A list of channels with the specified format(s).
     """
+    channel_dict = config_dataframe.get("channels", {})
+    dld_aux_alias = config_dataframe.get("aux_alias", "dldAux")
+    aux_subchannels_alias = config_dataframe.get("aux_subchannels_alias", "dldAuxChannels")
+
     # If 'formats' is a single string, convert it to a list for uniform processing.
     if isinstance(formats, str):
         formats = [formats]
@@ -36,7 +39,7 @@ def get_channels(
     # If 'formats' is a string "all", gather all possible formats.
     if formats == ["all"]:
         channels = get_channels(
-            channel_dict,
+            config_dataframe,
             FORMATS,
             index,
             extend_aux,
@@ -68,17 +71,17 @@ def get_channels(
             channels.extend(
                 key
                 for key in available_channels
-                if channel_dict[key]["format"] == format_ and key != DLD_AUX_ALIAS
+                if channel_dict[key]["format"] == format_ and key != dld_aux_alias
             )
             # Include 'dldAuxChannels' if the format is 'per_train' and extend_aux is True.
             # Otherwise, include 'dldAux'.
-            if format_ == FORMATS[2] and DLD_AUX_ALIAS in available_channels:
+            if format_ == FORMATS[2] and dld_aux_alias in available_channels:
                 if extend_aux:
                     channels.extend(
-                        channel_dict[DLD_AUX_ALIAS][AUX_CHANNELS].keys(),
+                        channel_dict[dld_aux_alias][aux_subchannels_alias].keys(),
                     )
                 else:
-                    channels.extend([DLD_AUX_ALIAS])
+                    channels.extend([dld_aux_alias])
 
     return channels
 

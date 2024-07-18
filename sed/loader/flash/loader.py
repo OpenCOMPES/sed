@@ -215,20 +215,21 @@ class FlashLoader(BaseLoader):
             KeyError: If a file ID in fids or a run ID in 'runs' does not exist in the metadata.
         """
         try:
-            file_statistics = self.metadata["file_statistics"]
+            file_statistics = self.metadata["file_statistics"]["timed"]
         except Exception as exc:
             raise KeyError(
                 "File statistics missing. Use 'read_dataframe' first.",
             ) from exc
+        time_stamp_alias = self._config["dataframe"].get("time_stamp_alias", "timeStamp")
 
         def get_elapsed_time_from_fid(fid):
             try:
                 fid = str(fid)  # Ensure the key is a string
-                time_stamps = file_statistics[fid]["columns"]["timeStamp"]
-                elapsed_time = max(time_stamps) - min(time_stamps)
+                time_stamps = file_statistics[fid]["columns"][time_stamp_alias]
+                elapsed_time = time_stamps["max"] - time_stamps["min"]
             except KeyError as exc:
                 raise KeyError(
-                    f"Timestamp metadata missing in file {fid}."
+                    f"Timestamp metadata missing in file {fid}. "
                     "Add timestamp column and alias to config before loading.",
                 ) from exc
 

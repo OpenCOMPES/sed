@@ -238,7 +238,7 @@ def test_get_filled_dataframe(config: dict, h5_paths: list[Path]) -> None:
 
     channel_pulse = set(
         get_channels(
-            config["dataframe"]["channels"],
+            config["dataframe"],
             formats=["per_pulse", "per_train"],
             index=True,
             extend_aux=True,

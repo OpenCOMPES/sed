@@ -154,7 +154,7 @@ def test_df_electron(config_dataframe: dict, h5_paths: list[Path]) -> None:
 
     # check that dataframe contains all subchannels
     assert np.all(
-        set(result_df.columns) == set(get_channels(config_dataframe["channels"], ["per_electron"])),
+        set(result_df.columns) == set(get_channels(config_dataframe, ["per_electron"])),
     )
 
 
@@ -184,7 +184,7 @@ def test_create_dataframe_per_pulse(config_dataframe: dict, h5_paths: list[Path]
 
     # assert that dataframe contains all channels
     assert np.all(
-        set(result_df.columns) == set(get_channels(config_dataframe["channels"], ["per_pulse"])),
+        set(result_df.columns) == set(get_channels(config_dataframe, ["per_pulse"])),
     )
 
 
@@ -205,13 +205,13 @@ def test_create_dataframe_per_train(config_dataframe: dict, h5_paths: list[Path]
     # check that dataframe contains all channels
     assert np.all(
         set(result_df.columns)
-        == set(get_channels(config_dataframe["channels"], ["per_train"], extend_aux=True)),
+        == set(get_channels(config_dataframe, ["per_train"], extend_aux=True)),
     )
 
     # Ensure DataFrame has rows equal to unique keys from "per_train" channels, considering
     # different channels may have data for different trains. This checks the DataFrame's
     # completeness and integrity, especially important when channels record at varying trains.
-    channels = get_channels(config_dataframe["channels"], ["per_train"])
+    channels = get_channels(config_dataframe, ["per_train"])
     all_keys = Index([])
     for channel in channels:
         # Append unique keys from each channel, considering only training data
@@ -234,9 +234,9 @@ def test_create_dataframe_per_train(config_dataframe: dict, h5_paths: list[Path]
     # The subchannels are stored in the second dimension
     # Only index amount of values are stored in the first dimension, the rest are NaNs
     # hence the slicing
-    subchannels = config_dataframe["channels"]["dldAux"]["aux_channels"]
-    for subchannel, index in subchannels.items():
-        assert np.all(df.df_train[subchannel].dropna().values == data[: key.size, index])
+    subchannels = config_dataframe["channels"]["dldAux"]["dldAuxChannels"]
+    for subchannel, values in subchannels.items():
+        assert np.all(df.df_train[subchannel].dropna().values == data[: key.size, values["slice"]])
 
     assert result_df.index.is_unique
 

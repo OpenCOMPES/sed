@@ -153,7 +153,7 @@ class DataFrameCreator:
         index, indexer = self.pulse_index(offset)
 
         # Get the relevant channels and their slice index
-        channels = get_channels(self._config["channels"], "per_electron")
+        channels = get_channels(self._config, "per_electron")
         slice_index = [self._config["channels"][channel].get("slice", None) for channel in channels]
 
         # First checking if dataset keys are the same for all channels
@@ -204,9 +204,9 @@ class DataFrameCreator:
         """
         series = []
         # Get the relevant channel names
-        channels = get_channels(self._config["channels"], "per_pulse")
+        channels = get_channels(self._config, "per_pulse")
         # check if dldAux is in the channels and raise error if so
-        if "dldAux" in channels:
+        if self._config.get("aux_alias", "dldAux") in channels:
             raise ValueError(
                 "dldAux is a 'per_train' channel. "
                 "Please choose 'per_train' as the format for dldAux.",
@@ -244,7 +244,7 @@ class DataFrameCreator:
         """
         series = []
         # Get the relevant channel names
-        channels = get_channels(self._config["channels"], "per_train")
+        channels = get_channels(self._config, "per_train")
         # For each channel, a pd.Series is created and appended to the list
         for channel in channels:
             # train_index and (sliced) data is returned
@@ -259,15 +259,16 @@ class DataFrameCreator:
             # contains multiple channels inside. Even though they are resolved per train,
             # they come in pulse format, so the extra values are sliced and individual channels are
             # created and appended to the list
+            aux_alias = self._config.get("aux_alias", "dldAux")
+            sub_channels = self._config.get("aux_subchannels_alias", "dldAuxChannels")
             if channel == "dldAux":
-                aux_channels = self._config["channels"]["dldAux"]["aux_channels"].items()
+                aux_channels = self._config["channels"][aux_alias][sub_channels].items()
                 for name, values in aux_channels:
                     series.append(
                         pd.Series(
                             dataset[: key.size, values["slice"]],
                             index,
                             name=name,
-                            dtype=values["dtype"],
                         ),
                     )
             else:

@@ -206,7 +206,7 @@ def split_dld_time_from_sector_id(
     return df, {"split_dld_time_from_sector_id": metadata}
 
 
-def get_stats(meta: pq.FileMetaData) -> dict[str, list[int]]:
+def get_stats(meta: pq.FileMetaData) -> dict:
     """
     Extracts the minimum and maximum of all columns from the metadata of a Parquet file.
 
@@ -221,10 +221,13 @@ def get_stats(meta: pq.FileMetaData) -> dict[str, list[int]]:
         col = []
         for i in range(meta.num_row_groups):
             stats = meta.row_group(i).column(idx).statistics
-            col.append(stats.min)
-            col.append(stats.max)
-        min_max[name] = [min(col), max(col)]
-
+            if stats is not None:
+                if stats.min is not None:
+                    col.append(stats.min)
+                if stats.max is not None:
+                    col.append(stats.max)
+        if col:
+            min_max[name] = {"min": min(col), "max": max(col)}
     return min_max
 
 
