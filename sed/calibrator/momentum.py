@@ -510,8 +510,8 @@ class MomentumCorrector:
             features[point_no][0] = point_x
             features[point_no][1] = point_y
 
-            markers[point_no].set_xdata(point_x)
-            markers[point_no].set_ydata(point_y)
+            markers[point_no].set_xdata([point_x])
+            markers[point_no].set_ydata([point_y])
 
         point_no_input = ipw.Dropdown(
             options=range(features.shape[0]),
@@ -1509,10 +1509,10 @@ class MomentumCorrector:
             k_distance: float,  # noqa: ARG001
         ):
             fig.canvas.draw_idle()
-            marker_a.set_xdata(point_a_x)
-            marker_a.set_ydata(point_a_y)
-            marker_b.set_xdata(point_b_x)
-            marker_b.set_ydata(point_b_y)
+            marker_a.set_xdata([point_a_x])
+            marker_a.set_ydata([point_a_y])
+            marker_b.set_xdata([point_b_x])
+            marker_b.set_ydata([point_b_y])
 
         point_a_input_x = ipw.IntText(point_a[0])
         point_a_input_y = ipw.IntText(point_a[1])
