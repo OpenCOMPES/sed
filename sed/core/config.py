@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import json
+import logging
 import os
 import platform
 from importlib.util import find_spec
@@ -12,9 +13,14 @@ from pathlib import Path
 import yaml
 from platformdirs import user_config_path
 
+from sed.core.logging import setup_logging
+
 package_dir = os.path.dirname(find_spec("sed").origin)
 
 USER_CONFIG_PATH = user_config_path(appname="sed", appauthor="OpenCOMPES", ensure_exists=True)
+
+# Configure logging
+logger = setup_logging(__name__)
 
 
 def parse_config(
@@ -57,6 +63,11 @@ def parse_config(
     Returns:
         dict: Loaded and possibly completed config dictionary.
     """
+    if verbose:
+        logger.handlers[0].setLevel(logging.INFO)
+    else:
+        logger.handlers[0].setLevel(logging.WARNING)
+
     if config is None:
         config = {}
 
@@ -64,8 +75,7 @@ def parse_config(
         config_dict = copy.deepcopy(config)
     else:
         config_dict = load_config(config)
-        if verbose:
-            print(f"Configuration loaded from: [{str(Path(config).resolve())}]")
+        logger.info(f"Configuration loaded from: [{str(Path(config).resolve())}]")
 
     folder_dict: dict = None
     if isinstance(folder_config, dict):
@@ -75,8 +85,7 @@ def parse_config(
             folder_config = "./sed_config.yaml"
         if Path(folder_config).exists():
             folder_dict = load_config(folder_config)
-            if verbose:
-                print(f"Folder config loaded from: [{str(Path(folder_config).resolve())}]")
+            logger.info(f"Folder config loaded from: [{str(Path(folder_config).resolve())}]")
 
     user_dict: dict = None
     if isinstance(user_config, dict):
@@ -88,8 +97,7 @@ def parse_config(
             )
         if Path(user_config).exists():
             user_dict = load_config(user_config)
-            if verbose:
-                print(f"User config loaded from: [{str(Path(user_config).resolve())}]")
+            logger.info(f"User config loaded from: [{str(Path(user_config).resolve())}]")
 
     system_dict: dict = None
     if isinstance(system_config, dict):
@@ -106,15 +114,13 @@ def parse_config(
                 )
         if Path(system_config).exists():
             system_dict = load_config(system_config)
-            if verbose:
-                print(f"System config loaded from: [{str(Path(system_config).resolve())}]")
+            logger.info(f"System config loaded from: [{str(Path(system_config).resolve())}]")
 
     if isinstance(default_config, dict):
         default_dict = copy.deepcopy(default_config)
     else:
         default_dict = load_config(default_config)
-        if verbose:
-            print(f"Default config loaded from: [{str(Path(default_config).resolve())}]")
+        logger.info(f"Default config loaded from: [{str(Path(default_config).resolve())}]")
 
     if folder_dict is not None:
         config_dict = complete_dictionary(
@@ -154,9 +160,9 @@ def load_config(config_path: str) -> dict:
     """
     config_file = Path(config_path)
     if not config_file.is_file():
-        raise FileNotFoundError(
-            f"could not find the configuration file: {config_file}",
-        )
+        error_message = f"could not find the configuration file: {config_file}"
+        logger.error(error_message)
+        raise FileNotFoundError(error_message)
 
     if config_file.suffix == ".json":
         with open(config_file, encoding="utf-8") as stream:
@@ -165,7 +171,9 @@ def load_config(config_path: str) -> dict:
         with open(config_file, encoding="utf-8") as stream:
             config_dict = yaml.safe_load(stream)
     else:
-        raise TypeError("config file must be of type json or yaml!")
+        error_message = "config file must be of type json or yaml!"
+        logger.error(error_message)
+        raise TypeError(error_message)
 
     return config_dict
 

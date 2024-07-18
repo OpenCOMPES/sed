@@ -27,6 +27,7 @@ from sed.core.config import save_config
 from sed.core.dfops import add_time_stamped_data
 from sed.core.dfops import apply_filter
 from sed.core.dfops import apply_jitter
+from sed.core.logging import setup_logging
 from sed.core.metadata import MetaHandler
 from sed.diagnostics import grid_histogram
 from sed.io import to_h5
@@ -38,6 +39,9 @@ from sed.loader.mpes.loader import get_archiver_data
 from sed.loader.mpes.loader import MpesLoader
 
 N_CPU = psutil.cpu_count()
+
+# Configure logging
+logger = setup_logging(__name__)
 
 
 class SedProcessor:
@@ -672,7 +676,7 @@ class SedProcessor:
             },
         }
         save_config(config, filename, overwrite)
-        print(f'Saved momentum correction parameters to "{filename}".')
+        logger.info(f'Saved momentum correction parameters to "{filename}".')
 
     # 4. Pose corrections. Provide interactive interface for correcting
     # scaling, shift and rotation
@@ -763,7 +767,7 @@ class SedProcessor:
             },
         }
         save_config(config, filename, overwrite)
-        print(f'Saved momentum transformation parameters to "{filename}".')
+        logger.info(f'Saved momentum transformation parameters to "{filename}".')
 
     # 5. Apply the momentum correction to the dataframe
     def apply_momentum_correction(
@@ -795,7 +799,7 @@ class SedProcessor:
 
         if self._dataframe is not None:
             if verbose:
-                print("Adding corrected X/Y columns to dataframe:")
+                logger.info("Adding corrected X/Y columns to dataframe:")
             df, metadata = self.mc.apply_corrections(
                 df=self._dataframe,
                 verbose=verbose,
@@ -828,10 +832,10 @@ class SedProcessor:
         else:
             raise ValueError("No dataframe loaded!")
         if preview:
-            print(self._dataframe.head(10))
+            logger.info(self._dataframe.head(10))
         else:
             if self.verbose:
-                print(self._dataframe)
+                logger.info(self._dataframe)
 
     # Momentum calibration work flow
     # 1. Calculate momentum calibration
@@ -916,7 +920,7 @@ class SedProcessor:
 
         config = {"momentum": {"calibration": calibration}}
         save_config(config, filename, overwrite)
-        print(f"Saved momentum calibration parameters to {filename}")
+        logger.info(f"Saved momentum calibration parameters to {filename}")
 
     # 2. Apply correction and calibration to the dataframe
     def apply_momentum_calibration(
@@ -946,8 +950,7 @@ class SedProcessor:
         y_column = self._config["dataframe"]["y_column"]
 
         if self._dataframe is not None:
-            if verbose:
-                print("Adding kx/ky columns to dataframe:")
+            logger.info("Adding kx/ky columns to dataframe:")
             df, metadata = self.mc.append_k_axis(
                 df=self._dataframe,
                 calibration=calibration,
@@ -980,10 +983,10 @@ class SedProcessor:
         else:
             raise ValueError("No dataframe loaded!")
         if preview:
-            print(self._dataframe.head(10))
+            logger.info(self._dataframe.head(10))
         else:
             if self.verbose:
-                print(self._dataframe)
+                logger.info(self._dataframe)
 
     # Energy correction workflow
     # 1. Adjust the energy correction parameters
@@ -1018,9 +1021,7 @@ class SedProcessor:
             **kwds: Keyword parameters passed to ``EnergyCalibrator.adjust_energy_correction()``.
         """
         if self._pre_binned is None:
-            print(
-                "Pre-binned data not present, binning using defaults from config...",
-            )
+            logger.warn("Pre-binned data not present, binning using defaults from config...")
             self._pre_binned = self.pre_binning()
 
         self.ec.adjust_energy_correction(
@@ -1064,7 +1065,7 @@ class SedProcessor:
 
         config = {"energy": {"correction": correction}}
         save_config(config, filename, overwrite)
-        print(f"Saved energy correction parameters to {filename}")
+        logger.info(f"Saved energy correction parameters to {filename}")
 
     # 2. Apply energy correction to dataframe
     def apply_energy_correction(
@@ -1094,7 +1095,7 @@ class SedProcessor:
 
         if self._dataframe is not None:
             if verbose:
-                print("Applying energy correction to dataframe...")
+                logger.info("Applying energy correction to dataframe...")
             df, metadata = self.ec.apply_energy_correction(
                 df=self._dataframe,
                 correction=correction,
@@ -1120,10 +1121,10 @@ class SedProcessor:
         else:
             raise ValueError("No dataframe loaded!")
         if preview:
-            print(self._dataframe.head(10))
+            logger.info(self._dataframe.head(10))
         else:
             if verbose:
-                print(self._dataframe)
+                logger.info(self._dataframe)
 
     # Energy calibrator workflow
     # 1. Load and normalize data
@@ -1266,7 +1267,7 @@ class SedProcessor:
                 mode=mode,
                 radius=radius,
             )
-            print(self.ec.featranges)
+            logger.info(self.ec.featranges)
             try:
                 self.ec.feature_extract(peak_window=peak_window)
                 self.ec.view(
@@ -1419,7 +1420,7 @@ class SedProcessor:
 
         config = {"energy": {"calibration": calibration}}
         save_config(config, filename, overwrite)
-        print(f'Saved energy calibration parameters to "{filename}".')
+        logger.info(f'Saved energy calibration parameters to "{filename}".')
 
     # 4. Apply energy calibration to the dataframe
     def append_energy_axis(
@@ -1455,7 +1456,7 @@ class SedProcessor:
 
         if self._dataframe is not None:
             if verbose:
-                print("Adding energy column to dataframe:")
+                logger.info("Adding energy column to dataframe:")
             df, metadata = self.ec.append_energy_axis(
                 df=self._dataframe,
                 calibration=calibration,
@@ -1485,10 +1486,10 @@ class SedProcessor:
         else:
             raise ValueError("No dataframe loaded!")
         if preview:
-            print(self._dataframe.head(10))
+            logger.info(self._dataframe.head(10))
         else:
             if verbose:
-                print(self._dataframe)
+                logger.info(self._dataframe)
 
     def add_energy_offset(
         self,
@@ -1533,7 +1534,7 @@ class SedProcessor:
             )
         if self.dataframe is not None:
             if verbose:
-                print("Adding energy offset to dataframe:")
+                logger.info("Adding energy offset to dataframe:")
             df, metadata = self.ec.add_offsets(
                 df=self._dataframe,
                 constant=constant,
@@ -1568,9 +1569,9 @@ class SedProcessor:
         else:
             raise ValueError("No dataframe loaded!")
         if preview:
-            print(self._dataframe.head(10))
+            logger.info(self._dataframe.head(10))
         elif verbose:
-            print(self._dataframe)
+            logger.info(self._dataframe)
 
     def save_energy_offset(
         self,
@@ -1595,7 +1596,7 @@ class SedProcessor:
 
         config = {"energy": {"offsets": self.ec.offsets}}
         save_config(config, filename, overwrite)
-        print(f'Saved energy offset parameters to "{filename}".')
+        logger.info(f'Saved energy offset parameters to "{filename}".')
 
     def append_tof_ns_axis(
         self,
@@ -1623,7 +1624,7 @@ class SedProcessor:
 
         if self._dataframe is not None:
             if verbose:
-                print("Adding time-of-flight column in nanoseconds to dataframe:")
+                logger.info("Adding time-of-flight column in nanoseconds to dataframe.")
             # TODO assert order of execution through metadata
 
             df, metadata = self.ec.append_tof_ns_axis(
@@ -1647,10 +1648,10 @@ class SedProcessor:
         else:
             raise ValueError("No dataframe loaded!")
         if preview:
-            print(self._dataframe.head(10))
+            logger.info(self._dataframe.head(10))
         else:
             if verbose:
-                print(self._dataframe)
+                logger.info(self._dataframe)
 
     def align_dld_sectors(
         self,
@@ -1677,7 +1678,7 @@ class SedProcessor:
 
         if self._dataframe is not None:
             if verbose:
-                print("Aligning 8s sectors of dataframe")
+                logger.info("Aligning 8s sectors of dataframe")
             # TODO assert order of execution through metadata
 
             df, metadata = self.ec.align_dld_sectors(
@@ -1703,10 +1704,10 @@ class SedProcessor:
         else:
             raise ValueError("No dataframe loaded!")
         if preview:
-            print(self._dataframe.head(10))
+            logger.info(self._dataframe.head(10))
         else:
             if verbose:
-                print(self._dataframe)
+                logger.info(self._dataframe)
 
     # Delay calibration function
     def calibrate_delay_axis(
@@ -1740,7 +1741,7 @@ class SedProcessor:
 
         if self._dataframe is not None:
             if verbose:
-                print("Adding delay column to dataframe:")
+                logger.info("Adding delay column to dataframe:")
 
             if delay_range is None and datafile is None:
                 if len(self.dc.calibration) == 0:
@@ -1779,10 +1780,10 @@ class SedProcessor:
         else:
             raise ValueError("No dataframe loaded!")
         if preview:
-            print(self._dataframe.head(10))
+            logger.info(self._dataframe.head(10))
         else:
             if self.verbose:
-                print(self._dataframe)
+                logger.info(self._dataframe)
 
     def save_delay_calibration(
         self,
@@ -1864,7 +1865,7 @@ class SedProcessor:
 
         if self.dataframe is not None:
             if verbose:
-                print("Adding delay offset to dataframe:")
+                logger.info("Adding delay offset to dataframe:")
             df, metadata = self.dc.add_offsets(
                 df=self._dataframe,
                 constant=constant,
@@ -1900,10 +1901,10 @@ class SedProcessor:
         else:
             raise ValueError("No dataframe loaded!")
         if preview:
-            print(self._dataframe.head(10))
+            logger.info(self._dataframe.head(10))
         else:
             if verbose:
-                print(self._dataframe)
+                logger.info(self._dataframe)
 
     def save_delay_offsets(
         self,
@@ -1932,7 +1933,7 @@ class SedProcessor:
             },
         }
         save_config(config, filename, overwrite)
-        print(f'Saved delay offset parameters to "{filename}".')
+        logger.info(f'Saved delay offset parameters to "{filename}".')
 
     def save_workflow_params(
         self,
@@ -2012,6 +2013,7 @@ class SedProcessor:
             metadata.append(col)
         # TODO: allow only appending if columns are not jittered yet
         self._attributes.add(metadata, "jittering", duplicate_policy="append")
+        logger.info(f"add_jitter: Added jitter to columns {cols}.")
 
     def add_time_stamped_data(
         self,
@@ -2085,6 +2087,7 @@ class SedProcessor:
         metadata.append(time_stamps)
         metadata.append(data)
         self._attributes.add(metadata, "time_stamped_data", duplicate_policy="append")
+        logger.info(f"add_time_stamped_data: Added time-stamped data as column {dest_column}.")
 
     def pre_binning(
         self,
@@ -2264,9 +2267,7 @@ class SedProcessor:
         if normalize_to_acquisition_time:
             if isinstance(normalize_to_acquisition_time, str):
                 axis = normalize_to_acquisition_time
-                print(
-                    f"Calculate normalization histogram for axis '{axis}'...",
-                )
+                logger.info(f"Calculate normalization histogram for axis '{axis}'...")
                 self._normalization_histogram = self.get_normalization_histogram(
                     axis=axis,
                     df_partitions=df_partitions,
