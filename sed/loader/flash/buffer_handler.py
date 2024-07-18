@@ -201,17 +201,18 @@ class BufferHandler:
 
             # Forward fill the non-electron channels across files
             overlap = min(file["num_rows"] for file in file_stats[typ].values())
+            iterations = self._config.get("forward_fill_iterations", 2)
             df = forward_fill_lazy(
                 df=df,
                 columns=self.fill_channels,
                 before=overlap,
-                iterations=1,
+                iterations=iterations,
             )
             # TODO: This dict should be returned by forward_fill_lazy
             filling[typ] = {
                 "columns": self.fill_channels,
                 "overlap": overlap,
-                "iterations": 1,
+                "iterations": iterations,
             }
 
             self.df[typ] = df
