@@ -277,19 +277,41 @@ class DataFrameCreator:
         # All the channels are concatenated to a single DataFrame
         return pd.concat(series, axis=1)
 
-    def validate_channel_keys(self) -> None:
+    def validate_channel_keys(self, remove_invalid: bool = True) -> None:
         """
-        Validates if the index and dataset keys for all channels in config exist in the h5 file.
+        Validates if the index and dataset keys for all channels in the config exist in the h5 file.
+        Prints a warning and removes the channel from the config if the keys do not exist,
+        based on the remove_invalid flag.
 
-        Raises:
-            KeyError: If the index or dataset keys do not exist in the file.
+        Args:
+            remove_invalid (bool): If True, removes channels with invalid keys from the config.
+                                If False, prints an error message without removing the channels.
         """
+        channels_to_remove = set()
+
         for channel in self._config["channels"]:
             index_key, dataset_key = self.get_index_dataset_key(channel)
             if index_key not in self.h5_file:
-                raise KeyError(f"pd.Index key '{index_key}' doesn't exist in the file.")
+                Warning(
+                    f"Key '{index_key}' for channel '{channel}' doesn't exist in the file.",
+                )
+                channels_to_remove.add(channel)
             if dataset_key not in self.h5_file:
-                raise KeyError(f"Dataset key '{dataset_key}' doesn't exist in the file.")
+                Warning(
+                    f"Key '{dataset_key}' for channel '{channel}' doesn't exist in the file.",
+                )
+                channels_to_remove.add(channel)
+
+        if remove_invalid:
+            for channel in channels_to_remove:
+                del self._config["channels"][channel]
+        else:
+            for channel in channels_to_remove:
+                KeyError(
+                    "Index or dataset key for channel '{channel}' does not exist in H5 file."
+                    "Either remove_invalid should be set to True or it should be "
+                    "removed from the config.",
+                )
 
     @property
     def df(self) -> pd.DataFrame:
