@@ -4,13 +4,11 @@ from __future__ import annotations
 # TODO: move to config
 MULTI_INDEX = ["trainId", "pulseId", "electronId"]
 PULSE_ALIAS = MULTI_INDEX[1]
-DLD_AUX_ALIAS = "dldAux"
-DLDAUX_CHANNELS = "dldAuxChannels"
 FORMATS = ["per_electron", "per_pulse", "per_train"]
 
 
 def get_channels(
-    channel_dict: dict = None,
+    config_dataframe: dict = {},
     formats: str | list[str] = None,
     index: bool = False,
     extend_aux: bool = False,
@@ -20,15 +18,19 @@ def get_channels(
     'all' returns all channels but 'pulseId' and 'dldAux' (if not extended).
 
     Args:
+        config_dataframe (dict): The config dictionary containing the dataframe keys.
         formats (str | list[str]): The desired format(s)
         ('per_pulse', 'per_electron', 'per_train', 'all').
         index (bool): If True, includes channels from the multiindex.
-        extend_aux (bool): If True, includes channels from the 'dldAuxChannels' dictionary,
-                else includes 'dldAux'.
+        extend_aux (bool): If True, includes channels from the subchannels of the auxiliary channel.
+                else just includes the auxiliary channel alias.
 
     Returns:
         List[str]: A list of channels with the specified format(s).
     """
+    channel_dict = config_dataframe.get("channels", {})
+    aux_alias = config_dataframe.get("aux_alias", "dldAux")
+
     # If 'formats' is a single string, convert it to a list for uniform processing.
     if isinstance(formats, str):
         formats = [formats]
@@ -36,7 +38,7 @@ def get_channels(
     # If 'formats' is a string "all", gather all possible formats.
     if formats == ["all"]:
         channels = get_channels(
-            channel_dict,
+            config_dataframe,
             FORMATS,
             index,
             extend_aux,
@@ -68,35 +70,41 @@ def get_channels(
             channels.extend(
                 key
                 for key in available_channels
-                if channel_dict[key]["format"] == format_ and key != DLD_AUX_ALIAS
+                if channel_dict[key]["format"] == format_ and key != aux_alias
             )
             # Include 'dldAuxChannels' if the format is 'per_train' and extend_aux is True.
             # Otherwise, include 'dldAux'.
-            if format_ == FORMATS[2] and DLD_AUX_ALIAS in available_channels:
+            if format_ == FORMATS[2] and aux_alias in available_channels:
                 if extend_aux:
                     channels.extend(
-                        channel_dict[DLD_AUX_ALIAS][DLDAUX_CHANNELS].keys(),
+                        channel_dict[aux_alias]["subChannels"].keys(),
                     )
                 else:
-                    channels.extend([DLD_AUX_ALIAS])
+                    channels.extend([aux_alias])
 
     return channels
 
 
-def get_dtypes(channels_dict: dict, formats: str | list[str]) -> dict:
+def get_dtypes(config_dataframe: dict, df_cols: list) -> dict:
     """Returns a dictionary of channels and their corresponding data types.
     Currently Auxiliary channels are not included in the dtype dictionary.
 
     Args:
-        channels_dict (dict): The dictionary containing the channels.
-        formats (str | list[str]): The desired format(s).
+        config_dataframe (dict): The config dictionary containing the dataframe keys.
+        df_cols (list): A list of channels in the DataFrame.
 
     Returns:
         dict: A dictionary of channels and their corresponding data types.
     """
-    channels = get_channels(channel_dict=channels_dict, formats=formats)
-    return {
-        channel: channels_dict[channel].get("dtype")
-        for channel in channels
-        if channels_dict[channel].get("dtype") is not None
-    }
+    channels_dict = config_dataframe.get("channels", {})
+    aux_alias = config_dataframe.get("aux_alias", "dldAux")
+    dtypes = {}
+    for channel in df_cols:
+        try:
+            dtypes[channel] = channels_dict[channel].get("dtype")
+        except KeyError:
+            try:
+                dtypes[channel] = channels_dict[aux_alias][channel].get("dtype")
+            except KeyError:
+                dtypes[channel] = None
+    return dtypes

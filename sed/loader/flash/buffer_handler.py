@@ -65,14 +65,11 @@ class BufferFilePaths:
     def __len__(self):
         return len(self._file_paths)
 
-    def to_process(self, force_recreate: bool = False) -> list[dict[str, Path]]:
+    def file_sets_to_process(self, force_recreate: bool = False) -> list[dict[str, Path]]:
         """Returns a list of file sets that need to be processed."""
-        if not force_recreate:
-            return [
-                file_set for file_set in self if any(not file_set[key].exists() for key in DF_TYP)
-            ]
-        else:
-            return list(self)
+        if force_recreate:
+            return self._file_paths
+        return [file_set for file_set in self if any(not file_set[key].exists() for key in DF_TYP)]
 
 
 class BufferHandler:
@@ -95,7 +92,7 @@ class BufferHandler:
         self.fp: BufferFilePaths = None
         self.df: dict[str, dd.DataFrame] = {typ: None for typ in DF_TYP}
         self.fill_channels: list[str] = get_channels(
-            self._config["channels"],
+            self._config,
             ["per_pulse", "per_train"],
             extend_aux=True,
         )
@@ -149,16 +146,17 @@ class BufferHandler:
 
         # Reset the index of the DataFrame and save both the electron and timed dataframes
         # electron resolved dataframe
-        electron_channels = get_channels(self._config["channels"], "per_electron")
-        dtypes = get_dtypes(self._config["channels"], "all")
+        electron_channels = get_channels(self._config, "per_electron")
+        dtypes = get_dtypes(self._config, df.columns.values)
         df.dropna(subset=electron_channels).astype(dtypes).reset_index().to_parquet(
             paths["electron"],
         )
 
         # timed dataframe
-        dtypes = get_dtypes(self._config["channels"], ["per_pulse", "per_train"])
         # drop the electron channels and only take rows with the first electronId
-        df[self.fill_channels].loc[:, :, 0].astype(dtypes).reset_index().to_parquet(paths["timed"])
+        df_timed = df[self.fill_channels].loc[:, :, 0]
+        dtypes = get_dtypes(self._config, df_timed.columns.values)
+        df_timed.astype(dtypes).reset_index().to_parquet(paths["timed"])
 
     def _save_buffer_files(self, force_recreate: bool, debug: bool) -> None:
         """
@@ -168,21 +166,30 @@ class BufferHandler:
             force_recreate (bool): Flag to force recreation of buffer files.
             debug (bool): Flag to enable debug mode, which serializes the creation.
         """
-        to_process = self.fp.to_process(force_recreate)
-        print(f"Reading files: {len(to_process)} new files of {len(self.fp)} total.")
-        n_cores = min(len(to_process), self.n_cores)
+        file_sets = self.fp.file_sets_to_process(force_recreate)
+        print(f"Reading files: {len(file_sets)} new files of {len(self.fp)} total.")
+        n_cores = min(len(file_sets), self.n_cores)
         if n_cores > 0:
             if debug:
-                for file_set in to_process:
+                for file_set in file_sets:
                     self._save_buffer_file(file_set)
+                    print(f"Processed {file_set['raw'].stem}")
             else:
                 Parallel(n_jobs=n_cores, verbose=10)(
-                    delayed(self._save_buffer_file)(file_set) for file_set in to_process
+                    delayed(self._save_buffer_file)(file_set) for file_set in file_sets
                 )
 
-    def _fill_dataframes(self):
+    def _get_dataframes(self) -> None:
         """
-        Reads all parquet files into one dataframe using dask and fills NaN values.
+        Reads the buffer files from a folder.
+
+        First the buffer files are read as a dask dataframe is accessed.
+        The dataframe is forward filled lazily with non-electron channels.
+        For the electron dataframe, all values not in the electron channels
+        are dropped, and splits the sector ID from the DLD time.
+        For the timed dataframe, only the train and pulse channels are taken and
+        it pulse resolved (no longer electron resolved). If time_index is True,
+        the timeIndex is calculated and set as the index (slow operation).
         """
         # Loop over the electron and timed dataframes
         file_stats = {}
@@ -191,10 +198,7 @@ class BufferHandler:
             # Read the parquet files into a dask dataframe
             df = dd.read_parquet(self.fp[typ], calculate_divisions=True)
             # Get the metadata from the parquet files
-            file_stats[typ] = get_parquet_metadata(
-                self.fp[typ],
-                time_stamp_col=self._config.get("time_stamp_alias", "timeStamp"),
-            )
+            file_stats[typ] = get_parquet_metadata(self.fp[typ])
 
             # Forward fill the non-electron channels across files
             overlap = min(file["num_rows"] for file in file_stats[typ].values())
@@ -214,15 +218,22 @@ class BufferHandler:
 
             self.df[typ] = df
         self.metadata.update({"file_statistics": file_stats, "filling": filling})
+        # Correct the 3-bit shift which encodes the detector ID in the 8s time
+        if self._config.get("split_sector_id_from_dld_time", False):
+            self.df["electron"], meta = split_dld_time_from_sector_id(
+                self.df["electron"],
+                config=self._config,
+            )
+            self.metadata.update(meta)
 
-    def run(
+    def process_and_load_dataframe(
         self,
         h5_paths: list[Path],
         folder: Path,
         force_recreate: bool = False,
         suffix: str = "",
         debug: bool = False,
-    ) -> None:
+    ) -> tuple[dd.DataFrame, dd.DataFrame]:
         """
         Runs the buffer file creation process.
         Does a schema check on the buffer files and creates them if they are missing.
@@ -234,17 +245,20 @@ class BufferHandler:
             force_recreate (bool): Flag to force recreation of buffer files.
             suffix (str): Suffix for buffer file names.
             debug (bool): Flag to enable debug mode.):
+
+        Returns:
+            Tuple[dd.DataFrame, dd.DataFrame]: The electron and timed dataframes.
         """
         self.fp = BufferFilePaths(h5_paths, folder, suffix)
 
         if not force_recreate:
             schema_set = set(
-                get_channels(self._config["channels"], formats="all", index=True, extend_aux=True),
+                get_channels(self._config, formats="all", index=True, extend_aux=True),
             )
             self._schema_check(self.fp["electron"], schema_set)
             schema_set = set(
                 get_channels(
-                    self._config["channels"],
+                    self._config,
                     formats=["per_pulse", "per_train"],
                     index=True,
                     extend_aux=True,
@@ -254,12 +268,6 @@ class BufferHandler:
 
         self._save_buffer_files(force_recreate, debug)
 
-        self._fill_dataframes()
+        self._get_dataframes()
 
-        # Correct the 3-bit shift which encodes the detector ID in the 8s time
-        if self._config.get("split_sector_id_from_dld_time", False):
-            self.df["electron"], meta = split_dld_time_from_sector_id(
-                self.df["electron"],
-                config=self._config,
-            )
-            self.metadata.update(meta)
+        return self.df["electron"], self.df["timed"]

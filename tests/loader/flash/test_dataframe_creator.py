@@ -33,7 +33,7 @@ def test_get_dataset_array(config_dataframe: dict, h5_paths: list[Path]) -> None
     df = DataFrameCreator(config_dataframe, h5_paths[0])
     channel = "dldPosX"
 
-    train_id, dset = df.get_dataset_array(channel)
+    train_id, dset = df.get_dataset_array(channel, slice_=False)
     # Check that the train_id and np_array have the correct shapes and types
     assert isinstance(train_id, Index)
     assert isinstance(dset, h5py.Dataset)
@@ -61,7 +61,7 @@ def test_empty_get_dataset_array(
 
     channel = "gmdTunnel"
     df = DataFrameCreator(config_dataframe, h5_paths[0])
-    train_id, dset = df.get_dataset_array(channel)
+    train_id, dset = df.get_dataset_array(channel, slice_=False)
 
     channel_index_key = "/FL1/Photon Diagnostic/GMD/Pulse resolved energy/energy tunnel/index"
     # channel_dataset_key = config_dataframe["channels"][channel]["group_name"] + "value"
@@ -77,7 +77,7 @@ def test_empty_get_dataset_array(
 
     df = DataFrameCreator(config_dataframe, h5_paths[0])
     df.h5_file = h5_file_copy
-    train_id, dset_empty = df.get_dataset_array(channel)
+    train_id, dset_empty = df.get_dataset_array(channel, slice_=False)
 
     assert dset_empty.shape[0] == train_id.shape[0]
     assert dset.shape[1] == 8
@@ -154,7 +154,7 @@ def test_df_electron(config_dataframe: dict, h5_paths: list[Path]) -> None:
 
     # check that dataframe contains all subchannels
     assert np.all(
-        set(result_df.columns) == set(get_channels(config_dataframe["channels"], ["per_electron"])),
+        set(result_df.columns) == set(get_channels(config_dataframe, ["per_electron"])),
     )
 
 
@@ -184,7 +184,7 @@ def test_create_dataframe_per_pulse(config_dataframe: dict, h5_paths: list[Path]
 
     # assert that dataframe contains all channels
     assert np.all(
-        set(result_df.columns) == set(get_channels(config_dataframe["channels"], ["per_pulse"])),
+        set(result_df.columns) == set(get_channels(config_dataframe, ["per_pulse"])),
     )
 
 
@@ -205,13 +205,13 @@ def test_create_dataframe_per_train(config_dataframe: dict, h5_paths: list[Path]
     # check that dataframe contains all channels
     assert np.all(
         set(result_df.columns)
-        == set(get_channels(config_dataframe["channels"], ["per_train"], extend_aux=True)),
+        == set(get_channels(config_dataframe, ["per_train"], extend_aux=True)),
     )
 
     # Ensure DataFrame has rows equal to unique keys from "per_train" channels, considering
     # different channels may have data for different trains. This checks the DataFrame's
     # completeness and integrity, especially important when channels record at varying trains.
-    channels = get_channels(config_dataframe["channels"], ["per_train"])
+    channels = get_channels(config_dataframe, ["per_train"])
     all_keys = Index([])
     for channel in channels:
         # Append unique keys from each channel, considering only training data
@@ -234,9 +234,9 @@ def test_create_dataframe_per_train(config_dataframe: dict, h5_paths: list[Path]
     # The subchannels are stored in the second dimension
     # Only index amount of values are stored in the first dimension, the rest are NaNs
     # hence the slicing
-    subchannels = config_dataframe["channels"]["dldAux"]["dldAuxChannels"]
-    for subchannel, index in subchannels.items():
-        assert np.all(df.df_train[subchannel].dropna().values == data[: key.size, index])
+    subchannels = config_dataframe["channels"]["dldAux"]["subChannels"]
+    for subchannel, values in subchannels.items():
+        assert np.all(df.df_train[subchannel].dropna().values == data[: key.size, values["slice"]])
 
     assert result_df.index.is_unique
 

@@ -25,11 +25,12 @@ def test_get_channels_by_format(config_dataframe: dict) -> None:
     retrieving channels based on formats and index inclusion.
     """
     # Initialize the FlashLoader instance with the given config_file.
-    ch_dict = config_dataframe["channels"]
+    ch_dict = config_dataframe
 
     # Call get_channels method with different format options.
 
     # Request channels for 'per_electron' format using a list.
+    print(ch_dict["channels"])
     format_electron = get_channels(ch_dict, ["per_electron"])
 
     # Request channels for 'per_pulse' format using a string.

@@ -33,10 +33,10 @@ def test_buffer_file_paths(config: dict, h5_paths: list[Path]) -> None:
     which HDF5 files need to be read and properly manages the paths for saving buffer
     files. It follows these steps:
     1. Creates a directory structure for storing buffer files and initializes the BufferHandler.
-    2. Checks if the to_process method populates the dict of missing file sets and
+    2. Checks if the file_sets_to_process method populates the dict of missing file sets and
        verify that initially, all provided files are considered missing.
     3. Checks that the paths for saving buffer files are correctly generated.
-    4. Creates a single buffer file and reruns to_process to ensure that the BufferHandler
+    4. Creates a single buffer file and reruns file_sets_to_process to ensure that the BufferHandler
         recognizes one less missing file.
     5. Checks if the force_recreate parameter forces the BufferHandler to consider all files
     6. Cleans up by removing the created buffer file.
@@ -47,7 +47,7 @@ def test_buffer_file_paths(config: dict, h5_paths: list[Path]) -> None:
     fp = BufferFilePaths(h5_paths, folder, "")
 
     # check that all files are to be read
-    assert len(fp.to_process()) == len(h5_paths)
+    assert len(fp.file_sets_to_process()) == len(h5_paths)
     print(folder)
     # create expected paths
     expected_buffer_electron_paths = [
@@ -71,10 +71,10 @@ def test_buffer_file_paths(config: dict, h5_paths: list[Path]) -> None:
     # check again for files to read and expect one less file
     fp = BufferFilePaths(h5_paths, folder, "")
     # check that only one file is to be read
-    assert len(fp.to_process()) == len(h5_paths) - 1
+    assert len(fp.file_sets_to_process()) == len(h5_paths) - 1
 
     # check that both files are to be read if force_recreate is set to True
-    assert len(fp.to_process(force_recreate=True)) == len(h5_paths)
+    assert len(fp.file_sets_to_process(force_recreate=True)) == len(h5_paths)
 
     # remove buffer files
     Path(path["electron"]).unlink()
@@ -109,7 +109,7 @@ def test_buffer_schema_mismatch(config: dict, h5_paths: list[Path]) -> None:
     """
     folder = create_parquet_dir(config, "schema_mismatch")
     bh = BufferHandler(config)
-    bh.run(h5_paths=h5_paths, folder=folder, debug=True)
+    bh.process_and_load_dataframe(h5_paths=h5_paths, folder=folder, debug=True)
 
     # Manipulate the configuration to introduce a new channel 'gmdTunnel2'
     config_dict = config
@@ -123,7 +123,7 @@ def test_buffer_schema_mismatch(config: dict, h5_paths: list[Path]) -> None:
     # Reread the dataframe with the modified configuration, expecting a schema mismatch error
     with pytest.raises(ValueError) as e:
         bh = BufferHandler(config)
-        bh.run(h5_paths=h5_paths, folder=folder, debug=True)
+        bh.process_and_load_dataframe(h5_paths=h5_paths, folder=folder, debug=True)
     expected_error = e.value.args[0]
 
     # Validate the specific error messages for schema mismatch
@@ -133,7 +133,7 @@ def test_buffer_schema_mismatch(config: dict, h5_paths: list[Path]) -> None:
 
     # Force recreation of the dataframe, including the added channel 'gmdTunnel2'
     bh = BufferHandler(config)
-    bh.run(h5_paths=h5_paths, folder=folder, force_recreate=True, debug=True)
+    bh.process_and_load_dataframe(h5_paths=h5_paths, folder=folder, force_recreate=True, debug=True)
 
     # Remove 'gmdTunnel2' from the configuration to simulate a missing channel scenario
     del config["dataframe"]["channels"]["gmdTunnel2"]
@@ -141,7 +141,7 @@ def test_buffer_schema_mismatch(config: dict, h5_paths: list[Path]) -> None:
     with pytest.raises(ValueError) as e:
         # Attempt to read the dataframe again to check for the missing channel error
         bh = BufferHandler(config)
-        bh.run(h5_paths=h5_paths, folder=folder, debug=True)
+        bh.process_and_load_dataframe(h5_paths=h5_paths, folder=folder, debug=True)
 
     expected_error = e.value.args[0]
     # Check for the specific error message indicating a missing channel in the configuration
@@ -165,11 +165,11 @@ def test_save_buffer_files(config: dict, h5_paths: list[Path]) -> None:
     """
     folder_serial = create_parquet_dir(config, "save_buffer_files_serial")
     bh_serial = BufferHandler(config)
-    bh_serial.run(h5_paths, folder_serial, debug=True)
+    bh_serial.process_and_load_dataframe(h5_paths, folder_serial, debug=True)
 
     folder_parallel = create_parquet_dir(config, "save_buffer_files_parallel")
     bh_parallel = BufferHandler(config)
-    bh_parallel.run(h5_paths, folder_parallel)
+    bh_parallel.process_and_load_dataframe(h5_paths, folder_parallel)
 
     df_serial = pd.read_parquet(folder_serial)
     df_parallel = pd.read_parquet(folder_parallel)
@@ -201,7 +201,7 @@ def test_save_buffer_files_exception(
     # testing exception in parallel execution
     with pytest.raises(ValueError):
         bh = BufferHandler(config_)
-        bh.run(h5_paths, folder_parallel, debug=False)
+        bh.process_and_load_dataframe(h5_paths, folder_parallel, debug=False)
 
     # check exception message with empty dataset
     config_ = deepcopy(config)
@@ -223,14 +223,19 @@ def test_save_buffer_files_exception(
     # expect key error because of missing index dataset
     with pytest.raises(KeyError):
         bh = BufferHandler(config_)
-        bh.run([tmp_path / "copy.h5"], folder_parallel, debug=False, force_recreate=True)
+        bh.process_and_load_dataframe(
+            [tmp_path / "copy.h5"],
+            folder_parallel,
+            debug=False,
+            force_recreate=True,
+        )
 
 
 def test_get_filled_dataframe(config: dict, h5_paths: list[Path]) -> None:
     """Test function to verify the creation of a filled dataframe from the buffer files."""
     folder = create_parquet_dir(config, "get_filled_dataframe")
     bh = BufferHandler(config)
-    bh.run(h5_paths, folder)
+    bh.process_and_load_dataframe(h5_paths, folder)
 
     df = pd.read_parquet(folder)
 
@@ -238,7 +243,7 @@ def test_get_filled_dataframe(config: dict, h5_paths: list[Path]) -> None:
 
     channel_pulse = set(
         get_channels(
-            config["dataframe"]["channels"],
+            config["dataframe"],
             formats=["per_pulse", "per_train"],
             index=True,
             extend_aux=True,

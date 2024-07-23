@@ -138,9 +138,9 @@ def test_get_elapsed_time_fid(config: dict) -> None:
     fl.metadata = {
         "file_statistics": {
             "timed": {
-                "0": {"time_stamps": [10, 20]},
-                "1": {"time_stamps": [20, 30]},
-                "2": {"time_stamps": [30, 40]},
+                "0": {"columns": {"timeStamp": {"min": 10, "max": 20}}},
+                "1": {"columns": {"timeStamp": {"min": 20, "max": 30}}},
+                "2": {"columns": {"timeStamp": {"min": 30, "max": 40}}},
             },
         },
     }
@@ -167,7 +167,7 @@ def test_get_elapsed_time_fid(config: dict) -> None:
         "file_statistics": {
             "timed": {
                 "0": {},
-                "1": {"time_stamps": [20, 30]},
+                "1": {"columns": {"timeStamp": {"min": 20, "max": 30}}},
             },
         },
     }
@@ -186,15 +186,15 @@ def test_get_elapsed_time_run(config: dict) -> None:
     }
     config_ = config.copy()
     data_parquet_dir = create_parquet_dir(config_, "get_elapsed_time_run")
-    config_["core"]["paths"]["data_parquet_dir"] = data_parquet_dir
+    config_["core"]["paths"]["processed"] = data_parquet_dir
     # Create an instance of FlashLoader
     fl = FlashLoader(config=config_)
 
     fl.read_dataframe(runs=[43878, 43879])
-    start, end = fl.metadata["file_statistics"]["electron"]["0"]["time_stamps"]
-    expected_elapsed_time_0 = end - start
-    start, end = fl.metadata["file_statistics"]["electron"]["1"]["time_stamps"]
-    expected_elapsed_time_1 = end - start
+    min_max = fl.metadata["file_statistics"]["electron"]["0"]["columns"]["timeStamp"]
+    expected_elapsed_time_0 = min_max["max"] - min_max["min"]
+    min_max = fl.metadata["file_statistics"]["electron"]["1"]["columns"]["timeStamp"]
+    expected_elapsed_time_1 = min_max["max"] - min_max["min"]
 
     elapsed_time = fl.get_elapsed_time(runs=[43878])
     assert elapsed_time == expected_elapsed_time_0
@@ -203,7 +203,6 @@ def test_get_elapsed_time_run(config: dict) -> None:
     assert elapsed_time == [expected_elapsed_time_0, expected_elapsed_time_1]
 
     elapsed_time = fl.get_elapsed_time(runs=[43878, 43879])
-    start, end = fl.metadata["file_statistics"]["electron"]["1"]["time_stamps"]
     assert elapsed_time == expected_elapsed_time_0 + expected_elapsed_time_1
 
     # remove the parquet files

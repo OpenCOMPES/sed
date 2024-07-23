@@ -220,15 +220,16 @@ class FlashLoader(BaseLoader):
             raise KeyError(
                 "File statistics missing. Use 'read_dataframe' first.",
             ) from exc
+        time_stamp_alias = self._config["dataframe"].get("time_stamp_alias", "timeStamp")
 
         def get_elapsed_time_from_fid(fid):
             try:
                 fid = str(fid)  # Ensure the key is a string
-                time_stamps = file_statistics[fid]["time_stamps"]
-                elapsed_time = max(time_stamps) - min(time_stamps)
+                time_stamps = file_statistics[fid]["columns"][time_stamp_alias]
+                elapsed_time = time_stamps["max"] - time_stamps["min"]
             except KeyError as exc:
                 raise KeyError(
-                    f"Timestamp metadata missing in file {fid}."
+                    f"Timestamp metadata missing in file {fid}. "
                     "Add timestamp column and alias to config before loading.",
                 ) from exc
 
@@ -334,15 +335,13 @@ class FlashLoader(BaseLoader):
         # Obtain the parquet filenames, metadata, and schema from the method
         # which handles buffer file creation/reading
         h5_paths = [Path(file) for file in self.files]
-        bh.run(
+        df, df_timed = bh.process_and_load_dataframe(
             h5_paths=h5_paths,
             folder=processed_dir,
             force_recreate=force_recreate,
             suffix=detector,
             debug=debug,
         )
-        df = bh.df["electron"]
-        df_timed = bh.df["timed"]
 
         if self.instrument == "wespe":
             df, df_timed = wespe_convert(df, df_timed)
