@@ -115,7 +115,7 @@ dataframe:
       index_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/index"
       dataset_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/value"
       slice: 4
-      dldAuxChannels:
+      subChannels:
         sampleBias:
           slice: 0
           dtype: float64

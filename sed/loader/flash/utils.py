@@ -29,8 +29,7 @@ def get_channels(
         List[str]: A list of channels with the specified format(s).
     """
     channel_dict = config_dataframe.get("channels", {})
-    dld_aux_alias = config_dataframe.get("aux_alias", "dldAux")
-    aux_subchannels_alias = config_dataframe.get("aux_subchannels_alias", "dldAuxChannels")
+    aux_alias = config_dataframe.get("aux_alias", "dldAux")
 
     # If 'formats' is a single string, convert it to a list for uniform processing.
     if isinstance(formats, str):
@@ -71,39 +70,41 @@ def get_channels(
             channels.extend(
                 key
                 for key in available_channels
-                if channel_dict[key]["format"] == format_ and key != dld_aux_alias
+                if channel_dict[key]["format"] == format_ and key != aux_alias
             )
             # Include 'dldAuxChannels' if the format is 'per_train' and extend_aux is True.
             # Otherwise, include 'dldAux'.
-            if format_ == FORMATS[2] and dld_aux_alias in available_channels:
+            if format_ == FORMATS[2] and aux_alias in available_channels:
                 if extend_aux:
                     channels.extend(
-                        channel_dict[dld_aux_alias][aux_subchannels_alias].keys(),
+                        channel_dict[aux_alias]["subChannels"].keys(),
                     )
                 else:
-                    channels.extend([dld_aux_alias])
+                    channels.extend([aux_alias])
 
     return channels
 
 
-def get_dtypes(channels_dict: dict, df_cols: list) -> dict:
+def get_dtypes(config_dataframe: dict, df_cols: list) -> dict:
     """Returns a dictionary of channels and their corresponding data types.
     Currently Auxiliary channels are not included in the dtype dictionary.
 
     Args:
-        channels_dict (dict): The config dictionary containing the channels.
+        config_dataframe (dict): The config dictionary containing the dataframe keys.
         df_cols (list): A list of channels in the DataFrame.
 
     Returns:
         dict: A dictionary of channels and their corresponding data types.
     """
+    channels_dict = config_dataframe.get("channels", {})
+    aux_alias = config_dataframe.get("aux_alias", "dldAux")
     dtypes = {}
     for channel in df_cols:
         try:
             dtypes[channel] = channels_dict[channel].get("dtype")
         except KeyError:
             try:
-                dtypes[channel] = channels_dict["dldAux"][channel].get("dtype")
+                dtypes[channel] = channels_dict[aux_alias][channel].get("dtype")
             except KeyError:
                 dtypes[channel] = None
     return dtypes

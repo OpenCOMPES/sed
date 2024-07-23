@@ -62,18 +62,18 @@ class DataFrameCreator:
     def get_dataset_array(
         self,
         channel: str,
-        slice_: bool = False,
-    ) -> tuple[pd.Index, h5py.Dataset]:
+        slice_: bool = True,
+    ) -> tuple[pd.Index, np.ndarray | h5py.Dataset]:
         """
         Returns a numpy array for a given channel name.
 
         Args:
             channel (str): The name of the channel.
-            slice_ (bool): If True, applies slicing on the dataset.
+            slice_ (bool): Applies slicing on the dataset. Default is True.
 
         Returns:
-            tuple[pd.Index, h5py.Dataset]: A tuple containing the train ID
-            pd.Index and the numpy array for the channel's data.
+            tuple[pd.Index, np.ndarray | h5py.Dataset]: A tuple containing the train ID
+            pd.Index and the channel's data.
         """
         # Get the data from the necessary h5 file and channel
         index_key, dataset_key = self.get_index_dataset_key(channel)
@@ -85,9 +85,9 @@ class DataFrameCreator:
             slice_index = self._config["channels"][channel].get("slice", None)
             if slice_index is not None:
                 dataset = np.take(dataset, slice_index, axis=1)
-        # If np_array is size zero, fill with NaNs
+        # If np_array is size zero, fill with NaNs, fill it with NaN values
+        # of the same shape as index
         if dataset.shape[0] == 0:
-            # Fill the np_array with NaN values of the same shape as train_id
             dataset = np.full_like(key, np.nan, dtype=np.double)
 
         return key, dataset
@@ -105,7 +105,7 @@ class DataFrameCreator:
             the indexer.
         """
         # Get the pulse_dataset and the train_index
-        train_index, pulse_dataset = self.get_dataset_array("pulseId", slice_=True)
+        train_index, pulse_dataset = self.get_dataset_array("pulseId")
         # pulse_dataset comes as a 2D array, resolved per train. Here it is flattened
         # the daq has an offset so no pulses are missed. This offset is subtracted here
         pulse_ravel = pulse_dataset.ravel() - offset
@@ -154,6 +154,8 @@ class DataFrameCreator:
 
         # Get the relevant channels and their slice index
         channels = get_channels(self._config, "per_electron")
+        if channels == []:
+            return pd.DataFrame()
         slice_index = [self._config["channels"][channel].get("slice", None) for channel in channels]
 
         # First checking if dataset keys are the same for all channels
@@ -165,16 +167,15 @@ class DataFrameCreator:
         # If all dataset keys are the same, we only need to load the dataset once and slice
         # the appropriate columns. This is much faster than loading the same dataset multiple times
         if all_keys_same:
-            _, dataset = self.get_dataset_array(channels[0])
+            _, dataset = self.get_dataset_array(channels[0], slice_=False)
             data_dict = {
-                channel: dataset[:, slice_, :].ravel()
-                for channel, slice_ in zip(channels, slice_index)
+                channel: dataset[:, idx, :].ravel() for channel, idx in zip(channels, slice_index)
             }
             dataframe = pd.DataFrame(data_dict)
         # In case channels do differ, we create a pd.Series for each channel and concatenate them
         else:
             series = {
-                channel: pd.Series(self.get_dataset_array(channel, slice_=True)[1].ravel())
+                channel: pd.Series(self.get_dataset_array(channel)[1].ravel())
                 for channel in channels
             }
             dataframe = pd.concat(series, axis=1)
@@ -205,16 +206,12 @@ class DataFrameCreator:
         series = []
         # Get the relevant channel names
         channels = get_channels(self._config, "per_pulse")
-        # check if dldAux is in the channels and raise error if so
-        if self._config.get("aux_alias", "dldAux") in channels:
-            raise ValueError(
-                "dldAux is a 'per_train' channel. "
-                "Please choose 'per_train' as the format for dldAux.",
-            )
+        if channels == []:
+            return pd.DataFrame()
         # For each channel, a pd.Series is created and appended to the list
         for channel in channels:
             # train_index and (sliced) data is returned
-            key, dataset = self.get_dataset_array(channel, slice_=True)
+            key, dataset = self.get_dataset_array(channel)
             # Electron resolved MultiIndex is created. Since this is pulse data,
             # the electron index is always 0
             index = pd.MultiIndex.from_product(
@@ -248,7 +245,7 @@ class DataFrameCreator:
         # For each channel, a pd.Series is created and appended to the list
         for channel in channels:
             # train_index and (sliced) data is returned
-            key, dataset = self.get_dataset_array(channel, slice_=True)
+            key, dataset = self.get_dataset_array(channel)
             # Electron and pulse resolved MultiIndex is created. Since this is train data,
             # the electron and pulse index is always 0
             index = pd.MultiIndex.from_product(
@@ -260,10 +257,14 @@ class DataFrameCreator:
             # they come in pulse format, so the extra values are sliced and individual channels are
             # created and appended to the list
             aux_alias = self._config.get("aux_alias", "dldAux")
-            sub_channels = self._config.get("aux_subchannels_alias", "dldAuxChannels")
-            if channel == "dldAux":
-                aux_channels = self._config["channels"][aux_alias][sub_channels].items()
-                for name, values in aux_channels:
+            if channel == aux_alias:
+                try:
+                    sub_channels = self._config["channels"][aux_alias]["subChannels"]
+                except KeyError:
+                    raise KeyError(
+                        f"Provide 'subChannels' for auxiliary channel '{aux_alias}'.",
+                    )
+                for name, values in sub_channels.items():
                     series.append(
                         pd.Series(
                             dataset[: key.size, values["slice"]],

@@ -147,7 +147,7 @@ class BufferHandler:
         # Reset the index of the DataFrame and save both the electron and timed dataframes
         # electron resolved dataframe
         electron_channels = get_channels(self._config, "per_electron")
-        dtypes = get_dtypes(self._config["channels"], df.columns.values)
+        dtypes = get_dtypes(self._config, df.columns.values)
         df.dropna(subset=electron_channels).astype(dtypes).reset_index().to_parquet(
             paths["electron"],
         )
@@ -155,7 +155,7 @@ class BufferHandler:
         # timed dataframe
         # drop the electron channels and only take rows with the first electronId
         df_timed = df[self.fill_channels].loc[:, :, 0]
-        dtypes = get_dtypes(self._config["channels"], df_timed.columns.values)
+        dtypes = get_dtypes(self._config, df_timed.columns.values)
         df_timed.astype(dtypes).reset_index().to_parquet(paths["timed"])
 
     def _save_buffer_files(self, force_recreate: bool, debug: bool) -> None:
@@ -173,6 +173,7 @@ class BufferHandler:
             if debug:
                 for file_set in file_sets:
                     self._save_buffer_file(file_set)
+                    print(f"Processed {file_set['raw'].stem}")
             else:
                 Parallel(n_jobs=n_cores, verbose=10)(
                     delayed(self._save_buffer_file)(file_set) for file_set in file_sets

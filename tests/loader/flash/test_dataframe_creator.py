@@ -33,7 +33,7 @@ def test_get_dataset_array(config_dataframe: dict, h5_paths: list[Path]) -> None
     df = DataFrameCreator(config_dataframe, h5_paths[0])
     channel = "dldPosX"
 
-    train_id, dset = df.get_dataset_array(channel)
+    train_id, dset = df.get_dataset_array(channel, slice_=False)
     # Check that the train_id and np_array have the correct shapes and types
     assert isinstance(train_id, Index)
     assert isinstance(dset, h5py.Dataset)
@@ -61,7 +61,7 @@ def test_empty_get_dataset_array(
 
     channel = "gmdTunnel"
     df = DataFrameCreator(config_dataframe, h5_paths[0])
-    train_id, dset = df.get_dataset_array(channel)
+    train_id, dset = df.get_dataset_array(channel, slice_=False)
 
     channel_index_key = "/FL1/Photon Diagnostic/GMD/Pulse resolved energy/energy tunnel/index"
     # channel_dataset_key = config_dataframe["channels"][channel]["group_name"] + "value"
@@ -77,7 +77,7 @@ def test_empty_get_dataset_array(
 
     df = DataFrameCreator(config_dataframe, h5_paths[0])
     df.h5_file = h5_file_copy
-    train_id, dset_empty = df.get_dataset_array(channel)
+    train_id, dset_empty = df.get_dataset_array(channel, slice_=False)
 
     assert dset_empty.shape[0] == train_id.shape[0]
     assert dset.shape[1] == 8
@@ -234,7 +234,7 @@ def test_create_dataframe_per_train(config_dataframe: dict, h5_paths: list[Path]
     # The subchannels are stored in the second dimension
     # Only index amount of values are stored in the first dimension, the rest are NaNs
     # hence the slicing
-    subchannels = config_dataframe["channels"]["dldAux"]["dldAuxChannels"]
+    subchannels = config_dataframe["channels"]["dldAux"]["subChannels"]
     for subchannel, values in subchannels.items():
         assert np.all(df.df_train[subchannel].dropna().values == data[: key.size, values["slice"]])
 
