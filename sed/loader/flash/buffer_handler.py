@@ -226,14 +226,14 @@ class BufferHandler:
             )
             self.metadata.update(meta)
 
-    def run(
+    def process_and_load_dataframe(
         self,
         h5_paths: list[Path],
         folder: Path,
         force_recreate: bool = False,
         suffix: str = "",
         debug: bool = False,
-    ) -> None:
+    ) -> tuple[dd.DataFrame, dd.DataFrame]:
         """
         Runs the buffer file creation process.
         Does a schema check on the buffer files and creates them if they are missing.
@@ -245,6 +245,9 @@ class BufferHandler:
             force_recreate (bool): Flag to force recreation of buffer files.
             suffix (str): Suffix for buffer file names.
             debug (bool): Flag to enable debug mode.):
+
+        Returns:
+            Tuple[dd.DataFrame, dd.DataFrame]: The electron and timed dataframes.
         """
         self.fp = BufferFilePaths(h5_paths, folder, suffix)
 
@@ -266,3 +269,5 @@ class BufferHandler:
         self._save_buffer_files(force_recreate, debug)
 
         self._get_dataframes()
+
+        return self.df["electron"], self.df["timed"]

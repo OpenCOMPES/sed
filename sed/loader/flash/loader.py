@@ -335,15 +335,13 @@ class FlashLoader(BaseLoader):
         # Obtain the parquet filenames, metadata, and schema from the method
         # which handles buffer file creation/reading
         h5_paths = [Path(file) for file in self.files]
-        bh.run(
+        df, df_timed = bh.process_and_load_dataframe(
             h5_paths=h5_paths,
             folder=processed_dir,
             force_recreate=force_recreate,
             suffix=detector,
             debug=debug,
         )
-        df = bh.df["electron"]
-        df_timed = bh.df["timed"]
 
         if self.instrument == "wespe":
             df, df_timed = wespe_convert(df, df_timed)
