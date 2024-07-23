@@ -51,33 +51,29 @@ class DataFrameCreator:
             ValueError: If 'index_key' and 'dataset_key' are not provided.
         """
         channel_config = self._config["channels"][channel]
-
+        group_err = ""
         if "index_key" in channel_config and "dataset_key" in channel_config:
             return channel_config["index_key"], channel_config["dataset_key"]
         elif "group_name" in channel_config:
-            print("'group_name' is no longer supported.")
-
-        raise ValueError(
-            "For channel:",
-            channel,
-            "Provide both 'index_key' and 'dataset_key'.",
-        )
+            group_err = "'group_name' is no longer supported."
+        error = f"{group_err} For channel: {channel}, provide both 'index_key' and 'dataset_key'."
+        raise ValueError(error)
 
     def get_dataset_array(
         self,
         channel: str,
-        slice_: bool = False,
-    ) -> tuple[pd.Index, h5py.Dataset]:
+        slice_: bool = True,
+    ) -> tuple[pd.Index, np.ndarray | h5py.Dataset]:
         """
         Returns a numpy array for a given channel name.
 
         Args:
             channel (str): The name of the channel.
-            slice_ (bool): If True, applies slicing on the dataset.
+            slice_ (bool): Applies slicing on the dataset. Default is True.
 
         Returns:
-            tuple[pd.Index, h5py.Dataset]: A tuple containing the train ID
-            pd.Index and the numpy array for the channel's data.
+            tuple[pd.Index, np.ndarray | h5py.Dataset]: A tuple containing the train ID
+            pd.Index and the channel's data.
         """
         # Get the data from the necessary h5 file and channel
         index_key, dataset_key = self.get_index_dataset_key(channel)
@@ -89,9 +85,9 @@ class DataFrameCreator:
             slice_index = self._config["channels"][channel].get("slice", None)
             if slice_index is not None:
                 dataset = np.take(dataset, slice_index, axis=1)
-        # If np_array is size zero, fill with NaNs
+        # If np_array is size zero, fill with NaNs, fill it with NaN values
+        # of the same shape as index
         if dataset.shape[0] == 0:
-            # Fill the np_array with NaN values of the same shape as train_id
             dataset = np.full_like(key, np.nan, dtype=np.double)
 
         return key, dataset
@@ -109,7 +105,7 @@ class DataFrameCreator:
             the indexer.
         """
         # Get the pulse_dataset and the train_index
-        train_index, pulse_dataset = self.get_dataset_array("pulseId", slice_=True)
+        train_index, pulse_dataset = self.get_dataset_array("pulseId")
         # pulse_dataset comes as a 2D array, resolved per train. Here it is flattened
         # the daq has an offset so no pulses are missed. This offset is subtracted here
         pulse_ravel = pulse_dataset.ravel() - offset
@@ -129,7 +125,9 @@ class DataFrameCreator:
         # the number of electrons in each pulse. Here the values are counted
         electron_counts = pulse_index.value_counts(sort=False).values
         # Now we resolve each pulse to its electrons
-        electron_index = np.concatenate([np.arange(count) for count in electron_counts])
+        electron_index = np.concatenate(
+            [np.arange(count, dtype="uint16") for count in electron_counts],
+        )
 
         # Final multi-index constructed here
         index = pd.MultiIndex.from_arrays(
@@ -155,7 +153,9 @@ class DataFrameCreator:
         index, indexer = self.pulse_index(offset)
 
         # Get the relevant channels and their slice index
-        channels = get_channels(self._config["channels"], "per_electron")
+        channels = get_channels(self._config, "per_electron")
+        if channels == []:
+            return pd.DataFrame()
         slice_index = [self._config["channels"][channel].get("slice", None) for channel in channels]
 
         # First checking if dataset keys are the same for all channels
@@ -167,16 +167,15 @@ class DataFrameCreator:
         # If all dataset keys are the same, we only need to load the dataset once and slice
         # the appropriate columns. This is much faster than loading the same dataset multiple times
         if all_keys_same:
-            _, dataset = self.get_dataset_array(channels[0])
+            _, dataset = self.get_dataset_array(channels[0], slice_=False)
             data_dict = {
-                channel: dataset[:, slice_, :].ravel()
-                for channel, slice_ in zip(channels, slice_index)
+                channel: dataset[:, idx, :].ravel() for channel, idx in zip(channels, slice_index)
             }
             dataframe = pd.DataFrame(data_dict)
         # In case channels do differ, we create a pd.Series for each channel and concatenate them
         else:
             series = {
-                channel: pd.Series(self.get_dataset_array(channel, slice_=True)[1].ravel())
+                channel: pd.Series(self.get_dataset_array(channel)[1].ravel())
                 for channel in channels
             }
             dataframe = pd.concat(series, axis=1)
@@ -206,11 +205,13 @@ class DataFrameCreator:
         """
         series = []
         # Get the relevant channel names
-        channels = get_channels(self._config["channels"], "per_pulse")
+        channels = get_channels(self._config, "per_pulse")
+        if channels == []:
+            return pd.DataFrame()
         # For each channel, a pd.Series is created and appended to the list
         for channel in channels:
             # train_index and (sliced) data is returned
-            key, dataset = self.get_dataset_array(channel, slice_=True)
+            key, dataset = self.get_dataset_array(channel)
             # Electron resolved MultiIndex is created. Since this is pulse data,
             # the electron index is always 0
             index = pd.MultiIndex.from_product(
@@ -219,8 +220,10 @@ class DataFrameCreator:
             )
             # The dataset is opened and converted to numpy array by [()]
             # and flattened to resolve per pulse
-            # The pd.Series is created with the MultiIndex and appended to the list
-            series.append(pd.Series(dataset[()].ravel(), index=index, name=channel))
+            channel_series = pd.Series(dataset[()].ravel(), index=index, name=channel)
+            # sometimes pulse columns have more pulses than valid ones such as with bam channel
+            # so we remove all 0 values from the series
+            series.append(channel_series[channel_series != 0])  # TODO: put this in metadata
 
         # All the channels are concatenated to a single DataFrame
         return pd.concat(
@@ -238,11 +241,11 @@ class DataFrameCreator:
         """
         series = []
         # Get the relevant channel names
-        channels = get_channels(self._config["channels"], "per_train")
+        channels = get_channels(self._config, "per_train")
         # For each channel, a pd.Series is created and appended to the list
         for channel in channels:
             # train_index and (sliced) data is returned
-            key, dataset = self.get_dataset_array(channel, slice_=True)
+            key, dataset = self.get_dataset_array(channel)
             # Electron and pulse resolved MultiIndex is created. Since this is train data,
             # the electron and pulse index is always 0
             index = pd.MultiIndex.from_product(
@@ -253,10 +256,22 @@ class DataFrameCreator:
             # contains multiple channels inside. Even though they are resolved per train,
             # they come in pulse format, so the extra values are sliced and individual channels are
             # created and appended to the list
-            if channel == "dldAux":
-                aux_channels = self._config["channels"]["dldAux"]["dldAuxChannels"].items()
-                for name, slice_aux in aux_channels:
-                    series.append(pd.Series(dataset[: key.size, slice_aux], index, name=name))
+            aux_alias = self._config.get("aux_alias", "dldAux")
+            if channel == aux_alias:
+                try:
+                    sub_channels = self._config["channels"][aux_alias]["subChannels"]
+                except KeyError:
+                    raise KeyError(
+                        f"Provide 'subChannels' for auxiliary channel '{aux_alias}'.",
+                    )
+                for name, values in sub_channels.items():
+                    series.append(
+                        pd.Series(
+                            dataset[: key.size, values["slice"]],
+                            index,
+                            name=name,
+                        ),
+                    )
             else:
                 series.append(pd.Series(dataset, index, name=channel))
         # All the channels are concatenated to a single DataFrame
@@ -279,7 +294,7 @@ class DataFrameCreator:
     @property
     def df(self) -> pd.DataFrame:
         """
-        Joins the 'per_electron', 'per_pulse', and 'per_train' using join operation,
+        Joins the 'per_electron', 'per_pulse', and 'per_train' using concat operation,
         returning a single dataframe.
 
         Returns:
@@ -287,8 +302,6 @@ class DataFrameCreator:
         """
 
         self.validate_channel_keys()
-        return (
-            self.df_electron.join(self.df_pulse, on=self.multi_index, how="outer")
-            .join(self.df_train, on=self.multi_index, how="outer")
-            .sort_index()
-        )
+        # been tested with merge, join and concat
+        # concat offers best performance, almost 3 times faster
+        return pd.concat((self.df_electron, self.df_pulse, self.df_train), axis=1).sort_index()

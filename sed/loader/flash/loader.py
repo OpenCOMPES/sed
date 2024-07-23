@@ -44,7 +44,7 @@ class FlashLoader(BaseLoader):
         super().__init__(config=config)
         self.instrument: str = self._config["core"].get("instrument", "hextof")  # default is hextof
         self.raw_dir: str = None
-        self.parquet_dir: str = None
+        self.processed_dir: str = None
 
     def _initialize_dirs(self) -> None:
         """
@@ -59,12 +59,11 @@ class FlashLoader(BaseLoader):
             FileNotFoundError: If the raw data directories are not found.
         """
         # Parses to locate the raw beamtime directory from config file
+        # Only raw_dir is necessary, processed_dir can be based on raw_dir, if not provided
         if "paths" in self._config["core"]:
-            data_raw_dir = [
-                Path(self._config["core"]["paths"].get("data_raw_dir", "")),
-            ]
-            data_parquet_dir = Path(
-                self._config["core"]["paths"].get("data_parquet_dir", ""),
+            raw_dir = Path(self._config["core"]["paths"].get("raw", ""))
+            processed_dir = Path(
+                self._config["core"]["paths"].get("processed", raw_dir.joinpath("processed")),
             )
 
         else:
@@ -83,27 +82,27 @@ class FlashLoader(BaseLoader):
             beamtime_dir = beamtime_dir.joinpath(f"{year}/data/{beamtime_id}/")
 
             # Use pathlib walk to reach the raw data directory
-            data_raw_dir = []
-            raw_path = beamtime_dir.joinpath("raw")
+            raw_paths: list[Path] = []
 
-            for path in raw_path.glob("**/*"):
+            for path in beamtime_dir.joinpath("raw").glob("**/*"):
                 if path.is_dir():
                     dir_name = path.name
                     if dir_name.startswith(("online-", "express-")):
-                        data_raw_dir.append(path.joinpath(self._config["dataframe"]["daq"]))
+                        raw_paths.append(path.joinpath(self._config["dataframe"]["daq"]))
                     elif dir_name == self._config["dataframe"]["daq"].upper():
-                        data_raw_dir.append(path)
+                        raw_paths.append(path)
 
-            if not data_raw_dir:
+            if not raw_paths:
                 raise FileNotFoundError("Raw data directories not found.")
 
-            parquet_path = "processed/parquet"
-            data_parquet_dir = beamtime_dir.joinpath(parquet_path)
+            raw_dir = raw_paths[0].resolve()
 
-        data_parquet_dir.mkdir(parents=True, exist_ok=True)
+            processed_dir = beamtime_dir.joinpath("processed")
 
-        self.raw_dir = str(data_raw_dir[0].resolve())
-        self.parquet_dir = str(data_parquet_dir)
+        processed_dir.mkdir(parents=True, exist_ok=True)
+
+        self.raw_dir = str(raw_dir)
+        self.processed_dir = str(processed_dir)
 
     @property
     def available_runs(self) -> list[int]:
@@ -216,20 +215,21 @@ class FlashLoader(BaseLoader):
             KeyError: If a file ID in fids or a run ID in 'runs' does not exist in the metadata.
         """
         try:
-            file_statistics = self.metadata["file_statistics"]
+            file_statistics = self.metadata["file_statistics"]["timed"]
         except Exception as exc:
             raise KeyError(
                 "File statistics missing. Use 'read_dataframe' first.",
             ) from exc
+        time_stamp_alias = self._config["dataframe"].get("time_stamp_alias", "timeStamp")
 
         def get_elapsed_time_from_fid(fid):
             try:
                 fid = str(fid)  # Ensure the key is a string
-                time_stamps = file_statistics[fid]["time_stamps"]
-                elapsed_time = max(time_stamps) - min(time_stamps)
+                time_stamps = file_statistics[fid]["columns"][time_stamp_alias]
+                elapsed_time = time_stamps["max"] - time_stamps["min"]
             except KeyError as exc:
                 raise KeyError(
-                    f"Timestamp metadata missing in file {fid}."
+                    f"Timestamp metadata missing in file {fid}. "
                     "Add timestamp column and alias to config before loading.",
                 ) from exc
 
@@ -271,7 +271,7 @@ class FlashLoader(BaseLoader):
         collect_metadata: bool = False,
         detector: str = "",
         force_recreate: bool = False,
-        parquet_dir: str | Path = None,
+        processed_dir: str | Path = None,
         debug: bool = False,
         **kwds,
     ) -> tuple[dd.DataFrame, dd.DataFrame, dict]:
@@ -296,7 +296,7 @@ class FlashLoader(BaseLoader):
             and metadata.
 
         Raises:
-            ValueError: If neither 'runs' nor 'files'/'data_raw_dir' is provided.
+            ValueError: If neither 'runs' nor 'files'/'raw_dir' is provided.
             FileNotFoundError: If the conversion fails for some files or no data is available.
         """
         t0 = time.time()
@@ -328,22 +328,20 @@ class FlashLoader(BaseLoader):
             config=self._config,
         )
 
-        # if parquet_dir is None, use self.parquet_dir
-        parquet_dir = parquet_dir or self.parquet_dir
-        parquet_dir = Path(parquet_dir)
+        # if processed_dir is None, use self.processed_dir
+        processed_dir = processed_dir or self.processed_dir
+        processed_dir = Path(processed_dir)
 
         # Obtain the parquet filenames, metadata, and schema from the method
         # which handles buffer file creation/reading
         h5_paths = [Path(file) for file in self.files]
-        bh.run(
+        df, df_timed = bh.process_and_load_dataframe(
             h5_paths=h5_paths,
-            folder=parquet_dir,
+            folder=processed_dir,
             force_recreate=force_recreate,
             suffix=detector,
             debug=debug,
         )
-        df = bh.df_electron
-        df_timed = bh.df_pulse
 
         if self.instrument == "wespe":
             df, df_timed = wespe_convert(df, df_timed)

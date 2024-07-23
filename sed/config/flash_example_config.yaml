@@ -18,9 +18,9 @@ core:
   # provided, the loader will try to find the data based on year beamtimeID etc
   paths:
     # location of the raw data.
-    data_raw_dir: ""
+    raw: ""
     # location of the intermediate parquet files.
-    data_parquet_dir: ""
+    processed: ""
 
 binning:
   # Histogram computation mode to use.
@@ -66,6 +66,10 @@ dataframe:
   corrected_tof_column: "tm"
   # the time stamp column
   time_stamp_alias: timeStamp
+  # auxiliary channel alias
+  aux_alias: dldAux
+  # aux subchannels alias
+  aux_subchannels_alias: dldAuxChannels
   # time length of a base time-of-flight bin in seconds
   tof_binwidth: 2.0576131995767355E-11
   # binning parameter for time-of-flight data.
@@ -100,10 +104,17 @@ dataframe:
 
   # The channels to load.
   # channels have the following structure:
-  # channelAlias:
+  # <channelAlias>:
   #   format: per_pulse/per_electron/per_train
-  #   group_name: the hdf5 group path
-  #   slice: if the group contains multidimensional data, where to slice
+  #   index_key: the hdf5 index key
+  #   dataset_key: the hdf5 dataset key
+  #   slice: int to slice a multidimensional data along axis=1. If not defined, there is no slicing
+  #   dtype: the datatype of the data
+  #   subChannels: further aliases for if the data is multidimensional and needs to be split in different cols
+  #                used currently for the auxiliary channel
+  #      <subChannelAlias>:
+  #        slice: int to slice a multidimensional data along axis=1. Must be defined
+  #        dtype: the datatype of the data
 
   channels:
     # The timestamp
@@ -118,6 +129,7 @@ dataframe:
       index_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/index"
       dataset_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/value"
       slice: 2
+      dtype: uint16
 
     # detector x position
     dldPosX:
@@ -125,6 +137,7 @@ dataframe:
       index_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/index"
       dataset_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/value"
       slice: 1
+      dtype: uint16
 
     # detector y position
     dldPosY:
@@ -132,6 +145,7 @@ dataframe:
       index_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/index"
       dataset_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/value"
       slice: 0
+      dtype: uint16
 
     # Detector time-of-flight channel
     # if split_sector_id_from_dld_time is set to True, This this will generate
@@ -141,6 +155,7 @@ dataframe:
       index_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/index"
       dataset_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/value"
       slice: 3
+      dtype: uint32
 
     # The auxiliary channel has a special structure where the group further contains
     # a multidimensional structure so further aliases are defined below
@@ -149,14 +164,23 @@ dataframe:
       index_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/index"
       dataset_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/value"
       slice: 4
-      dldAuxChannels:
-        sampleBias: 0
-        tofVoltage: 1
-        extractorVoltage: 2
-        extractorCurrent: 3
-        cryoTemperature: 4
-        sampleTemperature: 5
-        dldTimeBinSize: 15
+      subChannels:
+        sampleBias:
+          slice: 0
+          dtype: float32
+        tofVoltage:
+          slice: 1
+          dtype: float64
+        extractorVoltage:
+          slice: 2
+        extractorCurrent:
+          slice: 3
+        cryoTemperature:
+          slice: 4
+        sampleTemperature:
+          slice: 5
+        dldTimeBinSize:
+          slice: 15
 
     # ADC containing the pulser sign (1: value approx. 35000, 0: 33000)
     pulserSignAdc:

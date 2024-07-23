@@ -2,8 +2,8 @@ core:
   loader: sxp
   beamline: sxp
   paths:
-    data_raw_dir: "tests/data/loader/sxp/"
-    data_parquet_dir: "tests/data/loader/sxp/parquet"
+    raw: "tests/data/loader/sxp/"
+    processed: "tests/data/loader/sxp/parquet"
 
 binning:
   num_cores: 10

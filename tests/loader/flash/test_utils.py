@@ -1,11 +1,5 @@
 """Tests for utils functionality"""
-from pathlib import Path
-
-import pytest
-
-from .test_buffer_handler import create_parquet_dir
 from sed.loader.flash.utils import get_channels
-from sed.loader.flash.utils import initialize_paths
 
 # Define expected channels for each format.
 ELECTRON_CHANNELS = ["dldPosX", "dldPosY", "dldTimeSteps"]
@@ -31,11 +25,12 @@ def test_get_channels_by_format(config_dataframe: dict) -> None:
     retrieving channels based on formats and index inclusion.
     """
     # Initialize the FlashLoader instance with the given config_file.
-    ch_dict = config_dataframe["channels"]
+    ch_dict = config_dataframe
 
     # Call get_channels method with different format options.
 
     # Request channels for 'per_electron' format using a list.
+    print(ch_dict["channels"])
     format_electron = get_channels(ch_dict, ["per_electron"])
 
     # Request channels for 'per_pulse' format using a string.
@@ -78,35 +73,3 @@ def test_get_channels_by_format(config_dataframe: dict) -> None:
     ) == set(
         format_all_index_extend_aux,
     )
-
-
-def test_parquet_init_error() -> None:
-    """Test ParquetHandler initialization error"""
-    with pytest.raises(ValueError) as e:
-        _ = initialize_paths(filenames="test")
-
-    assert "Please provide folder or paths." in str(e.value)
-
-    with pytest.raises(ValueError) as e:
-        _ = initialize_paths(folder=Path("test"))
-
-    assert "With folder, please provide filenames." in str(e.value)
-
-
-def test_initialize_paths(config: dict) -> None:
-    """Test ParquetHandler initialization"""
-    folder = create_parquet_dir(config, "parquet_init")
-
-    ph = initialize_paths("test", folder, extension="xyz")
-    assert ph[0].suffix == ".xyz"
-    assert ph[0].name == "test.xyz"
-
-    # test prefix and suffix
-    ph = initialize_paths("test", folder, prefix="prefix", suffix="suffix")
-    assert ph[0].name == "prefix_test_suffix.parquet"
-
-    # test with list of parquet_names and subfolder
-    ph = initialize_paths(["test1", "test2"], folder, subfolder="subfolder")
-    assert ph[0].parent.name == "subfolder"
-    assert ph[0].name == "test1.parquet"
-    assert ph[1].name == "test2.parquet"

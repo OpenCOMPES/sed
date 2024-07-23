@@ -39,7 +39,7 @@ def test_initialize_dirs(
     )
     # Create expected paths
     expected_raw_path = expected_path / "raw" / "hdf" / sub_dir
-    expected_processed_path = expected_path / "processed" / "parquet"
+    expected_processed_path = expected_path / "processed"
 
     # Create a fake file system for testing
     fs.create_dir(expected_raw_path)
@@ -49,7 +49,7 @@ def test_initialize_dirs(
     fl = FlashLoader(config=config_)
     fl._initialize_dirs()
     assert str(expected_raw_path) == fl.raw_dir
-    assert str(expected_processed_path) == fl.parquet_dir
+    assert str(expected_processed_path) == fl.processed_dir
 
     # remove beamtime_id, year and daq from config to raise error
     del config_["core"]["beamtime_id"]
@@ -89,7 +89,7 @@ def test_save_read_parquet_flash(config: dict) -> None:
     """
     config_ = config.copy()
     data_parquet_dir = create_parquet_dir(config_, "flash_save_read")
-    config_["core"]["paths"]["data_parquet_dir"] = data_parquet_dir
+    config_["core"]["paths"]["processed"] = data_parquet_dir
     fl = FlashLoader(config=config_)
 
     # First call: should create and read the parquet file
@@ -137,9 +137,11 @@ def test_get_elapsed_time_fid(config: dict) -> None:
     # Mock the file_statistics and files
     fl.metadata = {
         "file_statistics": {
-            "0": {"time_stamps": [10, 20]},
-            "1": {"time_stamps": [20, 30]},
-            "2": {"time_stamps": [30, 40]},
+            "timed": {
+                "0": {"columns": {"timeStamp": {"min": 10, "max": 20}}},
+                "1": {"columns": {"timeStamp": {"min": 20, "max": 30}}},
+                "2": {"columns": {"timeStamp": {"min": 30, "max": 40}}},
+            },
         },
     }
     fl.files = ["file0", "file1", "file2"]
@@ -163,8 +165,10 @@ def test_get_elapsed_time_fid(config: dict) -> None:
     # Test KeyError when time_stamps is missing
     fl.metadata = {
         "file_statistics": {
-            "0": {},
-            "1": {"time_stamps": [20, 30]},
+            "timed": {
+                "0": {},
+                "1": {"columns": {"timeStamp": {"min": 20, "max": 30}}},
+            },
         },
     }
     with pytest.raises(KeyError) as e:
@@ -176,16 +180,21 @@ def test_get_elapsed_time_fid(config: dict) -> None:
 def test_get_elapsed_time_run(config: dict) -> None:
     """Test get_elapsed_time method of FlashLoader class"""
     config_ = config.copy()
+    config_["core"]["paths"] = {
+        "raw": "tests/data/loader/flash/",
+        "processed": "tests/data/loader/flash/parquet/get_elapsed_time_run",
+    }
+    config_ = config.copy()
     data_parquet_dir = create_parquet_dir(config_, "get_elapsed_time_run")
-    config_["core"]["paths"]["data_parquet_dir"] = data_parquet_dir
+    config_["core"]["paths"]["processed"] = data_parquet_dir
     # Create an instance of FlashLoader
     fl = FlashLoader(config=config_)
 
     fl.read_dataframe(runs=[43878, 43879])
-    start, end = fl.metadata["file_statistics"]["0"]["time_stamps"]
-    expected_elapsed_time_0 = end - start
-    start, end = fl.metadata["file_statistics"]["1"]["time_stamps"]
-    expected_elapsed_time_1 = end - start
+    min_max = fl.metadata["file_statistics"]["electron"]["0"]["columns"]["timeStamp"]
+    expected_elapsed_time_0 = min_max["max"] - min_max["min"]
+    min_max = fl.metadata["file_statistics"]["electron"]["1"]["columns"]["timeStamp"]
+    expected_elapsed_time_1 = min_max["max"] - min_max["min"]
 
     elapsed_time = fl.get_elapsed_time(runs=[43878])
     assert elapsed_time == expected_elapsed_time_0
@@ -194,12 +203,11 @@ def test_get_elapsed_time_run(config: dict) -> None:
     assert elapsed_time == [expected_elapsed_time_0, expected_elapsed_time_1]
 
     elapsed_time = fl.get_elapsed_time(runs=[43878, 43879])
-    start, end = fl.metadata["file_statistics"]["1"]["time_stamps"]
     assert elapsed_time == expected_elapsed_time_0 + expected_elapsed_time_1
 
     # remove the parquet files
-    for file in os.listdir(Path(fl.parquet_dir, "buffer")):
-        Path(fl.parquet_dir, "buffer").joinpath(file).unlink()
+    for file in os.listdir(Path(fl.processed_dir, "buffer")):
+        Path(fl.processed_dir, "buffer").joinpath(file).unlink()
 
 
 def test_available_runs(monkeypatch: pytest.MonkeyPatch, config: dict) -> None:

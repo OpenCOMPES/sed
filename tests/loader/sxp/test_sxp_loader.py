@@ -102,7 +102,7 @@ def test_initialize_dirs(config_file: dict, fs) -> None:
     sl._initialize_dirs()
 
     assert expected_raw_path == sl.raw_dir[0]
-    assert expected_processed_path == sl.parquet_dir
+    assert expected_processed_path == sl.processed_dir
 
 
 def test_initialize_dirs_filenotfound(config_file: dict):
@@ -150,7 +150,7 @@ def test_data_keys_not_in_h5(config_file: dict, key_type: str):
     sl = SXPLoader(config=config)
 
     with pytest.raises(ValueError) as e:
-        sl.create_dataframe_per_file(config["core"]["paths"]["data_raw_dir"] + H5_PATH)
+        sl.create_dataframe_per_file(config["core"]["paths"]["raw"] + H5_PATH)
 
     assert str(e.value.args[0]) == f"The {key_type} for channel dldPosX does not exist."
 
@@ -210,5 +210,5 @@ def test_buffer_schema_mismatch(config_file: dict):
 
     # Clean up created buffer files after the test
     sl._initialize_dirs()
-    for file in os.listdir(Path(sl.parquet_dir, "buffer")):
-        os.remove(Path(sl.parquet_dir, "buffer", file))
+    for file in os.listdir(Path(sl.processed_dir, "buffer")):
+        os.remove(Path(sl.processed_dir, "buffer", file))

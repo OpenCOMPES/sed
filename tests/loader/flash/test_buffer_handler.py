@@ -7,6 +7,7 @@ import pandas as pd
 import pytest
 from h5py import File
 
+from sed.loader.flash.buffer_handler import BufferFilePaths
 from sed.loader.flash.buffer_handler import BufferHandler
 from sed.loader.flash.utils import get_channels
 
@@ -17,61 +18,77 @@ def create_parquet_dir(config: dict, folder: str) -> Path:
     and folder name.
     """
 
-    parquet_path = Path(config["core"]["paths"]["data_parquet_dir"])
+    parquet_path = Path(config["core"]["paths"]["processed"])
     parquet_path = parquet_path.joinpath(folder)
     parquet_path.mkdir(parents=True, exist_ok=True)
     return parquet_path
 
 
-def test_get_files_to_read(config: dict, h5_paths: list[Path]) -> None:
+def test_buffer_file_paths(config: dict, h5_paths: list[Path]) -> None:
     """
-    Test the BufferHandler's ability to identify files that need to be read and
-    manage buffer file paths.
+    Test the BufferFilePath's ability to identify files that need to be read and
+    manage buffer file paths using a directory structure.
 
-    This test performs several checks to ensure the BufferHandler correctly identifies
+    This test performs several checks to ensure the BufferFilePath correctly identifies
     which HDF5 files need to be read and properly manages the paths for saving buffer
     files. It follows these steps:
     1. Creates a directory structure for storing buffer files and initializes the BufferHandler.
-    2. Invokes the private method _get_files_to_read to populate the list of missing HDF5 files and
+    2. Checks if the file_sets_to_process method populates the dict of missing file sets and
        verify that initially, all provided files are considered missing.
     3. Checks that the paths for saving buffer files are correctly generated.
-    4. Creates a single buffer file and reruns the check to ensure that the BufferHandler recognizes
-       one less missing file.
-    5. Cleans up by removing the created buffer file.
-    6. Tests the handling of prefix and suffix in buffer file names by rerunning the checks with
-       modified file name parameters.
+    4. Creates a single buffer file and reruns file_sets_to_process to ensure that the BufferHandler
+        recognizes one less missing file.
+    5. Checks if the force_recreate parameter forces the BufferHandler to consider all files
+    6. Cleans up by removing the created buffer file.
+    7. Tests the handling of suffix in buffer file names (for multidetector setups) by rerunning
+        the checks with modified file name parameters.
     """
     folder = create_parquet_dir(config, "get_files_to_read")
-    subfolder = folder.joinpath("buffer")
-    # set to false to avoid creating buffer files unnecessarily
-    bh = BufferHandler(config)
-    bh._get_files_to_read(h5_paths, folder, "", "", False)
+    fp = BufferFilePaths(h5_paths, folder, "")
 
     # check that all files are to be read
-    assert np.all(bh.missing_h5_files == h5_paths)
-
+    assert len(fp.file_sets_to_process()) == len(h5_paths)
+    print(folder)
     # create expected paths
-    expected_buffer_paths = [Path(subfolder, f"{Path(path).stem}") for path in h5_paths]
+    expected_buffer_electron_paths = [
+        folder / f"buffer/electron_{Path(path).stem}" for path in h5_paths
+    ]
+    expected_buffer_timed_paths = [folder / f"buffer/timed_{Path(path).stem}" for path in h5_paths]
 
     # check that all buffer paths are correct
-    assert np.all(bh.save_paths == expected_buffer_paths)
+    assert np.all(fp["electron"] == expected_buffer_electron_paths)
+    assert np.all(fp["timed"] == expected_buffer_timed_paths)
 
-    # create only one buffer file
-    bh._save_buffer_file(h5_paths[0], expected_buffer_paths[0])
-    # check again for files to read
-    bh._get_files_to_read(h5_paths, folder, "", "", False)
+    # create a single buffer file to check if it changes
+    path = {
+        "raw": h5_paths[0],
+        "electron": expected_buffer_electron_paths[0],
+        "timed": expected_buffer_timed_paths[0],
+    }
+    bh = BufferHandler(config)
+    bh._save_buffer_file(path)
+
+    # check again for files to read and expect one less file
+    fp = BufferFilePaths(h5_paths, folder, "")
     # check that only one file is to be read
-    assert len(bh.missing_h5_files) == len(h5_paths) - 1
-    Path(expected_buffer_paths[0]).unlink()  # remove buffer file
+    assert len(fp.file_sets_to_process()) == len(h5_paths) - 1
 
-    # add prefix and suffix
-    bh._get_files_to_read(h5_paths, folder, "prefix", "suffix", False)
+    # check that both files are to be read if force_recreate is set to True
+    assert len(fp.file_sets_to_process(force_recreate=True)) == len(h5_paths)
+
+    # remove buffer files
+    Path(path["electron"]).unlink()
+    Path(path["timed"]).unlink()
+
+    # Test for adding a suffix
+    fp = BufferFilePaths(h5_paths, folder, "suffix")
 
     # expected buffer paths with prefix and suffix
-    expected_buffer_paths = [
-        Path(subfolder, f"prefix_{Path(path).stem}_suffix") for path in h5_paths
-    ]
-    assert np.all(bh.save_paths == expected_buffer_paths)
+    for typ in ["electron", "timed"]:
+        expected_buffer_paths = [
+            folder / "buffer" / f"{typ}_{Path(path).stem}_suffix" for path in h5_paths
+        ]
+        assert np.all(fp[typ] == expected_buffer_paths)
 
 
 def test_buffer_schema_mismatch(config: dict, h5_paths: list[Path]) -> None:
@@ -92,7 +109,7 @@ def test_buffer_schema_mismatch(config: dict, h5_paths: list[Path]) -> None:
     """
     folder = create_parquet_dir(config, "schema_mismatch")
     bh = BufferHandler(config)
-    bh.run(h5_paths=h5_paths, folder=folder, debug=True)
+    bh.process_and_load_dataframe(h5_paths=h5_paths, folder=folder, debug=True)
 
     # Manipulate the configuration to introduce a new channel 'gmdTunnel2'
     config_dict = config
@@ -106,7 +123,7 @@ def test_buffer_schema_mismatch(config: dict, h5_paths: list[Path]) -> None:
     # Reread the dataframe with the modified configuration, expecting a schema mismatch error
     with pytest.raises(ValueError) as e:
         bh = BufferHandler(config)
-        bh.run(h5_paths=h5_paths, folder=folder, debug=True)
+        bh.process_and_load_dataframe(h5_paths=h5_paths, folder=folder, debug=True)
     expected_error = e.value.args[0]
 
     # Validate the specific error messages for schema mismatch
@@ -116,7 +133,7 @@ def test_buffer_schema_mismatch(config: dict, h5_paths: list[Path]) -> None:
 
     # Force recreation of the dataframe, including the added channel 'gmdTunnel2'
     bh = BufferHandler(config)
-    bh.run(h5_paths=h5_paths, folder=folder, force_recreate=True, debug=True)
+    bh.process_and_load_dataframe(h5_paths=h5_paths, folder=folder, force_recreate=True, debug=True)
 
     # Remove 'gmdTunnel2' from the configuration to simulate a missing channel scenario
     del config["dataframe"]["channels"]["gmdTunnel2"]
@@ -124,14 +141,16 @@ def test_buffer_schema_mismatch(config: dict, h5_paths: list[Path]) -> None:
     with pytest.raises(ValueError) as e:
         # Attempt to read the dataframe again to check for the missing channel error
         bh = BufferHandler(config)
-        bh.run(h5_paths=h5_paths, folder=folder, debug=True)
+        bh.process_and_load_dataframe(h5_paths=h5_paths, folder=folder, debug=True)
 
     expected_error = e.value.args[0]
     # Check for the specific error message indicating a missing channel in the configuration
     assert "Missing in config: {'gmdTunnel2'}" in expected_error
 
     # Clean up created buffer files after the test
-    for path in bh.buffer_paths:
+    for path in bh.fp["electron"]:
+        path.unlink()
+    for path in bh.fp["timed"]:
         path.unlink()
 
 
@@ -146,11 +165,11 @@ def test_save_buffer_files(config: dict, h5_paths: list[Path]) -> None:
     """
     folder_serial = create_parquet_dir(config, "save_buffer_files_serial")
     bh_serial = BufferHandler(config)
-    bh_serial.run(h5_paths, folder_serial, debug=True)
+    bh_serial.process_and_load_dataframe(h5_paths, folder_serial, debug=True)
 
     folder_parallel = create_parquet_dir(config, "save_buffer_files_parallel")
     bh_parallel = BufferHandler(config)
-    bh_parallel.run(h5_paths, folder_parallel)
+    bh_parallel.process_and_load_dataframe(h5_paths, folder_parallel)
 
     df_serial = pd.read_parquet(folder_serial)
     df_parallel = pd.read_parquet(folder_parallel)
@@ -158,10 +177,11 @@ def test_save_buffer_files(config: dict, h5_paths: list[Path]) -> None:
     pd.testing.assert_frame_equal(df_serial, df_parallel)
 
     # remove buffer files
-    for path in bh_serial.buffer_paths:
-        path.unlink()
-    for path in bh_parallel.buffer_paths:
-        path.unlink()
+    for df_type in ["electron", "timed"]:
+        for path in bh_serial.fp[df_type]:
+            path.unlink()
+        for path in bh_parallel.fp[df_type]:
+            path.unlink()
 
 
 def test_save_buffer_files_exception(
@@ -181,7 +201,7 @@ def test_save_buffer_files_exception(
     # testing exception in parallel execution
     with pytest.raises(ValueError):
         bh = BufferHandler(config_)
-        bh.run(h5_paths, folder_parallel, debug=False)
+        bh.process_and_load_dataframe(h5_paths, folder_parallel, debug=False)
 
     # check exception message with empty dataset
     config_ = deepcopy(config)
@@ -203,26 +223,34 @@ def test_save_buffer_files_exception(
     # expect key error because of missing index dataset
     with pytest.raises(KeyError):
         bh = BufferHandler(config_)
-        bh.run([tmp_path / "copy.h5"], folder_parallel, debug=False, force_recreate=True)
+        bh.process_and_load_dataframe(
+            [tmp_path / "copy.h5"],
+            folder_parallel,
+            debug=False,
+            force_recreate=True,
+        )
 
 
 def test_get_filled_dataframe(config: dict, h5_paths: list[Path]) -> None:
     """Test function to verify the creation of a filled dataframe from the buffer files."""
     folder = create_parquet_dir(config, "get_filled_dataframe")
     bh = BufferHandler(config)
-    bh.run(h5_paths, folder)
+    bh.process_and_load_dataframe(h5_paths, folder)
 
     df = pd.read_parquet(folder)
 
-    assert np.all(list(bh.df_electron.columns) == list(df.columns) + ["dldSectorID"])
+    assert np.all(list(bh.df["electron"].columns) == list(df.columns) + ["dldSectorID"])
 
-    channel_pulse = get_channels(
-        config["dataframe"]["channels"],
-        formats=["per_pulse", "per_train"],
-        index=True,
-        extend_aux=True,
-    )
-    assert np.all(list(bh.df_pulse.columns) == channel_pulse)
+    channel_pulse = set(
+        get_channels(
+            config["dataframe"],
+            formats=["per_pulse", "per_train"],
+            index=True,
+            extend_aux=True,
+        ),
+    ) - {"electronId"}
+    assert np.all(set(bh.df["timed"].columns) == channel_pulse)
     # remove buffer files
-    for path in bh.buffer_paths:
-        path.unlink()
+    for df_type in ["electron", "timed"]:
+        for path in bh.fp[df_type]:
+            path.unlink()
