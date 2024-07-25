@@ -269,10 +269,6 @@ class FlashLoader(BaseLoader):
         ftype: str = "h5",
         metadata: dict = {},
         collect_metadata: bool = False,
-        detector: str = "",
-        force_recreate: bool = False,
-        processed_dir: str | Path = None,
-        debug: bool = False,
         **kwds,
     ) -> tuple[dd.DataFrame, dd.DataFrame, dict]:
         """
@@ -289,7 +285,16 @@ class FlashLoader(BaseLoader):
             ftype (str, optional): The file extension type. Defaults to "h5".
             metadata (dict, optional): Additional metadata. Defaults to None.
             collect_metadata (bool, optional): Whether to collect metadata. Defaults to False.
-            **kwds: Additional keyword arguments passed to ``parse_metadata``.
+            **kwds: Additional keyword arguments.
+            Keyword Args:
+                detector (str, optional): The detector to use. Defaults to "".
+                force_recreate (bool, optional): Whether to force recreation of the buffer files.
+                    Defaults to False.
+                processed_dir (str, optional): The directory to save the processed files.
+                    Defaults to None.
+                debug (bool, optional): Whether to run buffer creation in serial. Defaults to False.
+                remove_invalid_files (bool, optional): Whether to exclude invalid files.
+                    Defaults to False.
 
         Returns:
             tuple[dd.DataFrame, dd.DataFrame, dict]: A tuple containing the concatenated DataFrame
@@ -299,6 +304,14 @@ class FlashLoader(BaseLoader):
             ValueError: If neither 'runs' nor 'files'/'raw_dir' is provided.
             FileNotFoundError: If the conversion fails for some files or no data is available.
         """
+        detector = kwds.pop("detector", "")
+        force_recreate = kwds.pop("force_recreate", False)
+        processed_dir = kwds.pop("processed_dir", None)
+        debug = kwds.pop("debug", False)
+        remove_invalid_files = kwds.pop("remove_invalid_files", False)
+
+        if len(kwds) > 0:
+            raise ValueError(f"Unexpected keyword arguments: {kwds.keys()}")
         t0 = time.time()
 
         self._initialize_dirs()
@@ -341,6 +354,7 @@ class FlashLoader(BaseLoader):
             force_recreate=force_recreate,
             suffix=detector,
             debug=debug,
+            remove_invalid_files=remove_invalid_files,
         )
 
         if self.instrument == "wespe":

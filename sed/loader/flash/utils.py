@@ -62,8 +62,9 @@ def get_channels(
 
         # Get the available channels excluding 'pulseId'.
         available_channels = list(channel_dict.keys())
-        # raises error if not available, but necessary for pulse_index
-        available_channels.remove(PULSE_ALIAS)
+        # pulse alias is an index and should not be included in the list of channels.
+        if PULSE_ALIAS in available_channels:
+            available_channels.remove(PULSE_ALIAS)
 
         for format_ in formats:
             # Gather channels based on the specified format(s).
@@ -108,3 +109,14 @@ def get_dtypes(config_dataframe: dict, df_cols: list) -> dict:
             except KeyError:
                 dtypes[channel] = None
     return dtypes
+
+
+class InvalidFileError(Exception):
+    """Raised when an H5 file is invalid due to missing keys defined in the config."""
+
+    def __init__(self, invalid_channels: list[str]):
+        self.invalid_channels = invalid_channels
+        super().__init__(
+            f"Channels not in file: {', '.join(invalid_channels)}. "
+            "If you are using the loader, set 'remove_invalid_files' to True to ignore these files",
+        )
