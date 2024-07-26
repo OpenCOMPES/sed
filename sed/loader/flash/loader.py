@@ -80,7 +80,10 @@ class FlashLoader(BaseLoader):
             beamtime_dir = Path(
                 self._config["dataframe"]["beamtime_dir"][self._config["core"]["beamline"]],
             )
-            beamtime_dir = beamtime_dir.joinpath(f"{year}/data/{beamtime_id}/")
+            first_path = beamtime_dir.joinpath(f"{year}/data/{beamtime_id}/")
+            alternative_path = beamtime_dir.joinpath(f"{year}/{beamtime_id}/")
+            # Use the first path if it exists, otherwise use the alternative path
+            beamtime_dir = first_path if first_path.exists() else alternative_path
 
             # Use pathlib walk to reach the raw data directory
             data_raw_dir = []
@@ -144,6 +147,7 @@ class FlashLoader(BaseLoader):
         """
         # Define the stream name prefixes based on the data acquisition identifier
         stream_name_prefixes = self._config["dataframe"]["stream_name_prefixes"]
+        stream_name_postfixes = self._config["dataframe"].get("stream_name_postfixes", {})
 
         if folders is None:
             folders = self._config["core"]["base_folder"]
@@ -154,7 +158,9 @@ class FlashLoader(BaseLoader):
         daq = self._config["dataframe"].get("daq")
 
         # Generate the file patterns to search for in the directory
-        file_pattern = f"{stream_name_prefixes[daq]}_run{run_id}_*." + extension
+        stream_name_prefix = stream_name_prefixes.get(daq, "")
+        stream_name_postfix = stream_name_postfixes.get(daq, "")
+        file_pattern = f"**/{stream_name_prefix}{run_id}{stream_name_postfix}*." + extension
 
         files: list[Path] = []
         # Use pathlib to search for matching files in each directory
