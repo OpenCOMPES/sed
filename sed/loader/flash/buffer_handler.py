@@ -221,6 +221,8 @@ class BufferHandler:
         it pulse resolved (no longer electron resolved). If time_index is True,
         the timeIndex is calculated and set as the index (slow operation).
         """
+        if not self.fp:
+            raise FileNotFoundError("Buffer files do not exist.")
         # Loop over the electron and timed dataframes
         file_stats = {}
         filling = {}

@@ -10,6 +10,7 @@ from h5py import File
 from sed.loader.flash.buffer_handler import BufferFilePaths
 from sed.loader.flash.buffer_handler import BufferHandler
 from sed.loader.flash.utils import get_channels
+from sed.loader.flash.utils import InvalidFileError
 
 
 def create_parquet_dir(config: dict, folder: str) -> Path:
@@ -44,7 +45,7 @@ def test_buffer_file_paths(config: dict, h5_paths: list[Path]) -> None:
         the checks with modified file name parameters.
     """
     folder = create_parquet_dir(config, "get_files_to_read")
-    fp = BufferFilePaths(h5_paths, folder, "")
+    fp = BufferFilePaths(config, h5_paths, folder, suffix="", remove_invalid_files=False)
 
     # check that all files are to be read
     assert len(fp.file_sets_to_process()) == len(h5_paths)
@@ -69,7 +70,7 @@ def test_buffer_file_paths(config: dict, h5_paths: list[Path]) -> None:
     bh._save_buffer_file(path)
 
     # check again for files to read and expect one less file
-    fp = BufferFilePaths(h5_paths, folder, "")
+    fp = BufferFilePaths(config, h5_paths, folder, suffix="", remove_invalid_files=False)
     # check that only one file is to be read
     assert len(fp.file_sets_to_process()) == len(h5_paths) - 1
 
@@ -81,7 +82,7 @@ def test_buffer_file_paths(config: dict, h5_paths: list[Path]) -> None:
     Path(path["timed"]).unlink()
 
     # Test for adding a suffix
-    fp = BufferFilePaths(h5_paths, folder, "suffix")
+    fp = BufferFilePaths(config, h5_paths, folder, "suffix", remove_invalid_files=False)
 
     # expected buffer paths with prefix and suffix
     for typ in ["electron", "timed"]:
@@ -188,9 +189,22 @@ def test_save_buffer_files_exception(
     config: dict,
     h5_paths: list[Path],
     h5_file_copy: File,
+    h5_file2_copy: File,
     tmp_path: Path,
 ) -> None:
-    """Test function to verify exception handling when running code in parallel."""
+    """Test function to verify exception handling in the BufferHandler's
+    'process_and_load_dataframe' method. The test checks for exceptions raised due to missing
+    channels in the configuration and empty datasets.
+    Test Steps:
+    - Create a directory structure for storing buffer files and initialize the BufferHandler.
+    - Check for an exception when a channel is missing in the configuration.
+    - Create an empty dataset in the HDF5 file to simulate an invalid file scenario.
+    - Check for an expected error related to the missing index dataset that invalidates the file.
+    - Check for an error when 'remove_invalid_files' is set to True and the file is invalid.
+    - Create an empty dataset in the second HDF5 file to simulate an invalid file scenario.
+    - Check for an error when 'remove_invalid_files' is set to True and the file is invalid.
+    - Check for an error when only a single file is provided, and the file is not buffered.
+    """
     folder_parallel = create_parquet_dir(config, "save_buffer_files_exception")
     config_ = deepcopy(config)
 
@@ -220,14 +234,49 @@ def test_save_buffer_files_exception(
         shape=0,
     )
 
-    # expect key error because of missing index dataset
-    with pytest.raises(KeyError):
+    # expect invalid file error because of missing index dataset that invalidates entire file
+    with pytest.raises(InvalidFileError):
         bh = BufferHandler(config_)
         bh.process_and_load_dataframe(
             [tmp_path / "copy.h5"],
             folder_parallel,
             debug=False,
             force_recreate=True,
+        )
+
+    # create an empty dataset
+    h5_file2_copy.create_dataset(
+        name=channel_index_key,
+        shape=0,
+    )
+    h5_file2_copy.create_dataset(
+        name=empty_dataset_key,
+        shape=0,
+    )
+
+    # if remove_invalid_files is True, the file should be removed and no error should be raised
+    bh = BufferHandler(config_)
+    try:
+        bh.process_and_load_dataframe(
+            [tmp_path / "copy.h5", tmp_path / "copy2.h5"],
+            folder_parallel,
+            debug=False,
+            force_recreate=True,
+            remove_invalid_files=True,
+        )
+    except InvalidFileError:
+        assert (
+            False
+        ), "InvalidFileError should not be raised when remove_invalid_files is set to True"
+
+    # with only a single file, the file will not be buffered so a FileNotFoundError should be raised
+    with pytest.raises(FileNotFoundError):
+        bh.process_and_load_dataframe(
+            [tmp_path / "copy.h5"],
+            folder_parallel,
+            debug=False,
+            force_recreate=True,
+            remove_invalid_files=True,
         )
 
 
