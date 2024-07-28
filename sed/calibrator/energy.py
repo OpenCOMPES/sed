@@ -953,9 +953,11 @@ class EnergyCalibrator:
         metadata["applied"] = True
         metadata["calibration"] = deepcopy(calibration)
         metadata["tof"] = deepcopy(self.tof)
+        if metadata["tof"] is None:
+            metadata["tof"] = 0.0
         # create empty calibrated axis entry, if it is not present.
         if "axis" not in metadata["calibration"]:
-            metadata["calibration"]["axis"] = 0
+            metadata["calibration"]["axis"] = 0.0
 
         return metadata
 
