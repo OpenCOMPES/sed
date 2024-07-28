@@ -27,8 +27,8 @@ numba = ">=0.55.1"
 numpy = ">=1.18"
 pandas = ">=1.4.1"
 psutil = ">=5.9.0"
-pynxtools-mpes = ">=0.1.1"
-pynxtools = ">=0.5.1"
+pynxtools-mpes = { git = "https://github.com/FAIRmat-NFDI/pynxtools-mpes.git", branch = "updates-for-multiformat-reader" }
+# pynxtools = ">=0.5.1"
 pyyaml = ">=6.0.0"
 scipy = ">=1.8.0"
 symmetrize = ">=0.5.5"
@@ -71,6 +71,10 @@ tomlkit = ">=0.12.0"
 sphinx-autodoc-typehints = ">=1.17.0"
 nbsphinx = ">=0.9.3"
 myst-parser = ">=2.0.0"
+
+[[tool.poetry.source]]
+name = "pypi-public"
+url = "https://pypi.org/simple/"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
