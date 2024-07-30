@@ -3515,14 +3515,12 @@ windows-terminal = ["colorama (>=0.4.6)"]
 
 [[package]]
 name = "pynxtools"
-version = "0.5.1"
+version = "0.5.1.post1.dev90+gf30bc358"
 description = "Extend NeXus for experiments and characterization in Materials Science and Materials Engineering and serve as a NOMAD parser implementation for NeXus."
 optional = false
 python-versions = ">=3.8"
-files = [
-    {file = "pynxtools-0.5.1-py3-none-any.whl", hash = "sha256:041768cce2052c25e2c5e2074e41124ee1672c1870844e5e291687a67adc88d4"},
-    {file = "pynxtools-0.5.1.tar.gz", hash = "sha256:e6b0453351dd40670353ee07cf4cb8b7a02c9e2f2e5981401682fa6c8b736e31"},
-]
+files = []
+develop = false
 
 [package.dependencies]
 anytree = "*"
@@ -3551,25 +3549,34 @@ stm = ["pynxtools-stm"]
 xps = ["pynxtools-xps"]
 xrd = ["pynxtools-xrd"]
 
+[package.source]
+type = "git"
+url = "https://github.com/FAIRmat-NFDI/pynxtools"
+reference = "multi-format-reader"
+resolved_reference = "f30bc3588035e8195ab85be7113657521a61493d"
+
 [[package]]
 name = "pynxtools-mpes"
-version = "0.1.1"
+version = "0.1.2.dev34+gdee73d2"
 description = ""
 optional = false
 python-versions = ">=3.8"
-files = [
-    {file = "pynxtools_mpes-0.1.1-py3-none-any.whl", hash = "sha256:44e5d1881d9e36cd5977831e4edf7cc96ef1dc595e0725119f255986cc5f658b"},
-    {file = "pynxtools_mpes-0.1.1.tar.gz", hash = "sha256:e8f2eed853ebc7e28d24ba077994f6a3dd1848a3a3dcc7cbd1e115ff76ee7e46"},
-]
+files = []
+develop = false
 
 [package.dependencies]
 h5py = ">=3.6.0"
-pynxtools = ">=0.4.0"
-PyYAML = ">=6.0"
+pynxtools = {git = "https://github.com/FAIRmat-NFDI/pynxtools", rev = "multi-format-reader"}
 xarray = ">=0.20.2"
 
 [package.extras]
-dev = ["mypy", "pip-tools", "pytest", "ruff (==0.3.4)", "types-pyyaml"]
+dev = ["mypy", "pip-tools", "pytest", "ruff (==0.5.5)", "types-pyyaml"]
+
+[package.source]
+type = "git"
+url = "https://github.com/FAIRmat-NFDI/pynxtools-mpes.git"
+reference = "updates-for-multiformat-reader"
+resolved_reference = "dee73d2c5f83f5f9148e1bdc218fac8170145432"
 
 [[package]]
 name = "pyparsing"
@@ -5097,4 +5104,4 @@ notebook = ["ipykernel", "jupyter", "jupyterlab", "jupyterlab-h5web"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8, <3.11.9"
-content-hash = "a56de044519ff5626227412da95806bf17ff5b34ed8a989d5a95a0a44b46c0af"
+content-hash = "86318ab8e6541ac93a6a0b6f03e84aed27384929f55ddc215851ddc98966cc0a"
