@@ -13,6 +13,7 @@ import yaml
 from platformdirs import user_config_path
 
 from sed.core.logging import setup_logging
+from sed.config.config_model import ConfigModel
 
 package_dir = os.path.dirname(find_spec("sed").origin)
 
@@ -29,6 +30,7 @@ def parse_config(
     system_config: dict | str = None,
     default_config: (dict | str) = f"{package_dir}/config/default.yaml",
     verbose: bool = True,
+    model: bool = False,
 ) -> dict:
     """Load the config dictionary from a file, or pass the provided config dictionary.
     The content of the loaded config dictionary is then completed from a set of pre-configured
@@ -55,6 +57,7 @@ def parse_config(
             or file path. The loaded dictionary is completed with the default values.
             Defaults to *package_dir*/config/default.yaml".
         verbose (bool, optional): Option to report loaded config files. Defaults to True.
+        model (bool, optional): Option to return the config model instead of the dictionary.
     Raises:
         TypeError: Raised if the provided file is neither *json* nor *yaml*.
         FileNotFoundError: Raised if the provided file is not found.
@@ -141,7 +144,11 @@ def parse_config(
         base_dictionary=default_dict,
     )
 
-    return config_dict
+    # Run the config through the ConfigModel to ensure it is valid
+    config_model = ConfigModel(**config_dict)
+    if model:
+        return config_model
+    return config_model.model_dump()
 
 
 def load_config(config_path: str) -> dict:

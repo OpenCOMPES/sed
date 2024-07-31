@@ -3,32 +3,23 @@ core:
   loader: generic
 
 dataframe:
-  # dataframe column containing x coordinates
-  x_column: "X"
-  # dataframe column containing y coordinates
-  y_column: "Y"
-  # dataframe column containing time-of-flight data
-  tof_column: "t"
-  # dataframe column containing time-of-flight data in nanoseconds
-  tof_ns_column: "t_ns"
-  # dataframe column containing analog-to-digital data
-  adc_column: "ADC"
-  # dataframe column containing bias voltage data
-  bias_column: "sampleBias"
-  # dataframe column containing corrected x coordinates
-  corrected_x_column: "Xm"
-  # dataframe column containing corrected y coordinates
-  corrected_y_column: "Ym"
-  # dataframe column containing corrected time-of-flight data
-  corrected_tof_column: "tm"
-  # dataframe column containing kx coordinates
-  kx_column: "kx"
-  # dataframe column containing ky coordinates
-  ky_column: "ky"
-  # dataframe column containing energy data
-  energy_column: "energy"
-  # dataframe column containing delay data
-  delay_column: "delay"
+  # Column settings
+  columns:
+    x: X   # dataframe column containing x coordinates
+    y: Y  # dataframe column containing y coordinates
+    tof: t   # dataframe column containing time-of-flight data
+    tof_ns: t_ns   # dataframe column containing time-of-flight data in nanoseconds
+    corrected_x: Xm   # dataframe column containing corrected x coordinates
+    corrected_y: Ym   # dataframe column containing corrected y coordinates
+    corrected_tof: tm   # dataframe column containing corrected time-of-flight data
+    kx: kx   # dataframe column containing kx coordinates
+    ky: ky   # dataframe column containing ky coordinates
+    energy: energy   # dataframe column containing energy data
+    delay: delay   # dataframe column containing delay data
+    adc: ADC   # dataframe column containing analog-to-digital data
+    bias: sampleBias   # dataframe column containing bias voltage data
+    timestamp: timeStamp  # dataframe column containing timestamp data
+
   # time length of a base time-of-flight bin in s
   tof_binwidth: 4.125e-12
   # Binning factor of the tof_column-data compared to tof_binwidth
