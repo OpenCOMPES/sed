@@ -9,6 +9,7 @@ from joblib import delayed
 from joblib import Parallel
 
 from sed.core.dfops import forward_fill_lazy
+from sed.core.logging import setup_logging
 from sed.loader.flash.dataframe import DataFrameCreator
 from sed.loader.flash.utils import get_channels
 from sed.loader.flash.utils import get_dtypes
@@ -18,6 +19,8 @@ from sed.loader.utils import split_dld_time_from_sector_id
 
 
 DF_TYP = ["electron", "timed"]
+
+logger = setup_logging(__name__)
 
 
 class BufferFilePaths:
@@ -97,7 +100,7 @@ class BufferFilePaths:
                 dfc.validate_channel_keys()
                 valid_h5_paths.append(h5_path)
             except InvalidFileError as e:
-                print(f"Skipping invalid file: {h5_path.stem}\n{e}")
+                logger.info(f"Skipping invalid file: {h5_path.stem}\n{e}")
 
         return valid_h5_paths
 
@@ -187,7 +190,7 @@ class BufferHandler:
         df_timed = df[self.fill_channels].loc[:, :, 0]
         dtypes = get_dtypes(self._config, df_timed.columns.values)
         df_timed.astype(dtypes).reset_index().to_parquet(paths["timed"])
-        print(f"Processed {paths['raw'].stem}")
+        logger.debug(f"Processed {paths['raw'].stem}")
 
     def _save_buffer_files(self, force_recreate: bool, debug: bool) -> None:
         """
@@ -198,14 +201,14 @@ class BufferHandler:
             debug (bool): Flag to enable debug mode, which serializes the creation.
         """
         file_sets = self.fp.file_sets_to_process(force_recreate)
-        print(f"Reading files: {len(file_sets)} new files of {len(self.fp)} total.")
+        logger.info(f"Reading files: {len(file_sets)} new files of {len(self.fp)} total.")
         n_cores = min(len(file_sets), self.n_cores)
         if n_cores > 0:
             if debug:
                 for file_set in file_sets:
                     self._save_buffer_file(file_set)
             else:
-                Parallel(n_jobs=-2, verbose=10, prefer="threads")(
+                Parallel(n_jobs=n_cores, verbose=10)(
                     delayed(self._save_buffer_file)(file_set) for file_set in file_sets
                 )
 
