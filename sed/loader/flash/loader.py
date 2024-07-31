@@ -203,9 +203,10 @@ class FlashLoader(BaseLoader):
 
         Args:
             fids (Sequence[int]): A sequence of file IDs. Defaults to all files.
-            **kwds:
-                - runs: A sequence of run IDs. Takes precedence over fids.
-                - aggregate: Whether to return the sum of the elapsed times across
+
+        Keyword Args:
+            runs: A sequence of run IDs. Takes precedence over fids.
+            aggregate: Whether to return the sum of the elapsed times across
                     the specified files or the elapsed time for each file. Defaults to True.
 
         Returns:
@@ -269,10 +270,6 @@ class FlashLoader(BaseLoader):
         ftype: str = "h5",
         metadata: dict = {},
         collect_metadata: bool = False,
-        detector: str = "",
-        force_recreate: bool = False,
-        processed_dir: str | Path = None,
-        debug: bool = False,
         **kwds,
     ) -> tuple[dd.DataFrame, dd.DataFrame, dict]:
         """
@@ -289,7 +286,17 @@ class FlashLoader(BaseLoader):
             ftype (str, optional): The file extension type. Defaults to "h5".
             metadata (dict, optional): Additional metadata. Defaults to None.
             collect_metadata (bool, optional): Whether to collect metadata. Defaults to False.
-            **kwds: Additional keyword arguments passed to ``parse_metadata``.
+
+        Keyword Args:
+            detector (str, optional): The detector to use. Defaults to "".
+            force_recreate (bool, optional): Whether to force recreation of the buffer files.
+                Defaults to False.
+            processed_dir (str, optional): The directory to save the processed files.
+                Defaults to None.
+            debug (bool, optional): Whether to run buffer creation in serial. Defaults to False.
+            remove_invalid_files (bool, optional): Whether to exclude invalid files.
+                Defaults to False.
+            scicat_token (str, optional): The scicat token to use for fetching metadata.
 
         Returns:
             tuple[dd.DataFrame, dd.DataFrame, dict]: A tuple containing the concatenated DataFrame
@@ -299,6 +306,15 @@ class FlashLoader(BaseLoader):
             ValueError: If neither 'runs' nor 'files'/'raw_dir' is provided.
             FileNotFoundError: If the conversion fails for some files or no data is available.
         """
+        detector = kwds.pop("detector", "")
+        force_recreate = kwds.pop("force_recreate", False)
+        processed_dir = kwds.pop("processed_dir", None)
+        debug = kwds.pop("debug", False)
+        remove_invalid_files = kwds.pop("remove_invalid_files", False)
+        scicat_token = kwds.pop("scicat_token", None)
+
+        if len(kwds) > 0:
+            raise ValueError(f"Unexpected keyword arguments: {kwds.keys()}")
         t0 = time.time()
 
         self._initialize_dirs()
@@ -341,12 +357,13 @@ class FlashLoader(BaseLoader):
             force_recreate=force_recreate,
             suffix=detector,
             debug=debug,
+            remove_invalid_files=remove_invalid_files,
         )
 
         if self.instrument == "wespe":
             df, df_timed = wespe_convert(df, df_timed)
 
-        self.metadata.update(self.parse_metadata(**kwds) if collect_metadata else {})
+        self.metadata.update(self.parse_metadata(scicat_token) if collect_metadata else {})
         self.metadata.update(bh.metadata)
 
         print(f"loading complete in {time.time() - t0: .2f} s")

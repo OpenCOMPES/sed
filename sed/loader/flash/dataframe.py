@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 
 from sed.loader.flash.utils import get_channels
+from sed.loader.flash.utils import InvalidFileError
 
 
 class DataFrameCreator:
@@ -148,15 +149,15 @@ class DataFrameCreator:
         Returns:
             pd.DataFrame: The pandas DataFrame for the 'per_electron' channel's data.
         """
-        offset = self._config.get("ubid_offset", 5)  # 5 is the default value
-        # Here we get the multi-index and the indexer to sort the data
-        index, indexer = self.pulse_index(offset)
-
         # Get the relevant channels and their slice index
         channels = get_channels(self._config, "per_electron")
         if channels == []:
             return pd.DataFrame()
         slice_index = [self._config["channels"][channel].get("slice", None) for channel in channels]
+
+        offset = self._config.get("ubid_offset", 5)  # 5 is the default value
+        # Here we get the multi-index and the indexer to sort the data
+        index, indexer = self.pulse_index(offset)
 
         # First checking if dataset keys are the same for all channels
         # because DLD at FLASH stores all channels in the same h5 dataset
@@ -279,17 +280,19 @@ class DataFrameCreator:
 
     def validate_channel_keys(self) -> None:
         """
-        Validates if the index and dataset keys for all channels in config exist in the h5 file.
+        Validates if the index and dataset keys for all channels in the config exist in the h5 file.
 
         Raises:
-            KeyError: If the index or dataset keys do not exist in the file.
+            InvalidFileError: If the index or dataset keys are missing in the h5 file.
         """
+        invalid_channels = []
         for channel in self._config["channels"]:
             index_key, dataset_key = self.get_index_dataset_key(channel)
-            if index_key not in self.h5_file:
-                raise KeyError(f"pd.Index key '{index_key}' doesn't exist in the file.")
-            if dataset_key not in self.h5_file:
-                raise KeyError(f"Dataset key '{dataset_key}' doesn't exist in the file.")
+            if index_key not in self.h5_file or dataset_key not in self.h5_file:
+                invalid_channels.append(channel)
+
+        if invalid_channels:
+            raise InvalidFileError(invalid_channels)
 
     @property
     def df(self) -> pd.DataFrame:

@@ -9,14 +9,18 @@ from joblib import delayed
 from joblib import Parallel
 
 from sed.core.dfops import forward_fill_lazy
+from sed.core.logging import setup_logging
 from sed.loader.flash.dataframe import DataFrameCreator
 from sed.loader.flash.utils import get_channels
 from sed.loader.flash.utils import get_dtypes
+from sed.loader.flash.utils import InvalidFileError
 from sed.loader.utils import get_parquet_metadata
 from sed.loader.utils import split_dld_time_from_sector_id
 
 
 DF_TYP = ["electron", "timed"]
+
+logger = setup_logging(__name__)
 
 
 class BufferFilePaths:
@@ -33,7 +37,14 @@ class BufferFilePaths:
     }
     """
 
-    def __init__(self, h5_paths: list[Path], folder: Path, suffix: str) -> None:
+    def __init__(
+        self,
+        config: dict,
+        h5_paths: list[Path],
+        folder: Path,
+        suffix: str,
+        remove_invalid_files: bool,
+    ) -> None:
         """Initializes the BufferFilePaths.
 
         Args:
@@ -45,8 +56,18 @@ class BufferFilePaths:
         folder = folder / "buffer"
         folder.mkdir(parents=True, exist_ok=True)
 
-        # a list of file sets containing the paths to the raw, electron and timed buffer files
-        self._file_paths = [
+        if remove_invalid_files:
+            h5_paths = self.remove_invalid_files(config, h5_paths)
+
+        self._file_paths = self._create_file_paths(h5_paths, folder, suffix)
+
+    def _create_file_paths(
+        self,
+        h5_paths: list[Path],
+        folder: Path,
+        suffix: str,
+    ) -> list[dict[str, Path]]:
+        return [
             {
                 "raw": h5_path,
                 **{typ: folder / f"{typ}_{h5_path.stem}{suffix}" for typ in DF_TYP},
@@ -70,6 +91,18 @@ class BufferFilePaths:
         if force_recreate:
             return self._file_paths
         return [file_set for file_set in self if any(not file_set[key].exists() for key in DF_TYP)]
+
+    def remove_invalid_files(self, config, h5_paths: list[Path]) -> list[Path]:
+        valid_h5_paths = []
+        for h5_path in h5_paths:
+            try:
+                dfc = DataFrameCreator(config_dataframe=config, h5_path=h5_path)
+                dfc.validate_channel_keys()
+                valid_h5_paths.append(h5_path)
+            except InvalidFileError as e:
+                logger.info(f"Skipping invalid file: {h5_path.stem}\n{e}")
+
+        return valid_h5_paths
 
 
 class BufferHandler:
@@ -157,6 +190,7 @@ class BufferHandler:
         df_timed = df[self.fill_channels].loc[:, :, 0]
         dtypes = get_dtypes(self._config, df_timed.columns.values)
         df_timed.astype(dtypes).reset_index().to_parquet(paths["timed"])
+        logger.debug(f"Processed {paths['raw'].stem}")
 
     def _save_buffer_files(self, force_recreate: bool, debug: bool) -> None:
         """
@@ -167,13 +201,12 @@ class BufferHandler:
             debug (bool): Flag to enable debug mode, which serializes the creation.
         """
         file_sets = self.fp.file_sets_to_process(force_recreate)
-        print(f"Reading files: {len(file_sets)} new files of {len(self.fp)} total.")
+        logger.info(f"Reading files: {len(file_sets)} new files of {len(self.fp)} total.")
         n_cores = min(len(file_sets), self.n_cores)
         if n_cores > 0:
             if debug:
                 for file_set in file_sets:
                     self._save_buffer_file(file_set)
-                    print(f"Processed {file_set['raw'].stem}")
             else:
                 Parallel(n_jobs=n_cores, verbose=10)(
                     delayed(self._save_buffer_file)(file_set) for file_set in file_sets
@@ -191,6 +224,8 @@ class BufferHandler:
         it pulse resolved (no longer electron resolved). If time_index is True,
         the timeIndex is calculated and set as the index (slow operation).
         """
+        if not self.fp:
+            raise FileNotFoundError("Buffer files do not exist.")
         # Loop over the electron and timed dataframes
         file_stats = {}
         filling = {}
@@ -219,7 +254,10 @@ class BufferHandler:
             self.df[typ] = df
         self.metadata.update({"file_statistics": file_stats, "filling": filling})
         # Correct the 3-bit shift which encodes the detector ID in the 8s time
-        if self._config.get("split_sector_id_from_dld_time", False):
+        if (
+            self._config.get("split_sector_id_from_dld_time", False)
+            and self._config.get("tof_column", "dldTimeSteps") in self.df["electron"].columns
+        ):
             self.df["electron"], meta = split_dld_time_from_sector_id(
                 self.df["electron"],
                 config=self._config,
@@ -233,6 +271,7 @@ class BufferHandler:
         force_recreate: bool = False,
         suffix: str = "",
         debug: bool = False,
+        remove_invalid_files: bool = False,
     ) -> tuple[dd.DataFrame, dd.DataFrame]:
         """
         Runs the buffer file creation process.
@@ -249,7 +288,7 @@ class BufferHandler:
         Returns:
             Tuple[dd.DataFrame, dd.DataFrame]: The electron and timed dataframes.
         """
-        self.fp = BufferFilePaths(h5_paths, folder, suffix)
+        self.fp = BufferFilePaths(self._config, h5_paths, folder, suffix, remove_invalid_files)
 
         if not force_recreate:
             schema_set = set(
