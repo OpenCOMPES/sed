@@ -405,5 +405,5 @@ cobertura
 coverallsapp
 viewcode
 pydata
-ALLUSERPROFILE
+ALLUSERSPROFILE
 webfactory
