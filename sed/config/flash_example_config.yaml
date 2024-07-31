@@ -1,9 +1,17 @@
 # This file contains the default configuration for the flash loader.
 
+# The paths to the raw and parquet data directories. If these are not
+# provided, the loader will try to find the data based on year beamtimeID etc
+paths:
+  # location of the raw data.
+  raw: ""
+  # location of the intermediate parquet files.
+  processed: ""
+
 core:
   # defines the loader
-  loader: flash
-  # Since this will run on maxwell most probably, we have a lot of cores at our disposal
+  loader: 'flash'
+  # # Since this will run on maxwell most probably, we have a lot of cores at our disposal
   num_cores: 100
   # the beamline where experiment took place
   beamline: pg2
@@ -13,14 +21,6 @@ core:
   year: 2023
   # the instrument used
   instrument: hextof # hextof, wespe, etc
-
-  # The paths to the raw and parquet data directories. If these are not
-  # provided, the loader will try to find the data based on year beamtimeID etc
-  paths:
-    # location of the raw data.
-    raw: ""
-    # location of the intermediate parquet files.
-    processed: ""
 
 binning:
   # Histogram computation mode to use.
@@ -35,57 +35,39 @@ binning:
   threadpool_API: "blas"
 
 dataframe:
-  # The name of the DAQ system to use. Necessary to resolve the filenames/paths.
-  daq: fl1user3
-  # The offset correction to the pulseId
-  ubid_offset: 5
+  daq: fl1user3                                   # DAQ system name to resolve filenames/paths
+  ubid_offset: 5                                  # Offset correction to the pulseId
+  forward_fill_iterations: 2                      # Number of iterations to fill the pulseId forward
+  split_sector_id_from_dld_time: True             # Remove reserved bits for dldSectorID from dldTimeSteps column
+  sector_id_reserved_bits: 3                      # Bits reserved for dldSectorID in the dldTimeSteps column
+  sector_delays: [0., 0., 0., 0., 0., 0., 0., 0.] # Sector delays
 
-  # the number of iterations to fill the pulseId forward.
-  forward_fill_iterations: 2
-  # if true, removes the 3 bits reserved for dldSectorID from the dldTimeSteps column
-  split_sector_id_from_dld_time: True
-  # bits reserved for dldSectorID in the dldTimeSteps column
-  sector_id_reserved_bits: 3
-  # dataframe column containing x coordinates
-  x_column: dldPosX
-  # dataframe column containing corrected x coordinates
-  corrected_x_column: "X"
-  # dataframe column containing kx coordinates
-  kx_column: "kx"
-  # dataframe column containing y coordinates
-  y_column: dldPosY
-  # dataframe column containing corrected y coordinates
-  corrected_y_column: "Y"
-  # dataframe column containing kx coordinates
-  ky_column: "ky"
-  # dataframe column containing time-of-flight data
-  tof_column: dldTimeSteps
-  # dataframe column containing time-of-flight data in ns
-  tof_ns_column: dldTime
-  # dataframe column containing corrected time-of-flight data
-  corrected_tof_column: "tm"
-  # the time stamp column
-  time_stamp_alias: timeStamp
-  # auxiliary channel alias
-  aux_alias: dldAux
-  # aux subchannels alias
-  aux_subchannels_alias: dldAuxChannels
-  # time length of a base time-of-flight bin in seconds
-  tof_binwidth: 2.0576131995767355E-11
-  # binning parameter for time-of-flight data.
-  tof_binning: 8
-  # dataframe column containing sector ID. obtained from dldTimeSteps column
-  sector_id_column: dldSectorID
-  sector_delays: [0., 0., 0., 0., 0., 0., 0., 0.]
-  # the delay stage column
-  delay_column: delayStage
-  # the corrected pump-probe time axis
-  corrected_delay_column: pumpProbeTime
-  # the columns to be used for jitter correction
-  jitter_cols: ["dldPosX", "dldPosY", "dldTimeSteps"]
+  # Time and binning settings
+  tof_binwidth: 2.0576131995767355E-11            # Base time-of-flight bin width in seconds
+  tof_binning: 8                                  # Binning parameter for time-of-flight data
 
+  # Columns used for jitter correction
+  jitter_columns: [dldPosX, dldPosY, dldTimeSteps]
+
+  # Column settings
+  columns:
+    x: dldPosX
+    corrected_x: X
+    kx: kx
+    y: dldPosY
+    corrected_y: Y
+    ky: ky
+    tof: dldTimeSteps
+    tof_ns: dldTime
+    corrected_tof: tm
+    timestamp: timeStamp
+    auxiliary: dldAux
+    sector_id: dldSectorID
+    delay: delayStage
+    corrected_delay: pumpProbeTime
+
+  # These are the units of the columns
   units:
-    # These are the units of the columns
     dldPosX: 'step'
     dldPosY: 'step'
     dldTimeSteps: 'step'
@@ -102,7 +84,7 @@ dataframe:
     kx: '1/A'
     ky: '1/A'
 
-  # The channels to load.
+  # The channels to load from the raw data. The channels have the following structure:
   # channels have the following structure:
   # <channelAlias>:
   #   format: per_pulse/per_electron/per_train
@@ -164,7 +146,7 @@ dataframe:
       index_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/index"
       dataset_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/value"
       slice: 4
-      subChannels:
+      sub_channels:
         sampleBias:
           slice: 0
           dtype: float32
@@ -215,8 +197,20 @@ dataframe:
       index_key: "/zraw/FLASH.SYNC/LASER.LOCK.EXP/F1.PG.OSC/FMC0.MD22.1.ENCODER_POSITION.RD/dGroup/index"
       dataset_key: "/zraw/FLASH.SYNC/LASER.LOCK.EXP/F1.PG.OSC/FMC0.MD22.1.ENCODER_POSITION.RD/dGroup/value"
 
+# metadata collection from scicat
+# metadata:
+#   scicat_url: <URL>
+#   scicat_token: <TOKEN>
+
+# The nexus collection routine shall be finalized soon for both instruments
+# nexus:
+#   reader: "flash"
+#   definition: "NXmpes"
+#   input_files: ["NXmpes_config_HEXTOF_light.json"]
+
+# (Not to be changed by user)
+static:
   # The prefixes of the stream names for different DAQ systems for parsing filenames
-  # (Not to be changed by user)
   stream_name_prefixes:
     pbd: "GMD_DATA_gmd_data"
     pbd2: "FL2PhotDiag_pbd2_gmd_data"
@@ -230,14 +224,3 @@ dataframe:
   # (Not to be changed by user)
   beamtime_dir:
     pg2: "/asap3/flash/gpfs/pg2/"
-
-# metadata collection from scicat
-# metadata:
-#   scicat_url: <URL>
-#   scicat_token: <TOKEN>
-
-# The nexus collection routine shall be finalized soon for both instruments
-# nexus:
-#   reader: "flash"
-#   definition: "NXmpes"
-#   input_files: ["NXmpes_config_HEXTOF_light.json"]
