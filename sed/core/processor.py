@@ -1,15 +1,13 @@
 """This module contains the core class for the sed package
 
 """
+from __future__ import annotations
+
 import pathlib
+from collections.abc import Sequence
 from datetime import datetime
 from typing import Any
 from typing import cast
-from typing import Dict
-from typing import List
-from typing import Sequence
-from typing import Tuple
-from typing import Union
 
 import dask.dataframe as ddf
 import matplotlib.pyplot as plt
@@ -48,11 +46,11 @@ class SedProcessor:
 
     Args:
         metadata (dict, optional): Dict of external Metadata. Defaults to None.
-        config (Union[dict, str], optional): Config dictionary or config file name.
+        config (dict | str, optional): Config dictionary or config file name.
             Defaults to None.
-        dataframe (Union[pd.DataFrame, ddf.DataFrame], optional): dataframe to load
+        dataframe (pd.DataFrame | ddf.DataFrame, optional): dataframe to load
             into the class. Defaults to None.
-        files (List[str], optional): List of files to pass to the loader defined in
+        files (list[str], optional): List of files to pass to the loader defined in
             the config. Defaults to None.
         folder (str, optional): Folder containing files to pass to the loader
             defined in the config. Defaults to None.
@@ -68,9 +66,9 @@ class SedProcessor:
     def __init__(
         self,
         metadata: dict = None,
-        config: Union[dict, str] = None,
-        dataframe: Union[pd.DataFrame, ddf.DataFrame] = None,
-        files: List[str] = None,
+        config: dict | str = None,
+        dataframe: pd.DataFrame | ddf.DataFrame = None,
+        files: list[str] = None,
         folder: str = None,
         runs: Sequence[str] = None,
         collect_metadata: bool = False,
@@ -82,11 +80,11 @@ class SedProcessor:
 
         Args:
             metadata (dict, optional): Dict of external Metadata. Defaults to None.
-            config (Union[dict, str], optional): Config dictionary or config file name.
+            config (dict | str, optional): Config dictionary or config file name.
                 Defaults to None.
-            dataframe (Union[pd.DataFrame, ddf.DataFrame], optional): dataframe to load
+            dataframe (pd.DataFrame | ddf.DataFrame, optional): dataframe to load
                 into the class. Defaults to None.
-            files (List[str], optional): List of files to pass to the loader defined in
+            files (list[str], optional): List of files to pass to the loader defined in
                 the config. Defaults to None.
             folder (str, optional): Folder containing files to pass to the loader
                 defined in the config. Defaults to None.
@@ -98,25 +96,26 @@ class SedProcessor:
                 Defaults to config["core"]["verbose"] or False.
             **kwds: Keyword arguments passed to parse_config and to the reader.
         """
+        # split off config keywords
         config_kwds = {
             key: value for key, value in kwds.items() if key in parse_config.__code__.co_varnames
         }
         for key in config_kwds.keys():
             del kwds[key]
         self._config = parse_config(config, **config_kwds)
-        num_cores = self._config.get("binning", {}).get("num_cores", N_CPU - 1)
+        num_cores = self._config["core"].get("num_cores", N_CPU - 1)
         if num_cores >= N_CPU:
             num_cores = N_CPU - 1
-        self._config["binning"]["num_cores"] = num_cores
+        self._config["core"]["num_cores"] = num_cores
 
         if verbose is None:
             self.verbose = self._config["core"].get("verbose", False)
         else:
             self.verbose = verbose
 
-        self._dataframe: Union[pd.DataFrame, ddf.DataFrame] = None
-        self._timed_dataframe: Union[pd.DataFrame, ddf.DataFrame] = None
-        self._files: List[str] = []
+        self._dataframe: pd.DataFrame | ddf.DataFrame = None
+        self._timed_dataframe: pd.DataFrame | ddf.DataFrame = None
+        self._files: list[str] = []
 
         self._binned: xr.DataArray = None
         self._pre_binned: xr.DataArray = None
@@ -156,6 +155,7 @@ class SedProcessor:
                 self.ct = CopyTool(
                     source=self._config["core"]["copy_tool_source"],
                     dest=self._config["core"]["copy_tool_dest"],
+                    num_cores=self._config["core"]["num_cores"],
                     **self._config["core"].get("copy_tool_kwds", {}),
                 )
             except KeyError:
@@ -208,20 +208,20 @@ class SedProcessor:
     #     self.view_event_histogram(dfpid=2, backend="matplotlib")
 
     @property
-    def dataframe(self) -> Union[pd.DataFrame, ddf.DataFrame]:
+    def dataframe(self) -> pd.DataFrame | ddf.DataFrame:
         """Accessor to the underlying dataframe.
 
         Returns:
-            Union[pd.DataFrame, ddf.DataFrame]: Dataframe object.
+            pd.DataFrame | ddf.DataFrame: Dataframe object.
         """
         return self._dataframe
 
     @dataframe.setter
-    def dataframe(self, dataframe: Union[pd.DataFrame, ddf.DataFrame]):
+    def dataframe(self, dataframe: pd.DataFrame | ddf.DataFrame):
         """Setter for the underlying dataframe.
 
         Args:
-            dataframe (Union[pd.DataFrame, ddf.DataFrame]): The dataframe object to set.
+            dataframe (pd.DataFrame | ddf.DataFrame): The dataframe object to set.
         """
         if not isinstance(dataframe, (pd.DataFrame, ddf.DataFrame)) or not isinstance(
             dataframe,
@@ -235,20 +235,20 @@ class SedProcessor:
         self._dataframe = dataframe
 
     @property
-    def timed_dataframe(self) -> Union[pd.DataFrame, ddf.DataFrame]:
+    def timed_dataframe(self) -> pd.DataFrame | ddf.DataFrame:
         """Accessor to the underlying timed_dataframe.
 
         Returns:
-            Union[pd.DataFrame, ddf.DataFrame]: Timed Dataframe object.
+            pd.DataFrame | ddf.DataFrame: Timed Dataframe object.
         """
         return self._timed_dataframe
 
     @timed_dataframe.setter
-    def timed_dataframe(self, timed_dataframe: Union[pd.DataFrame, ddf.DataFrame]):
+    def timed_dataframe(self, timed_dataframe: pd.DataFrame | ddf.DataFrame):
         """Setter for the underlying timed dataframe.
 
         Args:
-            timed_dataframe (Union[pd.DataFrame, ddf.DataFrame]): The timed dataframe object to set
+            timed_dataframe (pd.DataFrame | ddf.DataFrame): The timed dataframe object to set
         """
         if not isinstance(timed_dataframe, (pd.DataFrame, ddf.DataFrame)) or not isinstance(
             timed_dataframe,
@@ -277,6 +277,7 @@ class SedProcessor:
         Args:
             attributes (dict): The attributes dictionary object to add.
             name (str): Key under which to add the dictionary to the attributes.
+            **kwds: Additional keywords are passed to the ``MetaHandler.add()`` function.
         """
         self._attributes.add(
             entry=attributes,
@@ -285,20 +286,20 @@ class SedProcessor:
         )
 
     @property
-    def config(self) -> Dict[Any, Any]:
+    def config(self) -> dict[Any, Any]:
         """Getter attribute for the config dictionary
 
         Returns:
-            Dict: The config dictionary.
+            dict: The config dictionary.
         """
         return self._config
 
     @property
-    def files(self) -> List[str]:
+    def files(self) -> list[str]:
         """Getter attribute for the list of files
 
         Returns:
-            List[str]: The list of loaded files
+            list[str]: The list of loaded files
         """
         return self._files
 
@@ -337,17 +338,17 @@ class SedProcessor:
             raise ValueError("No normalization histogram available, generate histogram first!")
         return self._normalization_histogram
 
-    def cpy(self, path: Union[str, List[str]]) -> Union[str, List[str]]:
+    def cpy(self, path: str | list[str]) -> str | list[str]:
         """Function to mirror a list of files or a folder from a network drive to a
         local storage. Returns either the original or the copied path to the given
         path. The option to use this functionality is set by
         config["core"]["use_copy_tool"].
 
         Args:
-            path (Union[str, List[str]]): Source path or path list.
+            path (str | list[str]): Source path or path list.
 
         Returns:
-            Union[str, List[str]]: Source or destination path or path list.
+            str | list[str]: Source or destination path or path list.
         """
         if self.use_copy_tool:
             if isinstance(path, list):
@@ -365,9 +366,9 @@ class SedProcessor:
 
     def load(
         self,
-        dataframe: Union[pd.DataFrame, ddf.DataFrame] = None,
+        dataframe: pd.DataFrame | ddf.DataFrame = None,
         metadata: dict = None,
-        files: List[str] = None,
+        files: list[str] = None,
         folder: str = None,
         runs: Sequence[str] = None,
         collect_metadata: bool = False,
@@ -376,18 +377,21 @@ class SedProcessor:
         """Load tabular data of single events into the dataframe object in the class.
 
         Args:
-            dataframe (Union[pd.DataFrame, ddf.DataFrame], optional): data in tabular
+            dataframe (pd.DataFrame | ddf.DataFrame, optional): data in tabular
                 format. Accepts anything which can be interpreted by pd.DataFrame as
                 an input. Defaults to None.
             metadata (dict, optional): Dict of external Metadata. Defaults to None.
-            files (List[str], optional): List of file paths to pass to the loader.
+            files (list[str], optional): List of file paths to pass to the loader.
                 Defaults to None.
             runs (Sequence[str], optional): List of run identifiers to pass to the
                 loader. Defaults to None.
             folder (str, optional): Folder path to pass to the loader.
                 Defaults to None.
             collect_metadata (bool, optional): Option for collecting metadata in the reader.
-            **kwds: Keyword parameters passed to the reader.
+            **kwds:
+                - *timed_dataframe*: timed dataframe if dataframe is provided.
+
+                Additional keyword parameters are passed to ``loader.read_dataframe()``.
 
         Raises:
             ValueError: Raised if no valid input is provided.
@@ -425,7 +429,7 @@ class SedProcessor:
             )
         elif files is not None:
             dataframe, timed_dataframe, metadata = self.loader.read_dataframe(
-                files=cast(List[str], self.cpy(files)),
+                files=cast(list[str], self.cpy(files)),
                 metadata=metadata,
                 collect_metadata=collect_metadata,
                 **kwds,
@@ -490,10 +494,10 @@ class SedProcessor:
     # 1. Bin raw detector data for distortion correction
     def bin_and_load_momentum_calibration(
         self,
-        df_partitions: Union[int, Sequence[int]] = 100,
-        axes: List[str] = None,
-        bins: List[int] = None,
-        ranges: Sequence[Tuple[float, float]] = None,
+        df_partitions: int | Sequence[int] = 100,
+        axes: list[str] = None,
+        bins: list[int] = None,
+        ranges: Sequence[tuple[float, float]] = None,
         plane: int = 0,
         width: int = 5,
         apply: bool = False,
@@ -504,13 +508,13 @@ class SedProcessor:
         interactive view, and load it into the momentum corrector class.
 
         Args:
-            df_partitions (Union[int, Sequence[int]], optional): Number of dataframe partitions
+            df_partitions (int | Sequence[int], optional): Number of dataframe partitions
                 to use for the initial binning. Defaults to 100.
-            axes (List[str], optional): Axes to bin.
+            axes (list[str], optional): Axes to bin.
                 Defaults to config["momentum"]["axes"].
-            bins (List[int], optional): Bin numbers to use for binning.
+            bins (list[int], optional): Bin numbers to use for binning.
                 Defaults to config["momentum"]["bins"].
-            ranges (List[Tuple], optional): Ranges to use for binning.
+            ranges (Sequence[tuple[float, float]], optional): Ranges to use for binning.
                 Defaults to config["momentum"]["ranges"].
             plane (int, optional): Initial value for the plane slider. Defaults to 0.
             width (int, optional): Initial value for the width slider. Defaults to 5.
@@ -674,7 +678,7 @@ class SedProcessor:
     # scaling, shift and rotation
     def pose_adjustment(
         self,
-        transformations: Dict[str, Any] = None,
+        transformations: dict[str, Any] = None,
         apply: bool = False,
         use_correction: bool = True,
         reset: bool = True,
@@ -687,7 +691,7 @@ class SedProcessor:
         the image.
 
         Args:
-            transformations (dict, optional): Dictionary with transformations.
+            transformations (dict[str, Any], optional): Dictionary with transformations.
                 Defaults to self.transformations or config["momentum"]["transformations"].
             apply (bool, optional): Option to directly apply the provided
                 transformations. Defaults to False.
@@ -833,11 +837,11 @@ class SedProcessor:
     # 1. Calculate momentum calibration
     def calibrate_momentum_axes(
         self,
-        point_a: Union[np.ndarray, List[int]] = None,
-        point_b: Union[np.ndarray, List[int]] = None,
+        point_a: np.ndarray | list[int] = None,
+        point_b: np.ndarray | list[int] = None,
         k_distance: float = None,
-        k_coord_a: Union[np.ndarray, List[float]] = None,
-        k_coord_b: Union[np.ndarray, List[float]] = np.array([0.0, 0.0]),
+        k_coord_a: np.ndarray | list[float] = None,
+        k_coord_b: np.ndarray | list[float] = np.array([0.0, 0.0]),
         equiscale: bool = True,
         apply=False,
     ):
@@ -848,18 +852,18 @@ class SedProcessor:
         the points.
 
         Args:
-            point_a (Union[np.ndarray, List[int]]): Pixel coordinates of the first
+            point_a (np.ndarray | list[int], optional): Pixel coordinates of the first
                 point used for momentum calibration.
-            point_b (Union[np.ndarray, List[int]], optional): Pixel coordinates of the
+            point_b (np.ndarray | list[int], optional): Pixel coordinates of the
                 second point used for momentum calibration.
                 Defaults to config["momentum"]["center_pixel"].
             k_distance (float, optional): Momentum distance between point a and b.
                 Needs to be provided if no specific k-coordinates for the two points
                 are given. Defaults to None.
-            k_coord_a (Union[np.ndarray, List[float]], optional): Momentum coordinate
+            k_coord_a (np.ndarray | list[float], optional): Momentum coordinate
                 of the first point used for calibration. Used if equiscale is False.
                 Defaults to None.
-            k_coord_b (Union[np.ndarray, List[float]], optional): Momentum coordinate
+            k_coord_b (np.ndarray | list[float], optional): Momentum coordinate
                 of the second point used for calibration. Defaults to [0.0, 0.0].
             equiscale (bool, optional): Option to apply different scales to kx and ky.
                 If True, the distance between points a and b, and the absolute
@@ -933,7 +937,7 @@ class SedProcessor:
                 Defaults to False.
             verbose (bool, optional): Option to print out diagnostic information.
                 Defaults to config["core"]["verbose"].
-            **kwds: Keyword args passed to ``DelayCalibrator.append_delay_axis``.
+            **kwds: Keyword args passed to ``MomentumCalibrator.append_k_axis``.
         """
         if verbose is None:
             verbose = self.verbose
@@ -987,7 +991,7 @@ class SedProcessor:
         self,
         correction_type: str = None,
         amplitude: float = None,
-        center: Tuple[float, float] = None,
+        center: tuple[float, float] = None,
         apply=False,
         **kwds,
     ):
@@ -1007,7 +1011,7 @@ class SedProcessor:
                 Defaults to config["energy"]["correction_type"].
             amplitude (float, optional): Amplitude of the correction.
                 Defaults to config["energy"]["correction"]["amplitude"].
-            center (Tuple[float, float], optional): Center X/Y coordinates for the
+            center (tuple[float, float], optional): Center X/Y coordinates for the
                 correction. Defaults to config["energy"]["correction"]["center"].
             apply (bool, optional): Option to directly apply the provided or default
                 correction parameters. Defaults to False.
@@ -1125,11 +1129,11 @@ class SedProcessor:
     # 1. Load and normalize data
     def load_bias_series(
         self,
-        binned_data: Union[xr.DataArray, Tuple[np.ndarray, np.ndarray, np.ndarray]] = None,
-        data_files: List[str] = None,
-        axes: List[str] = None,
-        bins: List = None,
-        ranges: Sequence[Tuple[float, float]] = None,
+        binned_data: xr.DataArray | tuple[np.ndarray, np.ndarray, np.ndarray] = None,
+        data_files: list[str] = None,
+        axes: list[str] = None,
+        bins: list = None,
+        ranges: Sequence[tuple[float, float]] = None,
         biases: np.ndarray = None,
         bias_key: str = None,
         normalize: bool = None,
@@ -1140,16 +1144,16 @@ class SedProcessor:
         single-event files, or load binned bias/TOF traces.
 
         Args:
-            binned_data (Union[xr.DataArray, Tuple[np.ndarray, np.ndarray, np.ndarray]], optional):
+            binned_data (xr.DataArray | tuple[np.ndarray, np.ndarray, np.ndarray], optional):
                 Binned data If provided as DataArray, Needs to contain dimensions
                 config["dataframe"]["tof_column"] and config["dataframe"]["bias_column"]. If
                 provided as tuple, needs to contain elements tof, biases, traces.
-            data_files (List[str], optional): list of file paths to bin
-            axes (List[str], optional): bin axes.
+            data_files (list[str], optional): list of file paths to bin
+            axes (list[str], optional): bin axes.
                 Defaults to config["dataframe"]["tof_column"].
-            bins (List, optional): number of bins.
+            bins (list, optional): number of bins.
                 Defaults to config["energy"]["bins"].
-            ranges (Sequence[Tuple[float, float]], optional): bin ranges.
+            ranges (Sequence[tuple[float, float]], optional): bin ranges.
                 Defaults to config["energy"]["ranges"].
             biases (np.ndarray, optional): Bias voltages used. If missing, bias
                 voltages are extracted from the data files.
@@ -1190,7 +1194,7 @@ class SedProcessor:
 
         elif data_files is not None:
             self.ec.bin_data(
-                data_files=cast(List[str], self.cpy(data_files)),
+                data_files=cast(list[str], self.cpy(data_files)),
                 axes=axes,
                 bins=bins,
                 ranges=ranges,
@@ -1218,7 +1222,7 @@ class SedProcessor:
     # 2. extract ranges and get peak positions
     def find_bias_peaks(
         self,
-        ranges: Union[List[Tuple], Tuple],
+        ranges: list[tuple] | tuple,
         ref_id: int = 0,
         infer_others: bool = True,
         mode: str = "replace",
@@ -1234,7 +1238,7 @@ class SedProcessor:
         Alternatively, a list of ranges for all traces can be provided.
 
         Args:
-            ranges (Union[List[Tuple], Tuple]): Tuple of TOF values indicating a range.
+            ranges (list[tuple] | tuple): Tuple of TOF values indicating a range.
                 Alternatively, a list of ranges for all traces can be given.
             ref_id (int, optional): The id of the trace the range refers to.
                 Defaults to 0.
@@ -1291,7 +1295,6 @@ class SedProcessor:
     # 3. Fit the energy calibration relation
     def calibrate_energy_axis(
         self,
-        ref_id: int,
         ref_energy: float,
         method: str = None,
         energy_scale: str = None,
@@ -1304,10 +1307,7 @@ class SedProcessor:
         approximation, and a d^2/(t-t0)^2 relation.
 
         Args:
-            ref_id (int): id of the trace at the bias where the reference energy is
-                given.
-            ref_energy (float): Absolute energy of the detected feature at the bias
-                of ref_id
+            ref_energy (float): Binding/kinetic energy of the detected feature.
             method (str, optional): Method for determining the energy calibration.
 
                 - **'lmfit'**: Energy calibration using lmfit and 1/t^2 form.
@@ -1334,7 +1334,6 @@ class SedProcessor:
             energy_scale = self._config["energy"]["energy_scale"]
 
         self.ec.calibrate(
-            ref_id=ref_id,
             ref_energy=ref_energy,
             method=method,
             energy_scale=energy_scale,
@@ -1351,23 +1350,29 @@ class SedProcessor:
                 backend="bokeh",
             )
             print("E/TOF relationship:")
-            self.ec.view(
-                traces=self.ec.calibration["axis"][None, :],
-                xaxis=self.ec.tof,
-                backend="matplotlib",
-                show_legend=False,
-            )
             if energy_scale == "kinetic":
+                self.ec.view(
+                    traces=self.ec.calibration["axis"][None, :] + self.ec.biases[0],
+                    xaxis=self.ec.tof,
+                    backend="matplotlib",
+                    show_legend=False,
+                )
                 plt.scatter(
                     self.ec.peaks[:, 0],
-                    -(self.ec.biases - self.ec.biases[ref_id]) + ref_energy,
+                    -(self.ec.biases - self.ec.biases[0]) + ref_energy,
                     s=50,
                     c="k",
                 )
             elif energy_scale == "binding":
+                self.ec.view(
+                    traces=self.ec.calibration["axis"][None, :] - self.ec.biases[0],
+                    xaxis=self.ec.tof,
+                    backend="matplotlib",
+                    show_legend=False,
+                )
                 plt.scatter(
                     self.ec.peaks[:, 0],
-                    self.ec.biases - self.ec.biases[ref_id] + ref_energy,
+                    self.ec.biases - self.ec.biases[0] + ref_energy,
                     s=50,
                     c="k",
                 )
@@ -1420,6 +1425,7 @@ class SedProcessor:
     def append_energy_axis(
         self,
         calibration: dict = None,
+        bias_voltage: float = None,
         preview: bool = False,
         verbose: bool = None,
         **kwds,
@@ -1433,6 +1439,9 @@ class SedProcessor:
             calibration (dict, optional): Calibration dict containing calibration
                 parameters. Overrides calibration from class or config.
                 Defaults to None.
+            bias_voltage (float, optional): Sample bias voltage of the scan data. If omitted,
+                the bias voltage is being read from the dataframe. If it is not found there,
+                a warning is printed and the calibrated data might have an offset.
             preview (bool): Option to preview the first elements of the data frame.
             verbose (bool, optional): Option to print out diagnostic information.
                 Defaults to config["core"]["verbose"].
@@ -1450,6 +1459,7 @@ class SedProcessor:
             df, metadata = self.ec.append_energy_axis(
                 df=self._dataframe,
                 calibration=calibration,
+                bias_voltage=bias_voltage,
                 verbose=verbose,
                 **kwds,
             )
@@ -1457,6 +1467,7 @@ class SedProcessor:
                 tdf, _ = self.ec.append_energy_axis(
                     df=self._timed_dataframe,
                     calibration=calibration,
+                    bias_voltage=bias_voltage,
                     verbose=False,
                     **kwds,
                 )
@@ -1482,10 +1493,10 @@ class SedProcessor:
     def add_energy_offset(
         self,
         constant: float = None,
-        columns: Union[str, Sequence[str]] = None,
-        weights: Union[float, Sequence[float]] = None,
-        reductions: Union[str, Sequence[str]] = None,
-        preserve_mean: Union[bool, Sequence[bool]] = None,
+        columns: str | Sequence[str] = None,
+        weights: float | Sequence[float] = None,
+        reductions: str | Sequence[str] = None,
+        preserve_mean: bool | Sequence[bool] = None,
         preview: bool = False,
         verbose: bool = None,
     ) -> None:
@@ -1493,15 +1504,16 @@ class SedProcessor:
 
         Args:
             constant (float, optional): The constant to shift the energy axis by.
-            columns (Union[str, Sequence[str]]): Name of the column(s) to apply the shift from.
-            weights (Union[float, Sequence[float]]): weights to apply to the columns.
+            columns (str | Sequence[str], optional): Name of the column(s) to apply the shift from.
+            weights (float | Sequence[float], optional): weights to apply to the columns.
                 Can also be used to flip the sign (e.g. -1). Defaults to 1.
-            preserve_mean (bool): Whether to subtract the mean of the column before applying the
-                shift. Defaults to False.
-            reductions (str): The reduction to apply to the column. Should be an available method
-                of dask.dataframe.Series. For example "mean". In this case the function is applied
-                to the column to generate a single value for the whole dataset. If None, the shift
-                is applied per-dataframe-row. Defaults to None. Currently only "mean" is supported.
+            reductions (str | Sequence[str], optional): The reduction to apply to the column.
+                Should be an available method of dask.dataframe.Series. For example "mean". In this
+                case the function is applied to the column to generate a single value for the whole
+                dataset. If None, the shift is applied per-dataframe-row. Defaults to None.
+                Currently only "mean" is supported.
+            preserve_mean (bool | Sequence[bool], optional): Whether to subtract the mean of the
+                column before applying the shift. Defaults to False.
             preview (bool, optional): Option to preview the first elements of the data frame.
                 Defaults to False.
             verbose (bool, optional): Option to print out diagnostic information.
@@ -1601,7 +1613,7 @@ class SedProcessor:
                 Defaults to False.
             verbose (bool, optional): Option to print out diagnostic information.
                 Defaults to config["core"]["verbose"].
-            **kwds: additional arguments are passed to ``EnergyCalibrator.tof_step_to_ns()``.
+            **kwds: additional arguments are passed to ``EnergyCalibrator.append_tof_ns_axis()``.
 
         """
         if verbose is None:
@@ -1699,7 +1711,7 @@ class SedProcessor:
     # Delay calibration function
     def calibrate_delay_axis(
         self,
-        delay_range: Tuple[float, float] = None,
+        delay_range: tuple[float, float] = None,
         datafile: str = None,
         preview: bool = False,
         verbose: bool = None,
@@ -1709,7 +1721,7 @@ class SedProcessor:
         them from a file.
 
         Args:
-            delay_range (Tuple[float, float], optional): The scanned delay range in
+            delay_range (tuple[float, float], optional): The scanned delay range in
                 picoseconds. Defaults to None.
             datafile (str, optional): The file from which to read the delay ranges.
                 Defaults to None.
@@ -1734,12 +1746,10 @@ class SedProcessor:
                 if len(self.dc.calibration) == 0:
                     try:
                         datafile = self._files[0]
-                    except IndexError:
-                        print(
-                            "No datafile available, specify either",
-                            " 'datafile' or 'delay_range'",
-                        )
-                        raise
+                    except IndexError as exc:
+                        raise IndexError(
+                            "No datafile available, specify either 'datafile' or 'delay_range'",
+                        ) from exc
 
             df, metadata = self.dc.append_delay_axis(
                 self._dataframe,
@@ -1815,10 +1825,10 @@ class SedProcessor:
         self,
         constant: float = None,
         flip_delay_axis: bool = None,
-        columns: Union[str, Sequence[str]] = None,
-        weights: Union[float, Sequence[float]] = 1.0,
-        reductions: Union[str, Sequence[str]] = None,
-        preserve_mean: Union[bool, Sequence[bool]] = False,
+        columns: str | Sequence[str] = None,
+        weights: float | Sequence[float] = 1.0,
+        reductions: str | Sequence[str] = None,
+        preserve_mean: bool | Sequence[bool] = False,
         preview: bool = False,
         verbose: bool = None,
     ) -> None:
@@ -1827,15 +1837,16 @@ class SedProcessor:
         Args:
             constant (float, optional): The constant to shift the delay axis by.
             flip_delay_axis (bool, optional): Option to reverse the direction of the delay axis.
-            columns (Union[str, Sequence[str]]): Name of the column(s) to apply the shift from.
-            weights (Union[float, Sequence[float]]): weights to apply to the columns.
+            columns (str | Sequence[str], optional): Name of the column(s) to apply the shift from.
+            weights (float | Sequence[float], optional): weights to apply to the columns.
                 Can also be used to flip the sign (e.g. -1). Defaults to 1.
-            preserve_mean (bool): Whether to subtract the mean of the column before applying the
-                shift. Defaults to False.
-            reductions (str): The reduction to apply to the column. Should be an available method
-                of dask.dataframe.Series. For example "mean". In this case the function is applied
-                to the column to generate a single value for the whole dataset. If None, the shift
-                is applied per-dataframe-row. Defaults to None. Currently only "mean" is supported.
+            reductions (str | Sequence[str], optional): The reduction to apply to the column.
+                Should be an available method of dask.dataframe.Series. For example "mean". In this
+                case the function is applied to the column to generate a single value for the whole
+                dataset. If None, the shift is applied per-dataframe-row. Defaults to None.
+                Currently only "mean" is supported.
+            preserve_mean (bool | Sequence[bool], optional): Whether to subtract the mean of the
+                column before applying the shift. Defaults to False.
             preview (bool, optional): Option to preview the first elements of the data frame.
                 Defaults to False.
             verbose (bool, optional): Option to print out diagnostic information.
@@ -1953,16 +1964,16 @@ class SedProcessor:
 
     def add_jitter(
         self,
-        cols: List[str] = None,
-        amps: Union[float, Sequence[float]] = None,
+        cols: list[str] = None,
+        amps: float | Sequence[float] = None,
         **kwds,
     ):
         """Add jitter to the selected dataframe columns.
 
         Args:
-            cols (List[str], optional): The columns onto which to apply jitter.
+            cols (list[str], optional): The columns onto which to apply jitter.
                 Defaults to config["dataframe"]["jitter_cols"].
-            amps (Union[float, Sequence[float]], optional): Amplitude scalings for the
+            amps (float | Sequence[float], optional): Amplitude scalings for the
                 jittering noise. If one number is given, the same is used for all axes.
                 For uniform noise (default) it will cover the interval [-amp, +amp].
                 Defaults to config["dataframe"]["jitter_amps"].
@@ -2022,7 +2033,11 @@ class SedProcessor:
                 If omitted, data are retrieved from the epics archiver.
             archiver_channel (str, optional): EPICS archiver channel from which to retrieve data.
                 Either this or data and time_stamps have to be present.
-            **kwds: additional keyword arguments passed to ``add_time_stamped_data``.
+            **kwds:
+
+                - **time_stamp_column**: Dataframe column containing time-stamp data
+
+                Additional keyword arguments passed to ``add_time_stamped_data``.
         """
         time_stamp_column = kwds.pop(
             "time_stamp_column",
@@ -2065,7 +2080,7 @@ class SedProcessor:
                     time_stamp_column=time_stamp_column,
                     **kwds,
                 )
-        metadata: List[Any] = []
+        metadata: list[Any] = []
         metadata.append(dest_column)
         metadata.append(time_stamps)
         metadata.append(data)
@@ -2073,22 +2088,22 @@ class SedProcessor:
 
     def pre_binning(
         self,
-        df_partitions: Union[int, Sequence[int]] = 100,
-        axes: List[str] = None,
-        bins: List[int] = None,
-        ranges: Sequence[Tuple[float, float]] = None,
+        df_partitions: int | Sequence[int] = 100,
+        axes: list[str] = None,
+        bins: list[int] = None,
+        ranges: Sequence[tuple[float, float]] = None,
         **kwds,
     ) -> xr.DataArray:
         """Function to do an initial binning of the dataframe loaded to the class.
 
         Args:
-            df_partitions (Union[int, Sequence[int]], optional): Number of dataframe partitions to
+            df_partitions (int | Sequence[int], optional): Number of dataframe partitions to
                 use for the initial binning. Defaults to 100.
-            axes (List[str], optional): Axes to bin.
+            axes (list[str], optional): Axes to bin.
                 Defaults to config["momentum"]["axes"].
-            bins (List[int], optional): Bin numbers to use for binning.
+            bins (list[int], optional): Bin numbers to use for binning.
                 Defaults to config["momentum"]["bins"].
-            ranges (List[Tuple], optional): Ranges to use for binning.
+            ranges (Sequence[tuple[float, float]], optional): Ranges to use for binning.
                 Defaults to config["momentum"]["ranges"].
             **kwds: Keyword argument passed to ``compute``.
 
@@ -2105,10 +2120,8 @@ class SedProcessor:
             bins = self._config["momentum"]["bins"]
         if ranges is None:
             ranges_ = list(self._config["momentum"]["ranges"])
-            ranges_[2] = np.asarray(ranges_[2]) / 2 ** (
-                self._config["dataframe"]["tof_binning"] - 1
-            )
-            ranges = [cast(Tuple[float, float], tuple(v)) for v in ranges_]
+            ranges_[2] = np.asarray(ranges_[2]) / self._config["dataframe"]["tof_binning"]
+            ranges = [cast(tuple[float, float], tuple(v)) for v in ranges_]
 
         assert self._dataframe is not None, "dataframe needs to be loaded first!"
 
@@ -2122,23 +2135,16 @@ class SedProcessor:
 
     def compute(
         self,
-        bins: Union[
-            int,
-            dict,
-            tuple,
-            List[int],
-            List[np.ndarray],
-            List[tuple],
-        ] = 100,
-        axes: Union[str, Sequence[str]] = None,
-        ranges: Sequence[Tuple[float, float]] = None,
-        normalize_to_acquisition_time: Union[bool, str] = False,
+        bins: int | dict | tuple | list[int] | list[np.ndarray] | list[tuple] = 100,
+        axes: str | Sequence[str] = None,
+        ranges: Sequence[tuple[float, float]] = None,
+        normalize_to_acquisition_time: bool | str = False,
         **kwds,
     ) -> xr.DataArray:
         """Compute the histogram along the given dimensions.
 
         Args:
-            bins (int, dict, tuple, List[int], List[np.ndarray], List[tuple], optional):
+            bins (int | dict | tuple | list[int] | list[np.ndarray] | list[tuple], optional):
                 Definition of the bins. Can be any of the following cases:
 
                 - an integer describing the number of bins in on all dimensions
@@ -2149,12 +2155,12 @@ class SedProcessor:
                 - a dictionary made of the axes as keys and any of the above as values.
 
                 This takes priority over the axes and range arguments. Defaults to 100.
-            axes (Union[str, Sequence[str]], optional): The names of the axes (columns)
+            axes (str | Sequence[str], optional): The names of the axes (columns)
                 on which to calculate the histogram. The order will be the order of the
                 dimensions in the resulting array. Defaults to None.
-            ranges (Sequence[Tuple[float, float]], optional): list of tuples containing
+            ranges (Sequence[tuple[float, float]], optional): list of tuples containing
                 the start and end point of the binning range. Defaults to None.
-            normalize_to_acquisition_time (Union[bool, str]): Option to normalize the
+            normalize_to_acquisition_time (bool | str): Option to normalize the
                 result to the acquisition time. If a "slow" axis was scanned, providing
                 the name of the scanned axis will compute and apply the corresponding
                 normalization histogram. Defaults to False.
@@ -2169,7 +2175,7 @@ class SedProcessor:
                 - **pbar**: Option to show the tqdm progress bar. Defaults to
                   config["binning"]["pbar"].
                 - **n_cores**: Number of CPU cores to use for parallelization.
-                  Defaults to config["binning"]["num_cores"] or N_CPU-1.
+                  Defaults to config["core"]["num_cores"] or N_CPU-1.
                 - **threads_per_worker**: Limit the number of threads that
                   multiprocessing can spawn per binning thread. Defaults to
                   config["binning"]["threads_per_worker"].
@@ -2196,7 +2202,7 @@ class SedProcessor:
         hist_mode = kwds.pop("hist_mode", self._config["binning"]["hist_mode"])
         mode = kwds.pop("mode", self._config["binning"]["mode"])
         pbar = kwds.pop("pbar", self._config["binning"]["pbar"])
-        num_cores = kwds.pop("num_cores", self._config["binning"]["num_cores"])
+        num_cores = kwds.pop("num_cores", self._config["core"]["num_cores"])
         threads_per_worker = kwds.pop(
             "threads_per_worker",
             self._config["binning"]["threads_per_worker"],
@@ -2205,7 +2211,7 @@ class SedProcessor:
             "threadpool_API",
             self._config["binning"]["threadpool_API"],
         )
-        df_partitions: Union[int, Sequence[int]] = kwds.pop("df_partitions", None)
+        df_partitions: int | Sequence[int] = kwds.pop("df_partitions", None)
         if isinstance(df_partitions, int):
             df_partitions = list(range(0, min(df_partitions, self._dataframe.npartitions)))
         if df_partitions is not None:
@@ -2327,7 +2333,13 @@ class SedProcessor:
         if axis not in self._binned.coords:
             raise ValueError(f"Axis '{axis}' not found in binned data!")
 
-        df_partitions: Union[int, Sequence[int]] = kwds.pop("df_partitions", None)
+        df_partitions: int | Sequence[int] = kwds.pop("df_partitions", None)
+
+        if len(kwds) > 0:
+            raise TypeError(
+                f"get_normalization_histogram() got unexpected keyword arguments {kwds.keys()}.",
+            )
+
         if isinstance(df_partitions, int):
             df_partitions = list(range(0, min(df_partitions, self._dataframe.npartitions)))
         if use_time_stamps or self._timed_dataframe is None:
@@ -2369,7 +2381,7 @@ class SedProcessor:
         ncol: int = 2,
         bins: Sequence[int] = None,
         axes: Sequence[str] = None,
-        ranges: Sequence[Tuple[float, float]] = None,
+        ranges: Sequence[tuple[float, float]] = None,
         backend: str = "bokeh",
         legend: bool = True,
         histkwds: dict = None,
@@ -2386,7 +2398,7 @@ class SedProcessor:
                 axes. Defaults to config["histogram"]["bins"].
             axes (Sequence[str], optional): Names of the axes to display.
                 Defaults to config["histogram"]["axes"].
-            ranges (Sequence[Tuple[float, float]], optional): Value ranges of all
+            ranges (Sequence[tuple[float, float]], optional): Value ranges of all
                 specified axes. Defaults to config["histogram"]["ranges"].
             backend (str, optional): Backend of the plotting library
                 ('matplotlib' or 'bokeh'). Defaults to "bokeh".
@@ -2414,13 +2426,9 @@ class SedProcessor:
             ranges = list(self._config["histogram"]["ranges"])
             for loc, axis in enumerate(axes):
                 if axis == self._config["dataframe"]["tof_column"]:
-                    ranges[loc] = np.asarray(ranges[loc]) / 2 ** (
-                        self._config["dataframe"]["tof_binning"] - 1
-                    )
+                    ranges[loc] = np.asarray(ranges[loc]) / self._config["dataframe"]["tof_binning"]
                 elif axis == self._config["dataframe"]["adc_column"]:
-                    ranges[loc] = np.asarray(ranges[loc]) / 2 ** (
-                        self._config["dataframe"]["adc_binning"] - 1
-                    )
+                    ranges[loc] = np.asarray(ranges[loc]) / self._config["dataframe"]["adc_binning"]
 
         input_types = map(type, [axes, bins, ranges])
         allowed_types = [list, tuple]

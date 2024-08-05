@@ -1,14 +1,16 @@
 """Utilities for loaders
 """
+from __future__ import annotations
+
+from collections.abc import Sequence
 from glob import glob
+from pathlib import Path
 from typing import cast
-from typing import List
-from typing import Sequence
-from typing import Union
 
 import dask.dataframe
 import numpy as np
 import pandas as pd
+import pyarrow.parquet as pq
 from h5py import File
 from h5py import Group
 from natsort import natsorted
@@ -21,7 +23,7 @@ def gather_files(
     f_end: int = None,
     f_step: int = 1,
     file_sorting: bool = True,
-) -> List[str]:
+) -> list[str]:
     """Collects and sorts files with specified extension from a given folder.
 
     Args:
@@ -37,13 +39,13 @@ def gather_files(
             Defaults to True.
 
     Returns:
-        List[str]: List of collected file names.
+        list[str]: List of collected file names.
     """
     try:
         files = glob(folder + "/*." + extension)
 
         if file_sorting:
-            files = cast(List[str], natsorted(files))
+            files = cast(list[str], natsorted(files))
 
         if f_start is not None and f_end is not None:
             files = files[slice(f_start, f_end, f_step)]
@@ -55,7 +57,7 @@ def gather_files(
     return files
 
 
-def parse_h5_keys(h5_file: File, prefix: str = "") -> List[str]:
+def parse_h5_keys(h5_file: File, prefix: str = "") -> list[str]:
     """Helper method which parses the channels present in the h5 file
     Args:
         h5_file (h5py.File): The H5 file object.
@@ -63,7 +65,7 @@ def parse_h5_keys(h5_file: File, prefix: str = "") -> List[str]:
         Defaults to an empty string.
 
     Returns:
-        List[str]: A list of channel names in the H5 file.
+        list[str]: A list of channel names in the H5 file.
 
     Raises:
         Exception: If an error occurs while parsing the keys.
@@ -144,54 +146,121 @@ def split_channel_bitwise(
 
 
 def split_dld_time_from_sector_id(
-    df: Union[pd.DataFrame, dask.dataframe.DataFrame],
+    df: pd.DataFrame | dask.dataframe.DataFrame,
     tof_column: str = None,
     sector_id_column: str = None,
     sector_id_reserved_bits: int = None,
     config: dict = None,
-) -> Union[pd.DataFrame, dask.dataframe.DataFrame]:
+) -> tuple[pd.DataFrame | dask.dataframe.DataFrame, dict]:
     """Converts the 8s time in steps to time in steps and sectorID.
 
     The 8s detector encodes the dldSectorID in the 3 least significant bits of the
     dldTimeSteps channel.
 
     Args:
-        df (Union[pd.DataFrame, dask.dataframe.DataFrame]): Dataframe to use.
+        df (pd.DataFrame | dask.dataframe.DataFrame): Dataframe to use.
         tof_column (str, optional): Name of the column containing the
             time-of-flight steps. Defaults to config["dataframe"]["tof_column"].
         sector_id_column (str, optional): Name of the column containing the
             sectorID. Defaults to config["dataframe"]["sector_id_column"].
         sector_id_reserved_bits (int, optional): Number of bits reserved for the
-        config (dict, optional): Configuration dictionary. Defaults to None.
+        config (dict, optional): Dataframe configuration dictionary. Defaults to None.
 
     Returns:
-        Union[pd.DataFrame, dask.dataframe.DataFrame]: Dataframe with the new columns.
+        pd.DataFrame | dask.dataframe.DataFrame: Dataframe with the new columns.
     """
     if tof_column is None:
         if config is None:
             raise ValueError("Either tof_column or config must be given.")
-        tof_column = config["dataframe"]["tof_column"]
+        tof_column = config["tof_column"]
     if sector_id_column is None:
         if config is None:
             raise ValueError("Either sector_id_column or config must be given.")
-        sector_id_column = config["dataframe"]["sector_id_column"]
+        sector_id_column = config["sector_id_column"]
     if sector_id_reserved_bits is None:
         if config is None:
             raise ValueError("Either sector_id_reserved_bits or config must be given.")
-        sector_id_reserved_bits = config["dataframe"].get("sector_id_reserved_bits", None)
+        sector_id_reserved_bits = config.get("sector_id_reserved_bits", None)
         if sector_id_reserved_bits is None:
             raise ValueError('No value for "sector_id_reserved_bits" found in config.')
 
     if sector_id_column in df.columns:
-        raise ValueError(
-            f"Column {sector_id_column} already in dataframe. This function is not idempotent.",
+        metadata = {"applied": False, "reason": f"Column {sector_id_column} already in dataframe"}
+    else:
+        # Split the time-of-flight column into sector ID and time-of-flight steps
+        df = split_channel_bitwise(
+            df=df,
+            input_column=tof_column,
+            output_columns=[sector_id_column, tof_column],
+            bit_mask=sector_id_reserved_bits,
+            overwrite=True,
+            types=[np.int8, np.int32],
         )
-    df = split_channel_bitwise(
-        df=df,
-        input_column=tof_column,
-        output_columns=[sector_id_column, tof_column],
-        bit_mask=sector_id_reserved_bits,
-        overwrite=True,
-        types=[np.int8, np.int32],
-    )
-    return df
+        metadata = {
+            "applied": True,
+            "tof_column": tof_column,
+            "sector_id_column": sector_id_column,
+            "sector_id_reserved_bits": sector_id_reserved_bits,
+        }
+
+    return df, {"split_dld_time_from_sector_id": metadata}
+
+
+def get_stats(meta: pq.FileMetaData) -> dict:
+    """
+    Extracts the minimum and maximum of all columns from the metadata of a Parquet file.
+
+    Args:
+        meta (pq.FileMetaData): The metadata of the Parquet file.
+
+    Returns:
+        Tuple[int, int]: The minimum and maximum timestamps.
+    """
+    min_max = {}
+    for idx, name in enumerate(meta.schema.names):
+        col = []
+        for i in range(meta.num_row_groups):
+            stats = meta.row_group(i).column(idx).statistics
+            if stats is not None:
+                if stats.min is not None:
+                    col.append(stats.min)
+                if stats.max is not None:
+                    col.append(stats.max)
+        if col:
+            min_max[name] = {"min": min(col), "max": max(col)}
+    return min_max
+
+
+def get_parquet_metadata(file_paths: list[Path]) -> dict[str, dict]:
+    """
+    Extracts and organizes metadata from a list of Parquet files.
+
+    For each file, the function reads the metadata, adds the filename,
+    and extracts the minimum and maximum timestamps.
+    "row_groups" entry is removed from FileMetaData.
+
+    Args:
+        file_paths (list[Path]): A list of paths to the Parquet files.
+
+    Returns:
+        dict[str, dict]: A dictionary file index as key and the values as metadata of each file.
+    """
+    organized_metadata = {}
+    for i, file_path in enumerate(file_paths):
+        # Read the metadata for the file
+        file_meta: pq.FileMetaData = pq.read_metadata(file_path)
+        # Convert the metadata to a dictionary
+        metadata_dict = file_meta.to_dict()
+        # Add the filename to the metadata dictionary
+        metadata_dict["filename"] = str(file_path.name)
+
+        # Get column min and max values
+        metadata_dict["columns"] = get_stats(file_meta)
+
+        # Remove "row_groups" as they contain a lot of info that is not needed
+        metadata_dict.pop("row_groups", None)
+
+        # Add the metadata dictionary to the organized_metadata dictionary
+        organized_metadata[str(i)] = metadata_dict
+
+    return organized_metadata
