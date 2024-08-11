@@ -23,7 +23,11 @@ import numpy as np
 import scipy.interpolate as sint
 from natsort import natsorted
 
+from sed.core.logging import setup_logging
 from sed.loader.base.loader import BaseLoader
+
+# Configure logging
+logger = setup_logging("mpes_loader")
 
 
 def hdf5_to_dataframe(
@@ -74,17 +78,19 @@ def hdf5_to_dataframe(
                 electron_channels.append(channel)
                 column_names.append(name)
             else:
-                print(
-                    f"Entry \"{channel['dataset_key']}\" for channel \"{name}\" not found.",
+                logger.warning(
+                    f"Entry \"{channel['dataset_key']}\" for channel \"{name}\" not found. "
                     "Skipping the channel.",
                 )
         elif channel["format"] != "per_file":
-            raise ValueError(
-                f"Invalid 'format':{channel['format']} for channel {name}.",
-            )
+            error_msg = f"Invalid 'format':{channel['format']} for channel {name}."
+            logger.error(error_msg)
+            raise ValueError(error_msg)
 
     if not electron_channels:
-        raise ValueError("No valid 'per_electron' channels found.")
+        error_msg = "No valid 'per_electron' channels found."
+        logger.error(error_msg)
+        raise ValueError(error_msg)
 
     if time_stamps:
         column_names.append(time_stamp_alias)
@@ -127,8 +133,8 @@ def hdf5_to_dataframe(
                 dataframe = ddf.from_delayed(delayeds)
 
             else:
-                print(
-                    f"Entry \"{channel['dataset_key']}\" for channel \"{name}\" not found.",
+                logger.warning(
+                    f"Entry \"{channel['dataset_key']}\" for channel \"{name}\" not found. "
                     "Skipping the channel.",
                 )
 
@@ -184,17 +190,19 @@ def hdf5_to_timed_dataframe(
                 electron_channels.append(channel)
                 column_names.append(name)
             else:
-                print(
-                    f"Entry \"{channel['dataset_key']}\" for channel \"{name}\" not found.",
+                logger.warning(
+                    f"Entry \"{channel['dataset_key']}\" for channel \"{name}\" not found. "
                     "Skipping the channel.",
                 )
         elif channel["format"] != "per_file":
-            raise ValueError(
-                f"Invalid 'format':{channel['format']} for channel {name}.",
-            )
+            error_msg = f"Invalid 'format':{channel['format']} for channel {name}."
+            logger.error(error_msg)
+            raise ValueError(error_msg)
 
     if not electron_channels:
-        raise ValueError("No valid 'per_electron' channels found.")
+        error_msg = "No valid 'per_electron' channels found."
+        logger.error(error_msg)
+        raise ValueError(error_msg)
 
     if time_stamps:
         column_names.append(time_stamp_alias)
@@ -237,8 +245,8 @@ def hdf5_to_timed_dataframe(
                 dataframe = ddf.from_delayed(delayeds)
 
             else:
-                print(
-                    f"Entry \"{channel['dataset_key']}\" for channel \"{name}\" not found.",
+                logger.warning(
+                    f"Entry \"{channel['dataset_key']}\" for channel \"{name}\" not found. "
                     "Skipping the channel.",
                 )
 
@@ -799,9 +807,9 @@ class MpesLoader(BaseLoader):
 
         if metadata is None:
             metadata = {}
-        print("Gathering metadata from different locations")
+        logger.info("Gathering metadata from different locations")
         # Read events in with ms time stamps
-        print("Collecting time stamps...")
+        logger.info("Collecting time stamps...")
         (ts_from, ts_to) = self.get_start_and_end_time()
 
         metadata["timing"] = {
@@ -819,7 +827,7 @@ class MpesLoader(BaseLoader):
         if "file" not in metadata:  # If already present, the value is assumed to be a dictionary
             metadata["file"] = {}
 
-        print("Collecting file metadata...")
+        logger.info("Collecting file metadata...")
         with h5py.File(files[0], "r") as h5file:
             for key, value in h5file.attrs.items():
                 key = key.replace("VSet", "V")
@@ -829,7 +837,7 @@ class MpesLoader(BaseLoader):
             os.path.realpath(files[0]),
         )
 
-        print("Collecting data from the EPICS archive...")
+        logger.info("Collecting data from the EPICS archive...")
         # Get metadata from Epics archive if not present already
         epics_channels = self._config["metadata"]["epics_pvs"]
 
@@ -850,23 +858,23 @@ class MpesLoader(BaseLoader):
 
             except IndexError:
                 metadata["file"][f"{channel}"] = np.nan
-                print(
+                logger.info(
                     f"Data for channel {channel} doesn't exist for time {start}",
                 )
             except HTTPError as exc:
-                print(
+                logger.warning(
                     f"Incorrect URL for the archive channel {channel}. "
                     "Make sure that the channel name and file start and end times are "
                     "correct.",
                 )
-                print("Error code: ", exc)
+                logger.warning(f"Error code: {exc}")
             except URLError as exc:
-                print(
+                logger.warning(
                     f"Cannot access the archive URL for channel {channel}. "
                     f"Make sure that you are within the FHI network."
                     f"Skipping over channels {channels_missing}.",
                 )
-                print("Error code: ", exc)
+                logger.warning(f"Error code: {exc}")
                 break
 
         # Determine the correct aperture_config
@@ -901,7 +909,7 @@ class MpesLoader(BaseLoader):
                         metadata["instrument"]["analyzer"]["fa_shape"] = key
                     break
             else:
-                print("Field aperture size not found.")
+                logger.warning("Field aperture size not found.")
 
         # get contrast aperture shape and size
         if self._config["metadata"]["ca_in_channel"] in metadata["file"]:
@@ -917,7 +925,7 @@ class MpesLoader(BaseLoader):
                         metadata["instrument"]["analyzer"]["ca_shape"] = key
                     break
             else:
-                print("Contrast aperture size not found.")
+                logger.warning("Contrast aperture size not found.")
 
         # Storing the lens modes corresponding to lens voltages.
         # Use lens voltages present in first lens_mode entry.
@@ -938,7 +946,7 @@ class MpesLoader(BaseLoader):
                 metadata["instrument"]["analyzer"]["lens_mode"] = mode
                 break
         else:
-            print(
+            logger.warning(
                 "Lens mode for given lens voltages not found. "
                 "Storing lens mode from the user, if provided.",
             )
@@ -953,13 +961,13 @@ class MpesLoader(BaseLoader):
                 metadata["instrument"]["analyzer"]["projection"] = "reciprocal"
                 metadata["instrument"]["analyzer"]["scheme"] = "spatial dispersive"
         except IndexError:
-            print(
+            logger.warning(
                 "Lens mode must have the form, '6kV_kmodem4.0_20VTOF_v3.sav'. "
                 "Can't determine projection. "
                 "Storing projection from the user, if provided.",
             )
         except KeyError:
-            print(
+            logger.warning(
                 "Lens mode not found. Can't determine projection. "
                 "Storing projection from the user, if provided.",
             )
