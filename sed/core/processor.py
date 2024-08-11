@@ -27,6 +27,7 @@ from sed.core.config import save_config
 from sed.core.dfops import add_time_stamped_data
 from sed.core.dfops import apply_filter
 from sed.core.dfops import apply_jitter
+from sed.core.logging import call_logger
 from sed.core.logging import setup_logging
 from sed.core.metadata import MetaHandler
 from sed.diagnostics import grid_histogram
@@ -41,7 +42,7 @@ from sed.loader.mpes.loader import MpesLoader
 N_CPU = psutil.cpu_count()
 
 # Configure logging
-logger = setup_logging(__name__)
+logger = setup_logging("processor")
 
 
 class SedProcessor:
@@ -67,6 +68,7 @@ class SedProcessor:
         **kwds: Keyword arguments passed to the reader.
     """
 
+    @call_logger(logger)
     def __init__(
         self,
         metadata: dict = None,
@@ -368,6 +370,7 @@ class SedProcessor:
 
         return path
 
+    @call_logger(logger)
     def load(
         self,
         dataframe: pd.DataFrame | ddf.DataFrame = None,
@@ -454,6 +457,7 @@ class SedProcessor:
                 duplicate_policy="merge",
             )
 
+    @call_logger(logger)
     def filter_column(
         self,
         column: str,
@@ -496,6 +500,7 @@ class SedProcessor:
 
     # Momentum calibration workflow
     # 1. Bin raw detector data for distortion correction
+    @call_logger(logger)
     def bin_and_load_momentum_calibration(
         self,
         df_partitions: int | Sequence[int] = 100,
@@ -539,6 +544,7 @@ class SedProcessor:
 
     # 2. Generate the spline warp correction from momentum features.
     # Either autoselect features, or input features from view above.
+    @call_logger(logger)
     def define_features(
         self,
         features: np.ndarray = None,
@@ -592,6 +598,7 @@ class SedProcessor:
 
     # 3. Generate the spline warp correction from momentum features.
     # If no features have been selected before, use class defaults.
+    @call_logger(logger)
     def generate_splinewarp(
         self,
         use_center: bool = None,
@@ -680,6 +687,7 @@ class SedProcessor:
 
     # 4. Pose corrections. Provide interactive interface for correcting
     # scaling, shift and rotation
+    @call_logger(logger)
     def pose_adjustment(
         self,
         transformations: dict[str, Any] = None,
@@ -737,6 +745,7 @@ class SedProcessor:
         )
 
     # 4a. Save pose adjustment parameters to config file.
+    @call_logger(logger)
     def save_transformations(
         self,
         filename: str = None,
@@ -770,6 +779,7 @@ class SedProcessor:
         logger.info(f'Saved momentum transformation parameters to "{filename}".')
 
     # 5. Apply the momentum correction to the dataframe
+    @call_logger(logger)
     def apply_momentum_correction(
         self,
         preview: bool = False,
@@ -839,6 +849,7 @@ class SedProcessor:
 
     # Momentum calibration work flow
     # 1. Calculate momentum calibration
+    @call_logger(logger)
     def calibrate_momentum_axes(
         self,
         point_a: np.ndarray | list[int] = None,
@@ -923,6 +934,7 @@ class SedProcessor:
         logger.info(f"Saved momentum calibration parameters to {filename}")
 
     # 2. Apply correction and calibration to the dataframe
+    @call_logger(logger)
     def apply_momentum_calibration(
         self,
         calibration: dict = None,
@@ -990,6 +1002,7 @@ class SedProcessor:
 
     # Energy correction workflow
     # 1. Adjust the energy correction parameters
+    @call_logger(logger)
     def adjust_energy_correction(
         self,
         correction_type: str = None,
@@ -1068,6 +1081,7 @@ class SedProcessor:
         logger.info(f"Saved energy correction parameters to {filename}")
 
     # 2. Apply energy correction to dataframe
+    @call_logger(logger)
     def apply_energy_correction(
         self,
         correction: dict = None,
@@ -1128,6 +1142,7 @@ class SedProcessor:
 
     # Energy calibrator workflow
     # 1. Load and normalize data
+    @call_logger(logger)
     def load_bias_series(
         self,
         binned_data: xr.DataArray | tuple[np.ndarray, np.ndarray, np.ndarray] = None,
@@ -1221,6 +1236,7 @@ class SedProcessor:
         )
 
     # 2. extract ranges and get peak positions
+    @call_logger(logger)
     def find_bias_peaks(
         self,
         ranges: list[tuple] | tuple,
@@ -1294,6 +1310,7 @@ class SedProcessor:
             )
 
     # 3. Fit the energy calibration relation
+    @call_logger(logger)
     def calibrate_energy_axis(
         self,
         ref_energy: float,
@@ -1423,6 +1440,7 @@ class SedProcessor:
         logger.info(f'Saved energy calibration parameters to "{filename}".')
 
     # 4. Apply energy calibration to the dataframe
+    @call_logger(logger)
     def append_energy_axis(
         self,
         calibration: dict = None,
@@ -1491,6 +1509,7 @@ class SedProcessor:
             if verbose:
                 logger.info(self._dataframe)
 
+    @call_logger(logger)
     def add_energy_offset(
         self,
         constant: float = None,
@@ -1598,6 +1617,7 @@ class SedProcessor:
         save_config(config, filename, overwrite)
         logger.info(f'Saved energy offset parameters to "{filename}".')
 
+    @call_logger(logger)
     def append_tof_ns_axis(
         self,
         preview: bool = False,
@@ -1653,6 +1673,7 @@ class SedProcessor:
             if verbose:
                 logger.info(self._dataframe)
 
+    @call_logger(logger)
     def align_dld_sectors(
         self,
         sector_delays: np.ndarray = None,
@@ -1710,6 +1731,7 @@ class SedProcessor:
                 logger.info(self._dataframe)
 
     # Delay calibration function
+    @call_logger(logger)
     def calibrate_delay_axis(
         self,
         delay_range: tuple[float, float] = None,
@@ -1822,6 +1844,7 @@ class SedProcessor:
         }
         save_config(config, filename, overwrite)
 
+    @call_logger(logger)
     def add_delay_offset(
         self,
         constant: float = None,
@@ -1963,6 +1986,7 @@ class SedProcessor:
             except (ValueError, AttributeError, KeyError):
                 pass
 
+    @call_logger(logger)
     def add_jitter(
         self,
         cols: list[str] = None,
@@ -2015,6 +2039,7 @@ class SedProcessor:
         self._attributes.add(metadata, "jittering", duplicate_policy="append")
         logger.info(f"add_jitter: Added jitter to columns {cols}.")
 
+    @call_logger(logger)
     def add_time_stamped_data(
         self,
         dest_column: str,
@@ -2089,6 +2114,7 @@ class SedProcessor:
         self._attributes.add(metadata, "time_stamped_data", duplicate_policy="append")
         logger.info(f"add_time_stamped_data: Added time-stamped data as column {dest_column}.")
 
+    @call_logger(logger)
     def pre_binning(
         self,
         df_partitions: int | Sequence[int] = 100,
@@ -2136,6 +2162,7 @@ class SedProcessor:
             **kwds,
         )
 
+    @call_logger(logger)
     def compute(
         self,
         bins: int | dict | tuple | list[int] | list[np.ndarray] | list[tuple] = 100,
@@ -2299,6 +2326,7 @@ class SedProcessor:
 
         return self._binned
 
+    @call_logger(logger)
     def get_normalization_histogram(
         self,
         axis: str = "delay",
@@ -2463,6 +2491,7 @@ class SedProcessor:
             **kwds,
         )
 
+    @call_logger(logger)
     def save(
         self,
         faddr: str,

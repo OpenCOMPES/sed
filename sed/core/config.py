@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import copy
 import json
-import logging
 import os
 import platform
 from importlib.util import find_spec
@@ -20,7 +19,7 @@ package_dir = os.path.dirname(find_spec("sed").origin)
 USER_CONFIG_PATH = user_config_path(appname="sed", appauthor="OpenCOMPES", ensure_exists=True)
 
 # Configure logging
-logger = setup_logging(__name__)
+logger = setup_logging("config")
 
 
 def parse_config(
@@ -63,11 +62,6 @@ def parse_config(
     Returns:
         dict: Loaded and possibly completed config dictionary.
     """
-    if verbose:
-        logger.handlers[0].setLevel(logging.INFO)
-    else:
-        logger.handlers[0].setLevel(logging.WARNING)
-
     if config is None:
         config = {}
 
@@ -75,7 +69,8 @@ def parse_config(
         config_dict = copy.deepcopy(config)
     else:
         config_dict = load_config(config)
-        logger.info(f"Configuration loaded from: [{str(Path(config).resolve())}]")
+        if verbose:
+            logger.info(f"Configuration loaded from: [{str(Path(config).resolve())}]")
 
     folder_dict: dict = None
     if isinstance(folder_config, dict):
@@ -85,7 +80,8 @@ def parse_config(
             folder_config = "./sed_config.yaml"
         if Path(folder_config).exists():
             folder_dict = load_config(folder_config)
-            logger.info(f"Folder config loaded from: [{str(Path(folder_config).resolve())}]")
+            if verbose:
+                logger.info(f"Folder config loaded from: [{str(Path(folder_config).resolve())}]")
 
     user_dict: dict = None
     if isinstance(user_config, dict):
@@ -97,7 +93,8 @@ def parse_config(
             )
         if Path(user_config).exists():
             user_dict = load_config(user_config)
-            logger.info(f"User config loaded from: [{str(Path(user_config).resolve())}]")
+            if verbose:
+                logger.info(f"User config loaded from: [{str(Path(user_config).resolve())}]")
 
     system_dict: dict = None
     if isinstance(system_config, dict):
@@ -114,13 +111,15 @@ def parse_config(
                 )
         if Path(system_config).exists():
             system_dict = load_config(system_config)
-            logger.info(f"System config loaded from: [{str(Path(system_config).resolve())}]")
+            if verbose:
+                logger.info(f"System config loaded from: [{str(Path(system_config).resolve())}]")
 
     if isinstance(default_config, dict):
         default_dict = copy.deepcopy(default_config)
     else:
         default_dict = load_config(default_config)
-        logger.info(f"Default config loaded from: [{str(Path(default_config).resolve())}]")
+        if verbose:
+            logger.info(f"Default config loaded from: [{str(Path(default_config).resolve())}]")
 
     if folder_dict is not None:
         config_dict = complete_dictionary(
