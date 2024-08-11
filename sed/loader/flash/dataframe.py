@@ -243,6 +243,8 @@ class DataFrameCreator:
         series = []
         # Get the relevant channel names
         channels = get_channels(self._config, "per_train")
+        if channels == []:
+            return pd.DataFrame()
         # For each channel, a pd.Series is created and appended to the list
         for channel in channels:
             # train_index and (sliced) data is returned
