@@ -12,15 +12,21 @@ from __future__ import annotations
 import re
 import time
 from collections.abc import Sequence
+from logging import INFO
+from logging import WARNING
 from pathlib import Path
 
 import dask.dataframe as dd
 from natsort import natsorted
 
+from sed.core.logging import setup_logging
 from sed.loader.base.loader import BaseLoader
 from sed.loader.flash.buffer_handler import BufferHandler
 from sed.loader.flash.instruments import wespe_convert
 from sed.loader.flash.metadata import MetadataRetriever
+
+# Configure logging
+logger = setup_logging("flash_loader")
 
 
 class FlashLoader(BaseLoader):
@@ -28,20 +34,32 @@ class FlashLoader(BaseLoader):
     The class generates multiindexed multidimensional pandas dataframes from the new FLASH
     dataformat resolved by both macro and microbunches alongside electrons.
     Only the read_dataframe (inherited and implemented) method is accessed by other modules.
+
+    Args:
+        config (dict, optional): Config dictionary. Defaults to None.
+        verbose (bool, optional): Option to print out diagnostic information.
+            Defaults to True.
     """
 
     __name__ = "flash"
 
     supported_file_types = ["h5"]
 
-    def __init__(self, config: dict) -> None:
+    def __init__(self, config: dict, verbose: bool = True) -> None:
         """
         Initializes the FlashLoader.
 
         Args:
             config (dict): Configuration dictionary.
+            verbose (bool, optional): Option to print out diagnostic information.
         """
-        super().__init__(config=config)
+        super().__init__(config=config, verbose=verbose)
+
+        if self.verbose:
+            logger.handlers[0].setLevel(INFO)
+        else:
+            logger.handlers[0].setLevel(WARNING)
+
         self.instrument: str = self._config["core"].get("instrument", "hextof")  # default is hextof
         self.raw_dir: str = None
         self.processed_dir: str = None

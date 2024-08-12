@@ -14,6 +14,8 @@ from __future__ import annotations
 import time
 from collections.abc import Sequence
 from functools import reduce
+from logging import INFO
+from logging import WARNING
 from pathlib import Path
 
 import dask.dataframe as dd
@@ -28,9 +30,13 @@ from pandas import MultiIndex
 from pandas import Series
 
 from sed.core import dfops
+from sed.core.logging import setup_logging
 from sed.loader.base.loader import BaseLoader
 from sed.loader.utils import parse_h5_keys
 from sed.loader.utils import split_dld_time_from_sector_id
+
+# Configure logging
+logger = setup_logging("sxp_loader")
 
 
 class SXPLoader(BaseLoader):
@@ -38,14 +44,24 @@ class SXPLoader(BaseLoader):
     The class generates multiindexed multidimensional pandas dataframes from the new SXP
     dataformat resolved by both macro and microbunches alongside electrons.
     Only the read_dataframe (inherited and implemented) method is accessed by other modules.
+
+    Args:
+        config (dict): Config dictionary.
+        verbose (bool, optional): Option to print out diagnostic information.
     """
 
     __name__ = "sxp"
 
     supported_file_types = ["h5"]
 
-    def __init__(self, config: dict) -> None:
-        super().__init__(config=config)
+    def __init__(self, config: dict, verbose: bool = True) -> None:
+        super().__init__(config=config, verbose=verbose)
+
+        if self.verbose:
+            logger.handlers[0].setLevel(INFO)
+        else:
+            logger.handlers[0].setLevel(WARNING)
+
         self.multi_index = ["trainId", "pulseId", "electronId"]
         self.index_per_electron: MultiIndex = None
         self.index_per_pulse: MultiIndex = None

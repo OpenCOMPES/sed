@@ -12,12 +12,14 @@ from sed.loader.base.loader import BaseLoader
 def get_loader(
     loader_name: str,
     config: dict = None,
+    verbose: bool = True,
 ) -> BaseLoader:
     """Helper function to get the loader object from it's given name.
 
     Args:
         loader_name (str): Name of the loader
         config (dict, optional): Configuration dictionary. Defaults to None.
+        verbose (bool, optional): Option to print out diagnostic information.
 
     Raises:
         ValueError: Raised if the loader cannot be found.
@@ -41,7 +43,7 @@ def get_loader(
     spec = importlib.util.spec_from_file_location("loader.py", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    return module.LOADER(config=config)
+    return module.LOADER(config=config, verbose=verbose)
 
 
 def get_names_of_all_loaders() -> list[str]:

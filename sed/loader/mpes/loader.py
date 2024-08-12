@@ -10,6 +10,8 @@ import glob
 import json
 import os
 from collections.abc import Sequence
+from logging import INFO
+from logging import WARNING
 from typing import Any
 from urllib.error import HTTPError
 from urllib.error import URLError
@@ -565,7 +567,8 @@ class MpesLoader(BaseLoader):
 
     Args:
         config (dict, optional): Config dictionary. Defaults to None.
-        meta_handler (MetaHandler, optional): MetaHandler object. Defaults to None.
+        verbose (bool, optional): Option to print out diagnostic information.
+            Defaults to True.
     """
 
     __name__ = "mpes"
@@ -575,8 +578,14 @@ class MpesLoader(BaseLoader):
     def __init__(
         self,
         config: dict = None,
+        verbose: bool = True,
     ):
-        super().__init__(config=config)
+        super().__init__(config=config, verbose=verbose)
+
+        if self.verbose:
+            logger.handlers[0].setLevel(INFO)
+        else:
+            logger.handlers[0].setLevel(WARNING)
 
         self.read_timestamps = self._config.get("dataframe", {}).get(
             "read_timestamps",
