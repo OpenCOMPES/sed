@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from copy import deepcopy
 from datetime import datetime
+from logging import INFO
+from logging import WARNING
 from typing import Any
 
 import dask.dataframe
@@ -13,6 +15,10 @@ import numpy as np
 import pandas as pd
 
 from sed.core import dfops
+from sed.core.logging import setup_logging
+
+# Configure logging
+logger = setup_logging("delay")
 
 
 class DelayCalibrator:
@@ -22,21 +28,32 @@ class DelayCalibrator:
 
     Args:
         config (dict, optional): Config dictionary. Defaults to None.
+        verbose (bool, optional): Option to print out diagnostic information.
+            Defaults to True.
     """
 
     def __init__(
         self,
         config: dict = None,
+        verbose: bool = True,
     ) -> None:
         """Initialization of the DelayCalibrator class passes the config.
 
         Args:
             config (dict, optional): Config dictionary. Defaults to None.
+            verbose (bool, optional): Option to print out diagnostic information.
+                Defaults to True.
         """
         if config is not None:
             self._config = config
         else:
             self._config = {}
+
+        self.verbose = verbose
+        if self.verbose:
+            logger.handlers[0].setLevel(INFO)
+        else:
+            logger.handlers[0].setLevel(WARNING)
 
         self.adc_column: str = self._config["dataframe"].get("adc_column", None)
         self.delay_column: str = self._config["dataframe"]["delay_column"]
@@ -61,7 +78,7 @@ class DelayCalibrator:
         p1_key: str = None,
         p2_key: str = None,
         t0_key: str = None,
-        verbose: bool = True,
+        suppress_output: bool = False,
     ) -> tuple[pd.DataFrame | dask.dataframe.DataFrame, dict]:
         """Calculate and append the delay axis to the events dataframe, by converting
         values from an analog-digital-converter (ADC).
@@ -92,8 +109,7 @@ class DelayCalibrator:
                 Defaults to config["delay"]["p2_key"]
             t0_key (str, optional): hdf5 key for t0 value (mm).
                 Defaults to config["delay"]["t0_key"]
-            verbose (bool, optional): Option to print out diagnostic information.
-                Defaults to True.
+            suppress_output (bool, optional): Option to suppress log output. Defaults to False.
 
         Raises:
             ValueError: Raised if delay parameters are not found in the file.
@@ -126,11 +142,11 @@ class DelayCalibrator:
                 calibration["delay_range_mm"] = delay_range_mm
         else:
             # report usage of loaded parameters
-            if "creation_date" in calibration and verbose:
+            if "creation_date" in calibration and not suppress_output:
                 datestring = datetime.fromtimestamp(calibration["creation_date"]).strftime(
                     "%m/%d/%Y, %H:%M:%S",
                 )
-                print(f"Using delay calibration parameters generated on {datestring}")
+                logger.info(f"Using delay calibration parameters generated on {datestring}")
 
         if adc_column is None:
             adc_column = self.adc_column
@@ -166,8 +182,8 @@ class DelayCalibrator:
                     calibration["datafile"] = datafile
                     calibration["delay_range_mm"] = (ret[0], ret[1])
                     calibration["time0"] = ret[2]
-                    if verbose:
-                        print(f"Extract delay range from file '{datafile}'.")
+                    if not suppress_output:
+                        logger.info(f"Extract delay range from file '{datafile}'.")
                 else:
                     raise NotImplementedError(
                         "Not enough parameters for delay calibration.",
@@ -179,8 +195,8 @@ class DelayCalibrator:
                     calibration["time0"],
                 ),
             )
-            if verbose:
-                print(f"Converted delay_range (ps) = {calibration['delay_range']}")
+            if not suppress_output:
+                logger.info(f"Converted delay_range (ps) = {calibration['delay_range']}")
             calibration["creation_date"] = datetime.now().timestamp()
 
         if "delay_range" in calibration.keys():
@@ -190,8 +206,8 @@ class DelayCalibrator:
                 calibration["adc_range"][1] - calibration["adc_range"][0]
             )
             self.calibration = deepcopy(calibration)
-            if verbose:
-                print(
+            if not suppress_output:
+                logger.info(
                     "Append delay axis using delay_range = "
                     f"[{calibration['delay_range'][0]}, {calibration['delay_range'][1]}]"
                     " and adc_range = "
@@ -214,7 +230,7 @@ class DelayCalibrator:
         preserve_mean: bool | Sequence[bool] = False,
         reductions: str | Sequence[str] = None,
         delay_column: str = None,
-        verbose: bool = True,
+        suppress_output: bool = False,
     ) -> tuple[dask.dataframe.DataFrame, dict]:
         """Apply an offset to the delay column based on a constant or other columns.
 
@@ -234,8 +250,7 @@ class DelayCalibrator:
                 If None, the shift is applied per-dataframe-row. Defaults to None. Currently only
                 "mean" is supported.
             delay_column (str, optional): Name of the column containing the delay values.
-            verbose (bool, optional): Option to print out diagnostic information.
-                Defaults to True.
+            suppress_output (bool, optional): Option to suppress log output. Defaults to False.
 
         Returns:
             tuple[dask.dataframe.DataFrame, dict]: Dataframe with the shifted delay axis and
@@ -299,11 +314,11 @@ class DelayCalibrator:
             if flip_delay_axis:
                 offsets["flip_delay_axis"] = flip_delay_axis
 
-        elif "creation_date" in offsets and verbose:
+        elif "creation_date" in offsets and not suppress_output:
             datestring = datetime.fromtimestamp(offsets["creation_date"]).strftime(
                 "%m/%d/%Y, %H:%M:%S",
             )
-            print(f"Using delay offset parameters generated on {datestring}")
+            logger.info(f"Using delay offset parameters generated on {datestring}")
 
         if len(offsets) > 0:
             # unpack dictionary
@@ -311,14 +326,14 @@ class DelayCalibrator:
             weights = []
             preserve_mean = []
             reductions = []
-            if verbose:
-                print("Delay offset parameters:")
+            if not suppress_output:
+                logger.info("Delay offset parameters:")
             for k, v in offsets.items():
                 if k == "creation_date":
                     continue
                 if k == "constant":
                     constant = v
-                    if verbose:
+                    if not suppress_output:
                         print(f"   Constant: {constant} ")
                 elif k == "flip_delay_axis":
                     fda = str(v)
@@ -330,8 +345,8 @@ class DelayCalibrator:
                         raise ValueError(
                             f"Invalid value for flip_delay_axis in config: {flip_delay_axis}.",
                         )
-                    if verbose:
-                        print(f"   Flip delay axis: {flip_delay_axis} ")
+                    if not suppress_output:
+                        logger.info(f"   Flip delay axis: {flip_delay_axis} ")
                 else:
                     columns.append(k)
                     try:
@@ -343,9 +358,9 @@ class DelayCalibrator:
                     preserve_mean.append(pm)
                     red = v.get("reduction", None)
                     reductions.append(red)
-                    if verbose:
-                        print(
-                            f"   Column[{k}]: Weight={weight}, Preserve Mean: {pm}, ",
+                    if not suppress_output:
+                        logger.info(
+                            f"   Column[{k}]: Weight={weight}, Preserve Mean: {pm}, "
                             f"Reductions: {red}.",
                         )
 

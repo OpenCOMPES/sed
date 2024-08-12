@@ -6,6 +6,8 @@ from __future__ import annotations
 import pathlib
 from collections.abc import Sequence
 from datetime import datetime
+from logging import INFO
+from logging import WARNING
 from typing import Any
 from typing import cast
 
@@ -64,7 +66,7 @@ class SedProcessor:
         collect_metadata (bool): Option to collect metadata from files.
             Defaults to False.
         verbose (bool, optional): Option to print out diagnostic information.
-            Defaults to config["core"]["verbose"] or False.
+            Defaults to config["core"]["verbose"] or True.
         **kwds: Keyword arguments passed to the reader.
     """
 
@@ -99,7 +101,7 @@ class SedProcessor:
             collect_metadata (bool, optional): Option to collect metadata from files.
                 Defaults to False.
             verbose (bool, optional): Option to print out diagnostic information.
-                Defaults to config["core"]["verbose"] or False.
+                Defaults to config["core"]["verbose"] or True.
             **kwds: Keyword arguments passed to parse_config and to the reader.
         """
         # split off config keywords
@@ -113,11 +115,16 @@ class SedProcessor:
         if num_cores >= N_CPU:
             num_cores = N_CPU - 1
         self._config["core"]["num_cores"] = num_cores
+        logger.debug(f"Use {num_cores} cores for processing.")
 
         if verbose is None:
-            self.verbose = self._config["core"].get("verbose", False)
+            self.verbose = self._config["core"].get("verbose", True)
         else:
             self.verbose = verbose
+        if self.verbose:
+            logger.handlers[0].setLevel(INFO)
+        else:
+            logger.handlers[0].setLevel(WARNING)
 
         self._dataframe: pd.DataFrame | ddf.DataFrame = None
         self._timed_dataframe: pd.DataFrame | ddf.DataFrame = None
@@ -134,22 +141,28 @@ class SedProcessor:
         self.loader = get_loader(
             loader_name=loader_name,
             config=self._config,
+            verbose=verbose,
         )
+        logger.debug(f"Use loader: {loader_name}")
 
         self.ec = EnergyCalibrator(
             loader=get_loader(
                 loader_name=loader_name,
                 config=self._config,
+                verbose=verbose,
             ),
             config=self._config,
+            verbose=self.verbose,
         )
 
         self.mc = MomentumCorrector(
             config=self._config,
+            verbose=self.verbose,
         )
 
         self.dc = DelayCalibrator(
             config=self._config,
+            verbose=self.verbose,
         )
 
         self.use_copy_tool = self._config.get("core", {}).get(
@@ -163,6 +176,11 @@ class SedProcessor:
                     dest=self._config["core"]["copy_tool_dest"],
                     num_cores=self._config["core"]["num_cores"],
                     **self._config["core"].get("copy_tool_kwds", {}),
+                )
+                logger.debug(
+                    f"Initialized copy tool: Copy file from "
+                    f"'{self._config['core']['copy_tool_source']}' "
+                    f"to '{self._config['core']['copy_tool_dest']}'.",
                 )
             except KeyError:
                 self.use_copy_tool = False
@@ -1737,7 +1755,6 @@ class SedProcessor:
         delay_range: tuple[float, float] = None,
         datafile: str = None,
         preview: bool = False,
-        verbose: bool = None,
         **kwds,
     ):
         """Append delay column to dataframe. Either provide delay ranges, or read
@@ -1750,20 +1767,14 @@ class SedProcessor:
                 Defaults to None.
             preview (bool, optional): Option to preview the first elements of the data frame.
                 Defaults to False.
-            verbose (bool, optional): Option to print out diagnostic information.
-                Defaults to config["core"]["verbose"].
             **kwds: Keyword args passed to ``DelayCalibrator.append_delay_axis``.
         """
-        if verbose is None:
-            verbose = self.verbose
-
         adc_column = self._config["dataframe"]["adc_column"]
         if adc_column not in self._dataframe.columns:
             raise ValueError(f"ADC column {adc_column} not found in dataframe, cannot calibrate!")
 
         if self._dataframe is not None:
-            if verbose:
-                logger.info("Adding delay column to dataframe:")
+            logger.info("Adding delay column to dataframe:")
 
             if delay_range is None and datafile is None:
                 if len(self.dc.calibration) == 0:
@@ -1778,7 +1789,6 @@ class SedProcessor:
                 self._dataframe,
                 delay_range=delay_range,
                 datafile=datafile,
-                verbose=verbose,
                 **kwds,
             )
             if self._timed_dataframe is not None and adc_column in self._timed_dataframe.columns:
@@ -1786,7 +1796,7 @@ class SedProcessor:
                     self._timed_dataframe,
                     delay_range=delay_range,
                     datafile=datafile,
-                    verbose=False,
+                    suppress_output=True,
                     **kwds,
                 )
 
@@ -1804,8 +1814,7 @@ class SedProcessor:
         if preview:
             logger.info(self._dataframe.head(10))
         else:
-            if self.verbose:
-                logger.info(self._dataframe)
+            logger.debug(self._dataframe)
 
     def save_delay_calibration(
         self,
@@ -1898,7 +1907,6 @@ class SedProcessor:
                 weights=weights,
                 reductions=reductions,
                 preserve_mean=preserve_mean,
-                verbose=verbose,
             )
             if self._timed_dataframe is not None and delay_column in self._timed_dataframe.columns:
                 tdf, _ = self.dc.add_offsets(
@@ -1910,7 +1918,7 @@ class SedProcessor:
                     weights=weights,
                     reductions=reductions,
                     preserve_mean=preserve_mean,
-                    verbose=False,
+                    suppress_output=True,
                 )
 
             self._attributes.add(
