@@ -14,6 +14,14 @@
         ],
         "rearrange_files": true
     },
+    "W110": {
+        "url": "https://zenodo.org/records/12609441/files/single_event_data.zip",
+        "subdirs": [
+            "analysis_data",
+            "calibration_data"
+        ],
+        "rearrange_files": true
+    },
     "TaS2": {
         "url": "https://zenodo.org/records/10160182/files/TaS2.zip",
         "subdirs": [

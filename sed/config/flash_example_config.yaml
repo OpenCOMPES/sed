@@ -185,6 +185,9 @@ dataframe:
 # metadata:
 #   scicat_url: <URL>
 #   scicat_token: <TOKEN>
+metadata:
+  scicat_url: "https://scicat-flash-test1.desy.de/api/v3"
+  scicat_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2Mzc0YmYyMmE4NWQ0N2QwMGE5MWRlN2MiLCJ1c2VybmFtZSI6Imt1dG55YWtkIiwiZW1haWwiOiJkbXl0cm8ua3V0bnlha2hvdkBkZXN5LmRlIiwiYXV0aFN0cmF0ZWd5IjoibG9jYWwiLCJpZCI6IjYzNzRiZjIyYTg1ZDQ3ZDAwYTkxZGU3YyIsInVzZXJJZCI6IjYzNzRiZjIyYTg1ZDQ3ZDAwYTkxZGU3YyIsImlhdCI6MTcyMDUxMzEyMCwiZXhwIjoxNzIwNTU2MzIwfQ.UhqLBoKVF-QM9AhXhpIe26bsJu5wD8uRaO9641uAN-I"
 
 # The nexus collection routine shall be finalized soon for both instruments
 # nexus:
