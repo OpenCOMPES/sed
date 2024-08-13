@@ -620,7 +620,6 @@ class SedProcessor:
     def generate_splinewarp(
         self,
         use_center: bool = None,
-        verbose: bool = None,
         **kwds,
     ):
         """3. Step of the distortion correction workflow: Generate the correction
@@ -629,16 +628,12 @@ class SedProcessor:
         Args:
             use_center (bool, optional): Option to use the position of the
                 center point in the correction. Default is read from config, or set to True.
-            verbose (bool, optional): Option to print out diagnostic information.
-                Defaults to config["core"]["verbose"].
             **kwds: Keyword arguments for MomentumCorrector.spline_warp_estimate().
         """
-        if verbose is None:
-            verbose = self.verbose
 
-        self.mc.spline_warp_estimate(use_center=use_center, verbose=verbose, **kwds)
+        self.mc.spline_warp_estimate(use_center=use_center, **kwds)
 
-        if self.mc.slice is not None and verbose:
+        if self.mc.slice is not None and self.verbose:
             print("Original slice with reference features")
             self.mc.view(annotated=True, backend="bokeh", crosshair=True)
 
@@ -712,7 +707,6 @@ class SedProcessor:
         apply: bool = False,
         use_correction: bool = True,
         reset: bool = True,
-        verbose: bool = None,
         **kwds,
     ):
         """3. step of the distortion correction workflow: Generate an interactive panel
@@ -729,8 +723,6 @@ class SedProcessor:
                 or not. Defaults to True.
             reset (bool, optional): Option to reset the correction before transformation.
                 Defaults to True.
-            verbose (bool, optional): Option to print out diagnostic information.
-                Defaults to config["core"]["verbose"].
             **kwds: Keyword parameters defining defaults for the transformations:
 
                 - **scale** (float): Initial value of the scaling slider.
@@ -738,9 +730,6 @@ class SedProcessor:
                 - **ytrans** (float): Initial value of the ytrans slider.
                 - **angle** (float): Initial value of the angle slider.
         """
-        if verbose is None:
-            verbose = self.verbose
-
         # Generate homography as default if no distortion correction has been applied
         if self.mc.slice_corrected is None:
             if self.mc.slice is None:
@@ -752,13 +741,12 @@ class SedProcessor:
 
         if self.mc.cdeform_field is None or self.mc.rdeform_field is None:
             # Generate distortion correction from config values
-            self.mc.spline_warp_estimate(verbose=verbose)
+            self.mc.spline_warp_estimate()
 
         self.mc.pose_adjustment(
             transformations=transformations,
             apply=apply,
             reset=reset,
-            verbose=verbose,
             **kwds,
         )
 
@@ -801,7 +789,6 @@ class SedProcessor:
     def apply_momentum_correction(
         self,
         preview: bool = False,
-        verbose: bool = None,
         **kwds,
     ):
         """Applies the distortion correction and pose adjustment (optional)
@@ -810,8 +797,6 @@ class SedProcessor:
         Args:
             preview (bool, optional): Option to preview the first elements of the data frame.
                 Defaults to False.
-            verbose (bool, optional): Option to print out diagnostic information.
-                Defaults to config["core"]["verbose"].
             **kwds: Keyword parameters for ``MomentumCorrector.apply_correction``:
 
                 - **rdeform_field** (np.ndarray, optional): Row deformation field.
@@ -819,18 +804,13 @@ class SedProcessor:
                 - **inv_dfield** (np.ndarray, optional): Inverse deformation field.
 
         """
-        if verbose is None:
-            verbose = self.verbose
-
         x_column = self._config["dataframe"]["x_column"]
         y_column = self._config["dataframe"]["y_column"]
 
         if self._dataframe is not None:
-            if verbose:
-                logger.info("Adding corrected X/Y columns to dataframe:")
+            logger.info("Adding corrected X/Y columns to dataframe:")
             df, metadata = self.mc.apply_corrections(
                 df=self._dataframe,
-                verbose=verbose,
                 **kwds,
             )
             if (
@@ -840,7 +820,6 @@ class SedProcessor:
             ):
                 tdf, _ = self.mc.apply_corrections(
                     self._timed_dataframe,
-                    verbose=False,
                     **kwds,
                 )
 
@@ -862,8 +841,7 @@ class SedProcessor:
         if preview:
             logger.info(self._dataframe.head(10))
         else:
-            if self.verbose:
-                logger.info(self._dataframe)
+            logger.info(self._dataframe)
 
     # Momentum calibration work flow
     # 1. Calculate momentum calibration
@@ -957,7 +935,6 @@ class SedProcessor:
         self,
         calibration: dict = None,
         preview: bool = False,
-        verbose: bool = None,
         **kwds,
     ):
         """2. step of the momentum calibration work flow: Apply the momentum
@@ -969,13 +946,8 @@ class SedProcessor:
                 use. Defaults to None.
             preview (bool, optional): Option to preview the first elements of the data frame.
                 Defaults to False.
-            verbose (bool, optional): Option to print out diagnostic information.
-                Defaults to config["core"]["verbose"].
             **kwds: Keyword args passed to ``MomentumCalibrator.append_k_axis``.
         """
-        if verbose is None:
-            verbose = self.verbose
-
         x_column = self._config["dataframe"]["x_column"]
         y_column = self._config["dataframe"]["y_column"]
 
@@ -1015,8 +987,7 @@ class SedProcessor:
         if preview:
             logger.info(self._dataframe.head(10))
         else:
-            if self.verbose:
-                logger.info(self._dataframe)
+            logger.info(self._dataframe)
 
     # Energy correction workflow
     # 1. Adjust the energy correction parameters
