@@ -326,15 +326,13 @@ class DelayCalibrator:
             weights = []
             preserve_mean = []
             reductions = []
-            if not suppress_output:
-                logger.info("Delay offset parameters:")
+            log_str = "Delay offset parameters:"
             for k, v in offsets.items():
                 if k == "creation_date":
                     continue
                 if k == "constant":
                     constant = v
-                    if not suppress_output:
-                        print(f"   Constant: {constant} ")
+                    log_str += f"\n   Constant: {constant}"
                 elif k == "flip_delay_axis":
                     fda = str(v)
                     if fda.lower() in ["true", "1"]:
@@ -345,8 +343,7 @@ class DelayCalibrator:
                         raise ValueError(
                             f"Invalid value for flip_delay_axis in config: {flip_delay_axis}.",
                         )
-                    if not suppress_output:
-                        logger.info(f"   Flip delay axis: {flip_delay_axis} ")
+                    log_str += f"\n   Flip delay axis: {flip_delay_axis}"
                 else:
                     columns.append(k)
                     try:
@@ -358,11 +355,13 @@ class DelayCalibrator:
                     preserve_mean.append(pm)
                     red = v.get("reduction", None)
                     reductions.append(red)
-                    if not suppress_output:
-                        logger.info(
-                            f"   Column[{k}]: Weight={weight}, Preserve Mean: {pm}, "
-                            f"Reductions: {red}.",
-                        )
+                    log_str += (
+                        f"\n   Column[{k}]: Weight={weight}, Preserve Mean: {pm}, "
+                        f"Reductions: {red}."
+                    )
+
+            if not suppress_output:
+                logger.info(log_str)
 
             if len(columns) > 0:
                 df = dfops.offset_by_other_columns(

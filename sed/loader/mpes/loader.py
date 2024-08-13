@@ -191,11 +191,6 @@ def hdf5_to_timed_dataframe(
             if channel["dataset_key"] in test_proc:
                 electron_channels.append(channel)
                 column_names.append(name)
-            else:
-                logger.warning(
-                    f"Entry \"{channel['dataset_key']}\" for channel \"{name}\" not found. "
-                    "Skipping the channel.",
-                )
         elif channel["format"] != "per_file":
             error_msg = f"Invalid 'format':{channel['format']} for channel {name}."
             logger.error(error_msg)
@@ -245,12 +240,6 @@ def hdf5_to_timed_dataframe(
                     for partition, value in zip(dataframe.partitions, values)
                 ]
                 dataframe = ddf.from_delayed(delayeds)
-
-            else:
-                logger.warning(
-                    f"Entry \"{channel['dataset_key']}\" for channel \"{name}\" not found. "
-                    "Skipping the channel.",
-                )
 
     return dataframe
 
