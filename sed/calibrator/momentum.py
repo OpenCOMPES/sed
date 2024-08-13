@@ -680,8 +680,9 @@ class MomentumCorrector:
                     if "creation_date" in self.correction:
                         datestring = datetime.fromtimestamp(
                             self.correction["creation_date"],
-                        ).strftime
-                        ("%m/%d/%Y, %H:%M:%S",)
+                        ).strftime(
+                            "%m/%d/%Y, %H:%M:%S",
+                        )
                         logger.info(
                             "No landmarks defined, using momentum correction parameters "
                             f"generated on {datestring}",
@@ -1873,6 +1874,7 @@ class MomentumCorrector:
         new_x_column: str = None,
         new_y_column: str = None,
         calibration: dict = None,
+        suppress_output: bool = False,
         **kwds,
     ) -> tuple[pd.DataFrame | dask.dataframe.DataFrame, dict]:
         """Calculate and append the k axis coordinates (kx, ky) to the events dataframe.
@@ -1892,6 +1894,8 @@ class MomentumCorrector:
                 momentum calibration. Defaults to config["momentum"]["ky_column"].
             calibration (dict, optional): Dictionary containing calibration parameters.
                 Defaults to 'self.calibration' or config["momentum"]["calibration"].
+            suppress_output (bool, optional): Option to suppress output of diagnostic information.
+                Defaults to False.
             **kwds: Keyword parameters for momentum calibration. Parameters are added
                 to the calibration dictionary.
 
@@ -1937,6 +1941,12 @@ class MomentumCorrector:
 
             if len(kwds) > 0:
                 raise TypeError(f"append_k_axis() got unexpected keyword arguments {kwds.keys()}.")
+
+        if "creation_date" in calibration and not suppress_output:
+            datestring = datetime.fromtimestamp(calibration["creation_date"]).strftime(
+                "%m/%d/%Y, %H:%M:%S",
+            )
+            logger.info(f"Using momentum calibration parameters generated on {datestring}")
 
         try:
             (df[new_x_column], df[new_y_column]) = detector_coordinates_2_k_coordinates(

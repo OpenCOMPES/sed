@@ -966,6 +966,7 @@ class SedProcessor:
                 tdf, _ = self.mc.append_k_axis(
                     df=self._timed_dataframe,
                     calibration=calibration,
+                    suppress_output=True,
                     **kwds,
                 )
 
