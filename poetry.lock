@@ -3480,13 +3480,13 @@ windows-terminal = ["colorama (>=0.4.6)"]
 
 [[package]]
 name = "pynxtools"
-version = "0.6.0"
+version = "0.5.2"
 description = "Extend NeXus for experiments and characterization in Materials Science and Materials Engineering and serve as a NOMAD parser implementation for NeXus."
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "pynxtools-0.6.0-py3-none-any.whl", hash = "sha256:75ee95196244ae3234480a16d7e9248049b23548ade69a6658d7fbb128529e6f"},
-    {file = "pynxtools-0.6.0.tar.gz", hash = "sha256:ebb394507d0580aeb447767f295027921a4336476cce359a5afa5a604a3d91c2"},
+    {file = "pynxtools-0.5.2-py3-none-any.whl", hash = "sha256:4d9abb366cf05a7fc85e1789de523b4836dac1c02031e94ac6de82d64c7d72f3"},
+    {file = "pynxtools-0.5.2.tar.gz", hash = "sha256:717d11d0ff0e3ad07bce26fe4d2014fe48725fee3b0f77cf98ebc5e83acbfbb7"},
 ]
 
 [package.dependencies]
@@ -5060,4 +5060,4 @@ notebook = ["ipykernel", "jupyter", "jupyterlab", "jupyterlab-h5web"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9, <3.12.3, !=3.11.9"
-content-hash = "d9910f0862cce403f33ec38bc2a930e2d31e682882c9c4cbcfe933f1ea0b16ee"
+content-hash = "265a1dbea287706d3c38523717243712ed11ab3d8ffa0d8ac55cf3fa29e7a635"
