@@ -1106,13 +1106,13 @@ def test_save(caplog) -> None:
         )
         assert (
             caplog.messages[0]
-            == "The data entry corresponding to /ENTRY[entry]/SAMPLE[sample]/name is required and "
-            "hasn't been supplied by the reader."
+            == "WARNING: The data entry corresponding to /ENTRY[entry]/SAMPLE[sample]/name is "
+            "required and hasn't been supplied by the reader."
         )
         assert (
             caplog.messages[1]
-            == "Field /ENTRY[entry]/INSTRUMENT[instrument]/undocumented_field written without "
-            "documentation."
+            == "WARNING: Field /ENTRY[entry]/INSTRUMENT[instrument]/undocumented_field written "
+            "without documentation."
         )
     os.remove("output.nxs")
     os.remove("temp_eln.yaml")
