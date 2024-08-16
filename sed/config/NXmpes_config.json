@@ -267,13 +267,13 @@
     "name": "@attrs:metadata/sample/name",
     "situation": "vacuum",
     "SUBSTANCE[substance]/molecular_formula_hill": "@attrs:metadata/sample/chemical_formula",
-    "temperature": {
+    "temperature_env": {
       "temperature_sensor": "@link:/entry/instrument/manipulator/temperature_sensor"
     },
-    "gas_pressure": {
+    "gas_pressure_env": {
       "pressure_gauge": "@link:/entry/instrument/pressure_gauge"
     },
-    "bias": {
+    "bias_env": {
       "voltmeter": "@link:/entry/instrument/manipulator/sample_bias_voltmeter"
     },
     "depends_on": "/entry/sample/transformations/corrected_phi",
