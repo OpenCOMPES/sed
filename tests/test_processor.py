@@ -3,6 +3,7 @@
 import csv
 import glob
 import itertools
+import json
 import logging
 import os
 import tempfile
@@ -1011,6 +1012,7 @@ metadata["user0"]["email"] = "email"
 metadata["user0"]["affiliation"] = "affiliation"
 # instrument
 metadata["instrument"] = {}
+metadata["instrument"]["energy_resolution"] = 150.0
 # analyzer
 metadata["instrument"]["analyzer"] = {}
 metadata["instrument"]["analyzer"]["energy_resolution"] = 110.0
@@ -1085,21 +1087,33 @@ def test_save(caplog) -> None:
     caplog.clear()
     with open("temp_eln.yaml", "w") as f:
         yaml.dump({"Instrument": {"undocumented_field": "undocumented entry"}}, f)
+    with open("temp_config.json", "w") as f:
+        with open(
+            df_folder + "../../../../sed/config/NXmpes_config.json",
+            encoding="utf-8",
+        ) as stream:
+            config_dict = json.load(stream)
+        config_dict[
+            "/ENTRY[entry]/INSTRUMENT[instrument]/undocumented_field"
+        ] = "@eln:/ENTRY/Instrument/undocumented_field"
+        json.dump(config_dict, f, indent=2)
     with caplog.at_level(logging.WARNING):
         processor.save(
             "result.nxs",
-            input_files=[df_folder + "../../../../sed/config/NXmpes_config.json"],
+            input_files=["temp_config.json"],
             eln_data="temp_eln.yaml",
+            suppress_warning=True,
         )
         assert (
             caplog.messages[0]
-            == "The data entry corresponding to /ENTRY[entry]/SAMPLE[sample]/name is required and "
-            "hasn't been supplied by the reader."
+            == "WARNING: The data entry corresponding to /ENTRY[entry]/SAMPLE[sample]/name is "
+            "required and hasn't been supplied by the reader."
         )
         assert (
             caplog.messages[1]
-            == "Field /ENTRY[entry]/INSTRUMENT[instrument]/undocumented_field written without "
-            "documentation."
+            == "WARNING: Field /ENTRY[entry]/INSTRUMENT[instrument]/undocumented_field written "
+            "without documentation."
         )
     os.remove("output.nxs")
     os.remove("temp_eln.yaml")
+    os.remove("temp_config.json")
