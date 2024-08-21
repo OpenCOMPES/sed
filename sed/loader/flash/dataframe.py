@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 
 from sed.loader.flash.utils import get_channels
+from sed.loader.flash.utils import InvalidFileError
 
 
 class DataFrameCreator:
@@ -148,15 +149,15 @@ class DataFrameCreator:
         Returns:
             pd.DataFrame: The pandas DataFrame for the 'per_electron' channel's data.
         """
-        offset = self._config.get("ubid_offset", 5)  # 5 is the default value
-        # Here we get the multi-index and the indexer to sort the data
-        index, indexer = self.pulse_index(offset)
-
         # Get the relevant channels and their slice index
         channels = get_channels(self._config, "per_electron")
         if channels == []:
             return pd.DataFrame()
         slice_index = [self._config["channels"][channel].get("slice", None) for channel in channels]
+
+        offset = self._config.get("ubid_offset", 5)  # 5 is the default value
+        # Here we get the multi-index and the indexer to sort the data
+        index, indexer = self.pulse_index(offset)
 
         # First checking if dataset keys are the same for all channels
         # because DLD at FLASH stores all channels in the same h5 dataset
@@ -180,20 +181,8 @@ class DataFrameCreator:
             }
             dataframe = pd.concat(series, axis=1)
 
-        # after offset, the negative pulse values are dropped as they are not valid
-        drop_vals = np.arange(-offset, 0)
-
-        # Few things happen here:
-        # Drop all NaN values like while creating the multiindex
-        # if necessary, the data is sorted with [indexer]
-        # pd.MultiIndex is set
-        # Finally, the offset values are dropped
-        return (
-            dataframe.dropna()
-            .iloc[indexer]
-            .set_index(index)
-            .drop(index=drop_vals, level="pulseId", errors="ignore")
-        )
+        # NaN values dropped, data sorted with [indexer] if necessary, and the MultiIndex is set
+        return dataframe.dropna().iloc[indexer].set_index(index)
 
     @property
     def df_pulse(self) -> pd.DataFrame:
@@ -279,17 +268,19 @@ class DataFrameCreator:
 
     def validate_channel_keys(self) -> None:
         """
-        Validates if the index and dataset keys for all channels in config exist in the h5 file.
+        Validates if the index and dataset keys for all channels in the config exist in the h5 file.
 
         Raises:
-            KeyError: If the index or dataset keys do not exist in the file.
+            InvalidFileError: If the index or dataset keys are missing in the h5 file.
         """
+        invalid_channels = []
         for channel in self._config["channels"]:
             index_key, dataset_key = self.get_index_dataset_key(channel)
-            if index_key not in self.h5_file:
-                raise KeyError(f"pd.Index key '{index_key}' doesn't exist in the file.")
-            if dataset_key not in self.h5_file:
-                raise KeyError(f"Dataset key '{dataset_key}' doesn't exist in the file.")
+            if index_key not in self.h5_file or dataset_key not in self.h5_file:
+                invalid_channels.append(channel)
+
+        if invalid_channels:
+            raise InvalidFileError(invalid_channels)
 
     @property
     def df(self) -> pd.DataFrame:
@@ -304,4 +295,6 @@ class DataFrameCreator:
         self.validate_channel_keys()
         # been tested with merge, join and concat
         # concat offers best performance, almost 3 times faster
-        return pd.concat((self.df_electron, self.df_pulse, self.df_train), axis=1).sort_index()
+        df = pd.concat((self.df_electron, self.df_pulse, self.df_train), axis=1).sort_index()
+        # all the negative pulse values are dropped as they are invalid
+        return df[df.index.get_level_values("pulseId") >= 0]

@@ -64,6 +64,22 @@ def fixture_h5_file_copy(tmp_path: Path) -> h5py.File:
     return h5py.File(copy_file_path, "r+")
 
 
+@pytest.fixture(name="h5_file2_copy")
+def fixture_h5_file2_copy(tmp_path: Path) -> h5py.File:
+    """Fixture providing a copy of an open h5 file.
+
+    Returns:
+        h5py.File: The open h5 file copy.
+    """
+    # Create a copy of the h5 file in a temporary directory
+    original_file_path = os.path.join(package_dir, f"../tests/data/loader/flash/{H5_PATHS[1]}")
+    copy_file_path = tmp_path / "copy2.h5"
+    shutil.copyfile(original_file_path, copy_file_path)
+
+    # Open the copy in 'read-write' mode and return it
+    return h5py.File(copy_file_path, "r+")
+
+
 @pytest.fixture(name="h5_paths")
 def fixture_h5_paths() -> list[Path]:
     """Fixture providing a list of h5 file paths.
