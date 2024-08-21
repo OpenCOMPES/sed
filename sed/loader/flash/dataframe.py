@@ -181,20 +181,10 @@ class DataFrameCreator:
             }
             dataframe = pd.concat(series, axis=1)
 
-        # after offset, the negative pulse values are dropped as they are not valid
-        drop_vals = np.arange(-offset, 0)
-
-        # Few things happen here:
-        # Drop all NaN values like while creating the multiindex
-        # if necessary, the data is sorted with [indexer]
-        # pd.MultiIndex is set
-        # Finally, the offset values are dropped
-        return (
-            dataframe.dropna()
-            .iloc[indexer]
-            .set_index(index)
-            .drop(index=drop_vals, level="pulseId", errors="ignore")
-        )
+        # NaN values dropped, data sorted with [indexer] if necessary, and the MultiIndex is set
+        dataframe = dataframe.dropna().iloc[indexer].set_index(index)
+        # after offset, all the negative pulse values are dropped as they are not valid
+        return dataframe[dataframe.index.get_level_values("pulseId") >= 0]
 
     @property
     def df_pulse(self) -> pd.DataFrame:
@@ -243,8 +233,6 @@ class DataFrameCreator:
         series = []
         # Get the relevant channel names
         channels = get_channels(self._config, "per_train")
-        if channels == []:
-            return pd.DataFrame()
         # For each channel, a pd.Series is created and appended to the list
         for channel in channels:
             # train_index and (sliced) data is returned
