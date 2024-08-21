@@ -182,9 +182,7 @@ class DataFrameCreator:
             dataframe = pd.concat(series, axis=1)
 
         # NaN values dropped, data sorted with [indexer] if necessary, and the MultiIndex is set
-        dataframe = dataframe.dropna().iloc[indexer].set_index(index)
-        # after offset, all the negative pulse values are dropped as they are not valid
-        return dataframe[dataframe.index.get_level_values("pulseId") >= 0]
+        return dataframe.dropna().iloc[indexer].set_index(index)
 
     @property
     def df_pulse(self) -> pd.DataFrame:
@@ -297,4 +295,6 @@ class DataFrameCreator:
         self.validate_channel_keys()
         # been tested with merge, join and concat
         # concat offers best performance, almost 3 times faster
-        return pd.concat((self.df_electron, self.df_pulse, self.df_train), axis=1).sort_index()
+        df = pd.concat((self.df_electron, self.df_pulse, self.df_train), axis=1).sort_index()
+        # all the negative pulse values are dropped as they are invalid
+        return df[df.index.get_level_values("pulseId") >= 0]
