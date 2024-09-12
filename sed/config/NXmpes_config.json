@@ -6,7 +6,9 @@
   "/ENTRY/experiment_institution": "Fritz Haber Institute - Max Planck Society",
   "/ENTRY/experiment_facility": "Time Resolved ARPES",
   "/ENTRY/experiment_laboratory": "Clean Room 4",
-  "/ENTRY/entry_identifier": "@attrs:metadata/entry_identifier",
+  "/ENTRY/entry_identifier": {
+    "identifier":"@attrs:metadata/entry_identifier"
+  },
   "/ENTRY/end_time": "@attrs:metadata/timing/acquisition_stop",
   "/ENTRY/duration": "@attrs:metadata/timing/acquisition_duration",
   "/ENTRY/duration/@units": "s",
