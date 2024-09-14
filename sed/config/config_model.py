@@ -1,3 +1,4 @@
+"""Pydantic model to validate the config for SED package."""
 from collections.abc import Sequence
 from typing import Literal
 from typing import Optional
@@ -42,20 +43,20 @@ class CoreModel(BaseModel):
 
 
 class ColumnsModel(BaseModel):
-    x: str = "X"
-    y: str = "Y"
-    tof: str = "t"
-    tof_ns: str = "t_ns"
-    corrected_x: str = "Xm"
-    corrected_y: str = "Ym"
-    corrected_tof: str = "tm"
-    kx: str = "kx"
-    ky: str = "ky"
-    energy: str = "energy"
-    delay: str = "delay"
-    adc: str = "ADC"
-    bias: str = "sampleBias"
-    timestamp: str = "timeStamp"
+    x: str
+    y: str
+    tof: str
+    tof_ns: str
+    corrected_x: str
+    corrected_y: str
+    corrected_tof: str
+    kx: str
+    ky: str
+    energy: str
+    delay: str
+    adc: str
+    bias: str
+    timestamp: str
 
 
 class ChannelModel(BaseModel):
@@ -75,15 +76,14 @@ class ChannelModel(BaseModel):
 class Dataframe(BaseModel):
     columns: ColumnsModel = ColumnsModel()
     units: Optional[dict[str, str]] = None
-    # Since channels are not fixed, we use a TypedDict to represent them.
     channels: dict[str, ChannelModel] = Field(default_factory=dict)
-
-    tof_binwidth: float = 4.125e-12
-    tof_binning: int = 1
-    adc_binning: int = 1
-    jitter_cols: Sequence[str] = ["@x", "@y", "@tof"]
-    jitter_amps: Union[float, Sequence[float]] = 0.5
-    timed_dataframe_unit_time: float = 0.001
+    # other settings
+    tof_binwidth: float
+    tof_binning: int
+    adc_binning: int
+    jitter_cols: Sequence[str]
+    jitter_amps: Union[float, Sequence[float]]
+    timed_dataframe_unit_time: float
     # flash specific settings
     forward_fill_iterations: Optional[int] = None
     ubid_offset: Optional[int] = None
@@ -93,17 +93,17 @@ class Dataframe(BaseModel):
 
 
 class BinningModel(BaseModel):
-    hist_mode: str = "numba"
-    mode: str = "fast"
-    pbar: bool = True
-    threads_per_worker: int = 4
-    threadpool_API: str = "blas"
+    hist_mode: str
+    mode: str
+    pbar: bool
+    threads_per_worker: int
+    threadpool_API: str
 
 
 class HistogramModel(BaseModel):
-    bins: Sequence[int] = [80, 80, 80]
-    axes: Sequence[str] = ["@x", "@y", "@tof"]
-    ranges: Sequence[Sequence[int]] = [[0, 1800], [0, 1800], [0, 150000]]
+    bins: Sequence[int]
+    axes: Sequence[str]
+    ranges: Sequence[Sequence[int]]
 
 
 class StaticModel(BaseModel):
@@ -123,7 +123,7 @@ class EnergyCalibrationModel(BaseModel):
 
 
 class EnergyCorrectionModel(BaseModel):
-    correction_type: str = "Lorentzian"
+    correction_type: str
     amplitude: float
     center: Sequence[float]
     gamma: float
@@ -132,20 +132,20 @@ class EnergyCorrectionModel(BaseModel):
 
 
 class EnergyModel(BaseModel):
-    bins: int = 1000
-    ranges: Sequence[int] = [100000, 150000]
-    normalize: bool = True
-    normalize_span: int = 7
-    normalize_order: int = 1
-    fastdtw_radius: int = 2
-    peak_window: int = 7
-    calibration_method: str = "lmfit"
-    energy_scale: str = "kinetic"
-    tof_fermi: int = 132250
-    tof_width: Sequence[int] = [-600, 1000]
-    x_width: Sequence[int] = [-20, 20]
-    y_width: Sequence[int] = [-20, 20]
-    color_clip: int = 300
+    bins: int
+    ranges: Sequence[int]
+    normalize: bool
+    normalize_span: int
+    normalize_order: int
+    fastdtw_radius: int
+    peak_window: int
+    calibration_method: str
+    energy_scale: str
+    tof_fermi: int
+    tof_width: Sequence[int]
+    x_width: Sequence[int]
+    y_width: Sequence[int]
+    color_clip: int
     calibration: Optional[EnergyCalibrationModel] = None
     correction: Optional[EnergyCorrectionModel] = None
 
@@ -169,21 +169,21 @@ class MomentumCorrectionModel(BaseModel):
 
 
 class MomentumModel(BaseModel):
-    axes: Sequence[str] = ["@x", "@y", "@tof"]
-    bins: Sequence[int] = [512, 512, 300]
-    ranges: Sequence[Sequence[int]] = [[-256, 1792], [-256, 1792], [132000, 138000]]
-    detector_ranges: Sequence[Sequence[int]] = [[0, 2048], [0, 2048]]
-    center_pixel: Sequence[int] = [256, 256]
-    sigma: int = 5
-    fwhm: int = 8
-    sigma_radius: int = 1
+    axes: Sequence[str]
+    bins: Sequence[int]
+    ranges: Sequence[Sequence[int]]
+    detector_ranges: Sequence[Sequence[int]]
+    center_pixel: Sequence[int]
+    sigma: int
+    fwhm: int
+    sigma_radius: int
     calibration: Optional[MomentumCalibrationModel] = None
     correction: Optional[MomentumCorrectionModel] = None
 
 
 class DelayModel(BaseModel):
-    adc_range: Sequence[int] = [1900, 25600]
-    time0: int = 0
+    adc_range: Sequence[int]
+    time0: int
     flip_time_axis: bool = False
     p1_key: Optional[str] = None
     p2_key: Optional[str] = None
