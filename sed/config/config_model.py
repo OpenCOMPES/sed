@@ -5,13 +5,12 @@ from typing import Union
 
 from pydantic import BaseModel
 from pydantic import DirectoryPath
+from pydantic import Field
 from pydantic import field_validator
 from pydantic import FilePath
 from pydantic import HttpUrl
 from pydantic import NewPath
 from pydantic import SecretStr
-from typing_extensions import NotRequired
-from typing_extensions import TypedDict
 
 from sed.loader.loader_interface import get_names_of_all_loaders
 
@@ -59,27 +58,25 @@ class ColumnsModel(BaseModel):
     timestamp: str = "timeStamp"
 
 
-class subChannelModel(TypedDict):
-    slice: int
-    dtype: NotRequired[str]
-
-
-# Either channels is changed to not be dict or we use TypedDict
-# However TypedDict can't accept default values
-class ChannelModel(TypedDict):
+class ChannelModel(BaseModel):
     format: Literal["per_train", "per_electron", "per_pulse", "per_file"]
     dataset_key: str
-    index_key: NotRequired[str]
-    slice: NotRequired[int]
-    dtype: NotRequired[str]
-    sub_channels: NotRequired[dict[str, subChannelModel]]
+    index_key: Optional[str] = None
+    slice: Optional[int] = None
+    dtype: Optional[str] = None
+
+    class subChannelModel(BaseModel):
+        slice: int
+        dtype: Optional[str] = None
+
+    sub_channels: Optional[dict[str, subChannelModel]] = None
 
 
 class Dataframe(BaseModel):
     columns: ColumnsModel = ColumnsModel()
     units: Optional[dict[str, str]] = None
     # Since channels are not fixed, we use a TypedDict to represent them.
-    channels: Optional[dict[str, ChannelModel]] = None
+    channels: dict[str, ChannelModel] = Field(default_factory=dict)
 
     tof_binwidth: float = 4.125e-12
     tof_binning: int = 1
