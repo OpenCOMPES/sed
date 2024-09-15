@@ -1,5 +1,6 @@
 """Pydantic model to validate the config for SED package."""
 from collections.abc import Sequence
+from datetime import datetime
 from typing import Literal
 from typing import Optional
 from typing import Union
@@ -50,6 +51,7 @@ class ColumnsModel(BaseModel):
     corrected_x: str
     corrected_y: str
     corrected_tof: str
+    corrected_delay: str
     kx: str
     ky: str
     energy: str
@@ -66,15 +68,15 @@ class ChannelModel(BaseModel):
     slice: Optional[int] = None
     dtype: Optional[str] = None
 
-    class subChannelModel(BaseModel):
+    class subChannel(BaseModel):
         slice: int
         dtype: Optional[str] = None
 
-    sub_channels: Optional[dict[str, subChannelModel]] = None
+    sub_channels: Optional[dict[str, subChannel]] = None
 
 
-class Dataframe(BaseModel):
-    columns: ColumnsModel = ColumnsModel()
+class DataframeModel(BaseModel):
+    columns: ColumnsModel
     units: Optional[dict[str, str]] = None
     channels: dict[str, ChannelModel] = Field(default_factory=dict)
     # other settings
@@ -115,22 +117,6 @@ class StaticModel(BaseModel):
     beamtime_dir: Optional[dict] = None
 
 
-class EnergyCalibrationModel(BaseModel):
-    d: float
-    t0: float
-    E0: float
-    energy_scale: str
-
-
-class EnergyCorrectionModel(BaseModel):
-    correction_type: str
-    amplitude: float
-    center: Sequence[float]
-    gamma: float
-    sigma: float
-    diameter: float
-
-
 class EnergyModel(BaseModel):
     bins: int
     ranges: Sequence[int]
@@ -146,26 +132,24 @@ class EnergyModel(BaseModel):
     x_width: Sequence[int]
     y_width: Sequence[int]
     color_clip: int
+
+    class EnergyCalibrationModel(BaseModel):
+        d: float
+        t0: float
+        E0: float
+        energy_scale: str
+
     calibration: Optional[EnergyCalibrationModel] = None
+
+    class EnergyCorrectionModel(BaseModel):
+        correction_type: str
+        amplitude: float
+        center: Sequence[float]
+        gamma: float
+        sigma: float
+        diameter: float
+
     correction: Optional[EnergyCorrectionModel] = None
-
-
-class MomentumCalibrationModel(BaseModel):
-    kx_scale: float
-    ky_scale: float
-    x_center: float
-    y_center: float
-    rstart: float
-    cstart: float
-    rstep: float
-    cstep: float
-
-
-class MomentumCorrectionModel(BaseModel):
-    feature_points: Sequence[Sequence[float]]
-    rotation_symmetry: int
-    include_center: bool
-    use_center: bool
 
 
 class MomentumModel(BaseModel):
@@ -177,17 +161,56 @@ class MomentumModel(BaseModel):
     sigma: int
     fwhm: int
     sigma_radius: int
+
+    class MomentumCalibrationModel(BaseModel):
+        kx_scale: float
+        ky_scale: float
+        x_center: float
+        y_center: float
+        rstart: float
+        cstart: float
+        rstep: float
+        cstep: float
+
     calibration: Optional[MomentumCalibrationModel] = None
+
+    class MomentumCorrectionModel(BaseModel):
+        feature_points: Sequence[Sequence[float]]
+        rotation_symmetry: int
+        include_center: bool
+        use_center: bool
+
     correction: Optional[MomentumCorrectionModel] = None
 
 
 class DelayModel(BaseModel):
     adc_range: Sequence[int]
-    time0: int
-    flip_time_axis: bool = False
+    flip_time_axis: bool
+    # Group keys in the datafile
     p1_key: Optional[str] = None
     p2_key: Optional[str] = None
     p3_key: Optional[str] = None
+    t0_key: Optional[str] = None
+
+    class Calibration(BaseModel):
+        creation_date: datetime
+        adc_range: Sequence[int]
+        delay_range: Sequence[float]
+        time0: float
+        delay_range_mm: Sequence[float]
+        datafile: FilePath  # .h5 extension in filepath
+
+    calibration: Optional[Calibration] = None
+
+    class Offsets(BaseModel):
+        creation_date: datetime
+        constant: float
+        flip_delay_axis: bool
+        weight: float
+        preserve_mean: bool
+        reduction: str
+
+    offsets: Optional[Offsets] = None
 
 
 class MetadataModel(BaseModel):
@@ -210,7 +233,7 @@ class NexusModel(BaseModel):
 
 class ConfigModel(BaseModel):
     core: CoreModel
-    dataframe: Dataframe
+    dataframe: DataframeModel
     energy: EnergyModel
     momentum: MomentumModel
     delay: DelayModel

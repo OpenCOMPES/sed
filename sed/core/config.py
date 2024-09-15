@@ -12,8 +12,8 @@ from pathlib import Path
 import yaml
 from platformdirs import user_config_path
 
-from sed.core.logging import setup_logging
 from sed.config.config_model import ConfigModel
+from sed.core.logging import setup_logging
 
 package_dir = os.path.dirname(find_spec("sed").origin)
 
@@ -31,7 +31,7 @@ def parse_config(
     default_config: (dict | str) = f"{package_dir}/config/default.yaml",
     verbose: bool = True,
     model: bool = False,
-) -> dict:
+) -> dict | ConfigModel:
     """Load the config dictionary from a file, or pass the provided config dictionary.
     The content of the loaded config dictionary is then completed from a set of pre-configured
     config files in hierarchical order, by adding missing items. These additional config files
