@@ -27,7 +27,7 @@ dataframe:
   # binning factor used for the adc coordinate
   adc_binning: 1
   # list of columns to apply jitter to.
-  jitter_cols: ["@x_column", "@y_column", "@tof_column"]
+  jitter_cols: ["@x", "@y", "@tof"]
   # Jitter amplitude or list of jitter amplitudes. Should equal half the digital step size of each jitter_column
   jitter_amps: 0.5
   # Time stepping in seconds of the successive events in the timed dataframe
@@ -68,7 +68,7 @@ energy:
 momentum:
   # binning axes to use for momentum correction/calibration.
   # Axes names starting with "@" refer to keys in the "dataframe" section
-  axes: ["@x_column", "@y_column", "@tof_column"]
+  axes: ["@x", "@y", "@tof"]
   # Bin numbers used for the respective axes
   bins: [512, 512, 300]
   # bin ranges to use (in unbinned detector coordinates)
@@ -110,6 +110,6 @@ histogram:
   bins: [80, 80, 80]
   # default axes to use for histogram visualization.
   # Axes names starting with "@" refer to keys in the "dataframe" section
-  axes: ["@x_column", "@y_column", "@tof_column"]
+  axes: ["@x", "@y", "@tof"]
   # default ranges to use for histogram visualization (in unbinned detector coordinates)
   ranges: [[0, 1800], [0, 1800], [0, 150000]]
