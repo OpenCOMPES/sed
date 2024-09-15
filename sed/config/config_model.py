@@ -26,12 +26,18 @@ class Paths(BaseModel):
 
 
 class CoreModel(BaseModel):
-    loader: str = "generic"
+    loader: str
+    verbose: Optional[bool] = None
     paths: Optional[Paths] = None
-    num_cores: int = 4
+    num_cores: Optional[int] = None
     year: Optional[int] = None
     beamtime_id: Optional[int] = None
     instrument: Optional[str] = None
+    # TODO: move copy tool to a separate model
+    use_copy_tool: Optional[bool] = None
+    copy_tool_source: Optional[DirectoryPath] = None
+    copy_tool_dest: Optional[DirectoryPath] = None
+    copy_tool_kwds: Optional[dict] = None
 
     @field_validator("loader")
     @classmethod
@@ -48,10 +54,6 @@ class ColumnsModel(BaseModel):
     y: str
     tof: str
     tof_ns: str
-    corrected_x: str
-    corrected_y: str
-    corrected_tof: str
-    corrected_delay: str
     kx: str
     ky: str
     energy: str
@@ -59,6 +61,12 @@ class ColumnsModel(BaseModel):
     adc: str
     bias: str
     timestamp: str
+    corrected_x: str
+    corrected_y: str
+    corrected_tof: str
+    corrected_delay: Optional[str] = None
+    sector_id: Optional[str] = None
+    auxiliary: Optional[str] = None
 
 
 class ChannelModel(BaseModel):
