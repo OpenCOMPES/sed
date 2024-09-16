@@ -8,7 +8,6 @@ from typing import Union
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import DirectoryPath
-from pydantic import Field
 from pydantic import field_validator
 from pydantic import FilePath
 from pydantic import HttpUrl
@@ -87,7 +86,7 @@ class ChannelModel(BaseModel):
 class DataframeModel(BaseModel):
     columns: ColumnsModel
     units: Optional[dict[str, str]] = None
-    channels: dict[str, ChannelModel] = Field(default_factory=dict)
+    channels: Optional[dict[str, ChannelModel]] = None
     # other settings
     tof_binwidth: float
     tof_binning: int
@@ -214,12 +213,18 @@ class DelayModel(BaseModel):
     calibration: Optional[Calibration] = None
 
     class Offsets(BaseModel):
-        creation_date: datetime
-        constant: float
-        flip_delay_axis: bool
-        weight: float
-        preserve_mean: bool
-        reduction: str
+        creation_date: Optional[datetime] = None
+        constant: Optional[float] = None
+        flip_delay_axis: Optional[bool] = False
+
+        ## This seems rather complicated way to define offsets,
+        # inconsistent in how args vs config are for add_offsets
+        class OffsetColumn(BaseModel):
+            weight: float
+            preserve_mean: bool
+            reduction: Optional[str] = None
+
+        columns: Optional[dict[str, OffsetColumn]] = None
 
     offsets: Optional[Offsets] = None
 

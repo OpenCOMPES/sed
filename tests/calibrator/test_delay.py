@@ -136,9 +136,8 @@ cfg = {
         "offsets": {
             "constant": 1,
             "flip_delay_axis": True,
-            "bam": {
-                "weight": 0.001,
-                "preserve_mean": False,
+            "columns": {
+                "bam": {"weight": 0.001, "preserve_mean": False},
             },
         },
     },
@@ -201,7 +200,7 @@ def test_add_offset_from_dict(df=test_dataframe) -> None:
     """test that the timing offset is corrected for correctly from config"""
     cfg_ = cfg.copy()
     offsets = cfg["delay"]["offsets"]  # type:ignore
-    offsets["bam"].pop("weight")
+    offsets["columns"]["bam"].pop("weight")
     offsets["flip_delay_axis"] = False
     cfg_.pop("delay")
     config = parse_config(
