@@ -30,8 +30,8 @@ def parse_config(
     system_config: dict | str = None,
     default_config: (dict | str) = f"{package_dir}/config/default.yaml",
     verbose: bool = True,
-    model: bool = False,
-) -> dict | ConfigModel:
+    verify_config: bool = True,
+) -> dict:
     """Load the config dictionary from a file, or pass the provided config dictionary.
     The content of the loaded config dictionary is then completed from a set of pre-configured
     config files in hierarchical order, by adding missing items. These additional config files
@@ -57,13 +57,13 @@ def parse_config(
             or file path. The loaded dictionary is completed with the default values.
             Defaults to *package_dir*/config/default.yaml".
         verbose (bool, optional): Option to report loaded config files. Defaults to True.
-        model (bool, optional): Option to return the config model instead of the dictionary.
+        verify_config (bool, optional): Option to verify config file. Defaults to True.
     Raises:
         TypeError: Raised if the provided file is neither *json* nor *yaml*.
         FileNotFoundError: Raised if the provided file is not found.
 
     Returns:
-        dict: Loaded and possibly completed config dictionary.
+        ConfigModel: Loaded and possibly completed pydantic config model.
     """
     if config is None:
         config = {}
@@ -144,10 +144,10 @@ def parse_config(
         base_dictionary=default_dict,
     )
 
+    if not verify_config:
+        return config_dict
     # Run the config through the ConfigModel to ensure it is valid
     config_model = ConfigModel(**config_dict)
-    if model:
-        return config_model
     return config_model.model_dump()
 
 

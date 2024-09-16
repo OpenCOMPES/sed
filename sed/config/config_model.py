@@ -6,6 +6,7 @@ from typing import Optional
 from typing import Union
 
 from pydantic import BaseModel
+from pydantic import ConfigDict
 from pydantic import DirectoryPath
 from pydantic import Field
 from pydantic import field_validator
@@ -101,6 +102,8 @@ class DataframeModel(BaseModel):
     sector_id_reserved_bits: Optional[int] = None
     sector_delays: Optional[Sequence[int]] = None
 
+    # write validator for model so that x_column gets converted to columns: x
+
 
 class BinningModel(BaseModel):
     hist_mode: str
@@ -113,7 +116,7 @@ class BinningModel(BaseModel):
 class HistogramModel(BaseModel):
     bins: Sequence[int]
     axes: Sequence[str]
-    ranges: Sequence[Sequence[int]]
+    ranges: Sequence[tuple[float, float]]
 
 
 class StaticModel(BaseModel):
@@ -250,3 +253,5 @@ class ConfigModel(BaseModel):
     metadata: Optional[MetadataModel] = None
     nexus: Optional[NexusModel] = None
     static: Optional[StaticModel] = None
+
+    model_config = ConfigDict(extra="forbid")

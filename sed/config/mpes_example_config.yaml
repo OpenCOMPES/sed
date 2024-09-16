@@ -6,9 +6,9 @@ core:
   # Option to use the copy tool to mirror data to a local storage location before processing.
   use_copy_tool: False
   # path to the root of the source data directory
-  copy_tool_source: "/path/to/data/"
+  copy_tool_source: null # "/path/to/data/"
   # path to the root or the local data storage
-  copy_tool_dest: "/path/to/localDataStore/"
+  copy_tool_dest: null # "/path/to/localDataStore/"
   # optional keywords for the copy tool:
   copy_tool_kwds:
     # group id to set for copied files and folders

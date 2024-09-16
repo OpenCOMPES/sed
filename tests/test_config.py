@@ -36,7 +36,7 @@ default_histogram_keys = [
 
 def test_default_config() -> None:
     """Test the config loader for the default config."""
-    config = parse_config()
+    config = parse_config(verify_config=False)
     assert isinstance(config, dict)
     for key in default_config_keys:
         assert key in config.keys()
@@ -49,7 +49,7 @@ def test_default_config() -> None:
 def test_load_dict() -> None:
     """Test the config loader for a dict."""
     config_dict = {"test_entry": True}
-    config = parse_config(config_dict)
+    config = parse_config(config_dict, verify_config=False)
     assert isinstance(config, dict)
     for key in default_config_keys:
         assert key in config.keys()
@@ -69,7 +69,14 @@ def test_load_does_not_modify() -> None:
     default_dict = {"a": 1, "b": {"c": 13}, "c": {"e": 11}}
     default_copy = copy.deepcopy(default_dict)
 
-    parse_config(config_dict, folder_dict, user_dict, system_dict, default_dict)
+    parse_config(
+        config_dict,
+        folder_dict,
+        user_dict,
+        system_dict,
+        default_dict,
+        verify_config=False,
+    )
     assert config_dict == config_copy
     assert folder_dict == folder_copy
     assert user_dict == user_copy

@@ -51,10 +51,10 @@ class DelayCalibrator:
         self._verbose = verbose
         set_verbosity(logger, self._verbose)
 
-        self.adc_column: str = self._config["dataframe"].get("adc_column", None)
-        self.delay_column: str = self._config["dataframe"]["delay_column"]
-        self.corrected_delay_column = self._config["dataframe"].get(
-            "corrected_delay_column",
+        self.adc_column: str = config["dataframe"]["columns"]["adc"]
+        self.delay_column: str = config["dataframe"]["columns"]["delay"]
+        self.corrected_delay_column = self._config["dataframe"]["columns"].get(
+            "corrected_delay",
             self.delay_column,
         )
         self.calibration: dict[str, Any] = self._config["delay"].get("calibration", {})
@@ -102,9 +102,9 @@ class DelayCalibrator:
             df (pd.DataFrame | dask.dataframe.DataFrame): The dataframe where
                 to apply the delay calibration to.
             adc_column (str, optional): Source column for delay calibration.
-                Defaults to config["dataframe"]["adc_column"].
+                Defaults to config["dataframe"]["columns"]["adc"].
             delay_column (str, optional): Destination column for delay calibration.
-                Defaults to config["dataframe"]["delay_column"].
+                Defaults to config["dataframe"]["columns"]["delay"].
             calibration (dict, optional): Calibration dictionary with parameters for
                 delay calibration.
             adc_range (tuple | list | np.ndarray, optional): The range of used
