@@ -823,8 +823,8 @@ class SedProcessor:
                 - **inv_dfield** (np.ndarray, optional): Inverse deformation field.
 
         """
-        x_column = self._config["dataframe"]["x_column"]
-        y_column = self._config["dataframe"]["y_column"]
+        x_column = self._config["dataframe"]["columns"]["x"]
+        y_column = self._config["dataframe"]["columns"]["y"]
 
         if self._dataframe is not None:
             logger.info("Adding corrected X/Y columns to dataframe:")
@@ -967,8 +967,8 @@ class SedProcessor:
                 Defaults to False.
             **kwds: Keyword args passed to ``MomentumCalibrator.append_k_axis``.
         """
-        x_column = self._config["dataframe"]["x_column"]
-        y_column = self._config["dataframe"]["y_column"]
+        x_column = self._config["dataframe"]["columns"]["x"]
+        y_column = self._config["dataframe"]["columns"]["y"]
 
         if self._dataframe is not None:
             logger.info("Adding kx/ky columns to dataframe:")
@@ -1108,7 +1108,7 @@ class SedProcessor:
             **kwds:
                 Keyword args passed to ``EnergyCalibrator.apply_energy_correction()``.
         """
-        tof_column = self._config["dataframe"]["tof_column"]
+        tof_column = self._config["dataframe"]["columns"]["tof"]
 
         if self._dataframe is not None:
             logger.info("Applying energy correction to dataframe...")
@@ -1187,16 +1187,16 @@ class SedProcessor:
         if binned_data is not None:
             if isinstance(binned_data, xr.DataArray):
                 if (
-                    self._config["dataframe"]["tof_column"] not in binned_data.dims
-                    or self._config["dataframe"]["bias_column"] not in binned_data.dims
+                    self._config["dataframe"]["columns"]["tof"] not in binned_data.dims
+                    or self._config["dataframe"]["columns"]["bias"] not in binned_data.dims
                 ):
                     raise ValueError(
                         "If binned_data is provided as an xarray, it needs to contain dimensions "
                         f"'{self._config['dataframe']['tof_column']}' and "
                         f"'{self._config['dataframe']['bias_column']}'!.",
                     )
-                tof = binned_data.coords[self._config["dataframe"]["tof_column"]].values
-                biases = binned_data.coords[self._config["dataframe"]["bias_column"]].values
+                tof = binned_data.coords[self._config["dataframe"]["columns"]["tof"]].values
+                biases = binned_data.coords[self._config["dataframe"]["columns"]["bias"]].values
                 traces = binned_data.values[:, :]
             else:
                 try:
@@ -1470,7 +1470,7 @@ class SedProcessor:
             **kwds:
                 Keyword args passed to ``EnergyCalibrator.append_energy_axis()``.
         """
-        tof_column = self._config["dataframe"]["tof_column"]
+        tof_column = self._config["dataframe"]["columns"]["tof"]
 
         if self._dataframe is not None:
             logger.info("Adding energy column to dataframe:")
@@ -1536,7 +1536,7 @@ class SedProcessor:
         Raises:
             ValueError: If the energy column is not in the dataframe.
         """
-        energy_column = self._config["dataframe"]["energy_column"]
+        energy_column = self._config["dataframe"]["columns"]["energy"]
         if energy_column not in self._dataframe.columns:
             raise ValueError(
                 f"Energy column {energy_column} not found in dataframe! "
@@ -1624,7 +1624,7 @@ class SedProcessor:
             **kwds: additional arguments are passed to ``EnergyCalibrator.append_tof_ns_axis()``.
 
         """
-        tof_column = self._config["dataframe"]["tof_column"]
+        tof_column = self._config["dataframe"]["columns"]["tof"]
 
         if self._dataframe is not None:
             logger.info("Adding time-of-flight column in nanoseconds to dataframe.")
@@ -1671,7 +1671,7 @@ class SedProcessor:
                 Defaults to False.
             **kwds: additional arguments are passed to ``EnergyCalibrator.align_dld_sectors()``.
         """
-        tof_column = self._config["dataframe"]["tof_column"]
+        tof_column = self._config["dataframe"]["columns"]["tof"]
 
         if self._dataframe is not None:
             logger.info("Aligning 8s sectors of dataframe")
@@ -1725,7 +1725,7 @@ class SedProcessor:
                 Defaults to False.
             **kwds: Keyword args passed to ``DelayCalibrator.append_delay_axis``.
         """
-        adc_column = self._config["dataframe"]["adc_column"]
+        adc_column = self._config["dataframe"]["columns"]["adc"]
         if adc_column not in self._dataframe.columns:
             raise ValueError(f"ADC column {adc_column} not found in dataframe, cannot calibrate!")
 
@@ -1841,7 +1841,7 @@ class SedProcessor:
         Raises:
             ValueError: If the delay column is not in the dataframe.
         """
-        delay_column = self._config["dataframe"]["delay_column"]
+        delay_column = self._config["dataframe"]["columns"]["delay"]
         if delay_column not in self._dataframe.columns:
             raise ValueError(f"Delay column {delay_column} not found in dataframe! ")
 
@@ -1964,7 +1964,7 @@ class SedProcessor:
             cols = self._config["dataframe"]["jitter_cols"]
         for loc, col in enumerate(cols):
             if col.startswith("@"):
-                cols[loc] = self._config["dataframe"].get(col.strip("@"))
+                cols[loc] = self._config["dataframe"]["columns"].get(col.strip("@"))
 
         if amps is None:
             amps = self._config["dataframe"]["jitter_amps"]
@@ -2024,7 +2024,7 @@ class SedProcessor:
         """
         time_stamp_column = kwds.pop(
             "time_stamp_column",
-            self._config["dataframe"].get("time_stamp_alias", ""),
+            self._config["dataframe"]["columns"].get("timestamp", ""),
         )
 
         if time_stamps is None and data is None:
@@ -2099,7 +2099,7 @@ class SedProcessor:
             axes = self._config["momentum"]["axes"]
         for loc, axis in enumerate(axes):
             if axis.startswith("@"):
-                axes[loc] = self._config["dataframe"].get(axis.strip("@"))
+                axes[loc] = self._config["dataframe"]["columns"].get(axis.strip("@"))
 
         if bins is None:
             bins = self._config["momentum"]["bins"]
@@ -2333,14 +2333,14 @@ class SedProcessor:
                     self._dataframe.partitions[df_partitions],
                     axis,
                     self._binned.coords[axis].values,
-                    self._config["dataframe"]["time_stamp_alias"],
+                    self._config["dataframe"]["columns"]["timestamp"],
                 )
             else:
                 self._normalization_histogram = normalization_histogram_from_timestamps(
                     self._dataframe,
                     axis,
                     self._binned.coords[axis].values,
-                    self._config["dataframe"]["time_stamp_alias"],
+                    self._config["dataframe"]["columns"]["timestamp"],
                 )
         else:
             if df_partitions is not None:
@@ -2406,13 +2406,13 @@ class SedProcessor:
         axes = list(axes)
         for loc, axis in enumerate(axes):
             if axis.startswith("@"):
-                axes[loc] = self._config["dataframe"].get(axis.strip("@"))
+                axes[loc] = self._config["dataframe"]["columns"].get(axis.strip("@"))
         if ranges is None:
             ranges = list(self._config["histogram"]["ranges"])
             for loc, axis in enumerate(axes):
-                if axis == self._config["dataframe"]["tof_column"]:
+                if axis == self._config["dataframe"]["columns"]["tof"]:
                     ranges[loc] = np.asarray(ranges[loc]) / self._config["dataframe"]["tof_binning"]
-                elif axis == self._config["dataframe"]["adc_column"]:
+                elif axis == self._config["dataframe"]["columns"]["adc"]:
                     ranges[loc] = np.asarray(ranges[loc]) / self._config["dataframe"]["adc_binning"]
 
         input_types = map(type, [axes, bins, ranges])
