@@ -42,7 +42,25 @@ class BaseLoader(ABC):
         self.files: list[str] = []
         self.runs: list[str] = []
         self.metadata: dict[Any, Any] = {}
-        self.verbose = verbose
+        self._verbose = verbose
+
+    @property
+    def verbose(self) -> bool:
+        """Accessor to the verbosity flag.
+
+        Returns:
+            bool: Verbosity flag.
+        """
+        return self._verbose
+
+    @verbose.setter
+    def verbose(self, verbose: bool):
+        """Setter for the verbosity.
+
+        Args:
+            verbose (bool): Option to turn on verbose output. Sets loglevel to INFO.
+        """
+        self._verbose = verbose
 
     @abstractmethod
     def read_dataframe(

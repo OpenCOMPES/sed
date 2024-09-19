@@ -79,8 +79,8 @@ class MomentumCorrector:
 
         self._config = config
 
-        self.verbose = verbose
-        set_verbosity(logger, self.verbose)
+        self._verbose = verbose
+        set_verbosity(logger, self._verbose)
 
         self.image: np.ndarray = None
         self.img_ndim: int = None
@@ -131,6 +131,25 @@ class MomentumCorrector:
         self.ky_column = self._config["dataframe"]["ky_column"]
 
         self._state: int = 0
+
+    @property
+    def verbose(self) -> bool:
+        """Accessor to the verbosity flag.
+
+        Returns:
+            bool: Verbosity flag.
+        """
+        return self._verbose
+
+    @verbose.setter
+    def verbose(self, verbose: bool):
+        """Setter for the verbosity.
+
+        Args:
+            verbose (bool): Option to turn on verbose output. Sets loglevel to INFO.
+        """
+        self._verbose = verbose
+        set_verbosity(logger, self._verbose)
 
     @property
     def features(self) -> dict:
@@ -1241,7 +1260,7 @@ class MomentumCorrector:
                 transformations["creation_date"] = datetime.now().timestamp()
                 self.transformations = transformations
 
-            if self.verbose:
+            if self._verbose:
                 plt.figure()
                 subs = 20
                 plt.title("Final Deformation field")

@@ -48,8 +48,8 @@ class DelayCalibrator:
         else:
             self._config = {}
 
-        self.verbose = verbose
-        set_verbosity(logger, self.verbose)
+        self._verbose = verbose
+        set_verbosity(logger, self._verbose)
 
         self.adc_column: str = self._config["dataframe"].get("adc_column", None)
         self.delay_column: str = self._config["dataframe"]["delay_column"]
@@ -59,6 +59,25 @@ class DelayCalibrator:
         )
         self.calibration: dict[str, Any] = self._config["delay"].get("calibration", {})
         self.offsets: dict[str, Any] = self._config["delay"].get("offsets", {})
+
+    @property
+    def verbose(self) -> bool:
+        """Accessor to the verbosity flag.
+
+        Returns:
+            bool: Verbosity flag.
+        """
+        return self._verbose
+
+    @verbose.setter
+    def verbose(self, verbose: bool):
+        """Setter for the verbosity.
+
+        Args:
+            verbose (bool): Option to turn on verbose output. Sets loglevel to INFO.
+        """
+        self._verbose = verbose
+        set_verbosity(logger, self._verbose)
 
     def append_delay_axis(
         self,

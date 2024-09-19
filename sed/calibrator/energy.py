@@ -91,8 +91,8 @@ class EnergyCalibrator:
 
         self._config = config
 
-        self.verbose = verbose
-        set_verbosity(logger, self.verbose)
+        self._verbose = verbose
+        set_verbosity(logger, self._verbose)
 
         self.loader = loader
         self.biases: np.ndarray = None
@@ -124,6 +124,25 @@ class EnergyCalibrator:
         self.sector_id_column = self._config["dataframe"].get("sector_id_column", None)
         self.offsets: dict[str, Any] = self._config["energy"].get("offsets", {})
         self.correction: dict[str, Any] = self._config["energy"].get("correction", {})
+
+    @property
+    def verbose(self) -> bool:
+        """Accessor to the verbosity flag.
+
+        Returns:
+            bool: Verbosity flag.
+        """
+        return self._verbose
+
+    @verbose.setter
+    def verbose(self, verbose: bool):
+        """Setter for the verbosity.
+
+        Args:
+            verbose (bool): Option to turn on verbose output. Sets loglevel to INFO.
+        """
+        self._verbose = verbose
+        set_verbosity(logger, self._verbose)
 
     @property
     def ntraces(self) -> int:

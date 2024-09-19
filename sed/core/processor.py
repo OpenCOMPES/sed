@@ -117,10 +117,10 @@ class SedProcessor:
         logger.debug(f"Use {num_cores} cores for processing.")
 
         if verbose is None:
-            self.verbose = self._config["core"].get("verbose", True)
+            self._verbose = self._config["core"].get("verbose", True)
         else:
-            self.verbose = verbose
-        set_verbosity(logger, self.verbose)
+            self._verbose = verbose
+        set_verbosity(logger, self._verbose)
 
         self._dataframe: pd.DataFrame | ddf.DataFrame = None
         self._timed_dataframe: pd.DataFrame | ddf.DataFrame = None
@@ -148,17 +148,17 @@ class SedProcessor:
                 verbose=verbose,
             ),
             config=self._config,
-            verbose=self.verbose,
+            verbose=self._verbose,
         )
 
         self.mc = MomentumCorrector(
             config=self._config,
-            verbose=self.verbose,
+            verbose=self._verbose,
         )
 
         self.dc = DelayCalibrator(
             config=self._config,
-            verbose=self.verbose,
+            verbose=self._verbose,
         )
 
         self.use_copy_tool = self._config.get("core", {}).get(
@@ -226,6 +226,29 @@ class SedProcessor:
     # def overview_panel(self):
     #     """Provides an overview panel with plots of different data attributes."""
     #     self.view_event_histogram(dfpid=2, backend="matplotlib")
+
+    @property
+    def verbose(self) -> bool:
+        """Accessor to the verbosity flag.
+
+        Returns:
+            bool: Verbosity flag.
+        """
+        return self._verbose
+
+    @verbose.setter
+    def verbose(self, verbose: bool):
+        """Setter for the verbosity.
+
+        Args:
+            verbose (bool): Option to turn on verbose output. Sets loglevel to INFO.
+        """
+        self._verbose = verbose
+        set_verbosity(logger, self._verbose)
+        self.mc.verbose = verbose
+        self.ec.verbose = verbose
+        self.dc.verbose = verbose
+        self.loader.verbose = verbose
 
     @property
     def dataframe(self) -> pd.DataFrame | ddf.DataFrame:
@@ -629,7 +652,7 @@ class SedProcessor:
 
         self.mc.spline_warp_estimate(use_center=use_center, **kwds)
 
-        if self.mc.slice is not None and self.verbose:
+        if self.mc.slice is not None and self._verbose:
             print("Original slice with reference features")
             self.mc.view(annotated=True, backend="bokeh", crosshair=True)
 
@@ -1334,7 +1357,7 @@ class SedProcessor:
             energy_scale=energy_scale,
             **kwds,
         )
-        if self.verbose:
+        if self._verbose:
             self.ec.view(
                 traces=self.ec.traces_normed,
                 xaxis=self.ec.calibration["axis"],

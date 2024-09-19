@@ -56,7 +56,7 @@ class SXPLoader(BaseLoader):
     def __init__(self, config: dict, verbose: bool = True) -> None:
         super().__init__(config=config, verbose=verbose)
 
-        set_verbosity(logger, self.verbose)
+        set_verbosity(logger, self._verbose)
 
         self.multi_index = ["trainId", "pulseId", "electronId"]
         self.index_per_electron: MultiIndex = None
@@ -65,6 +65,25 @@ class SXPLoader(BaseLoader):
         self.array_indices: list[list[slice]] = None
         self.raw_dir: str = None
         self.processed_dir: str = None
+
+    @property
+    def verbose(self) -> bool:
+        """Accessor to the verbosity flag.
+
+        Returns:
+            bool: Verbosity flag.
+        """
+        return self._verbose
+
+    @verbose.setter
+    def verbose(self, verbose: bool):
+        """Setter for the verbosity.
+
+        Args:
+            verbose (bool): Option to turn on verbose output. Sets loglevel to INFO.
+        """
+        self._verbose = verbose
+        set_verbosity(logger, self._verbose)
 
     def _initialize_dirs(self):
         """

@@ -54,11 +54,30 @@ class FlashLoader(BaseLoader):
         """
         super().__init__(config=config, verbose=verbose)
 
-        set_verbosity(logger, self.verbose)
+        set_verbosity(logger, self._verbose)
 
         self.instrument: str = self._config["core"].get("instrument", "hextof")  # default is hextof
         self.raw_dir: str = None
         self.processed_dir: str = None
+
+    @property
+    def verbose(self) -> bool:
+        """Accessor to the verbosity flag.
+
+        Returns:
+            bool: Verbosity flag.
+        """
+        return self._verbose
+
+    @verbose.setter
+    def verbose(self, verbose: bool):
+        """Setter for the verbosity.
+
+        Args:
+            verbose (bool): Option to turn on verbose output. Sets loglevel to INFO.
+        """
+        self._verbose = verbose
+        set_verbosity(logger, self._verbose)
 
     def _initialize_dirs(self) -> None:
         """
