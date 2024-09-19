@@ -28,9 +28,14 @@ from pandas import MultiIndex
 from pandas import Series
 
 from sed.core import dfops
+from sed.core.logging import set_verbosity
+from sed.core.logging import setup_logging
 from sed.loader.base.loader import BaseLoader
 from sed.loader.utils import parse_h5_keys
 from sed.loader.utils import split_dld_time_from_sector_id
+
+# Configure logging
+logger = setup_logging("sxp_loader")
 
 
 class SXPLoader(BaseLoader):
@@ -38,14 +43,21 @@ class SXPLoader(BaseLoader):
     The class generates multiindexed multidimensional pandas dataframes from the new SXP
     dataformat resolved by both macro and microbunches alongside electrons.
     Only the read_dataframe (inherited and implemented) method is accessed by other modules.
+
+    Args:
+        config (dict): Config dictionary.
+        verbose (bool, optional): Option to print out diagnostic information.
     """
 
     __name__ = "sxp"
 
     supported_file_types = ["h5"]
 
-    def __init__(self, config: dict) -> None:
-        super().__init__(config=config)
+    def __init__(self, config: dict, verbose: bool = True) -> None:
+        super().__init__(config=config, verbose=verbose)
+
+        set_verbosity(logger, self._verbose)
+
         self.multi_index = ["trainId", "pulseId", "electronId"]
         self.index_per_electron: MultiIndex = None
         self.index_per_pulse: MultiIndex = None
@@ -53,6 +65,25 @@ class SXPLoader(BaseLoader):
         self.array_indices: list[list[slice]] = None
         self.raw_dir: str = None
         self.processed_dir: str = None
+
+    @property
+    def verbose(self) -> bool:
+        """Accessor to the verbosity flag.
+
+        Returns:
+            bool: Verbosity flag.
+        """
+        return self._verbose
+
+    @verbose.setter
+    def verbose(self, verbose: bool):
+        """Setter for the verbosity.
+
+        Args:
+            verbose (bool): Option to turn on verbose output. Sets loglevel to INFO.
+        """
+        self._verbose = verbose
+        set_verbosity(logger, self._verbose)
 
     def _initialize_dirs(self):
         """

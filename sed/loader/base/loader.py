@@ -24,10 +24,9 @@ class BaseLoader(ABC):
 
     Args:
         config (dict, optional): Config dictionary. Defaults to None.
-        meta_handler (MetaHandler, optional): MetaHandler object. Defaults to None.
+        verbose (bool, optional): Option to print out diagnostic information.
+            Defaults to True.
     """
-
-    # pylint: disable=too-few-public-methods
 
     __name__ = "BaseLoader"
 
@@ -36,12 +35,32 @@ class BaseLoader(ABC):
     def __init__(
         self,
         config: dict = None,
+        verbose: bool = True,
     ):
         self._config = config if config is not None else {}
 
         self.files: list[str] = []
         self.runs: list[str] = []
         self.metadata: dict[Any, Any] = {}
+        self._verbose = verbose
+
+    @property
+    def verbose(self) -> bool:
+        """Accessor to the verbosity flag.
+
+        Returns:
+            bool: Verbosity flag.
+        """
+        return self._verbose
+
+    @verbose.setter
+    def verbose(self, verbose: bool):
+        """Setter for the verbosity.
+
+        Args:
+            verbose (bool): Option to turn on verbose output. Sets loglevel to INFO.
+        """
+        self._verbose = verbose
 
     @abstractmethod
     def read_dataframe(

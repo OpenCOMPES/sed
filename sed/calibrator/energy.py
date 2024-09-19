@@ -28,14 +28,19 @@ from fastdtw import fastdtw
 from IPython.display import display
 from lmfit import Minimizer
 from lmfit import Parameters
-from lmfit.printfuncs import report_fit
+from lmfit.printfuncs import fit_report
 from numpy.linalg import lstsq
 from scipy.signal import savgol_filter
 from scipy.sparse.linalg import lsqr
 
 from sed.binning import bin_dataframe
 from sed.core import dfops
+from sed.core.logging import set_verbosity
+from sed.core.logging import setup_logging
 from sed.loader.base.loader import BaseLoader
+
+# Configure logging
+logger = setup_logging("delay")
 
 
 class EnergyCalibrator:
@@ -53,6 +58,8 @@ class EnergyCalibrator:
         tof (np.ndarray, optional): TOF-values for the data traces.
             Defaults to None.
         config (dict, optional): Config dictionary. Defaults to None.
+        verbose (bool, optional): Option to print out diagnostic information.
+            Defaults to True.
     """
 
     def __init__(
@@ -62,6 +69,7 @@ class EnergyCalibrator:
         traces: np.ndarray = None,
         tof: np.ndarray = None,
         config: dict = None,
+        verbose: bool = True,
     ):
         """For the initialization of the EnergyCalibrator class an instance of a
         loader is required. The data can be loaded using the optional arguments,
@@ -75,7 +83,17 @@ class EnergyCalibrator:
             tof (np.ndarray, optional): TOF-values for the data traces.
                 Defaults to None.
             config (dict, optional): Config dictionary. Defaults to None.
+            verbose (bool, optional): Option to print out diagnostic information.
+                Defaults to True.
         """
+        if config is None:
+            config = {}
+
+        self._config = config
+
+        self._verbose = verbose
+        set_verbosity(logger, self._verbose)
+
         self.loader = loader
         self.biases: np.ndarray = None
         self.traces: np.ndarray = None
@@ -84,11 +102,6 @@ class EnergyCalibrator:
 
         if traces is not None and tof is not None and biases is not None:
             self.load_data(biases=biases, traces=traces, tof=tof)
-
-        if config is None:
-            config = {}
-
-        self._config = config
 
         self.featranges: list[tuple] = []  # Value ranges for feature detection
         self.peaks: np.ndarray = np.asarray([])
@@ -111,6 +124,25 @@ class EnergyCalibrator:
         self.sector_id_column = self._config["dataframe"].get("sector_id_column", None)
         self.offsets: dict[str, Any] = self._config["energy"].get("offsets", {})
         self.correction: dict[str, Any] = self._config["energy"].get("correction", {})
+
+    @property
+    def verbose(self) -> bool:
+        """Accessor to the verbosity flag.
+
+        Returns:
+            bool: Verbosity flag.
+        """
+        return self._verbose
+
+    @verbose.setter
+    def verbose(self, verbose: bool):
+        """Setter for the verbosity.
+
+        Args:
+            verbose (bool): Option to turn on verbose output. Sets loglevel to INFO.
+        """
+        self._verbose = verbose
+        set_verbosity(logger, self._verbose)
 
     @property
     def ntraces(self) -> int:
@@ -276,6 +308,7 @@ class EnergyCalibrator:
             span=span,
             order=order,
         )
+        logger.debug("Normalized energy calibration traces.")
 
     def adjust_ranges(
         self,
@@ -393,7 +426,9 @@ class EnergyCalibrator:
                 traces=self.traces_normed,
                 **kwds,
             )
+            logger.info(f"Use feature ranges: {self.featranges}.")
             self.feature_extract(peak_window=7)
+            logger.info(f"Extracted energy features: {self.peaks}.")
             ranges_slider.close()
             refid_slider.close()
             apply_button.close()
@@ -499,7 +534,6 @@ class EnergyCalibrator:
         landmarks: np.ndarray = None,
         biases: np.ndarray = None,
         t: np.ndarray = None,
-        verbose: bool = True,
         **kwds,
     ) -> dict:
         """Calculate the functional mapping between time-of-flight and the energy
@@ -523,8 +557,6 @@ class EnergyCalibrator:
                 calibration. Defaults to self.peaks.
             biases (np.ndarray, optional): Bias values. Defaults to self.biases.
             t (np.ndarray, optional): TOF values. Defaults to self.tof.
-            verbose (bool, optional): Option to print out diagnostic information.
-                Defaults to True.
             **kwds: keyword arguments.
                 See available keywords for ``poly_energy_calibration()`` and
                 ``fit_energy_calibration()``
@@ -564,7 +596,6 @@ class EnergyCalibrator:
                 ref_energy=ref_energy,
                 t=t,
                 energy_scale=energy_scale,
-                verbose=verbose,
                 **kwds,
             )
         elif method in ("lstsq", "lsqr"):
@@ -584,7 +615,7 @@ class EnergyCalibrator:
         self.calibration["creation_date"] = datetime.now().timestamp()
         return self.calibration
 
-    def view(  # pylint: disable=dangerous-default-value
+    def view(
         self,
         traces: np.ndarray,
         segs: list[tuple] = None,
@@ -634,7 +665,7 @@ class EnergyCalibrator:
         sign = 1 if energy_scale == "kinetic" else -1
 
         if backend == "matplotlib":
-            figsize = kwds.pop("figsize", (12, 4))
+            figsize = kwds.pop("figsize", (6, 4))
             fig_plt, ax = plt.subplots(figsize=figsize)
             for itr, trace in enumerate(traces):
                 if align:
@@ -762,7 +793,7 @@ class EnergyCalibrator:
         energy_column: str = None,
         calibration: dict = None,
         bias_voltage: float = None,
-        verbose: bool = True,
+        suppress_output: bool = False,
         **kwds,
     ) -> tuple[pd.DataFrame | dask.dataframe.DataFrame, dict]:
         """Calculate and append the energy axis to the events dataframe.
@@ -780,8 +811,8 @@ class EnergyCalibrator:
             bias_voltage (float, optional): Sample bias voltage of the scan data. If omitted,
                 the bias voltage is being read from the dataframe. If it is not found there,
                 a warning is printed and the calibrated data might have an offset.
-            verbose (bool, optional): Option to print out diagnostic information.
-                Defaults to True.
+            verbose (bool, optional): Option to suppress output of diagnostic information.
+                Defaults to False.
             **kwds: additional keyword arguments for the energy conversion. They are
                 added to the calibration dictionary.
 
@@ -814,11 +845,11 @@ class EnergyCalibrator:
                 calibration[key] = value
             calibration["creation_date"] = datetime.now().timestamp()
 
-        elif "creation_date" in calibration and verbose:
+        elif "creation_date" in calibration and not suppress_output:
             datestring = datetime.fromtimestamp(calibration["creation_date"]).strftime(
                 "%m/%d/%Y, %H:%M:%S",
             )
-            print(f"Using energy calibration parameters generated on {datestring}")
+            logger.info(f"Using energy calibration parameters generated on {datestring}")
 
         # try to determine calibration type if not provided
         if "calib_type" not in calibration:
@@ -870,10 +901,20 @@ class EnergyCalibrator:
         else:
             raise NotImplementedError
 
+        if not suppress_output:
+            report_dict = {
+                "calib_type": calibration["calib_type"],
+                "fit_function": calibration["fit_function"],
+                "coefficients": calibration["coefficients"],
+            }
+            logger.debug(f"Used energy calibration parameters: {report_dict}.")
+
         # apply bias offset
         scale_sign: Literal[-1, 1] = -1 if calibration["energy_scale"] == "binding" else 1
         if bias_voltage is not None:
             df[energy_column] = df[energy_column] + scale_sign * bias_voltage
+            if not suppress_output:
+                logger.debug(f"Shifted energy column by constant bias value: {bias_voltage}.")
         elif self._config["dataframe"]["bias_column"] in df.columns:
             df = dfops.offset_by_other_columns(
                 df=df,
@@ -881,8 +922,15 @@ class EnergyCalibrator:
                 offset_columns=self._config["dataframe"]["bias_column"],
                 weights=scale_sign,
             )
+            if not suppress_output:
+                logger.debug(
+                    "Shifted energy column by bias column: "
+                    f"{self._config['dataframe']['bias_column']}.",
+                )
         else:
-            print("Sample bias data not found or provided. Calibrated energy might be incorrect.")
+            logger.warning(
+                "Sample bias data not found or provided. Calibrated energy might be incorrect.",
+            )
 
         metadata = self.gather_calibration_metadata(calibration)
 
@@ -1324,7 +1372,7 @@ class EnergyCalibrator:
         correction_type: str = None,
         amplitude: float = None,
         correction: dict = None,
-        verbose: bool = True,
+        suppress_output: bool = False,
         **kwds,
     ) -> tuple[pd.DataFrame | dask.dataframe.DataFrame, dict]:
         """Apply correction to the time-of-flight (TOF) axis of single-event data.
@@ -1350,8 +1398,8 @@ class EnergyCalibrator:
             correction (dict, optional): Correction dictionary containing parameters
                 for the correction. Defaults to self.correction or
                 config["energy"]["correction"].
-            verbose (bool, optional): Option to print out diagnostic information.
-                Defaults to True.
+            suppress_output (bool, optional): Option to suppress output of diagnostic information.
+                Defaults to False.
             **kwds: Additional parameters to use for the correction:
 
                 - **x_column** (str): Name of the x column.
@@ -1394,15 +1442,18 @@ class EnergyCalibrator:
 
             correction["creation_date"] = datetime.now().timestamp()
 
-        elif "creation_date" in correction and verbose:
+        elif "creation_date" in correction and not suppress_output:
             datestring = datetime.fromtimestamp(correction["creation_date"]).strftime(
                 "%m/%d/%Y, %H:%M:%S",
             )
-            print(f"Using energy correction parameters generated on {datestring}")
+            logger.info(f"Using energy correction parameters generated on {datestring}")
 
         missing_keys = {"correction_type", "center", "amplitude"} - set(correction.keys())
         if missing_keys:
             raise ValueError(f"Required correction parameters '{missing_keys}' missing!")
+
+        if not suppress_output:
+            logger.debug(f"Correction parameters:\n{correction}")
 
         df[new_tof_column] = df[tof_column] + correction_function(
             x=df[x_column],
@@ -1489,7 +1540,7 @@ class EnergyCalibrator:
         preserve_mean: bool | Sequence[bool] = False,
         reductions: str | Sequence[str] = None,
         energy_column: str = None,
-        verbose: bool = True,
+        suppress_output: bool = False,
     ) -> tuple[pd.DataFrame | dask.dataframe.DataFrame, dict]:
         """Apply an offset to the energy column by the values of the provided columns.
 
@@ -1512,8 +1563,8 @@ class EnergyCalibrator:
                 If None, the shift is applied per-dataframe-row. Defaults to None. Currently only
                 "mean" is supported.
             energy_column (str, optional): Name of the column containing the energy values.
-            verbose (bool, optional): Option to print out diagnostic information.
-                Defaults to True.
+            suppress_output (bool, optional): Option to suppress output of diagnostic information.
+                Defaults to False.
 
         Returns:
             tuple[pd.DataFrame | dask.dataframe.DataFrame, dict]: Dataframe with the new columns
@@ -1584,11 +1635,11 @@ class EnergyCalibrator:
             elif constant is not None:
                 raise TypeError(f"Invalid type for constant: {type(constant)}")
 
-        elif "creation_date" in offsets and verbose:
+        elif "creation_date" in offsets and not suppress_output:
             datestring = datetime.fromtimestamp(offsets["creation_date"]).strftime(
                 "%m/%d/%Y, %H:%M:%S",
             )
-            print(f"Using energy offset parameters generated on {datestring}")
+            logger.info(f"Using energy offset parameters generated on {datestring}")
 
         if len(offsets) > 0:
             # unpack dictionary
@@ -1597,16 +1648,14 @@ class EnergyCalibrator:
             weights = []
             preserve_mean = []
             reductions = []
-            if verbose:
-                print("Energy offset parameters:")
+            log_str = "Energy offset parameters:"
             for k, v in offsets.items():
                 if k == "creation_date":
                     continue
                 if k == "constant":
                     # flip sign if binding energy scale
                     constant = v * scale_sign
-                    if verbose:
-                        print(f"   Constant: {constant} ")
+                    log_str += f"\n   Constant: {constant}"
                 else:
                     columns.append(k)
                     try:
@@ -1628,11 +1677,13 @@ class EnergyCalibrator:
                     if str(red).lower() in ["none", "null"]:
                         red = None
                     reductions.append(red)
-                    if verbose:
-                        print(
-                            f"   Column[{k}]: Weight={weight}, Preserve Mean: {pm}, ",
-                            f"Reductions: {red}.",
-                        )
+                    log_str += (
+                        f"\n   Column[{k}]: Weight={weight}, Preserve Mean: {pm}, "
+                        f"Reductions: {red}."
+                    )
+
+            if not suppress_output:
+                logger.info(log_str)
 
             if len(columns) > 0:
                 df = dfops.offset_by_other_columns(
@@ -1940,7 +1991,7 @@ def peaksearch(
         try:
             pkmaxs.append(maxs[0, :])
         except IndexError:  # No peak found for this range
-            print(f"No peak detected in range {rng}.")
+            logger.error(f"No peak detected in range {rng}.")
             raise
 
         if plot:
@@ -2111,7 +2162,6 @@ def fit_energy_calibration(
     ref_energy: float,
     t: list[float] | np.ndarray = None,
     energy_scale: str = "kinetic",
-    verbose: bool = True,
     **kwds,
 ) -> dict:
     """Energy calibration by nonlinear least squares fitting of spectral landmarks on
@@ -2133,8 +2183,6 @@ def fit_energy_calibration(
 
             - **'kinetic'**: increasing energy with decreasing TOF.
             - **'binding'**: increasing energy with increasing TOF.
-        verbose (bool, optional): Option to print out diagnostic information.
-            Defaults to True.
         **kwds: keyword arguments:
 
             - **t0** (float): constrains and initial values for the fit parameter t0,
@@ -2201,8 +2249,7 @@ def fit_energy_calibration(
         fcn_args=(pos, vals, binwidth, binning, energy_scale),
     )
     result = fit.leastsq()
-    if verbose:
-        report_fit(result)
+    logger.info(fit_report(result))
 
     # Construct the calibrating function
     pfunc = partial(

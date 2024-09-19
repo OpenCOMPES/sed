@@ -1,6 +1,7 @@
 """Tests specific for Mpes loader"""
 from __future__ import annotations
 
+import logging
 import os
 from copy import deepcopy
 from importlib.util import find_spec
@@ -22,31 +23,33 @@ config = parse_config(
 )
 
 
-def test_channel_not_found_warning(capsys) -> None:
+def test_channel_not_found_warning(caplog) -> None:
     """Test if the mpes loader gives the correct warning if a channel cannot be found."""
     ml = MpesLoader(config=config)
 
-    ml.read_dataframe(folders=test_data_dir)
-    captured = capsys.readouterr()
-    assert captured.out == ""
+    with caplog.at_level(logging.WARNING):
+        ml.read_dataframe(folders=test_data_dir)
+    assert not caplog.messages
 
     # modify per_file channel
     config_ = deepcopy(config)
     config_["dataframe"]["channels"]["sampleBias"]["dataset_key"] = "invalid"
     ml = MpesLoader(config=config_)
 
-    ml.read_dataframe(folders=test_data_dir)
-    captured = capsys.readouterr()
-    assert 'Entry "invalid" for channel "sampleBias" not found.' in captured.out
+    caplog.clear()
+    with caplog.at_level(logging.WARNING):
+        ml.read_dataframe(folders=test_data_dir)
+    assert 'Entry "invalid" for channel "sampleBias" not found.' in caplog.messages[0]
 
     # modify per_electron channel
     config_ = deepcopy(config)
     config_["dataframe"]["channels"]["X"]["dataset_key"] = "invalid"
     ml = MpesLoader(config=config_)
 
-    ml.read_dataframe(folders=test_data_dir)
-    captured = capsys.readouterr()
-    assert 'Entry "invalid" for channel "X" not found.' in captured.out
+    caplog.clear()
+    with caplog.at_level(logging.WARNING):
+        ml.read_dataframe(folders=test_data_dir)
+    assert 'Entry "invalid" for channel "X" not found.' in caplog.messages[0]
 
 
 def test_invalid_channel_format_raises() -> None:

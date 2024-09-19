@@ -19,7 +19,8 @@ class GenericLoader(BaseLoader):
 
     Args:
         config (dict, optional): Config dictionary. Defaults to None.
-        meta_handler (MetaHandler, optional): MetaHandler object. Defaults to None.
+        verbose (bool, optional): Option to print out diagnostic information.
+            Defaults to True.
     """
 
     __name__ = "generic"

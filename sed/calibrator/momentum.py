@@ -32,6 +32,12 @@ from symmetrize import pointops as po
 from symmetrize import sym
 from symmetrize import tps
 
+from sed.core.logging import set_verbosity
+from sed.core.logging import setup_logging
+
+# Configure logging
+logger = setup_logging("momentum")
+
 
 class MomentumCorrector:
     """
@@ -44,6 +50,8 @@ class MomentumCorrector:
             provided as np.ndarray. Defaults to None.
         rotsym (int, optional): Rotational symmetry of the data. Defaults to 6.
         config (dict, optional): Config dictionary. Defaults to None.
+        verbose (bool, optional): Option to print out diagnostic information.
+            Defaults to True.
     """
 
     def __init__(
@@ -52,6 +60,7 @@ class MomentumCorrector:
         bin_ranges: list[tuple] = None,
         rotsym: int = 6,
         config: dict = None,
+        verbose: bool = True,
     ):
         """Constructor of the MomentumCorrector class.
 
@@ -62,11 +71,16 @@ class MomentumCorrector:
                 if provided as np.ndarray. Defaults to None.
             rotsym (int, optional): Rotational symmetry of the data. Defaults to 6.
             config (dict, optional): Config dictionary. Defaults to None.
+            verbose (bool, optional): Option to print out diagnostic information.
+                Defaults to True.
         """
         if config is None:
             config = {}
 
         self._config = config
+
+        self._verbose = verbose
+        set_verbosity(logger, self._verbose)
 
         self.image: np.ndarray = None
         self.img_ndim: int = None
@@ -117,6 +131,25 @@ class MomentumCorrector:
         self.ky_column = self._config["dataframe"]["ky_column"]
 
         self._state: int = 0
+
+    @property
+    def verbose(self) -> bool:
+        """Accessor to the verbosity flag.
+
+        Returns:
+            bool: Verbosity flag.
+        """
+        return self._verbose
+
+    @verbose.setter
+    def verbose(self, verbose: bool):
+        """Setter for the verbosity.
+
+        Args:
+            verbose (bool): Option to turn on verbose output. Sets loglevel to INFO.
+        """
+        self._verbose = verbose
+        set_verbosity(logger, self._verbose)
 
     @property
     def features(self) -> dict:
@@ -307,6 +340,8 @@ class MomentumCorrector:
 
             if self.slice is not None:
                 self.slice_corrected = self.slice_transformed = self.slice
+
+            logger.debug(f"Selected energy slice {selector} for momentum correction.")
 
         elif self.img_ndim == 2:
             raise ValueError("Input image dimension is already 2!")
@@ -510,8 +545,8 @@ class MomentumCorrector:
             features[point_no][0] = point_x
             features[point_no][1] = point_y
 
-            markers[point_no].set_xdata(point_x)
-            markers[point_no].set_ydata(point_y)
+            markers[point_no].set_xdata([point_x])
+            markers[point_no].set_ydata([point_y])
 
         point_no_input = ipw.Dropdown(
             options=range(features.shape[0]),
@@ -594,7 +629,6 @@ class MomentumCorrector:
         fixed_center: bool = True,
         interp_order: int = 1,
         ascale: float | list | tuple | np.ndarray = None,
-        verbose: bool = True,
         **kwds,
     ) -> np.ndarray:
         """Estimate the spline deformation field using thin plate spline registration.
@@ -618,8 +652,6 @@ class MomentumCorrector:
                 points to be located along the principal axes (X/Y points of the Brillouin zone).
                 Otherwise, an array with ``rotsym`` elements is expected, containing relative
                 scales for each feature. Defaults to an array of equal scales.
-            verbose (bool, optional): Option to report the used landmarks for correction.
-                Defaults to True.
             **kwds: keyword arguments:
 
                 - **landmarks**: (list/array): Landmark positions (row, column) used
@@ -647,7 +679,6 @@ class MomentumCorrector:
             if self.pouter is not None:
                 self.pouter_ord = po.pointset_order(self.pouter)
                 self.correction["creation_date"] = datetime.now().timestamp()
-                self.correction["creation_date"] = datetime.now().timestamp()
             else:
                 try:
                     features = np.asarray(
@@ -661,22 +692,21 @@ class MomentumCorrector:
                     if ascale is not None:
                         ascale = np.asarray(ascale)
 
-                    if verbose:
-                        if "creation_date" in self.correction:
-                            datestring = datetime.fromtimestamp(
-                                self.correction["creation_date"],
-                            ).strftime(
-                                "%m/%d/%Y, %H:%M:%S",
-                            )
-                            print(
-                                "No landmarks defined, using momentum correction parameters "
-                                f"generated on {datestring}",
-                            )
-                        else:
-                            print(
-                                "No landmarks defined, using momentum correction parameters "
-                                "from config.",
-                            )
+                    if "creation_date" in self.correction:
+                        datestring = datetime.fromtimestamp(
+                            self.correction["creation_date"],
+                        ).strftime(
+                            "%m/%d/%Y, %H:%M:%S",
+                        )
+                        logger.info(
+                            "No landmarks defined, using momentum correction parameters "
+                            f"generated on {datestring}",
+                        )
+                    else:
+                        logger.info(
+                            "No landmarks defined, using momentum correction parameters "
+                            "from config.",
+                        )
                 except KeyError as exc:
                     raise ValueError(
                         "No valid landmarks defined, and no landmarks found in configuration!",
@@ -786,11 +816,13 @@ class MomentumCorrector:
         if self.slice is not None:
             self.slice_corrected = corrected_image
 
-        if verbose:
-            print("Calculated thin spline correction based on the following landmarks:")
-            print(f"pouter: {self.pouter}")
-            if use_center:
-                print(f"pcent: {self.pcent}")
+        log_str = (
+            "Calculated thin spline correction based on the following landmarks:\n"
+            f"pouter_ord: {self.pouter_ord}"
+        )
+        if use_center:
+            log_str += f"\npcent: {self.pcent}"
+        logger.info(log_str)
 
         return corrected_image
 
@@ -1042,7 +1074,6 @@ class MomentumCorrector:
         transformations: dict[str, Any] = None,
         apply: bool = False,
         reset: bool = True,
-        verbose: bool = True,
         **kwds,
     ):
         """Interactive panel to adjust transformations that are applied to the image.
@@ -1057,8 +1088,6 @@ class MomentumCorrector:
                 Defaults to False.
             reset (bool, optional):
                 Option to reset the correction before transformation. Defaults to True.
-            verbose (bool, optional):
-                Option to report the performed transformations. Defaults to True.
             **kwds: Keyword parameters defining defaults for the transformations:
 
                 - **scale** (float): Initial value of the scaling slider.
@@ -1105,11 +1134,11 @@ class MomentumCorrector:
                     f"pose_adjustment() got unexpected keyword arguments {kwds.keys()}.",
                 )
 
-        elif "creation_date" in transformations and verbose:
+        elif "creation_date" in transformations:
             datestring = datetime.fromtimestamp(transformations["creation_date"]).strftime(
                 "%m/%d/%Y, %H:%M:%S",
             )
-            print(f"Using transformation parameters generated on {datestring}")
+            logger.info(f"Using transformation parameters generated on {datestring}")
 
         def update(scale: float, xtrans: float, ytrans: float, angle: float):
             transformed_image = source_image
@@ -1196,9 +1225,7 @@ class MomentumCorrector:
                     yscale=transformations["scale"],
                     keep=True,
                 )
-                if verbose:
-                    with results_box:
-                        print(f"Applied scaling with scale={transformations['scale']}.")
+                logger.info(f"Applied scaling with scale={transformations['scale']}.")
             if transformations.get("xtrans", 0) != 0 or transformations.get("ytrans", 0) != 0:
                 self.coordinate_transform(
                     transform_type="translation",
@@ -1206,12 +1233,10 @@ class MomentumCorrector:
                     ytrans=transformations.get("ytrans", 0),
                     keep=True,
                 )
-                if verbose:
-                    with results_box:
-                        print(
-                            f"Applied translation with (xtrans={transformations.get('xtrans', 0)},",
-                            f"ytrans={transformations.get('ytrans', 0)}).",
-                        )
+                logger.info(
+                    f"Applied translation with (xtrans={transformations.get('xtrans', 0)}, "
+                    f"ytrans={transformations.get('ytrans', 0)}).",
+                )
             if transformations.get("angle", 0) != 0:
                 self.coordinate_transform(
                     transform_type="rotation",
@@ -1219,9 +1244,7 @@ class MomentumCorrector:
                     center=center,
                     keep=True,
                 )
-                if verbose:
-                    with results_box:
-                        print(f"Applied rotation with angle={transformations['angle']}.")
+                logger.info(f"Applied rotation with angle={transformations['angle']}.")
 
                 display(results_box)
 
@@ -1237,10 +1260,10 @@ class MomentumCorrector:
                 transformations["creation_date"] = datetime.now().timestamp()
                 self.transformations = transformations
 
-            if verbose:
+            if self._verbose:
                 plt.figure()
                 subs = 20
-                plt.title("Deformation field")
+                plt.title("Final Deformation field")
                 plt.scatter(
                     self.rdeform_field[::subs, ::subs].ravel(),
                     self.cdeform_field[::subs, ::subs].ravel(),
@@ -1509,10 +1532,10 @@ class MomentumCorrector:
             k_distance: float,  # noqa: ARG001
         ):
             fig.canvas.draw_idle()
-            marker_a.set_xdata(point_a_x)
-            marker_a.set_ydata(point_a_y)
-            marker_b.set_xdata(point_b_x)
-            marker_b.set_ydata(point_b_y)
+            marker_a.set_xdata([point_a_x])
+            marker_a.set_ydata([point_a_y])
+            marker_b.set_xdata([point_b_x])
+            marker_b.set_ydata([point_b_y])
 
         point_a_input_x = ipw.IntText(point_a[0])
         point_a_input_y = ipw.IntText(point_a[1])
@@ -1659,6 +1682,12 @@ class MomentumCorrector:
             pixel_distance = norm(point_a - point_b)
             # Calculate the pixel to momentum conversion factor
             xratio = yratio = k_distance / pixel_distance
+            logger.debug(
+                f"Momentum calibration performed using the following parameters:\n"
+                f"point_a={point_a}\n"
+                f"point_b={point_b}\n"
+                f"k_distance={k_distance}",
+            )
 
         else:
             assert k_coord_a is not None
@@ -1669,6 +1698,13 @@ class MomentumCorrector:
             # Calculate the column- and row-wise conversion factor
             xratio = (kxa - kxb) / (point_a[0] - point_b[0])
             yratio = (kya - kyb) / (point_a[1] - point_b[1])
+            logger.debug(
+                f"Momentum calibration performed using the following parameters:\n"
+                f"point_a={point_a}\n"
+                f"point_b={point_b}\n"
+                f"k_coord_a={k_coord_a}\n"
+                f"k_coord_b={k_coord_b}",
+            )
 
         k_row = rowdist * xratio + k_coord_b[0]
         k_col = coldist * yratio + k_coord_b[1]
@@ -1705,7 +1741,6 @@ class MomentumCorrector:
         y_column: str = None,
         new_x_column: str = None,
         new_y_column: str = None,
-        verbose: bool = True,
     ) -> tuple[pd.DataFrame | dask.dataframe.DataFrame, dict]:
         """Calculate and replace the X and Y values with their distortion-corrected
         version.
@@ -1723,8 +1758,6 @@ class MomentumCorrector:
             new_y_column (str, optional): Label of the 'Y' column after momentum
                 distortion correction.
                 Defaults to config["momentum"]["corrected_y_column"].
-            verbose (bool, optional): Option to report the used landmarks for correction.
-                Defaults to True.
 
         Returns:
             tuple[pd.DataFrame | dask.dataframe.DataFrame, dict]: Dataframe with
@@ -1745,7 +1778,7 @@ class MomentumCorrector:
                 if self.correction or self.transformations:
                     if self.correction:
                         # Generate spline warp from class features or config
-                        self.spline_warp_estimate(verbose=verbose)
+                        self.spline_warp_estimate()
                     if self.transformations:
                         # Apply config pose adjustments
                         self.pose_adjustment()
@@ -1856,6 +1889,7 @@ class MomentumCorrector:
         new_x_column: str = None,
         new_y_column: str = None,
         calibration: dict = None,
+        suppress_output: bool = False,
         **kwds,
     ) -> tuple[pd.DataFrame | dask.dataframe.DataFrame, dict]:
         """Calculate and append the k axis coordinates (kx, ky) to the events dataframe.
@@ -1875,6 +1909,8 @@ class MomentumCorrector:
                 momentum calibration. Defaults to config["momentum"]["ky_column"].
             calibration (dict, optional): Dictionary containing calibration parameters.
                 Defaults to 'self.calibration' or config["momentum"]["calibration"].
+            suppress_output (bool, optional): Option to suppress output of diagnostic information.
+                Defaults to False.
             **kwds: Keyword parameters for momentum calibration. Parameters are added
                 to the calibration dictionary.
 
@@ -1920,6 +1956,12 @@ class MomentumCorrector:
 
             if len(kwds) > 0:
                 raise TypeError(f"append_k_axis() got unexpected keyword arguments {kwds.keys()}.")
+
+        if "creation_date" in calibration and not suppress_output:
+            datestring = datetime.fromtimestamp(calibration["creation_date"]).strftime(
+                "%m/%d/%Y, %H:%M:%S",
+            )
+            logger.info(f"Using momentum calibration parameters generated on {datestring}")
 
         try:
             (df[new_x_column], df[new_y_column]) = detector_coordinates_2_k_coordinates(
