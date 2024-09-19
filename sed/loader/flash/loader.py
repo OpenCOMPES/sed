@@ -12,13 +12,12 @@ from __future__ import annotations
 import re
 import time
 from collections.abc import Sequence
-from logging import INFO
-from logging import WARNING
 from pathlib import Path
 
 import dask.dataframe as dd
 from natsort import natsorted
 
+from sed.core.logging import set_verbosity
 from sed.core.logging import setup_logging
 from sed.loader.base.loader import BaseLoader
 from sed.loader.flash.buffer_handler import BufferHandler
@@ -55,10 +54,7 @@ class FlashLoader(BaseLoader):
         """
         super().__init__(config=config, verbose=verbose)
 
-        if self.verbose:
-            logger.handlers[0].setLevel(INFO)
-        else:
-            logger.handlers[0].setLevel(WARNING)
+        set_verbosity(logger, self.verbose)
 
         self.instrument: str = self._config["core"].get("instrument", "hextof")  # default is hextof
         self.raw_dir: str = None

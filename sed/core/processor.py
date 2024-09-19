@@ -6,8 +6,6 @@ from __future__ import annotations
 import pathlib
 from collections.abc import Sequence
 from datetime import datetime
-from logging import INFO
-from logging import WARNING
 from typing import Any
 from typing import cast
 
@@ -30,6 +28,7 @@ from sed.core.dfops import add_time_stamped_data
 from sed.core.dfops import apply_filter
 from sed.core.dfops import apply_jitter
 from sed.core.logging import call_logger
+from sed.core.logging import set_verbosity
 from sed.core.logging import setup_logging
 from sed.core.metadata import MetaHandler
 from sed.diagnostics import grid_histogram
@@ -121,10 +120,7 @@ class SedProcessor:
             self.verbose = self._config["core"].get("verbose", True)
         else:
             self.verbose = verbose
-        if self.verbose:
-            logger.handlers[0].setLevel(INFO)
-        else:
-            logger.handlers[0].setLevel(WARNING)
+        set_verbosity(logger, self.verbose)
 
         self._dataframe: pd.DataFrame | ddf.DataFrame = None
         self._timed_dataframe: pd.DataFrame | ddf.DataFrame = None

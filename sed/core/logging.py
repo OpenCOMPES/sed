@@ -29,7 +29,8 @@ def setup_logging(
 
     Args:
         name (str): The name of the logger.
-        base_name (str, optional): The name of the base logger. Defaults to "sed".
+        set_base_handler (bool, optional): Option to re-initialize the base handler logging to the
+            logfile. Defaults to False.
         user_log_path (str, optional): Path to the user-specific log directory.
             Defaults to DEFAULT_LOG_DIR.
 
@@ -86,6 +87,20 @@ def setup_logging(
     logging.captureWarnings(True)
 
     return logger
+
+
+def set_verbosity(logger: logging.Logger, verbose: bool) -> None:
+    """Sets log level for the given logger's default handler.
+
+    Args:
+        logger (logging.Logger): The logger on which to set the log level.
+        verbose (bool): Sets loglevel to INFO if True, to WARNING otherwise.
+    """
+    handler = logger.handlers[0]
+    if verbose:
+        handler.setLevel(logging.INFO)
+    else:
+        handler.setLevel(logging.WARNING)
 
 
 def call_logger(logger: logging.Logger):

@@ -6,8 +6,6 @@ from __future__ import annotations
 import itertools as it
 from copy import deepcopy
 from datetime import datetime
-from logging import INFO
-from logging import WARNING
 from typing import Any
 
 import bokeh.palettes as bp
@@ -34,6 +32,7 @@ from symmetrize import pointops as po
 from symmetrize import sym
 from symmetrize import tps
 
+from sed.core.logging import set_verbosity
 from sed.core.logging import setup_logging
 
 # Configure logging
@@ -81,10 +80,7 @@ class MomentumCorrector:
         self._config = config
 
         self.verbose = verbose
-        if self.verbose:
-            logger.handlers[0].setLevel(INFO)
-        else:
-            logger.handlers[0].setLevel(WARNING)
+        set_verbosity(logger, self.verbose)
 
         self.image: np.ndarray = None
         self.img_ndim: int = None
