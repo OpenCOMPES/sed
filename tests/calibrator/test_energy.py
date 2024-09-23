@@ -1,5 +1,7 @@
 """Module tests.calibrator.energy, tests for the sed.calibrator.energy module
 """
+from __future__ import annotations
+
 import csv
 import glob
 import itertools
@@ -7,7 +9,6 @@ import os
 from copy import deepcopy
 from importlib.util import find_spec
 from typing import Any
-from typing import Dict
 from typing import Literal
 
 import dask.dataframe
@@ -130,6 +131,10 @@ def test_feature_extract() -> None:
         ((tof[1] - tof[0]) * np.asarray(rand) + 65000) + diff,
     )
 
+    # illegal keywords
+    with pytest.raises(TypeError):
+        ec.add_ranges(ranges=rng, ref_id=ref_id, illegal_kwd=True)
+
 
 def test_adjust_ranges() -> None:
     """Test the interactive function for adjusting the feature ranges"""
@@ -162,6 +167,10 @@ def test_adjust_ranges() -> None:
         ((tof[1] - tof[0]) * np.asarray(rand) + 65000) + diff,
     )
 
+    # illegal keywords
+    with pytest.raises(TypeError):
+        ec.adjust_ranges(ranges=rng, ref_id=ref_id, apply=True, illegal_kwd=True)
+
 
 energy_scales = ["kinetic", "binding"]
 calibration_methods = ["lmfit", "lstsq", "lsqr"]
@@ -180,7 +189,7 @@ def test_calibrate_append(energy_scale: str, calibration_method: str) -> None:
         calibration_method (str): method used for calibration
     """
     config = parse_config(
-        config={"dataframe": {"tof_binning": 2}},
+        config={"dataframe": {"tof_binning": 4}},
         folder_config={},
         user_config={},
         system_config={},
@@ -194,11 +203,9 @@ def test_calibrate_append(energy_scale: str, calibration_method: str) -> None:
     ref_id = 5
     ec.add_ranges(ranges=rng, ref_id=ref_id)
     ec.feature_extract()
-    refid = 4
     e_ref = -0.5
     calibdict = ec.calibrate(
         ref_energy=e_ref,
-        ref_id=refid,
         energy_scale=energy_scale,
         method=calibration_method,
     )
@@ -215,6 +222,15 @@ def test_calibrate_append(energy_scale: str, calibration_method: str) -> None:
         np.testing.assert_equal(
             metadata["calibration"][key],
             value,
+        )
+
+    # illegal keywords
+    with pytest.raises(TypeError):
+        calibdict = ec.calibrate(
+            ref_energy=e_ref,
+            energy_scale=energy_scale,
+            method=calibration_method,
+            illegal_kwd=True,
         )
 
 
@@ -280,7 +296,7 @@ def test_append_tof_ns_axis() -> None:
         "dataframe": {
             "tof_column": "t",
             "tof_ns_column": "t_ns",
-            "tof_binning": 1,
+            "tof_binning": 2,
             "tof_binwidth": 1e-9,
         },
     }
@@ -290,7 +306,7 @@ def test_append_tof_ns_axis() -> None:
     # from kwds
     df, _, _ = loader.read_dataframe(folders=df_folder, collect_metadata=False)
     ec = EnergyCalibrator(config=config, loader=loader)
-    df, _ = ec.append_tof_ns_axis(df, binwidth=2e-9, binning=1)
+    df, _ = ec.append_tof_ns_axis(df, binwidth=2e-9, binning=2)
     assert config["dataframe"]["tof_ns_column"] in df.columns
     np.testing.assert_allclose(df[ec.tof_column], df[ec.tof_ns_column] / 4)
 
@@ -301,8 +317,14 @@ def test_append_tof_ns_axis() -> None:
     assert config["dataframe"]["tof_ns_column"] in df.columns
     np.testing.assert_allclose(df[ec.tof_column], df[ec.tof_ns_column] / 2)
 
+    # illegal keywords:
+    df, _, _ = loader.read_dataframe(folders=df_folder, collect_metadata=False)
+    ec = EnergyCalibrator(config=config, loader=loader)
+    with pytest.raises(TypeError):
+        df, _ = ec.append_tof_ns_axis(df, illegal_kwd=True)
 
-amplitude = 2.5  # pylint: disable=invalid-name
+
+amplitude = 2.5
 center = (730, 730)
 sample = np.array(
     [
@@ -391,7 +413,7 @@ def test_energy_correction(correction_type: str, correction_kwd: dict) -> None:
         config=config,
         loader=get_loader("mpes", config=config),
     )
-    correction: Dict[Any, Any] = {
+    correction: dict[Any, Any] = {
         "correction_type": correction_type,
         "amplitude": amplitude,
         "center": center,
@@ -437,7 +459,7 @@ def test_adjust_energy_correction_raises(correction_type: str) -> None:
         config=config,
         loader=get_loader("mpes", config=config),
     )
-    correction_dict: Dict[str, Any] = {
+    correction_dict: dict[str, Any] = {
         "correction_type": correction_type,
         "amplitude": amplitude,
         "center": center,
@@ -482,7 +504,7 @@ def test_energy_correction_from_dict_kwds(correction_type: str, correction_kwd: 
         config=config,
         loader=get_loader("mpes", config=config),
     )
-    correction_dict: Dict[str, Any] = {
+    correction_dict: dict[str, Any] = {
         "correction_type": correction_type,
         "amplitude": amplitude,
         "center": center,
@@ -542,7 +564,7 @@ def test_apply_energy_correction_raises(correction_type: str) -> None:
         config=config,
         loader=get_loader("mpes", config=config),
     )
-    correction_dict: Dict[str, Any] = {
+    correction_dict: dict[str, Any] = {
         "correction_type": correction_type,
         "amplitude": amplitude,
         "center": center,
@@ -621,7 +643,7 @@ def test_add_offsets_functionality(energy_scale: str) -> None:
     exp_vals -= df["off2"] * scale_sign
     exp_vals += df["off3"].mean() * scale_sign
     np.testing.assert_allclose(res["energy"].values, exp_vals.values)
-    exp_meta: Dict[str, Any] = {}
+    exp_meta: dict[str, Any] = {}
     exp_meta["applied"] = True
     exp_meta["offsets"] = ec.offsets
     assert meta == exp_meta
@@ -655,7 +677,7 @@ def test_add_offsets_functionality(energy_scale: str) -> None:
 
 def test_add_offset_raises() -> None:
     """test if add_offset raises the correct errors"""
-    cfg_dict: Dict[str, Any] = {
+    cfg_dict: dict[str, Any] = {
         "energy": {
             "calibration": {
                 "energy_scale": "kinetic",
@@ -714,7 +736,7 @@ def test_add_offset_raises() -> None:
 
 def test_align_dld_sectors() -> None:
     """test functionality and error handling of align_dld_sectors"""
-    cfg_dict: Dict[str, Any] = {
+    cfg_dict: dict[str, Any] = {
         "dataframe": {
             "tof_column": "dldTimeSteps",
             "sector_id_column": "dldSectorId",

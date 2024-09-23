@@ -5,13 +5,15 @@ tremendously.
 Mostly ported from https://github.com/mpes-kit/mpes.
 @author: L. Rettig
 """
+from __future__ import annotations
+
 import errno
 import os
 import shutil
 from datetime import datetime
-from typing import List
 
 import dask as d
+import psutil
 from dask.diagnostics import ProgressBar
 
 
@@ -21,6 +23,11 @@ class CopyTool:
     Args:
         source (str): Source path for the copy tool.
         dest (str): Destination path for the copy tool.
+        **kwds:
+            - *safetyMargin*: Size in Byte to keep free. Defaults to 500 GBytes.
+            - *gid*: Group id to which file ownership will be set. Defaults to 1001.
+            - *scheduler*: Dask scheduler to use. Defaults to "threads".
+            - *ntasks*: number of cores to use for copying. Defaults to 25.
     """
 
     def __init__(
@@ -35,11 +42,16 @@ class CopyTool:
             "safetyMargin",
             1 * 2**30,
         )  # Default 500 GB safety margin
-        self.gid = kwds.pop("gid", 5050)
+        self.gid = kwds.pop("gid", 1001)
         self.scheduler = kwds.pop("scheduler", "threads")
 
-        # Default to 25 concurrent copy tasks
-        self.ntasks = int(kwds.pop("ntasks", 25))
+        # Default to 20 concurrent copy tasks
+        self.num_cores = kwds.pop("num_cores", 20)
+        if self.num_cores >= psutil.cpu_count():
+            self.num_cores = psutil.cpu_count() - 1
+
+        if len(kwds) > 0:
+            raise TypeError(f"CopyTool() got unexpected keyword arguments {kwds.keys()}.")
 
     def copy(
         self,
@@ -52,6 +64,7 @@ class CopyTool:
         Args:
             source (str): source path
             force_copy (bool, optional): re-copy all files. Defaults to False.
+            **compute_kwds: Keyword arguments passed to dask.compute()
 
         Raises:
             FileNotFoundError: Raised if the source path is not found or empty.
@@ -161,7 +174,7 @@ class CopyTool:
                 d.compute(
                     *copy_tasks,
                     scheduler=self.scheduler,
-                    num_workers=self.ntasks,
+                    num_workers=self.num_cores,
                     **compute_kwds,
                 )
             print("Copy finished!")
@@ -317,7 +330,7 @@ def get_target_dir(
 
 
 # replacement for os.makedirs, which is independent of umask
-def mymakedirs(path: str, mode: int, gid: int) -> List[str]:
+def mymakedirs(path: str, mode: int, gid: int) -> list[str]:
     """Creates a directory path iteratively from its root
 
     Args:
@@ -326,7 +339,7 @@ def mymakedirs(path: str, mode: int, gid: int) -> List[str]:
         gid (int): Group id of created directories
 
     Returns:
-        str: Path of created directories
+        list[str]: Path of created directories
     """
 
     if not path or os.path.exists(path):

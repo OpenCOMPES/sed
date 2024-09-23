@@ -1,9 +1,9 @@
-# pylint: disable=duplicate-code
 """Tests for SXPLoader functionality"""
+from __future__ import annotations
+
 import os
 from importlib.util import find_spec
 from pathlib import Path
-from typing import List
 
 import pytest
 
@@ -35,7 +35,7 @@ def test_get_channels_by_format(config_file: dict) -> None:
 
     # Define expected channels for each format.
     electron_channels = ["dldPosX", "dldPosY", "dldTimeSteps"]
-    pulse_channels: List[str] = []
+    pulse_channels: list[str] = []
     train_channels = ["timeStamp", "delayStage"]
     index_channels = ["trainId", "pulseId", "electronId"]
 
@@ -74,7 +74,7 @@ def test_get_channels_by_format(config_file: dict) -> None:
     )
 
 
-def test_initialize_paths(config_file: dict, fs) -> None:
+def test_initialize_dirs(config_file: dict, fs) -> None:
     """
     Test the initialization of paths based on the configuration and directory structures.
 
@@ -97,15 +97,15 @@ def test_initialize_paths(config_file: dict, fs) -> None:
     fs.create_dir(expected_raw_path)
     fs.create_dir(expected_processed_path)
 
-    # Instance of class with correct config and call initialize_paths
+    # Instance of class with correct config and call initialize_dirs
     sl = SXPLoader(config=config)
-    data_raw_dir, data_parquet_dir = sl.initialize_paths()
+    sl._initialize_dirs()
 
-    assert expected_raw_path == data_raw_dir[0]
-    assert expected_processed_path == data_parquet_dir
+    assert expected_raw_path == sl.raw_dir[0]
+    assert expected_processed_path == sl.processed_dir
 
 
-def test_initialize_paths_filenotfound(config_file: dict):
+def test_initialize_dirs_filenotfound(config_file: dict):
     """
     Test FileNotFoundError during the initialization of paths.
     """
@@ -115,10 +115,10 @@ def test_initialize_paths_filenotfound(config_file: dict):
     config["core"]["beamtime_id"] = "11111111"
     config["core"]["year"] = "2000"
 
-    # Instance of class with correct config and call initialize_paths
+    # Instance of class with correct config and call initialize_dirs
     sl = SXPLoader(config=config)
     with pytest.raises(FileNotFoundError):
-        _, _ = sl.initialize_paths()
+        sl._initialize_dirs()
 
 
 def test_invalid_channel_format(config_file: dict):
@@ -150,7 +150,7 @@ def test_data_keys_not_in_h5(config_file: dict, key_type: str):
     sl = SXPLoader(config=config)
 
     with pytest.raises(ValueError) as e:
-        sl.create_dataframe_per_file(config["core"]["paths"]["data_raw_dir"] + H5_PATH)
+        sl.create_dataframe_per_file(config["core"]["paths"]["raw"] + H5_PATH)
 
     assert str(e.value.args[0]) == f"The {key_type} for channel dldPosX does not exist."
 
@@ -209,6 +209,6 @@ def test_buffer_schema_mismatch(config_file: dict):
     assert expected_error[3] == "Missing in config: {'delayStage2'}"
 
     # Clean up created buffer files after the test
-    _, parquet_data_dir = sl.initialize_paths()
-    for file in os.listdir(Path(parquet_data_dir, "buffer")):
-        os.remove(Path(parquet_data_dir, "buffer", file))
+    sl._initialize_dirs()
+    for file in os.listdir(Path(sl.processed_dir, "buffer")):
+        os.remove(Path(sl.processed_dir, "buffer", file))

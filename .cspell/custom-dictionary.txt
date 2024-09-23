@@ -38,6 +38,7 @@ caldir
 calib
 calibdict
 caplog
+capsys
 cdeform
 cdeformfield
 cdisp
@@ -77,6 +78,7 @@ datastreams
 datestring
 ddir
 delaxes
+delayeds
 Desy
 dfield
 dfops
@@ -84,11 +86,13 @@ dfpart
 dfpid
 dictionarized
 dictmerge
+DLDAUX
 dpkg
 dropna
 dset
 dsets
 dtype
+dtypes
 easimon
 ecalibdict
 electronanalyser
@@ -334,6 +338,8 @@ splinewarp
 stackax
 stackaxis
 stepsize
+subchannel
+subchannels
 subdir
 subdirs
 subfolders

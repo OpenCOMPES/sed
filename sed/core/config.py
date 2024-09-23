@@ -1,30 +1,33 @@
 """This module contains a config library for loading yaml/json files into dicts
 """
+from __future__ import annotations
+
 import copy
 import json
 import os
 import platform
 from importlib.util import find_spec
 from pathlib import Path
-from typing import Union
 
 import yaml
 from platformdirs import user_config_path
+
+from sed.core.logging import setup_logging
 
 package_dir = os.path.dirname(find_spec("sed").origin)
 
 USER_CONFIG_PATH = user_config_path(appname="sed", appauthor="OpenCOMPES", ensure_exists=True)
 
+# Configure logging
+logger = setup_logging("config")
+
 
 def parse_config(
-    config: Union[dict, str] = None,
-    folder_config: Union[dict, str] = None,
-    user_config: Union[dict, str] = None,
-    system_config: Union[dict, str] = None,
-    default_config: Union[
-        dict,
-        str,
-    ] = f"{package_dir}/config/default.yaml",
+    config: dict | str = None,
+    folder_config: dict | str = None,
+    user_config: dict | str = None,
+    system_config: dict | str = None,
+    default_config: (dict | str) = f"{package_dir}/config/default.yaml",
     verbose: bool = True,
 ) -> dict:
     """Load the config dictionary from a file, or pass the provided config dictionary.
@@ -34,21 +37,21 @@ def parse_config(
     can be also passed as optional arguments (file path strings or dictionaries).
 
     Args:
-        config (Union[dict, str], optional): config dictionary or file path.
+        config (dict | str, optional): config dictionary or file path.
                 Files can be *json* or *yaml*. Defaults to None.
-        folder_config (Union[ dict, str, ], optional): working-folder-based config dictionary
+        folder_config (dict | str, optional): working-folder-based config dictionary
             or file path. The loaded dictionary is completed with the folder-based values,
             taking preference over user, system and default values. Defaults to the file
             "sed_config.yaml" in the current working directory.
-        user_config (Union[ dict, str, ], optional): user-based config dictionary
+        user_config (dict | str, optional): user-based config dictionary
             or file path. The loaded dictionary is completed with the user-based values,
             taking preference over system and default values.
             Defaults to the file ".sed/config.yaml" in the current user's home directory.
-        system_config (Union[ dict, str, ], optional): system-wide config dictionary
+        system_config (dict | str, optional): system-wide config dictionary
             or file path. The loaded dictionary is completed with the system-wide values,
             taking preference over default values. Defaults to the file "/etc/sed/config.yaml"
             on linux, and "%ALLUSERSPROFILE%/sed/config.yaml" on windows.
-        default_config (Union[ dict, str, ], optional): default config dictionary
+        default_config (dict | str, optional): default config dictionary
             or file path. The loaded dictionary is completed with the default values.
             Defaults to *package_dir*/config/default.yaml".
         verbose (bool, optional): Option to report loaded config files. Defaults to True.
@@ -67,7 +70,7 @@ def parse_config(
     else:
         config_dict = load_config(config)
         if verbose:
-            print(f"Configuration loaded from: [{str(Path(config).resolve())}]")
+            logger.info(f"Configuration loaded from: [{str(Path(config).resolve())}]")
 
     folder_dict: dict = None
     if isinstance(folder_config, dict):
@@ -78,7 +81,7 @@ def parse_config(
         if Path(folder_config).exists():
             folder_dict = load_config(folder_config)
             if verbose:
-                print(f"Folder config loaded from: [{str(Path(folder_config).resolve())}]")
+                logger.info(f"Folder config loaded from: [{str(Path(folder_config).resolve())}]")
 
     user_dict: dict = None
     if isinstance(user_config, dict):
@@ -91,7 +94,7 @@ def parse_config(
         if Path(user_config).exists():
             user_dict = load_config(user_config)
             if verbose:
-                print(f"User config loaded from: [{str(Path(user_config).resolve())}]")
+                logger.info(f"User config loaded from: [{str(Path(user_config).resolve())}]")
 
     system_dict: dict = None
     if isinstance(system_config, dict):
@@ -109,14 +112,14 @@ def parse_config(
         if Path(system_config).exists():
             system_dict = load_config(system_config)
             if verbose:
-                print(f"System config loaded from: [{str(Path(system_config).resolve())}]")
+                logger.info(f"System config loaded from: [{str(Path(system_config).resolve())}]")
 
     if isinstance(default_config, dict):
         default_dict = copy.deepcopy(default_config)
     else:
         default_dict = load_config(default_config)
         if verbose:
-            print(f"Default config loaded from: [{str(Path(default_config).resolve())}]")
+            logger.info(f"Default config loaded from: [{str(Path(default_config).resolve())}]")
 
     if folder_dict is not None:
         config_dict = complete_dictionary(
@@ -156,9 +159,9 @@ def load_config(config_path: str) -> dict:
     """
     config_file = Path(config_path)
     if not config_file.is_file():
-        raise FileNotFoundError(
-            f"could not find the configuration file: {config_file}",
-        )
+        error_message = f"could not find the configuration file: {config_file}"
+        logger.error(error_message)
+        raise FileNotFoundError(error_message)
 
     if config_file.suffix == ".json":
         with open(config_file, encoding="utf-8") as stream:
@@ -167,7 +170,9 @@ def load_config(config_path: str) -> dict:
         with open(config_file, encoding="utf-8") as stream:
             config_dict = yaml.safe_load(stream)
     else:
-        raise TypeError("config file must be of type json or yaml!")
+        error_message = "config file must be of type json or yaml!"
+        logger.error(error_message)
+        raise TypeError(error_message)
 
     return config_dict
 

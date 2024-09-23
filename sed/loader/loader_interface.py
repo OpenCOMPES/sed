@@ -1,9 +1,10 @@
 """Interface to select a specified loader
 """
+from __future__ import annotations
+
 import glob
 import importlib.util
 import os
-from typing import List
 
 from sed.loader.base.loader import BaseLoader
 
@@ -11,12 +12,14 @@ from sed.loader.base.loader import BaseLoader
 def get_loader(
     loader_name: str,
     config: dict = None,
+    verbose: bool = True,
 ) -> BaseLoader:
     """Helper function to get the loader object from it's given name.
 
     Args:
         loader_name (str): Name of the loader
         config (dict, optional): Configuration dictionary. Defaults to None.
+        verbose (bool, optional): Option to print out diagnostic information.
 
     Raises:
         ValueError: Raised if the loader cannot be found.
@@ -40,14 +43,14 @@ def get_loader(
     spec = importlib.util.spec_from_file_location("loader.py", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    return module.LOADER(config=config)
+    return module.LOADER(config=config, verbose=verbose)
 
 
-def get_names_of_all_loaders() -> List[str]:
+def get_names_of_all_loaders() -> list[str]:
     """Helper function to populate a list of all available loaders.
 
     Returns:
-        List[str]: List of all detected loader names.
+        list[str]: List of all detected loader names.
     """
     path_prefix = f"{os.path.dirname(__file__)}{os.sep}" if os.path.dirname(__file__) else ""
     files = glob.glob(os.path.join(path_prefix, "*", "loader.py"))

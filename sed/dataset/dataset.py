@@ -22,7 +22,7 @@ from sed.core.logging import setup_logging
 
 
 # Configure logging
-logger = setup_logging(__name__)
+logger = setup_logging("dataset")
 
 
 class DatasetsManager:
@@ -51,7 +51,8 @@ class DatasetsManager:
 
         return parse_config(
             folder_config=DatasetsManager.json_path["folder"],
-            system_config=DatasetsManager.json_path["user"],
+            user_config=DatasetsManager.json_path["user"],
+            system_config={},
             default_config=DatasetsManager.json_path["module"],
             verbose=False,
         )

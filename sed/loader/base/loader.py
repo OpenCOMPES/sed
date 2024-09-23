@@ -1,14 +1,13 @@
-"""The abstract class off of which to implement loaders."""
+"""The abstract class off of which to implement loaders.
+"""
+from __future__ import annotations
+
 import os
 from abc import ABC
 from abc import abstractmethod
+from collections.abc import Sequence
 from copy import deepcopy
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Sequence
-from typing import Tuple
-from typing import Union
 
 import dask.dataframe as ddf
 import numpy as np
@@ -25,46 +24,65 @@ class BaseLoader(ABC):
 
     Args:
         config (dict, optional): Config dictionary. Defaults to None.
-        meta_handler (MetaHandler, optional): MetaHandler object. Defaults to None.
+        verbose (bool, optional): Option to print out diagnostic information.
+            Defaults to True.
     """
-
-    # pylint: disable=too-few-public-methods
 
     __name__ = "BaseLoader"
 
-    supported_file_types: List[str] = []
+    supported_file_types: list[str] = []
 
     def __init__(
         self,
         config: dict = None,
+        verbose: bool = True,
     ):
         self._config = config if config is not None else {}
 
-        self.files: List[str] = []
-        self.runs: List[str] = []
-        self.metadata: Dict[Any, Any] = {}
+        self.files: list[str] = []
+        self.runs: list[str] = []
+        self.metadata: dict[Any, Any] = {}
+        self._verbose = verbose
+
+    @property
+    def verbose(self) -> bool:
+        """Accessor to the verbosity flag.
+
+        Returns:
+            bool: Verbosity flag.
+        """
+        return self._verbose
+
+    @verbose.setter
+    def verbose(self, verbose: bool):
+        """Setter for the verbosity.
+
+        Args:
+            verbose (bool): Option to turn on verbose output. Sets loglevel to INFO.
+        """
+        self._verbose = verbose
 
     @abstractmethod
     def read_dataframe(
         self,
-        files: Union[str, Sequence[str]] = None,
-        folders: Union[str, Sequence[str]] = None,
-        runs: Union[str, Sequence[str]] = None,
+        files: str | Sequence[str] = None,
+        folders: str | Sequence[str] = None,
+        runs: str | Sequence[str] = None,
         ftype: str = None,
         metadata: dict = None,
         collect_metadata: bool = False,
         **kwds,
-    ) -> Tuple[ddf.DataFrame, ddf.DataFrame, dict]:
+    ) -> tuple[ddf.DataFrame, ddf.DataFrame, dict]:
         """Reads data from given files, folder, or runs and returns a dask dataframe
         and corresponding metadata.
 
         Args:
-            files (Union[str, Sequence[str]], optional): File path(s) to process.
+            files (str | Sequence[str], optional): File path(s) to process.
                 Defaults to None.
-            folders (Union[str, Sequence[str]], optional): Path to folder(s) where files
+            folders (str | Sequence[str], optional): Path to folder(s) where files
                 are stored. Path has priority such that if it's specified, the specified
                 files will be ignored. Defaults to None.
-            runs (Union[str, Sequence[str]], optional): Run identifier(s). Corresponding
+            runs (str | Sequence[str], optional): Run identifier(s). Corresponding
                 files will be located in the location provided by ``folders``. Takes
                 precedence over ``files`` and ``folders``. Defaults to None.
             ftype (str, optional): File type to read ('parquet', 'json', 'csv', etc).
@@ -77,7 +95,7 @@ class BaseLoader(ABC):
             **kwds: keyword arguments. See description in respective loader.
 
         Returns:
-            Tuple[ddf.DataFrame, dict]: Dask dataframe, timed dataframe and metadata
+            tuple[ddf.DataFrame, ddf.DataFrame, dict]: Dask dataframe, timed dataframe and metadata
             read from specified files.
         """
 
@@ -109,7 +127,7 @@ class BaseLoader(ABC):
 
         elif files is None:
             raise ValueError(
-                "Either folder, file paths, or runs should be provided!",
+                "Either folders, files, or runs have to be provided!",
             )
 
         if files is not None:
@@ -129,21 +147,21 @@ class BaseLoader(ABC):
     def get_files_from_run_id(
         self,
         run_id: str,
-        folders: Union[str, Sequence[str]] = None,
+        folders: str | Sequence[str] = None,
         extension: str = None,
         **kwds,
-    ) -> List[str]:
+    ) -> list[str]:
         """Locate the files for a given run identifier.
 
         Args:
             run_id (str): The run identifier to locate.
-            folders (Union[str, Sequence[str]], optional): The directory(ies) where the raw
+            folders (str | Sequence[str], optional): The directory(ies) where the raw
                 data is located. Defaults to None.
             extension (str, optional): The file extension. Defaults to None.
             kwds: Keyword arguments
 
         Return:
-            List[str]: List of files for the given run.
+            list[str]: List of files for the given run.
         """
         raise NotImplementedError
 
@@ -152,7 +170,7 @@ class BaseLoader(ABC):
         self,
         fids: Sequence[int] = None,
         **kwds,
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray]:
         """Create count rate data for the files specified in ``fids``.
 
         Args:
@@ -161,7 +179,7 @@ class BaseLoader(ABC):
             kwds: Keyword arguments
 
         Return:
-            Tuple[np.ndarray, np.ndarray]: Arrays containing countrate and seconds
+            tuple[np.ndarray, np.ndarray]: Arrays containing countrate and seconds
             into the scan.
         """
         return None, None

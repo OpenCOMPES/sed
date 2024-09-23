@@ -1,17 +1,20 @@
+"""Tests for FlashLoader metadata functionality"""
+from __future__ import annotations
+
 import pytest
 
 from sed.loader.flash.metadata import MetadataRetriever
 
 
 @pytest.fixture
-def mock_requests(requests_mock):
+def mock_requests(requests_mock) -> None:
     # Mocking the response for the dataset URL
     dataset_url = "https://example.com/Datasets/11013410%2F43878"
     requests_mock.get(dataset_url, json={"fake": "data"}, status_code=200)
 
 
 # Test cases for MetadataRetriever
-def test_get_metadata(mock_requests):  # noqa: ARG001
+def test_get_metadata(mock_requests: None) -> None:  # noqa: ARG001
     metadata_config = {
         "scicat_url": "https://example.com",
         "scicat_token": "fake_token",
@@ -22,7 +25,7 @@ def test_get_metadata(mock_requests):  # noqa: ARG001
     assert metadata == {"fake": "data"}
 
 
-def test_get_metadata_with_existing_metadata(mock_requests):  # noqa: ARG001
+def test_get_metadata_with_existing_metadata(mock_requests: None) -> None:  # noqa: ARG001
     metadata_config = {
         "scicat_url": "https://example.com",
         "scicat_token": "fake_token",
@@ -34,7 +37,7 @@ def test_get_metadata_with_existing_metadata(mock_requests):  # noqa: ARG001
     assert metadata == {"existing": "metadata", "fake": "data"}
 
 
-def test_get_metadata_per_run(mock_requests):  # noqa: ARG001
+def test_get_metadata_per_run(mock_requests: None) -> None:  # noqa: ARG001
     metadata_config = {
         "scicat_url": "https://example.com",
         "scicat_token": "fake_token",
@@ -45,7 +48,7 @@ def test_get_metadata_per_run(mock_requests):  # noqa: ARG001
     assert metadata == {"fake": "data"}
 
 
-def test_create_dataset_url_by_PID():
+def test_create_dataset_url_by_PID() -> None:
     metadata_config = {
         "scicat_url": "https://example.com",
         "scicat_token": "fake_token",

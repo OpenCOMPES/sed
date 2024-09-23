@@ -13,7 +13,7 @@ The config mechanism returns the combined dictionary, and reports the loaded con
 
 API
 ***************************************************
-.. automodule:: sed.core.config
+.. automobile:: sed.core.config
    :members:
    :undoc-members:
 

@@ -1,5 +1,7 @@
 """This file contains code that performs several tests for the input/output functions
 """
+from __future__ import annotations
+
 import os
 import random
 from pathlib import Path
