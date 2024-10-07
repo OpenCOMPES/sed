@@ -61,7 +61,21 @@ dataframe:
   sector_delays: [0., 0., 0., 0., 0., 0., 0., 0.]
 
   jitter_cols: ["dldPosX", "dldPosY", "dldTimeSteps"]
-
+  columns:
+    x: dldPosX
+    corrected_x: X
+    kx: kx
+    y: dldPosY
+    corrected_y: Y
+    ky: ky
+    tof: dldTimeSteps
+    tof_ns: dldTime
+    corrected_tof: tm
+    timestamp: timeStamp
+    auxiliary: dldAux
+    sector_id: dldSectorID
+    delay: delayStage
+    corrected_delay: pumpProbeTime
   units:
     dldPosX: 'step'
     dldPosY: 'step'

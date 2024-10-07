@@ -107,12 +107,12 @@ class EnergyCalibrator:
         self.peaks: np.ndarray = np.asarray([])
         self.calibration: dict[str, Any] = self._config["energy"].get("calibration", {})
 
-        self.tof_column = self._config["dataframe"]["tof_column"]
-        self.tof_ns_column = self._config["dataframe"].get("tof_ns_column", None)
-        self.corrected_tof_column = self._config["dataframe"]["corrected_tof_column"]
-        self.energy_column = self._config["dataframe"]["energy_column"]
-        self.x_column = self._config["dataframe"]["x_column"]
-        self.y_column = self._config["dataframe"]["y_column"]
+        self.tof_column = self._config["dataframe"]["columns"]["tof"]
+        self.tof_ns_column = self._config["dataframe"]["columns"].get("tof_ns", None)
+        self.corrected_tof_column = self._config["dataframe"]["columns"]["corrected_tof"]
+        self.energy_column = self._config["dataframe"]["columns"]["energy"]
+        self.x_column = self._config["dataframe"]["columns"]["x"]
+        self.y_column = self._config["dataframe"]["columns"]["y"]
         self.binwidth: float = self._config["dataframe"]["tof_binwidth"]
         self.binning: int = self._config["dataframe"]["tof_binning"]
         self.x_width = self._config["energy"]["x_width"]
@@ -121,7 +121,7 @@ class EnergyCalibrator:
         self.tof_fermi = self._config["energy"]["tof_fermi"] / self.binning
         self.color_clip = self._config["energy"]["color_clip"]
         self.sector_delays = self._config["dataframe"].get("sector_delays", None)
-        self.sector_id_column = self._config["dataframe"].get("sector_id_column", None)
+        self.sector_id_column = self._config["dataframe"]["columns"].get("sector_id", None)
         self.offsets: dict[str, Any] = self._config["energy"].get("offsets", {})
         self.correction: dict[str, Any] = self._config["energy"].get("correction", {})
 
@@ -217,7 +217,7 @@ class EnergyCalibrator:
         Args:
             data_files (list[str]): list of file names to bin
             axes (list[str], optional): bin axes. Defaults to
-                config["dataframe"]["tof_column"].
+                config["dataframe"]["columns"]["tof"].
             bins (list[int], optional): number of bins.
                 Defaults to config["energy"]["bins"].
             ranges (Sequence[tuple[float, float]], optional): bin ranges.
@@ -802,9 +802,9 @@ class EnergyCalibrator:
             df (pd.DataFrame | dask.dataframe.DataFrame):
                 Dataframe to apply the energy axis calibration to.
             tof_column (str, optional): Label of the source column.
-                Defaults to config["dataframe"]["tof_column"].
+                Defaults to config["dataframe"]["columns"]["tof"].
             energy_column (str, optional): Label of the destination column.
-                Defaults to config["dataframe"]["energy_column"].
+                Defaults to config["dataframe"]["columns"]["energy"].
             calibration (dict, optional): Calibration dictionary. If provided,
                 overrides calibration from class or config.
                 Defaults to self.calibration or config["energy"]["calibration"].
@@ -948,9 +948,9 @@ class EnergyCalibrator:
         Args:
             df (pd.DataFrame | dask.dataframe.DataFrame): Dataframe to convert.
             tof_column (str, optional): Name of the column containing the
-                time-of-flight steps. Defaults to config["dataframe"]["tof_column"].
+                time-of-flight steps. Defaults to config["dataframe"]["columns"]["tof"].
             tof_ns_column (str, optional): Name of the column to store the
-                time-of-flight in nanoseconds. Defaults to config["dataframe"]["tof_ns_column"].
+                time-of-flight in nanoseconds. Defaults to config["dataframe"]["columns"]["tof_ns"].
             binwidth (float, optional): Time-of-flight binwidth in ns.
                 Defaults to config["energy"]["tof_binwidth"].
             binning (int, optional): Time-of-flight binning factor.
@@ -1381,9 +1381,9 @@ class EnergyCalibrator:
             df (pd.DataFrame | dask.dataframe.DataFrame): The dataframe where
                 to apply the energy correction to.
             tof_column (str, optional): Name of the source column to convert.
-                Defaults to config["dataframe"]["tof_column"].
+                Defaults to config["dataframe"]["columns"]["tof"].
             new_tof_column (str, optional): Name of the destination column to convert.
-                Defaults to config["dataframe"]["corrected_tof_column"].
+                Defaults to config["dataframe"]["columns"]["corrected_tof"].
             correction_type (str, optional): Type of correction to apply to the TOF
                 axis. Valid values are:
 
@@ -1494,9 +1494,9 @@ class EnergyCalibrator:
         Args:
             df (dask.dataframe.DataFrame): Dataframe to use.
             tof_column (str, optional): Name of the column containing the time-of-flight values.
-                Defaults to config["dataframe"]["tof_column"].
+                Defaults to config["dataframe"]["columns"]["tof"].
             sector_id_column (str, optional): Name of the column containing the sector id values.
-                Defaults to config["dataframe"]["sector_id_column"].
+                Defaults to config["dataframe"]["columns"]["sector_id"].
             sector_delays (np.ndarray, optional): Array containing the sector delays. Defaults to
                 config["dataframe"]["sector_delays"].
 
