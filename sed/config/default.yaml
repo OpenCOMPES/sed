@@ -88,8 +88,6 @@ delay:
   # value ranges of the analog-to-digital converter axes used for encoding the delay stage position
   # (in unbinned coordinates)
   adc_range: [1900, 25600]
-  # pump probe time overlap in ps
-  time0: 0
   # if to flip the time axis
   flip_time_axis: False
 

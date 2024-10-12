@@ -20,11 +20,15 @@ from sed.loader.loader_interface import get_names_of_all_loaders
 
 
 class Paths(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     raw: DirectoryPath
     processed: Union[DirectoryPath, NewPath]
 
 
 class CoreModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     loader: str
     verbose: Optional[bool] = None
     paths: Optional[Paths] = None
@@ -32,6 +36,7 @@ class CoreModel(BaseModel):
     year: Optional[int] = None
     beamtime_id: Optional[int] = None
     instrument: Optional[str] = None
+    beamline: Optional[str] = None
     # TODO: move copy tool to a separate model
     use_copy_tool: Optional[bool] = None
     copy_tool_source: Optional[DirectoryPath] = None
@@ -49,6 +54,8 @@ class CoreModel(BaseModel):
 
 
 class ColumnsModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     x: str
     y: str
     tof: str
@@ -69,6 +76,8 @@ class ColumnsModel(BaseModel):
 
 
 class ChannelModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     format: Literal["per_train", "per_electron", "per_pulse", "per_file"]
     dataset_key: str
     index_key: Optional[str] = None
@@ -76,6 +85,8 @@ class ChannelModel(BaseModel):
     dtype: Optional[str] = None
 
     class subChannel(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+
         slice: int
         dtype: Optional[str] = None
 
@@ -83,6 +94,8 @@ class ChannelModel(BaseModel):
 
 
 class DataframeModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     columns: ColumnsModel
     units: Optional[dict[str, str]] = None
     channels: Optional[dict[str, ChannelModel]] = None
@@ -99,11 +112,14 @@ class DataframeModel(BaseModel):
     split_sector_id_from_dld_time: Optional[bool] = None
     sector_id_reserved_bits: Optional[int] = None
     sector_delays: Optional[Sequence[float]] = None
+    daq: Optional[str] = None
 
     # write validator for model so that x_column gets converted to columns: x
 
 
 class BinningModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     hist_mode: str
     mode: str
     pbar: bool
@@ -112,6 +128,8 @@ class BinningModel(BaseModel):
 
 
 class HistogramModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     bins: Sequence[int]
     axes: Sequence[str]
     ranges: Sequence[tuple[float, float]]
@@ -121,12 +139,16 @@ class StaticModel(BaseModel):
     """Static configuration settings that shouldn't be changed by users."""
 
     # flash specific settings
+    model_config = ConfigDict(extra="forbid")
+
     stream_name_prefixes: Optional[dict] = None
     stream_name_postfixes: Optional[dict] = None
     beamtime_dir: Optional[dict] = None
 
 
 class EnergyModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     bins: int
     ranges: Sequence[int]
     normalize: bool
@@ -144,6 +166,8 @@ class EnergyModel(BaseModel):
     bias_key: Optional[str] = None
 
     class EnergyCalibrationModel(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+
         creation_date: Optional[float] = None
         d: Optional[float] = None
         t0: Optional[float] = None
@@ -153,6 +177,8 @@ class EnergyModel(BaseModel):
     calibration: Optional[EnergyCalibrationModel] = None
 
     class EnergyOffsets(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+
         creation_date: Optional[float] = None
         constant: Optional[float] = None
 
@@ -168,6 +194,8 @@ class EnergyModel(BaseModel):
     offsets: Optional[EnergyOffsets] = None
 
     class EnergyCorrectionModel(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+
         creation_date: Optional[float] = None
         correction_type: str
         amplitude: float
@@ -182,6 +210,8 @@ class EnergyModel(BaseModel):
 
 
 class MomentumModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     axes: Sequence[str]
     bins: Sequence[int]
     ranges: Sequence[Sequence[int]]
@@ -192,6 +222,8 @@ class MomentumModel(BaseModel):
     sigma_radius: int
 
     class MomentumCalibrationModel(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+
         creation_date: Optional[float] = None
         kx_scale: float
         ky_scale: float
@@ -205,6 +237,8 @@ class MomentumModel(BaseModel):
     calibration: Optional[MomentumCalibrationModel] = None
 
     class MomentumCorrectionModel(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+
         creation_date: Optional[float] = None
         feature_points: Sequence[Sequence[float]]
         rotation_symmetry: int
@@ -215,6 +249,8 @@ class MomentumModel(BaseModel):
 
 
 class DelayModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     adc_range: Sequence[int]
     flip_time_axis: bool
     # Group keys in the datafile
@@ -224,6 +260,8 @@ class DelayModel(BaseModel):
     t0_key: Optional[str] = None
 
     class DelayCalibration(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+
         creation_date: Optional[float] = None
         adc_range: Sequence[int]
         delay_range: Sequence[float]
@@ -234,6 +272,8 @@ class DelayModel(BaseModel):
     calibration: Optional[DelayCalibration] = None
 
     class DelayOffsets(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+
         creation_date: Optional[float] = None
         constant: Optional[float] = None
         flip_delay_axis: Optional[bool] = False
@@ -251,6 +291,8 @@ class DelayModel(BaseModel):
 
 
 class MetadataModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     archiver_url: Optional[HttpUrl] = None
     token: Optional[SecretStr] = None
     epics_pvs: Optional[Sequence[str]] = None
@@ -262,6 +304,8 @@ class MetadataModel(BaseModel):
 
 
 class NexusModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     reader: str  # prob good to have validation here
     # Currently only NXmpes definition is supported
     definition: Literal["NXmpes"]
@@ -269,6 +313,8 @@ class NexusModel(BaseModel):
 
 
 class ConfigModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     core: CoreModel
     dataframe: DataframeModel
     energy: EnergyModel
@@ -279,5 +325,3 @@ class ConfigModel(BaseModel):
     metadata: Optional[MetadataModel] = None
     nexus: Optional[NexusModel] = None
     static: Optional[StaticModel] = None
-
-    model_config = ConfigDict(extra="forbid")
