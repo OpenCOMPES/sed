@@ -78,7 +78,7 @@ def get_channels(
             if format_ == FORMATS[2] and aux_alias in available_channels:
                 if extend_aux:
                     channels.extend(
-                        channel_dict[aux_alias]["subChannels"].keys(),
+                        channel_dict[aux_alias]["sub_channels"].keys(),
                     )
                 else:
                     channels.extend([aux_alias])

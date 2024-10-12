@@ -29,34 +29,10 @@ dataframe:
   # if true, removes the 3 bits reserved for dldSectorID from the dldTimeSteps column
   split_sector_id_from_dld_time: True
   sector_id_reserved_bits: 3
-  # dataframe column containing x coordinates
-  x_column: dldPosX
-  # dataframe column containing corrected x coordinates
-  corrected_x_column: "X"
-  # dataframe column containing kx coordinates
-  kx_column: "kx"
-  # dataframe column containing y coordinates
-
-  y_column: dldPosY
-  # dataframe column containing corrected y coordinates
-  corrected_y_column: "Y"
-  # dataframe column containing kx coordinates
-  ky_column: "ky"
-  # dataframe column containing time-of-flight data
-
-  tof_column: dldTimeSteps
-  # dataframe column containing time-of-flight data in ns
-  tof_ns_column: dldTime
-  # dataframe column containing corrected time-of-flight data
-  corrected_tof_column: "tm"
-  # the time stamp column
-  time_stamp_alias: timeStamp
   # time length of a base time-of-flight bin in seconds
   tof_binwidth: 2.0576131995767355E-11
   # binning parameter for time-of-flight data. 2**tof_binning bins per base bin
   tof_binning: 3  # power of 2, 4 means 8 bins per step
-  # dataframe column containing sector ID. obtained from dldTimeSteps column
-  sector_id_column: dldSectorID
 
   sector_delays: [0., 0., 0., 0., 0., 0., 0., 0.]
 
@@ -125,32 +101,27 @@ dataframe:
     # The auxiliary channel has a special structure where the group further contains
     # a multidimensional structure so further aliases are defined below
     dldAux:
-      format: per_train
+      format: per_pulse
       index_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/index"
       dataset_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/value"
       slice: 4
-      subChannels:
+      sub_channels:
         sampleBias:
           slice: 0
-          dtype: float64
+          dtype: float32
         tofVoltage:
           slice: 1
           dtype: float64
         extractorVoltage:
           slice: 2
-          dtype: float64
         extractorCurrent:
           slice: 3
-          dtype: float64
         cryoTemperature:
           slice: 4
-          dtype: float64
         sampleTemperature:
           slice: 5
-          dtype: float64
         dldTimeBinSize:
           slice: 15
-          dtype: float64
 
     timeStamp:
       format: per_train
@@ -173,8 +144,10 @@ dataframe:
       dataset_key: "/FL1/Photon Diagnostic/GMD/Pulse resolved energy/energy tunnel/value"
       slice: 0
 
+
+# (Not to be changed by user)
+static:
   # The prefixes of the stream names for different DAQ systems for parsing filenames
-  # (Not to be changed by user)
   stream_name_prefixes:
     pbd: "GMD_DATA_gmd_data"
     pbd2: "FL2PhotDiag_pbd2_gmd_data"
@@ -188,15 +161,3 @@ dataframe:
   # (Not to be changed by user)
   beamtime_dir:
     pg2: "/asap3/flash/gpfs/pg2/"
-
-# metadata collection from scicat
-# metadata:
-#   scicat_url: <URL>
-#   scicat_username: <username>
-#   scicat_password: <password>
-
-# The nexus collection routine shall be finalized soon for both instruments
-# nexus:
-#   reader: "flash"
-#   definition: "NXmpes"
-#   input_files: ["NXmpes_config_HEXTOF_light.json"]

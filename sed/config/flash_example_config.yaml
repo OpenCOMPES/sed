@@ -45,7 +45,7 @@ dataframe:
   tof_binning: 8                                  # Binning parameter for time-of-flight data
 
   # Columns used for jitter correction
-  jitter_columns: [dldPosX, dldPosY, dldTimeSteps]
+  jitter_cols: [dldPosX, dldPosY, dldTimeSteps]
 
   # Column settings
   columns:
