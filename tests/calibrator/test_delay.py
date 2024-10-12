@@ -131,7 +131,7 @@ bam_vals = 1000 * (np.random.normal(size=100) + 5)
 delay_stage_vals = np.linspace(0, 99, 100)
 cfg = {
     "core": {"loader": "flash"},
-    "dataframe": {"delay_column": "delay"},
+    "dataframe": {"columns": {"delay": "delay"}},
     "delay": {
         "offsets": {
             "constant": 1,

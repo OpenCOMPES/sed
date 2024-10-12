@@ -294,8 +294,10 @@ def test_append_tof_ns_axis() -> None:
     """
     cfg = {
         "dataframe": {
-            "tof_column": "t",
-            "tof_ns_column": "t_ns",
+            "columns": {
+                "tof": "t",
+                "tof_ns": "t_ns",
+            },
             "tof_binning": 2,
             "tof_binwidth": 1e-9,
         },
