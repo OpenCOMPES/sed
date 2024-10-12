@@ -87,7 +87,7 @@ def test_initialize_dirs(config_file: dict, fs) -> None:
     config["core"]["year"] = "2000"
 
     # Find base path of beamline from config.
-    base_path = config["dataframe"]["beamtime_dir"]["sxp"]
+    base_path = config["static"]["beamtime_dir"]["sxp"]
     expected_path = Path(base_path) / config["core"]["year"] / config["core"]["beamtime_id"]
     # Create expected paths
     expected_raw_path = expected_path / "raw"
@@ -150,7 +150,7 @@ def test_data_keys_not_in_h5(config_file: dict, key_type: str):
     sl = SXPLoader(config=config)
 
     with pytest.raises(ValueError) as e:
-        sl.create_dataframe_per_file(config["core"]["paths"]["raw"] + H5_PATH)
+        sl.create_dataframe_per_file(Path(config["core"]["paths"]["raw"], H5_PATH))
 
     assert str(e.value.args[0]) == f"The {key_type} for channel dldPosX does not exist."
 

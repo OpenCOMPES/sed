@@ -82,6 +82,7 @@ class ChannelModel(BaseModel):
     index_key: Optional[str] = None
     slice: Optional[int] = None
     dtype: Optional[str] = None
+    max_hits: Optional[int] = None
 
     class subChannel(BaseModel):
         model_config = ConfigDict(extra="forbid")
