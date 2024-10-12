@@ -749,7 +749,7 @@ class MpesLoader(BaseLoader):
             )
 
         if folders is None:
-            folders = self._config["core"]["paths"]["data_raw_dir"]
+            folders = str(self._config["core"]["paths"]["raw"])
 
         if isinstance(folders, str):
             folders = [folders]

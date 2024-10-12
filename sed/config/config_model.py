@@ -22,7 +22,7 @@ class Paths(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     raw: DirectoryPath
-    processed: Union[DirectoryPath, NewPath]
+    processed: Optional[Union[DirectoryPath, NewPath]] = None
 
 
 class CoreModel(BaseModel):
