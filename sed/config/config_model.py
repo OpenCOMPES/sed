@@ -33,7 +33,7 @@ class CoreModel(BaseModel):
     paths: Optional[Paths] = None
     num_cores: Optional[int] = None
     year: Optional[int] = None
-    beamtime_id: Optional[int] = None
+    beamtime_id: Optional[Union[int, str]] = None
     instrument: Optional[str] = None
     beamline: Optional[str] = None
     # TODO: move copy tool to a separate model
@@ -83,6 +83,7 @@ class ChannelModel(BaseModel):
     slice: Optional[int] = None
     dtype: Optional[str] = None
     max_hits: Optional[int] = None
+    scale: Optional[float] = None
 
     class subChannel(BaseModel):
         model_config = ConfigDict(extra="forbid")
@@ -115,6 +116,7 @@ class DataframeModel(BaseModel):
     sector_id_reserved_bits: Optional[int] = None
     sector_delays: Optional[Sequence[float]] = None
     daq: Optional[str] = None
+    num_trains: Optional[int] = None
 
     # write validator for model so that x_column gets converted to columns: x
 
