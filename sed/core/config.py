@@ -148,7 +148,7 @@ def parse_config(
         return config_dict
     # Run the config through the ConfigModel to ensure it is valid
     config_model = ConfigModel(**config_dict)
-    return config_model.model_dump()
+    return config_model.model_dump(exclude_unset=True, exclude_none=True, exclude_defaults=True)
 
 
 def load_config(config_path: str) -> dict:

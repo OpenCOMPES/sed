@@ -167,7 +167,7 @@ def test_add_offset_from_config(df=test_dataframe) -> None:
     dc = DelayCalibrator(config=config)
     df, _ = dc.add_offsets(df.copy())
     assert "delay" in df.columns
-    assert "bam" in dc.offsets.keys()
+    assert "bam" in dc.offsets["columns"].keys()
     np.testing.assert_allclose(expected, df["delay"])
 
 
@@ -189,7 +189,7 @@ def test_add_offset_from_args(df=test_dataframe) -> None:
         columns="bam",
     )
     assert "delay" in df.columns
-    assert "bam" in dc.offsets.keys()
+    assert "bam" in dc.offsets["columns"].keys()
     expected = -np.array(
         delay_stage_vals + bam_vals * 1 + 1,
     )
@@ -215,5 +215,5 @@ def test_add_offset_from_dict(df=test_dataframe) -> None:
     dc = DelayCalibrator(config=config)
     df, _ = dc.add_offsets(df.copy(), offsets=offsets)
     assert "delay" in df.columns
-    assert "bam" in dc.offsets.keys()
+    assert "bam" in dc.offsets["columns"].keys()
     np.testing.assert_allclose(expected, df["delay"])

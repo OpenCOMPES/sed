@@ -1,6 +1,5 @@
 """Pydantic model to validate the config for SED package."""
 from collections.abc import Sequence
-from datetime import datetime
 from typing import Literal
 from typing import Optional
 from typing import Union
@@ -99,7 +98,7 @@ class DataframeModel(BaseModel):
     ubid_offset: Optional[int] = None
     split_sector_id_from_dld_time: Optional[bool] = None
     sector_id_reserved_bits: Optional[int] = None
-    sector_delays: Optional[Sequence[int]] = None
+    sector_delays: Optional[Sequence[float]] = None
 
     # write validator for model so that x_column gets converted to columns: x
 
@@ -142,22 +141,42 @@ class EnergyModel(BaseModel):
     x_width: Sequence[int]
     y_width: Sequence[int]
     color_clip: int
+    bias_key: Optional[str] = None
 
     class EnergyCalibrationModel(BaseModel):
-        d: float
-        t0: float
-        E0: float
+        creation_date: Optional[float] = None
+        d: Optional[float] = None
+        t0: Optional[float] = None
+        E0: Optional[float] = None
         energy_scale: str
 
     calibration: Optional[EnergyCalibrationModel] = None
 
+    class EnergyOffsets(BaseModel):
+        creation_date: Optional[float] = None
+        constant: Optional[float] = None
+
+        ## This seems rather complicated way to define offsets,
+        # inconsistent in how args vs config are for add_offsets
+        class OffsetColumn(BaseModel):
+            weight: float
+            preserve_mean: bool
+            reduction: Optional[str] = None
+
+        columns: Optional[dict[str, OffsetColumn]] = None
+
+    offsets: Optional[EnergyOffsets] = None
+
     class EnergyCorrectionModel(BaseModel):
+        creation_date: Optional[float] = None
         correction_type: str
         amplitude: float
         center: Sequence[float]
-        gamma: float
-        sigma: float
-        diameter: float
+        gamma: Optional[float] = None
+        sigma: Optional[float] = None
+        diameter: Optional[float] = None
+        sigma2: Optional[float] = None
+        amplitude2: Optional[float] = None
 
     correction: Optional[EnergyCorrectionModel] = None
 
@@ -173,6 +192,7 @@ class MomentumModel(BaseModel):
     sigma_radius: int
 
     class MomentumCalibrationModel(BaseModel):
+        creation_date: Optional[float] = None
         kx_scale: float
         ky_scale: float
         x_center: float
@@ -185,6 +205,7 @@ class MomentumModel(BaseModel):
     calibration: Optional[MomentumCalibrationModel] = None
 
     class MomentumCorrectionModel(BaseModel):
+        creation_date: Optional[float] = None
         feature_points: Sequence[Sequence[float]]
         rotation_symmetry: int
         include_center: bool
@@ -202,18 +223,18 @@ class DelayModel(BaseModel):
     p3_key: Optional[str] = None
     t0_key: Optional[str] = None
 
-    class Calibration(BaseModel):
-        creation_date: datetime
+    class DelayCalibration(BaseModel):
+        creation_date: Optional[float] = None
         adc_range: Sequence[int]
         delay_range: Sequence[float]
         time0: float
         delay_range_mm: Sequence[float]
         datafile: FilePath  # .h5 extension in filepath
 
-    calibration: Optional[Calibration] = None
+    calibration: Optional[DelayCalibration] = None
 
-    class Offsets(BaseModel):
-        creation_date: Optional[datetime] = None
+    class DelayOffsets(BaseModel):
+        creation_date: Optional[float] = None
         constant: Optional[float] = None
         flip_delay_axis: Optional[bool] = False
 
@@ -226,7 +247,7 @@ class DelayModel(BaseModel):
 
         columns: Optional[dict[str, OffsetColumn]] = None
 
-    offsets: Optional[Offsets] = None
+    offsets: Optional[DelayOffsets] = None
 
 
 class MetadataModel(BaseModel):

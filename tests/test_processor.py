@@ -719,7 +719,7 @@ def test_append_tof_ns_axis() -> None:
         verbose=True,
     )
     processor.append_tof_ns_axis()
-    assert processor.config["dataframe"]["tof_ns_column"] in processor.dataframe
+    assert processor.config["dataframe"]["columns"]["tof_ns"] in processor.dataframe
 
 
 def test_delay_calibration_workflow() -> None:

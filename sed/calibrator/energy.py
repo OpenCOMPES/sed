@@ -915,17 +915,17 @@ class EnergyCalibrator:
             df[energy_column] = df[energy_column] + scale_sign * bias_voltage
             if not suppress_output:
                 logger.debug(f"Shifted energy column by constant bias value: {bias_voltage}.")
-        elif self._config["dataframe"]["bias_column"] in df.columns:
+        elif self._config["dataframe"]["columns"]["bias"] in df.columns:
             df = dfops.offset_by_other_columns(
                 df=df,
                 target_column=energy_column,
-                offset_columns=self._config["dataframe"]["bias_column"],
+                offset_columns=self._config["dataframe"]["columns"]["bias"],
                 weights=scale_sign,
             )
             if not suppress_output:
                 logger.debug(
                     "Shifted energy column by bias column: "
-                    f"{self._config['dataframe']['bias_column']}.",
+                    f"{self._config['dataframe']['columns']['bias']}.",
                 )
         else:
             logger.warning(
@@ -1595,6 +1595,7 @@ class EnergyCalibrator:
             offsets["creation_date"] = datetime.now().timestamp()
             # column-based offsets
             if columns is not None:
+                offsets["columns"] = {}
                 if isinstance(columns, str):
                     columns = [columns]
 
@@ -1623,7 +1624,7 @@ class EnergyCalibrator:
 
                 # store in offsets dictionary
                 for col, weight, pmean, red in zip(columns, weights, preserve_mean, reductions):
-                    offsets[col] = {
+                    offsets["columns"][col] = {
                         "weight": weight,
                         "preserve_mean": pmean,
                         "reduction": red,
@@ -1652,35 +1653,38 @@ class EnergyCalibrator:
             for k, v in offsets.items():
                 if k == "creation_date":
                     continue
-                if k == "constant":
+                elif k == "constant":
                     # flip sign if binding energy scale
                     constant = v * scale_sign
                     log_str += f"\n   Constant: {constant}"
-                else:
-                    columns.append(k)
-                    try:
-                        weight = v["weight"]
-                    except KeyError:
-                        weight = 1
-                    if not isinstance(weight, (int, float, np.integer, np.floating)):
-                        raise TypeError(f"Invalid type for weight of column {k}: {type(weight)}")
-                    # flip sign if binding energy scale
-                    weight = weight * scale_sign
-                    weights.append(weight)
-                    pm = v.get("preserve_mean", False)
-                    if str(pm).lower() in ["false", "0", "no"]:
-                        pm = False
-                    elif str(pm).lower() in ["true", "1", "yes"]:
-                        pm = True
-                    preserve_mean.append(pm)
-                    red = v.get("reduction", None)
-                    if str(red).lower() in ["none", "null"]:
-                        red = None
-                    reductions.append(red)
-                    log_str += (
-                        f"\n   Column[{k}]: Weight={weight}, Preserve Mean: {pm}, "
-                        f"Reductions: {red}."
-                    )
+                elif k == "columns":
+                    for k2, v2 in offsets["columns"].items():
+                        columns.append(k2)
+                        try:
+                            weight = v2["weight"]
+                        except KeyError:
+                            weight = 1
+                        if not isinstance(weight, (int, float, np.integer, np.floating)):
+                            raise TypeError(
+                                f"Invalid type for weight of column {k}: {type(weight)}",
+                            )
+                        # flip sign if binding energy scale
+                        weight = weight * scale_sign
+                        weights.append(weight)
+                        pm = v2.get("preserve_mean", False)
+                        if str(pm).lower() in ["false", "0", "no"]:
+                            pm = False
+                        elif str(pm).lower() in ["true", "1", "yes"]:
+                            pm = True
+                        preserve_mean.append(pm)
+                        red = v2.get("reduction", None)
+                        if str(red).lower() in ["none", "null"]:
+                            red = None
+                        reductions.append(red)
+                        log_str += (
+                            f"\n   Column[{k}]: Weight={weight}, Preserve Mean: {pm}, "
+                            f"Reductions: {red}."
+                        )
 
             if not suppress_output:
                 logger.info(log_str)

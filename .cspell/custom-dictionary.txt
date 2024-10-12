@@ -290,6 +290,7 @@ ptargs
 pullrequest
 pval
 pyarrow
+pydantic
 pyenv
 pygments
 pynxtools

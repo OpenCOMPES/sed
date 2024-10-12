@@ -288,6 +288,7 @@ class DelayCalibrator:
             offsets["creation_date"] = datetime.now().timestamp()
             # column-based offsets
             if columns is not None:
+                offsets["columns"] = {}
                 if weights is None:
                     weights = 1
                 if isinstance(weights, (int, float, np.integer, np.floating)):
@@ -314,7 +315,7 @@ class DelayCalibrator:
 
                 # store in offsets dictionary
                 for col, weight, pmean, red in zip(columns, weights, preserve_mean, reductions):
-                    offsets[col] = {
+                    offsets["columns"][col] = {
                         "weight": weight,
                         "preserve_mean": pmean,
                         "reduction": red,
@@ -359,21 +360,22 @@ class DelayCalibrator:
                             f"Invalid value for flip_delay_axis in config: {flip_delay_axis}.",
                         )
                     log_str += f"\n   Flip delay axis: {flip_delay_axis}"
-                else:
-                    columns.append(k)
-                    try:
-                        weight = v["weight"]
-                    except KeyError:
-                        weight = 1
-                    weights.append(weight)
-                    pm = v.get("preserve_mean", False)
-                    preserve_mean.append(pm)
-                    red = v.get("reduction", None)
-                    reductions.append(red)
-                    log_str += (
-                        f"\n   Column[{k}]: Weight={weight}, Preserve Mean: {pm}, "
-                        f"Reductions: {red}."
-                    )
+                elif k == "columns":
+                    for k2, v2 in offsets["columns"].items():
+                        columns.append(k2)
+                        try:
+                            weight = v2["weight"]
+                        except KeyError:
+                            weight = 1
+                        weights.append(weight)
+                        pm = v2.get("preserve_mean", False)
+                        preserve_mean.append(pm)
+                        red = v2.get("reduction", None)
+                        reductions.append(red)
+                        log_str += (
+                            f"\n   Column[{k}]: Weight={weight}, Preserve Mean: {pm}, "
+                            f"Reductions: {red}."
+                        )
 
             if not suppress_output:
                 logger.info(log_str)
