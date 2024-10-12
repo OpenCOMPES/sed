@@ -660,8 +660,9 @@ def test_align_dld_sectors() -> None:
         user_config={},
         system_config={},
     )
-    config["core"]["paths"]["processed"] = (
-        config["core"]["paths"]["processed"] + "_align_dld_sectors"
+    config["core"]["paths"]["processed"] = Path(
+        config["core"]["paths"]["processed"],
+        "_align_dld_sectors",
     )
     processor = SedProcessor(
         folder=df_folder + "../flash/",
@@ -998,7 +999,7 @@ def test_compute_with_normalization() -> None:
 
 def test_get_normalization_histogram() -> None:
     """Test the generation function for the normalization histogram"""
-    config = {"core": {"loader": "mpes"}, "dataframe": {"time_stamp_alias": "timeStamps"}}
+    config = {"core": {"loader": "mpes"}, "dataframe": {"columns": {"timestamp": "timeStamps"}}}
     processor = SedProcessor(
         folder=df_folder,
         config=config,

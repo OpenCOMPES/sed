@@ -9,7 +9,6 @@ from pydantic import ConfigDict
 from pydantic import DirectoryPath
 from pydantic import field_validator
 from pydantic import FilePath
-from pydantic import HttpUrl
 from pydantic import NewPath
 from pydantic import SecretStr
 
@@ -106,6 +105,8 @@ class DataframeModel(BaseModel):
     jitter_cols: Sequence[str]
     jitter_amps: Union[float, Sequence[float]]
     timed_dataframe_unit_time: float
+    first_event_time_stamp_key: Optional[str] = None
+    ms_markers_key: Optional[str] = None
     # flash specific settings
     forward_fill_iterations: Optional[int] = None
     ubid_offset: Optional[int] = None
@@ -172,6 +173,8 @@ class EnergyModel(BaseModel):
         d: Optional[float] = None
         t0: Optional[float] = None
         E0: Optional[float] = None
+        coeffs: Optional[Sequence[float]] = None
+        offset: Optional[float] = None
         energy_scale: str
 
     calibration: Optional[EnergyCalibrationModel] = None
@@ -244,8 +247,22 @@ class MomentumModel(BaseModel):
         rotation_symmetry: int
         include_center: bool
         use_center: bool
+        ascale: Optional[Sequence[float]] = None
+        center_point: Optional[Sequence[float]] = None
+        outer_points: Optional[Sequence[Sequence[float]]] = None
 
     correction: Optional[MomentumCorrectionModel] = None
+
+    class MomentumTransformationModel(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+
+        creation_date: Optional[float] = None
+        scale: Optional[float] = None
+        angle: Optional[float] = None
+        xtrans: Optional[float] = None
+        ytrans: Optional[float] = None
+
+    transformations: Optional[MomentumTransformationModel] = None
 
 
 class DelayModel(BaseModel):
@@ -293,7 +310,7 @@ class DelayModel(BaseModel):
 class MetadataModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    archiver_url: Optional[HttpUrl] = None
+    archiver_url: Optional[str] = None
     token: Optional[SecretStr] = None
     epics_pvs: Optional[Sequence[str]] = None
     fa_in_channel: Optional[str] = None
@@ -309,7 +326,7 @@ class NexusModel(BaseModel):
     reader: str  # prob good to have validation here
     # Currently only NXmpes definition is supported
     definition: Literal["NXmpes"]
-    input_files: Sequence[FilePath]
+    input_files: Sequence[str]
 
 
 class ConfigModel(BaseModel):

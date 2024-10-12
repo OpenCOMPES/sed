@@ -1192,8 +1192,8 @@ class SedProcessor:
                 ):
                     raise ValueError(
                         "If binned_data is provided as an xarray, it needs to contain dimensions "
-                        f"'{self._config['dataframe']['tof_column']}' and "
-                        f"'{self._config['dataframe']['bias_column']}'!.",
+                        f"'{self._config['dataframe']['columns']['tof']}' and "
+                        f"'{self._config['dataframe']['columns']['bias']}'!.",
                     )
                 tof = binned_data.coords[self._config["dataframe"]["columns"]["tof"]].values
                 biases = binned_data.coords[self._config["dataframe"]["columns"]["bias"]].values

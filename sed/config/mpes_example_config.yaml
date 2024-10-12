@@ -15,8 +15,6 @@ core:
     gid: 1001
 
 dataframe:
-  # dataframe column name for the time stamp column
-  time_stamp_alias: "timeStamps"
   # hdf5 group name containing eventIDs occurring at every millisecond (used to calculate timestamps)
   ms_markers_key: "msMarkers"
   # hdf5 attribute containing the timestamp of the first event in a file
@@ -38,6 +36,7 @@ dataframe:
     ky: ky # dataframe column containing ky coordinates
     energy: energy # dataframe column containing energy data
     delay: delay # dataframe column containing delay data
+    timestamp: timeStamps  # dataframe column containing timestamp data
   # time length of a base time-of-flight bin in ns
   tof_binwidth: 4.125e-12
   # Binning factor of the tof_column-data compared to tof_binwidth
