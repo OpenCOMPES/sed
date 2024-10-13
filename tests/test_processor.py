@@ -219,7 +219,7 @@ def test_attributes_setters() -> None:
 
 def test_copy_tool() -> None:
     """Test the copy tool functionality in the processor"""
-    config = {"core": {"loader": "mpes", "use_copy_tool": True}}
+    config: dict[str, dict[str, Any]] = {"core": {"loader": "mpes"}}
     processor = SedProcessor(
         config=config,
         folder_config={},
@@ -231,10 +231,7 @@ def test_copy_tool() -> None:
     config = {
         "core": {
             "loader": "mpes",
-            "use_copy_tool": True,
-            "copy_tool_source": source_folder,
-            "copy_tool_dest": dest_folder,
-            "copy_tool_kwds": {"gid": os.getgid()},
+            "copy_tool": {"source": source_folder, "dest": dest_folder, "gid": os.getgid()},
         },
     }
     processor = SedProcessor(
@@ -247,17 +244,6 @@ def test_copy_tool() -> None:
     assert processor.use_copy_tool is True
     processor.load(files=files)
     assert processor.files[0].find(dest_folder) > -1
-
-    # test illegal keywords:
-    config["core"]["copy_tool_kwds"] = {"gid": os.getgid(), "illegal_keyword": True}
-    with pytest.raises(TypeError):
-        processor = SedProcessor(
-            config=config,
-            folder_config={},
-            user_config={},
-            system_config={},
-            verbose=True,
-        )
 
 
 feature4 = np.array([[203.2, 341.96], [299.16, 345.32], [304.38, 149.88], [199.52, 152.48]])

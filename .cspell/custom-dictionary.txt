@@ -126,6 +126,7 @@ ftype
 fwhm
 genindex
 getgid
+getgrgid
 getmtime
 gpfs
 griddata

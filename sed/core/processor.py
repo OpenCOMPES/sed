@@ -161,22 +161,17 @@ class SedProcessor:
             verbose=self._verbose,
         )
 
-        self.use_copy_tool = self._config.get("core", {}).get(
-            "use_copy_tool",
-            False,
-        )
+        self.use_copy_tool = "copy_tool" in self._config["core"]
         if self.use_copy_tool:
             try:
                 self.ct = CopyTool(
-                    source=self._config["core"]["copy_tool_source"],
-                    dest=self._config["core"]["copy_tool_dest"],
                     num_cores=self._config["core"]["num_cores"],
-                    **self._config["core"].get("copy_tool_kwds", {}),
+                    **self._config["core"]["copy_tool"],
                 )
                 logger.debug(
-                    f"Initialized copy tool: Copy file from "
-                    f"'{self._config['core']['copy_tool_source']}' "
-                    f"to '{self._config['core']['copy_tool_dest']}'.",
+                    f"Initialized copy tool: Copy files from "
+                    f"'{self._config['core']['copy_tool']['source']}' "
+                    f"to '{self._config['core']['copy_tool']['dest']}'.",
                 )
             except KeyError:
                 self.use_copy_tool = False

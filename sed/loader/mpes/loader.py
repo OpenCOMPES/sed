@@ -72,7 +72,6 @@ def hdf5_to_dataframe(
 
     electron_channels = []
     column_names = []
-    print("Print values: ", channels)
     for name, channel in channels.items():
         if channel["format"] == "per_electron":
             if channel["dataset_key"] in test_proc:

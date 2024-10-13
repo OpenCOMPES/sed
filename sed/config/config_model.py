@@ -1,4 +1,5 @@
 """Pydantic model to validate the config for SED package."""
+import grp
 from collections.abc import Sequence
 from typing import Literal
 from typing import Optional
@@ -18,11 +19,31 @@ from sed.loader.loader_interface import get_names_of_all_loaders
 ## https://github.com/astral-sh/ruff/issues/5434
 
 
-class Paths(BaseModel):
+class PathsModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     raw: DirectoryPath
     processed: Optional[Union[DirectoryPath, NewPath]] = None
+
+
+class CopyToolModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    source: DirectoryPath
+    dest: DirectoryPath
+    safety_margin: Optional[float] = None
+    gid: Optional[int] = None
+    scheduler: Optional[str] = None
+
+    @field_validator("gid")
+    @classmethod
+    def validate_gid(cls, v: int) -> int:
+        """Checks if the gid is valid on the system"""
+        try:
+            grp.getgrgid(v)
+        except KeyError:
+            raise ValueError(f"Invalid value {v} for gid. Group not found.")
+        return v
 
 
 class CoreModel(BaseModel):
@@ -30,17 +51,13 @@ class CoreModel(BaseModel):
 
     loader: str
     verbose: Optional[bool] = None
-    paths: Optional[Paths] = None
+    paths: Optional[PathsModel] = None
     num_cores: Optional[int] = None
     year: Optional[int] = None
     beamtime_id: Optional[Union[int, str]] = None
     instrument: Optional[str] = None
     beamline: Optional[str] = None
-    # TODO: move copy tool to a separate model
-    use_copy_tool: Optional[bool] = None
-    copy_tool_source: Optional[DirectoryPath] = None
-    copy_tool_dest: Optional[DirectoryPath] = None
-    copy_tool_kwds: Optional[dict] = None
+    copy_tool: Optional[CopyToolModel] = None
 
     @field_validator("loader")
     @classmethod
@@ -49,6 +66,14 @@ class CoreModel(BaseModel):
         names = get_names_of_all_loaders()
         if v not in names:
             raise ValueError(f"Invalid loader {v}. Available loaders are: {names}")
+        return v
+
+    @field_validator("num_cores")
+    @classmethod
+    def validate_num_cores(cls, v: int) -> int:
+        """Checks if the num_cores field is a positive integer"""
+        if v < 1:
+            raise ValueError(f"Invalid value {v} for num_cores. Needs to be > 0.")
         return v
 
 

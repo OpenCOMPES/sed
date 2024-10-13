@@ -4,15 +4,13 @@ core:
   # Number of parallel threads to use for parallelized jobs (e.g. binning, data conversion, copy, ...)
   num_cores: 20
   # Option to use the copy tool to mirror data to a local storage location before processing.
-  use_copy_tool: False
-  # path to the root of the source data directory
-  copy_tool_source: null # "/path/to/data/"
-  # path to the root or the local data storage
-  copy_tool_dest: null # "/path/to/localDataStore/"
-  # optional keywords for the copy tool:
-  copy_tool_kwds:
-    # group id to set for copied files and folders
-    gid: 1001
+  # copy_tool:
+    # # path to the root of the source data directory
+    # source: "/path/to/data/"
+    # # path to the root or the local data storage
+    # dest: "/path/to/localDataStore/"
+    # # group id to set for copied files and folders
+    # gid: 1000
 
 dataframe:
   # hdf5 group name containing eventIDs occurring at every millisecond (used to calculate timestamps)
