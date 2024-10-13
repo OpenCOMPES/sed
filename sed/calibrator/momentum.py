@@ -678,7 +678,7 @@ class MomentumCorrector:
         if self.pouter_ord is None:
             if self.pouter is not None:
                 self.pouter_ord = po.pointset_order(self.pouter)
-                self.correction["creation_date"] = datetime.now().timestamp()
+                self.correction["creation_date"] = datetime.now()
             else:
                 try:
                     features = np.asarray(
@@ -693,11 +693,7 @@ class MomentumCorrector:
                         ascale = np.asarray(ascale)
 
                     if "creation_date" in self.correction:
-                        datestring = datetime.fromtimestamp(
-                            self.correction["creation_date"],
-                        ).strftime(
-                            "%m/%d/%Y, %H:%M:%S",
-                        )
+                        datestring = self.correction["creation_date"].strftime("%m/%d/%Y, %H:%M:%S")
                         logger.info(
                             "No landmarks defined, using momentum correction parameters "
                             f"generated on {datestring}",
@@ -715,7 +711,7 @@ class MomentumCorrector:
                 self.add_features(features=features, rotsym=rotsym)
 
         else:
-            self.correction["creation_date"] = datetime.now().timestamp()
+            self.correction["creation_date"] = datetime.now()
 
         if ascale is not None:
             if isinstance(ascale, (int, float, np.floating, np.integer)):
@@ -1135,9 +1131,7 @@ class MomentumCorrector:
                 )
 
         elif "creation_date" in transformations:
-            datestring = datetime.fromtimestamp(transformations["creation_date"]).strftime(
-                "%m/%d/%Y, %H:%M:%S",
-            )
+            datestring = transformations["creation_date"].strftime("%m/%d/%Y, %H:%M:%S")
             logger.info(f"Using transformation parameters generated on {datestring}")
 
         def update(scale: float, xtrans: float, ytrans: float, angle: float):
@@ -1257,7 +1251,7 @@ class MomentumCorrector:
                 fig.canvas.draw_idle()
 
             if transformations != self.transformations:
-                transformations["creation_date"] = datetime.now().timestamp()
+                transformations["creation_date"] = datetime.now()
                 self.transformations = transformations
 
             if self._verbose:
@@ -1714,7 +1708,7 @@ class MomentumCorrector:
 
         # Assemble into return dictionary
         self.calibration = {}
-        self.calibration["creation_date"] = datetime.now().timestamp()
+        self.calibration["creation_date"] = datetime.now()
         self.calibration["kx_axis"] = k_row
         self.calibration["ky_axis"] = k_col
         self.calibration["grid"] = (k_rowgrid, k_colgrid)
@@ -1825,7 +1819,7 @@ class MomentumCorrector:
                 pass
         if len(self.adjust_params) > 0:
             metadata["registration"] = self.adjust_params
-            metadata["registration"]["creation_date"] = datetime.now().timestamp()
+            metadata["registration"]["creation_date"] = datetime.now()
             metadata["registration"]["applied"] = True
             metadata["registration"]["depends_on"] = (
                 "/entry/process/registration/transformations/rot_z"
@@ -1952,15 +1946,13 @@ class MomentumCorrector:
             ]:
                 if key in kwds:
                     calibration[key] = kwds.pop(key)
-            calibration["creation_date"] = datetime.now().timestamp()
+            calibration["creation_date"] = datetime.now()
 
             if len(kwds) > 0:
                 raise TypeError(f"append_k_axis() got unexpected keyword arguments {kwds.keys()}.")
 
         if "creation_date" in calibration and not suppress_output:
-            datestring = datetime.fromtimestamp(calibration["creation_date"]).strftime(
-                "%m/%d/%Y, %H:%M:%S",
-            )
+            datestring = calibration["creation_date"].strftime("%m/%d/%Y, %H:%M:%S")
             logger.info(f"Using momentum calibration parameters generated on {datestring}")
 
         try:

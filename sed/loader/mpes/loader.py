@@ -853,7 +853,7 @@ class MpesLoader(BaseLoader):
         # Get metadata from Epics archive if not present already
         epics_channels = self._config["metadata"]["epics_pvs"]
 
-        start = datetime.datetime.utcfromtimestamp(ts_from).isoformat()
+        start = datetime.datetime.utcfromtimestamp(ts_from)
 
         channels_missing = set(epics_channels) - set(
             metadata["file"].keys(),
@@ -891,7 +891,7 @@ class MpesLoader(BaseLoader):
 
         # Determine the correct aperture_config
         stamps = sorted(
-            list(self._config["metadata"]["aperture_config"]) + [start],
+            list(self._config["metadata"]["aperture_config"].keys()) + [start],
         )
         current_index = stamps.index(start)
         timestamp = stamps[current_index - 1]  # pick last configuration before file date

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import pathlib
 from collections.abc import Sequence
+from copy import deepcopy
 from datetime import datetime
 from typing import Any
 from typing import cast
@@ -698,11 +699,13 @@ class SedProcessor:
                 correction[key] = []
                 for point in value:
                     correction[key].append([float(i) for i in point])
+            elif key == "creation_date":
+                correction[key] = value.isoformat()
             else:
                 correction[key] = float(value)
 
         if "creation_date" not in correction:
-            correction["creation_date"] = datetime.now().timestamp()
+            correction["creation_date"] = datetime.now().isoformat()
 
         config = {
             "momentum": {
@@ -785,10 +788,13 @@ class SedProcessor:
             raise ValueError("No momentum transformation parameters to save!")
         transformations = {}
         for key, value in self.mc.transformations.items():
-            transformations[key] = float(value)
+            if key == "creation_date":
+                transformations[key] = value.isoformat()
+            else:
+                transformations[key] = float(value)
 
         if "creation_date" not in transformations:
-            transformations["creation_date"] = datetime.now().timestamp()
+            transformations["creation_date"] = datetime.now().isoformat()
 
         config = {
             "momentum": {
@@ -933,11 +939,13 @@ class SedProcessor:
         for key, value in self.mc.calibration.items():
             if key in ["kx_axis", "ky_axis", "grid", "extent"]:
                 continue
-
-            calibration[key] = float(value)
+            elif key == "creation_date":
+                calibration[key] = value.isoformat()
+            else:
+                calibration[key] = float(value)
 
         if "creation_date" not in calibration:
-            calibration["creation_date"] = datetime.now().timestamp()
+            calibration["creation_date"] = datetime.now().isoformat()
 
         config = {"momentum": {"calibration": calibration}}
         save_config(config, filename, overwrite)
@@ -1069,16 +1077,18 @@ class SedProcessor:
         if len(self.ec.correction) == 0:
             raise ValueError("No energy correction parameters to save!")
         correction = {}
-        for key, val in self.ec.correction.items():
+        for key, value in self.ec.correction.items():
             if key == "correction_type":
-                correction[key] = val
+                correction[key] = value
             elif key == "center":
-                correction[key] = [float(i) for i in val]
+                correction[key] = [float(i) for i in value]
+            elif key == "creation_date":
+                correction[key] = value.isoformat()
             else:
-                correction[key] = float(val)
+                correction[key] = float(value)
 
         if "creation_date" not in correction:
-            correction["creation_date"] = datetime.now().timestamp()
+            correction["creation_date"] = datetime.now().isoformat()
 
         config = {"energy": {"correction": correction}}
         save_config(config, filename, overwrite)
@@ -1430,11 +1440,13 @@ class SedProcessor:
                 calibration[key] = value
             elif key == "coeffs":
                 calibration[key] = [float(i) for i in value]
+            elif key == "creation_date":
+                calibration[key] = value.isoformat()
             else:
                 calibration[key] = float(value)
 
         if "creation_date" not in calibration:
-            calibration["creation_date"] = datetime.now().timestamp()
+            calibration["creation_date"] = datetime.now().isoformat()
 
         config = {"energy": {"calibration": calibration}}
         save_config(config, filename, overwrite)
@@ -1595,10 +1607,14 @@ class SedProcessor:
         if len(self.ec.offsets) == 0:
             raise ValueError("No energy offset parameters to save!")
 
-        if "creation_date" not in self.ec.offsets.keys():
-            self.ec.offsets["creation_date"] = datetime.now().timestamp()
+        offsets = deepcopy(self.ec.offsets)
 
-        config = {"energy": {"offsets": self.ec.offsets}}
+        if "creation_date" not in offsets.keys():
+            offsets["creation_date"] = datetime.now()
+
+        offsets["creation_date"] = offsets["creation_date"].isoformat()
+
+        config = {"energy": {"offsets": offsets}}
         save_config(config, filename, overwrite)
         logger.info(f'Saved energy offset parameters to "{filename}".')
 
@@ -1791,11 +1807,13 @@ class SedProcessor:
                 calibration[key] = value
             elif key in ["adc_range", "delay_range", "delay_range_mm"]:
                 calibration[key] = [float(i) for i in value]
+            elif key == "creation_date":
+                calibration[key] = value.isoformat()
             else:
                 calibration[key] = float(value)
 
         if "creation_date" not in calibration:
-            calibration["creation_date"] = datetime.now().timestamp()
+            calibration["creation_date"] = datetime.now().isoformat()
 
         config = {
             "delay": {
@@ -1898,14 +1916,14 @@ class SedProcessor:
         if len(self.dc.offsets) == 0:
             raise ValueError("No delay offset parameters to save!")
 
-        if "creation_date" not in self.ec.offsets.keys():
-            self.ec.offsets["creation_date"] = datetime.now().timestamp()
+        offsets = deepcopy(self.dc.offsets)
 
-        config = {
-            "delay": {
-                "offsets": self.dc.offsets,
-            },
-        }
+        if "creation_date" not in offsets.keys():
+            offsets["creation_date"] = datetime.now()
+
+        offsets["creation_date"] = offsets["creation_date"].isoformat()
+
+        config = {"delay": {"offsets": offsets}}
         save_config(config, filename, overwrite)
         logger.info(f'Saved delay offset parameters to "{filename}".')
 

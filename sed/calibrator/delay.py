@@ -146,7 +146,7 @@ class DelayCalibrator:
             or datafile is not None
         ):
             calibration = {}
-            calibration["creation_date"] = datetime.now().timestamp()
+            calibration["creation_date"] = datetime.now()
             if adc_range is not None:
                 calibration["adc_range"] = adc_range
             if delay_range is not None:
@@ -158,9 +158,7 @@ class DelayCalibrator:
         else:
             # report usage of loaded parameters
             if "creation_date" in calibration and not suppress_output:
-                datestring = datetime.fromtimestamp(calibration["creation_date"]).strftime(
-                    "%m/%d/%Y, %H:%M:%S",
-                )
+                datestring = calibration["creation_date"].strftime("%m/%d/%Y, %H:%M:%S")
                 logger.info(f"Using delay calibration parameters generated on {datestring}")
 
         if adc_column is None:
@@ -212,7 +210,7 @@ class DelayCalibrator:
             )
             if not suppress_output:
                 logger.info(f"Converted delay_range (ps) = {calibration['delay_range']}")
-            calibration["creation_date"] = datetime.now().timestamp()
+            calibration["creation_date"] = datetime.now()
 
         if "delay_range" in calibration.keys():
             df[delay_column] = calibration["delay_range"][0] + (
@@ -285,7 +283,7 @@ class DelayCalibrator:
             # pylint:disable=duplicate-code
             # use passed parameters, overwrite config
             offsets = {}
-            offsets["creation_date"] = datetime.now().timestamp()
+            offsets["creation_date"] = datetime.now()
             # column-based offsets
             if columns is not None:
                 offsets["columns"] = {}
@@ -331,9 +329,7 @@ class DelayCalibrator:
                 offsets["flip_delay_axis"] = flip_delay_axis
 
         elif "creation_date" in offsets and not suppress_output:
-            datestring = datetime.fromtimestamp(offsets["creation_date"]).strftime(
-                "%m/%d/%Y, %H:%M:%S",
-            )
+            datestring = offsets["creation_date"].strftime("%m/%d/%Y, %H:%M:%S")
             logger.info(f"Using delay offset parameters generated on {datestring}")
 
         if len(offsets) > 0:

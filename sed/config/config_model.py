@@ -1,6 +1,7 @@
 """Pydantic model to validate the config for SED package."""
 import grp
 from collections.abc import Sequence
+from datetime import datetime
 from typing import Literal
 from typing import Optional
 from typing import Union
@@ -132,6 +133,7 @@ class DataframeModel(BaseModel):
     jitter_cols: Sequence[str]
     jitter_amps: Union[float, Sequence[float]]
     timed_dataframe_unit_time: float
+    # mpes specific settings
     first_event_time_stamp_key: Optional[str] = None
     ms_markers_key: Optional[str] = None
     # flash specific settings
@@ -149,11 +151,11 @@ class DataframeModel(BaseModel):
 class BinningModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    hist_mode: str
-    mode: str
+    hist_mode: Literal["numpy", "numba"]
+    mode: Literal["fast", "lean", "legacy"]
     pbar: bool
     threads_per_worker: int
-    threadpool_API: str
+    threadpool_API: Literal["blas", "openmp"]
 
 
 class HistogramModel(BaseModel):
@@ -185,36 +187,34 @@ class EnergyModel(BaseModel):
     normalize_order: int
     fastdtw_radius: int
     peak_window: int
-    calibration_method: str
-    energy_scale: str
+    calibration_method: Literal["lmfit", "lstsq", "lsq"]
+    energy_scale: Literal["binding", "kinetic"]
     tof_fermi: int
-    tof_width: Sequence[int]
-    x_width: Sequence[int]
-    y_width: Sequence[int]
+    tof_width: tuple[int, int]
+    x_width: tuple[int, int]
+    y_width: tuple[int, int]
     color_clip: int
     bias_key: Optional[str] = None
 
     class EnergyCalibrationModel(BaseModel):
         model_config = ConfigDict(extra="forbid")
 
-        creation_date: Optional[float] = None
+        creation_date: Optional[datetime] = None
         d: Optional[float] = None
         t0: Optional[float] = None
         E0: Optional[float] = None
         coeffs: Optional[Sequence[float]] = None
         offset: Optional[float] = None
-        energy_scale: str
+        energy_scale: Literal["binding", "kinetic"]
 
     calibration: Optional[EnergyCalibrationModel] = None
 
     class EnergyOffsets(BaseModel):
         model_config = ConfigDict(extra="forbid")
 
-        creation_date: Optional[float] = None
+        creation_date: Optional[datetime] = None
         constant: Optional[float] = None
 
-        ## This seems rather complicated way to define offsets,
-        # inconsistent in how args vs config are for add_offsets
         class OffsetColumn(BaseModel):
             weight: float
             preserve_mean: bool
@@ -227,10 +227,10 @@ class EnergyModel(BaseModel):
     class EnergyCorrectionModel(BaseModel):
         model_config = ConfigDict(extra="forbid")
 
-        creation_date: Optional[float] = None
-        correction_type: str
+        creation_date: Optional[datetime] = None
+        correction_type: Literal["Gaussian", "Lorentzian", "spherical", "Lorentzian_asymmetric"]
         amplitude: float
-        center: Sequence[float]
+        center: tuple[float, float]
         gamma: Optional[float] = None
         sigma: Optional[float] = None
         diameter: Optional[float] = None
@@ -245,9 +245,9 @@ class MomentumModel(BaseModel):
 
     axes: Sequence[str]
     bins: Sequence[int]
-    ranges: Sequence[Sequence[int]]
-    detector_ranges: Sequence[Sequence[int]]
-    center_pixel: Sequence[int]
+    ranges: Sequence[tuple[int, int]]
+    detector_ranges: Sequence[tuple[int, int]]
+    center_pixel: tuple[int, int]
     sigma: int
     fwhm: int
     sigma_radius: int
@@ -255,7 +255,7 @@ class MomentumModel(BaseModel):
     class MomentumCalibrationModel(BaseModel):
         model_config = ConfigDict(extra="forbid")
 
-        creation_date: Optional[float] = None
+        creation_date: Optional[datetime] = None
         kx_scale: float
         ky_scale: float
         x_center: float
@@ -270,21 +270,21 @@ class MomentumModel(BaseModel):
     class MomentumCorrectionModel(BaseModel):
         model_config = ConfigDict(extra="forbid")
 
-        creation_date: Optional[float] = None
-        feature_points: Sequence[Sequence[float]]
+        creation_date: Optional[datetime] = None
+        feature_points: Sequence[tuple[float, float]]
         rotation_symmetry: int
         include_center: bool
         use_center: bool
         ascale: Optional[Sequence[float]] = None
-        center_point: Optional[Sequence[float]] = None
-        outer_points: Optional[Sequence[Sequence[float]]] = None
+        center_point: Optional[tuple[float, float]] = None
+        outer_points: Optional[Sequence[tuple[float, float]]] = None
 
     correction: Optional[MomentumCorrectionModel] = None
 
     class MomentumTransformationModel(BaseModel):
         model_config = ConfigDict(extra="forbid")
 
-        creation_date: Optional[float] = None
+        creation_date: Optional[datetime] = None
         scale: Optional[float] = None
         angle: Optional[float] = None
         xtrans: Optional[float] = None
@@ -296,7 +296,7 @@ class MomentumModel(BaseModel):
 class DelayModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    adc_range: Sequence[int]
+    adc_range: tuple[int, int]
     flip_time_axis: bool
     # Group keys in the datafile
     p1_key: Optional[str] = None
@@ -307,24 +307,22 @@ class DelayModel(BaseModel):
     class DelayCalibration(BaseModel):
         model_config = ConfigDict(extra="forbid")
 
-        creation_date: Optional[float] = None
-        adc_range: Sequence[int]
-        delay_range: Sequence[float]
-        time0: float
-        delay_range_mm: Sequence[float]
-        datafile: FilePath  # .h5 extension in filepath
+        creation_date: Optional[datetime] = None
+        adc_range: Optional[tuple[int, int]] = None
+        delay_range: Optional[tuple[float, float]] = None
+        time0: Optional[float] = None
+        delay_range_mm: Optional[tuple[float, float]] = None
+        datafile: Optional[FilePath]  # .h5 extension in filepath
 
     calibration: Optional[DelayCalibration] = None
 
     class DelayOffsets(BaseModel):
         model_config = ConfigDict(extra="forbid")
 
-        creation_date: Optional[float] = None
+        creation_date: Optional[datetime] = None
         constant: Optional[float] = None
         flip_delay_axis: Optional[bool] = False
 
-        ## This seems rather complicated way to define offsets,
-        # inconsistent in how args vs config are for add_offsets
         class OffsetColumn(BaseModel):
             weight: float
             preserve_mean: bool
@@ -344,14 +342,15 @@ class MetadataModel(BaseModel):
     fa_in_channel: Optional[str] = None
     fa_hor_channel: Optional[str] = None
     ca_in_channel: Optional[str] = None
-    aperture_config: Optional[dict] = None
-    lens_mode_config: Optional[dict] = None
+    aperture_config: Optional[dict[datetime, dict]] = None
+    lens_mode_config: Optional[dict[str, dict]] = None
 
 
 class NexusModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    reader: str  # prob good to have validation here
+    # Currently only mpes reader is supported
+    reader: Literal["mpes"]
     # Currently only NXmpes definition is supported
     definition: Literal["NXmpes"]
     input_files: Sequence[str]

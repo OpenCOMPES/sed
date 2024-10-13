@@ -612,7 +612,7 @@ class EnergyCalibrator:
         else:
             raise NotImplementedError()
 
-        self.calibration["creation_date"] = datetime.now().timestamp()
+        self.calibration["creation_date"] = datetime.now()
         return self.calibration
 
     def view(
@@ -843,12 +843,10 @@ class EnergyCalibrator:
         if len(kwds) > 0:
             for key, value in kwds.items():
                 calibration[key] = value
-            calibration["creation_date"] = datetime.now().timestamp()
+            calibration["creation_date"] = datetime.now()
 
         elif "creation_date" in calibration and not suppress_output:
-            datestring = datetime.fromtimestamp(calibration["creation_date"]).strftime(
-                "%m/%d/%Y, %H:%M:%S",
-            )
+            datestring = calibration["creation_date"].strftime("%m/%d/%Y, %H:%M:%S")
             logger.info(f"Using energy calibration parameters generated on {datestring}")
 
         # try to determine calibration type if not provided
@@ -1202,7 +1200,7 @@ class EnergyCalibrator:
             self.correction["amplitude"] = correction["amplitude"]
             self.correction["center"] = correction["center"]
             self.correction["correction_type"] = correction["correction_type"]
-            self.correction["creation_date"] = datetime.now().timestamp()
+            self.correction["creation_date"] = datetime.now()
             amplitude_slider.close()
             x_center_slider.close()
             y_center_slider.close()
@@ -1440,12 +1438,10 @@ class EnergyCalibrator:
             for key, value in kwds.items():
                 correction[key] = value
 
-            correction["creation_date"] = datetime.now().timestamp()
+            correction["creation_date"] = datetime.now()
 
         elif "creation_date" in correction and not suppress_output:
-            datestring = datetime.fromtimestamp(correction["creation_date"]).strftime(
-                "%m/%d/%Y, %H:%M:%S",
-            )
+            datestring = correction["creation_date"].strftime("%m/%d/%Y, %H:%M:%S")
             logger.info(f"Using energy correction parameters generated on {datestring}")
 
         missing_keys = {"correction_type", "center", "amplitude"} - set(correction.keys())
@@ -1592,7 +1588,7 @@ class EnergyCalibrator:
             # pylint:disable=duplicate-code
             # use passed parameters, overwrite config
             offsets = {}
-            offsets["creation_date"] = datetime.now().timestamp()
+            offsets["creation_date"] = datetime.now()
             # column-based offsets
             if columns is not None:
                 offsets["columns"] = {}
@@ -1637,9 +1633,7 @@ class EnergyCalibrator:
                 raise TypeError(f"Invalid type for constant: {type(constant)}")
 
         elif "creation_date" in offsets and not suppress_output:
-            datestring = datetime.fromtimestamp(offsets["creation_date"]).strftime(
-                "%m/%d/%Y, %H:%M:%S",
-            )
+            datestring = offsets["creation_date"].strftime("%m/%d/%Y, %H:%M:%S")
             logger.info(f"Using energy offset parameters generated on {datestring}")
 
         if len(offsets) > 0:
