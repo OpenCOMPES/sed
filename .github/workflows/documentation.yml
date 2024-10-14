@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
     paths:
-      - sed/**/*
+      - src/sed/**/*
       - tutorial/**
       - .github/workflows/documentation.yml
   # Allows you to run this workflow manually from the Actions tab
@@ -62,7 +62,7 @@ jobs:
       - name: copy tutorial files to docs
         run: |
           cp -r $GITHUB_WORKSPACE/tutorial $GITHUB_WORKSPACE/docs/
-          cp -r $GITHUB_WORKSPACE/sed/config $GITHUB_WORKSPACE/docs/sed
+          cp -r $GITHUB_WORKSPACE/config $GITHUB_WORKSPACE/docs/
           rm $GITHUB_WORKSPACE/docs/tutorial/5_sxp_workflow.ipynb
 
       # To be included later

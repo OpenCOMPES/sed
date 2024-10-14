@@ -25,15 +25,15 @@ jobs:
       # Linting steps, execute all linters even if one fails
       - name: ruff
         run:
-          poetry run ruff sed tests
+          poetry run ruff src/sed tests
       - name: ruff formatting
         if: ${{ always() }}
         run:
-          poetry run ruff format --check sed tests
+          poetry run ruff format --check src/sed tests
       - name: mypy
         if: ${{ always() }}
         run:
-          poetry run mypy sed tests
+          poetry run mypy src/sed tests
       - name: spellcheck
         if: ${{ always() }}
         uses: streetsidesoftware/cspell-action@v6

@@ -13,7 +13,7 @@ on:
     tags:
       - v[0-9]+.[0-9]+.[0-9]+
     paths:
-      - sed/**/*
+      - src/sed/**/*
       - .github/workflows/release.yml
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
