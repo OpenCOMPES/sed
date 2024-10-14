@@ -26,14 +26,14 @@ from sed.loader.loader_interface import get_loader
 
 #  pylint: disable=duplicate-code
 package_dir = os.path.dirname(find_spec("sed").origin)
-df_folder = package_dir + "/../tests/data/loader/mpes/"
-df_folder_generic = package_dir + "/../tests/data/loader/generic/"
-folder = package_dir + "/../tests/data/calibrator/"
+df_folder = package_dir + "/../../tests/data/loader/mpes/"
+df_folder_generic = package_dir + "/../../tests/data/loader/generic/"
+folder = package_dir + "/../../tests/data/calibrator/"
 files = glob.glob(df_folder + "*.h5")
 runs = ["30", "50"]
 runs_flash = ["43878", "43878"]
 loader = get_loader(loader_name="mpes")
-source_folder = package_dir + "/../"
+source_folder = package_dir + "/../../"
 dest_folder = tempfile.mkdtemp()
 gid = os.getgid()
 
@@ -852,7 +852,7 @@ def test_add_time_stamped_data() -> None:
     """Test the function to add time-stamped data"""
     processor = SedProcessor(
         folder=df_folder + "../mpes/",
-        config=package_dir + "/config/mpes_example_config.yaml",
+        config=package_dir + "/../../config/mpes_example_config.yaml",
         folder_config={},
         user_config={},
         system_config={},
@@ -1083,7 +1083,7 @@ def test_save(caplog) -> None:
     config = parse_config(
         config={"dataframe": {"tof_binning": 1}},
         folder_config={},
-        user_config=package_dir + "/../sed/config/mpes_example_config.yaml",
+        user_config=package_dir + "/../../config/mpes_example_config.yaml",
         system_config={},
         verify_config=False,
     )
@@ -1140,7 +1140,7 @@ def test_save(caplog) -> None:
         yaml.dump({"Instrument": {"undocumented_field": "undocumented entry"}}, f)
     with open("temp_config.json", "w") as f:
         with open(
-            package_dir + "/../sed/config/NXmpes_config.json",
+            package_dir + "/../../config/NXmpes_config.json",
             encoding="utf-8",
         ) as stream:
             config_dict = json.load(stream)

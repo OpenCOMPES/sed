@@ -13,7 +13,7 @@ from sed.loader.mpes.loader import MpesLoader
 
 package_dir = os.path.dirname(find_spec("sed").origin)
 
-test_data_dir = os.path.join(package_dir, "..", "tests", "data", "loader", "mpes")
+test_data_dir = os.path.join(package_dir, "../../tests/data/loader/mpes")
 
 config = parse_config(
     os.path.join(test_data_dir, "config.yaml"),

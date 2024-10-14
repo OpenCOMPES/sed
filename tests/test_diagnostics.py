@@ -15,11 +15,11 @@ from sed.loader.loader_interface import get_loader
 
 #  pylint: disable=duplicate-code
 package_dir = os.path.dirname(find_spec("sed").origin)
-df_folder = package_dir + "/../tests/data/loader/mpes/"
-folder = package_dir + "/../tests/data/calibrator/"
+df_folder = package_dir + "/../../tests/data/loader/mpes/"
+folder = package_dir + "/../../tests/data/calibrator/"
 files = glob.glob(df_folder + "*.h5")
 config = parse_config(
-    package_dir + "/../tests/data/loader/mpes/config.yaml",
+    package_dir + "/../../tests/data/loader/mpes/config.yaml",
     folder_config={},
     user_config={},
     system_config={},

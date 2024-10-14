@@ -92,10 +92,10 @@ def test_load_does_not_modify() -> None:
 def test_load_config() -> None:
     """Test if the config loader can handle json and yaml files."""
     config_json = load_config(
-        f"{package_dir}/../tests/data/config/config.json",
+        f"{package_dir}/../../tests/data/config/config.json",
     )
     config_yaml = load_config(
-        f"{package_dir}/../tests/data/config/config.yaml",
+        f"{package_dir}/../../tests/data/config/config.yaml",
     )
     assert config_json == config_yaml
 
@@ -103,7 +103,7 @@ def test_load_config() -> None:
 def test_load_config_raise() -> None:
     """Test if the config loader raises an error for a wrong file type."""
     with pytest.raises(TypeError):
-        load_config(f"{package_dir}/../README.md")
+        load_config(f"{package_dir}/../../README.md")
 
 
 def test_complete_dictionary() -> None:
