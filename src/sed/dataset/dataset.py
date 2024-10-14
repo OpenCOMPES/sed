@@ -32,7 +32,7 @@ class DatasetsManager:
     FILENAME = NAME + ".json"
     json_path = {}
     json_path["user"] = os.path.join(USER_CONFIG_PATH, FILENAME)
-    json_path["module"] = os.path.join(os.path.dirname(__file__), FILENAME)
+    json_path["module"] = os.path.join(os.path.dirname(__file__), "../../../config", FILENAME)
     json_path["folder"] = "./" + FILENAME
 
     @staticmethod
