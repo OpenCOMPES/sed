@@ -9,6 +9,7 @@ from importlib.util import find_spec
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from sed.core.config import complete_dictionary
 from sed.core.config import load_config
@@ -16,6 +17,10 @@ from sed.core.config import parse_config
 from sed.core.config import save_config
 
 package_dir = os.path.dirname(find_spec("sed").origin)
+
+test_config_dir = Path(package_dir).joinpath("../tests/data/loader/")
+config_paths = test_config_dir.glob("*/*.yaml")
+
 default_config_keys = [
     "binning",
     "histogram",
@@ -140,3 +145,28 @@ def test_save_dict() -> None:
             save_config(config_dict, filename, overwrite=True)
             config = load_config(filename)
             assert "test_entry" not in config.keys()
+
+
+@pytest.mark.parametrize("config_path", config_paths)
+def test_config_model_valid(config_path) -> None:
+    """Test the config model for a valid config."""
+    config = parse_config(config_path, verify_config=True)
+    assert config is not None
+
+
+def test_invalid_config_extra_field():
+    """Test that an invalid config with an extra field fails validation."""
+    default_config = parse_config(verify_config=False)
+    invalid_config = default_config.copy()
+    invalid_config["extra_field"] = "extra_value"
+    with pytest.raises(ValidationError):
+        parse_config(invalid_config, verify_config=True)
+
+
+def test_invalid_config_missing_field():
+    """Test that an invalid config with a missing required field fails validation."""
+    default_config = parse_config(verify_config=False)
+    invalid_config = default_config.copy()
+    del invalid_config["core"]["loader"]
+    with pytest.raises(ValidationError):
+        parse_config(default_config=invalid_config, verify_config=True)
