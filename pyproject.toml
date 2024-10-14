@@ -1,6 +1,7 @@
 [tool.poetry]
 name = "sed-processor"
 packages = [{include = "sed", from = "src"}]
+include = ["config"]
 version = "1.0.0a0"
 description = "Single Event Data Frame Processor: Backend to handle photoelectron resolved datastreams"
 authors = ["OpenCOMPES team <sed-processor@mpes.science>"]
