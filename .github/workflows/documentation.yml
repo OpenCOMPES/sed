@@ -5,7 +5,7 @@ on:
     branches: [ main ]
     tags: [ v* ]
     paths:
-      - sed/**/*
+      - src/sed/**/*
       - tutorial/**
       - .github/workflows/documentation.yml
   # Allows you to run this workflow manually from the Actions tab
@@ -50,7 +50,7 @@ jobs:
       - name: copy tutorial files to docs
         run: |
           cp -r $GITHUB_WORKSPACE/tutorial $GITHUB_WORKSPACE/docs/
-          cp -r $GITHUB_WORKSPACE/sed/config $GITHUB_WORKSPACE/docs/sed
+          cp -r $GITHUB_WORKSPACE/config $GITHUB_WORKSPACE/docs/
 
       - name: download RAW data
         # if: steps.cache-primes.outputs.cache-hit != 'true'
