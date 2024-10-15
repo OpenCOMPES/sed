@@ -1657,7 +1657,7 @@ class EnergyCalibrator:
                         weight = column_dict.get("weight", 1)
                         if not isinstance(weight, (int, float, np.integer, np.floating)):
                             raise TypeError(
-                                f"Invalid type for weight of column {k}: {type(weight)}",
+                                f"Invalid type for weight of column {column_name}: {type(weight)}",
                             )
                         # flip sign if binding energy scale
                         weight = weight * scale_sign

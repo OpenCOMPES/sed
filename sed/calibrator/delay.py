@@ -360,6 +360,10 @@ class DelayCalibrator:
                     for column_name, column_dict in offsets["columns"].items():
                         columns.append(column_name)
                         weight = column_dict.get("weight", 1)
+                        if not isinstance(weight, (int, float, np.integer, np.floating)):
+                            raise TypeError(
+                                f"Invalid type for weight of column {column_name}: {type(weight)}",
+                            )
                         weights.append(weight)
                         pm = column_dict.get("preserve_mean", False)
                         preserve_mean.append(pm)
