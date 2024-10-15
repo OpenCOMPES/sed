@@ -2528,7 +2528,7 @@ class SedProcessor:
                 )
                 input_files = kwds.pop(
                     "input_files",
-                    self._config["nexus"]["input_files"],
+                    [str(path) for path in self._config["nexus"]["input_files"]],
                 )
             except KeyError as exc:
                 raise ValueError(

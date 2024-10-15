@@ -1063,7 +1063,7 @@ def test_save(caplog) -> None:
     ] = 21.0
     config["metadata"]["lens_mode_config"]["6kV_kmodem4.0_30VTOF_453ns_focus.sav"]["Z1"] = 2450
     config["metadata"]["lens_mode_config"]["6kV_kmodem4.0_30VTOF_453ns_focus.sav"]["F"] = 69.23
-    config["nexus"]["input_files"] = [df_folder + "../../../../sed/config/NXmpes_config.json"]
+    config["nexus"]["input_files"] = [package_dir + "/../sed/config/NXmpes_config.json"]
     processor = SedProcessor(
         folder=df_folder,
         config=config,
@@ -1095,7 +1095,6 @@ def test_save(caplog) -> None:
     # and error if any validation problems occur.
     processor.save(
         "output.nxs",
-        input_files=df_folder + "../../../../sed/config/NXmpes_config.json",
         fail=True,
     )
     assert os.path.isfile("output.nxs")
@@ -1104,7 +1103,6 @@ def test_save(caplog) -> None:
     with pytest.raises(ValidationFailed):
         processor.save(
             "result.nxs",
-            input_files=df_folder + "../../../../sed/config/NXmpes_config.json",
             fail=True,
         )
     # Check that the issues are raised as warnings per default:
@@ -1113,7 +1111,7 @@ def test_save(caplog) -> None:
         yaml.dump({"Instrument": {"undocumented_field": "undocumented entry"}}, f)
     with open("temp_config.json", "w") as f:
         with open(
-            df_folder + "../../../../sed/config/NXmpes_config.json",
+            package_dir + "/../sed/config/NXmpes_config.json",
             encoding="utf-8",
         ) as stream:
             config_dict = json.load(stream)
