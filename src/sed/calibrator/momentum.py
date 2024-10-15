@@ -102,7 +102,7 @@ class MomentumCorrector:
         self.include_center: bool = False
         self.use_center: bool = False
         self.pouter: np.ndarray = None
-        self.pcent: tuple[float, ...] = None
+        self.pcent: tuple[float, float] = None
         self.pouter_ord: np.ndarray = None
         self.prefs: np.ndarray = None
         self.ptargs: np.ndarray = None
