@@ -1092,7 +1092,7 @@ def test_save(caplog) -> None:
     ] = 21.0
     config["metadata"]["lens_mode_config"]["6kV_kmodem4.0_30VTOF_453ns_focus.sav"]["Z1"] = 2450
     config["metadata"]["lens_mode_config"]["6kV_kmodem4.0_30VTOF_453ns_focus.sav"]["F"] = 69.23
-    config["nexus"]["input_files"] = [package_dir + "/../sed/config/NXmpes_config.json"]
+    config["nexus"]["input_files"] = [package_dir + "/../../config/NXmpes_config.json"]
     processor = SedProcessor(
         folder=df_folder,
         config=config,
