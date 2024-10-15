@@ -11,7 +11,9 @@ from pydantic import ConfigDict
 from pydantic import DirectoryPath
 from pydantic import field_validator
 from pydantic import FilePath
+from pydantic import HttpUrl
 from pydantic import NewPath
+from pydantic import PositiveInt
 from pydantic import SecretStr
 
 from sed.loader.loader_interface import get_names_of_all_loaders
@@ -53,7 +55,7 @@ class CoreModel(BaseModel):
     loader: str
     verbose: Optional[bool] = None
     paths: Optional[PathsModel] = None
-    num_cores: Optional[int] = None
+    num_cores: Optional[PositiveInt] = None
     year: Optional[int] = None
     beamtime_id: Optional[Union[int, str]] = None
     instrument: Optional[str] = None
@@ -67,14 +69,6 @@ class CoreModel(BaseModel):
         names = get_names_of_all_loaders()
         if v not in names:
             raise ValueError(f"Invalid loader {v}. Available loaders are: {names}")
-        return v
-
-    @field_validator("num_cores")
-    @classmethod
-    def validate_num_cores(cls, v: int) -> int:
-        """Checks if the num_cores field is a positive integer"""
-        if v < 1:
-            raise ValueError(f"Invalid value {v} for num_cores. Needs to be > 0.")
         return v
 
 
@@ -336,7 +330,7 @@ class DelayModel(BaseModel):
 class MetadataModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    archiver_url: Optional[str] = None
+    archiver_url: Optional[HttpUrl] = None
     token: Optional[SecretStr] = None
     epics_pvs: Optional[Sequence[str]] = None
     fa_in_channel: Optional[str] = None
@@ -353,7 +347,7 @@ class NexusModel(BaseModel):
     reader: Literal["mpes"]
     # Currently only NXmpes definition is supported
     definition: Literal["NXmpes"]
-    input_files: Sequence[str]
+    input_files: Sequence[FilePath]
 
 
 class ConfigModel(BaseModel):

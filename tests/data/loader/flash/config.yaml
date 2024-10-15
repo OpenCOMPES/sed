@@ -101,7 +101,7 @@ dataframe:
     # The auxiliary channel has a special structure where the group further contains
     # a multidimensional structure so further aliases are defined below
     dldAux:
-      format: per_pulse
+      format: per_train
       index_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/index"
       dataset_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/value"
       slice: 4

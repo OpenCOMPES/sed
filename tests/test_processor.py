@@ -829,6 +829,7 @@ def test_add_time_stamped_data() -> None:
         system_config={},
         time_stamps=True,
         verbose=True,
+        verify_config=False,
     )
     df_ts = processor.dataframe.timeStamps.compute().values
     data = np.linspace(0, 1, 20)
@@ -1055,12 +1056,14 @@ def test_save(caplog) -> None:
         folder_config={},
         user_config=package_dir + "/../sed/config/mpes_example_config.yaml",
         system_config={},
+        verify_config=False,
     )
     config["metadata"]["lens_mode_config"]["6kV_kmodem4.0_30VTOF_453ns_focus.sav"][
         "MCPfront"
     ] = 21.0
     config["metadata"]["lens_mode_config"]["6kV_kmodem4.0_30VTOF_453ns_focus.sav"]["Z1"] = 2450
     config["metadata"]["lens_mode_config"]["6kV_kmodem4.0_30VTOF_453ns_focus.sav"]["F"] = 69.23
+    config["nexus"]["input_files"] = [df_folder + "../../../../sed/config/NXmpes_config.json"]
     processor = SedProcessor(
         folder=df_folder,
         config=config,

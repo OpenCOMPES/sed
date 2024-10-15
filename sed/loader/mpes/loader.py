@@ -861,7 +861,7 @@ class MpesLoader(BaseLoader):
         for channel in channels_missing:
             try:
                 _, vals = get_archiver_data(
-                    archiver_url=self._config["metadata"].get("archiver_url"),
+                    archiver_url=str(self._config["metadata"].get("archiver_url")),
                     archiver_channel=channel,
                     ts_from=ts_from,
                     ts_to=ts_to,
