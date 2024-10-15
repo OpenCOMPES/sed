@@ -12,7 +12,7 @@ from pathlib import Path
 import yaml
 from platformdirs import user_config_path
 
-from sed.config.config_model import ConfigModel
+from sed.core.config_model import ConfigModel
 from sed.core.logging import setup_logging
 
 package_dir = os.path.dirname(find_spec("sed").origin)
@@ -28,7 +28,7 @@ def parse_config(
     folder_config: dict | str = None,
     user_config: dict | str = None,
     system_config: dict | str = None,
-    default_config: (dict | str) = f"{package_dir}/config/default.yaml",
+    default_config: (dict | str) = f"{package_dir}/../../config/default.yaml",
     verbose: bool = True,
     verify_config: bool = True,
 ) -> dict:

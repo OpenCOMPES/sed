@@ -16,7 +16,7 @@ from sed.core.config import parse_config
 from sed.loader.loader_interface import get_loader
 
 package_dir = os.path.dirname(find_spec("sed").origin)
-file = package_dir + "/../tests/data/loader/mpes/Scan0030_2.h5"
+file = package_dir + "/../../tests/data/loader/mpes/Scan0030_2.h5"
 
 
 def test_delay_parameters_from_file() -> None:
