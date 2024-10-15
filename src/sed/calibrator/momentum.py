@@ -1348,7 +1348,9 @@ class MomentumCorrector:
 
         if annotated:
             tsr, tsc = kwds.pop("textshift", (3, 3))
-            txtsize = kwds.pop("textsize", 12)
+            txtsize = kwds.pop("textsize", 10)
+
+        title = kwds.pop("title", "")
 
         # Handle unexpected kwds:
         handled_kwds = {"figsize"}
@@ -1358,7 +1360,7 @@ class MomentumCorrector:
             )
 
         if backend == "matplotlib":
-            fig_plt, ax = plt.subplots(figsize=figsize)
+            _, ax = plt.subplots(figsize=figsize)
             ax.imshow(image.T, origin=origin, cmap=cmap, **imkwds)
 
             if cross:
@@ -1368,15 +1370,12 @@ class MomentumCorrector:
 
             # Add annotation to the figure
             if annotated:
-                for (
-                    p_keys,  # pylint: disable=unused-variable
-                    p_vals,
-                ) in points.items():
+                for p_keys, p_vals in points.items():
                     try:
-                        ax.scatter(p_vals[:, 0], p_vals[:, 1], **scatterkwds)
+                        ax.scatter(p_vals[:, 0], p_vals[:, 1], s=15, **scatterkwds)
                     except IndexError:
                         try:
-                            ax.scatter(p_vals[0], p_vals[1], **scatterkwds)
+                            ax.scatter(p_vals[0], p_vals[1], s=15, **scatterkwds)
                         except IndexError:
                             pass
 
@@ -1388,6 +1387,13 @@ class MomentumCorrector:
                                 str(i_pval),
                                 fontsize=txtsize,
                             )
+
+            if crosshair and self.pcent is not None:
+                for radius in crosshair_radii:
+                    circle = plt.Circle(self.pcent, radius, color="k", fill=False)
+                    ax.add_patch(circle)
+
+            ax.set_title(title)
 
         elif backend == "bokeh":
             output_notebook(hide_banner=True)
