@@ -150,23 +150,28 @@ def test_save_dict() -> None:
 @pytest.mark.parametrize("config_path", config_paths)
 def test_config_model_valid(config_path) -> None:
     """Test the config model for a valid config."""
-    config = parse_config(config_path, verify_config=True)
+    config = parse_config(config_path, user_config={}, system_config={}, verify_config=True)
     assert config is not None
 
 
 def test_invalid_config_extra_field():
     """Test that an invalid config with an extra field fails validation."""
-    default_config = parse_config(verify_config=False)
+    default_config = parse_config(user_config={}, system_config={}, verify_config=True)
     invalid_config = default_config.copy()
     invalid_config["extra_field"] = "extra_value"
     with pytest.raises(ValidationError):
-        parse_config(invalid_config, verify_config=True)
+        parse_config(invalid_config, user_config={}, system_config={}, verify_config=True)
 
 
 def test_invalid_config_missing_field():
     """Test that an invalid config with a missing required field fails validation."""
-    default_config = parse_config(verify_config=False)
+    default_config = parse_config(user_config={}, system_config={}, verify_config=True)
     invalid_config = default_config.copy()
     del invalid_config["core"]["loader"]
     with pytest.raises(ValidationError):
-        parse_config(default_config=invalid_config, verify_config=True)
+        parse_config(
+            user_config={},
+            system_config={},
+            default_config=invalid_config,
+            verify_config=True,
+        )
