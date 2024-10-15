@@ -404,6 +404,7 @@ xpos
 xratio
 xrng
 xscale
+xticks
 xtrans
 Xuser
 xval
@@ -414,6 +415,7 @@ ylabel
 ypos
 yratio
 yscale
+yticks
 ytrans
 zain
 Zenodo

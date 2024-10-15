@@ -59,7 +59,7 @@ def grid_histogram(
     rvs: Sequence,
     rvbins: Sequence,
     rvranges: Sequence[tuple[float, float]],
-    backend: str = "bokeh",
+    backend: str = "matplotlib",
     legend: bool = True,
     histkwds: dict = None,
     legkwds: dict = None,
@@ -73,22 +73,22 @@ def grid_histogram(
         rvs (Sequence): List of names for the random variables (rvs).
         rvbins (Sequence): Bin values for all random variables.
         rvranges (Sequence[tuple[float, float]]): Value ranges of all random variables.
-        backend (str, optional): Backend for making the plot ('matplotlib' or 'bokeh').
-            Defaults to "bokeh".
+        backend (str, optional): Backend for making the plot ("matplotlib" or "bokeh").
+            Defaults to "matplotlib".
         legend (bool, optional): Option to include a legend in each histogram plot.
             Defaults to True.
         histkwds (dict, optional): Keyword arguments for histogram plots.
             Defaults to None.
         legkwds (dict, optional): Keyword arguments for legends. Defaults to None.
         **kwds:
-            - *figsize*: Figure size. Defaults to (14, 8)
+            - *figsize*: Figure size. Defaults to (6, 4)
     """
     if histkwds is None:
         histkwds = {}
     if legkwds is None:
         legkwds = {}
 
-    figsz = kwds.pop("figsize", (10, 7))
+    figsz = kwds.pop("figsize", (6, 4))
 
     if len(kwds) > 0:
         raise TypeError(f"grid_histogram() got unexpected keyword arguments {kwds.keys()}.")
@@ -96,7 +96,7 @@ def grid_histogram(
     if backend == "matplotlib":
         nrv = len(rvs)
         nrow = int(np.ceil(nrv / ncol))
-        histtype = kwds.pop("histtype", "step")
+        histtype = kwds.pop("histtype", "bar")
 
         fig, ax = plt.subplots(nrow, ncol, figsize=figsz)
         otherax = ax.copy()
@@ -114,7 +114,7 @@ def grid_histogram(
                     **histkwds,
                 )
                 if legend:
-                    ax[axind].legend(fontsize=15, **legkwds)
+                    ax[axind].legend(fontsize=10, **legkwds)
 
                 otherax[axind] = None
 
@@ -128,13 +128,16 @@ def grid_histogram(
                     **histkwds,
                 )
                 if legend:
-                    ax[i].legend(fontsize=15, **legkwds)
+                    ax[i].legend(fontsize=10, **legkwds)
 
                 otherax[i] = None
 
         for oax in otherax.flatten():
             if oax is not None:
                 fig.delaxes(oax)
+        plt.xticks(fontsize=8)
+        plt.yticks(fontsize=8)
+        plt.tight_layout()
 
     elif backend == "bokeh":
         output_notebook(hide_banner=True)
@@ -163,7 +166,7 @@ def grid_histogram(
             gridplot(
                 plots,  # type: ignore
                 ncols=ncol,
-                width=figsz[0] * 30,
-                height=figsz[1] * 28,
+                width=figsz[0] * 100 // ncol,
+                height=figsz[1] * 100 // (len(plots) // ncol),
             ),
         )
