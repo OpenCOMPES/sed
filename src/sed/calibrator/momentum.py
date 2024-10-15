@@ -1393,11 +1393,10 @@ class MomentumCorrector:
             output_notebook(hide_banner=True)
             colors = it.cycle(ColorCycle[10])
             ttp = [("(x, y)", "($x, $y)")]
-            figsize = kwds.pop("figsize", (320, 300))
             palette = cm2palette(cmap)  # Retrieve palette colors
             fig = pbk.figure(
-                width=figsize[0],
-                height=figsize[1],
+                width=figsize[0] * 100,
+                height=figsize[1] * 100,
                 tooltips=ttp,
                 x_range=(0, num_rows),
                 y_range=(0, num_cols),

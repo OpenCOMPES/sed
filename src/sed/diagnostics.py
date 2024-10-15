@@ -88,7 +88,7 @@ def grid_histogram(
     if legkwds is None:
         legkwds = {}
 
-    figsz = kwds.pop("figsize", (14, 8))
+    figsz = kwds.pop("figsize", (10, 7))
 
     if len(kwds) > 0:
         raise TypeError(f"grid_histogram() got unexpected keyword arguments {kwds.keys()}.")

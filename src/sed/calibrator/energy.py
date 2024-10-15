@@ -351,7 +351,7 @@ class EnergyCalibrator:
 
         # make plot
         labels = kwds.pop("labels", [str(b) + " V" for b in self.biases])
-        figsize = kwds.pop("figsize", (8, 4))
+        figsize = kwds.pop("figsize", (6, 4))
         plot_segs = []
         plot_peaks = []
         fig, ax = plt.subplots(figsize=figsize)
@@ -664,15 +664,19 @@ class EnergyCalibrator:
 
         sign = 1 if energy_scale == "kinetic" else -1
 
+        figsize = kwds.pop("figsize", (6, 4))
+
         if backend == "matplotlib":
-            figsize = kwds.pop("figsize", (6, 4))
+            colors = plt.get_cmap("rainbow")(np.linspace(0, 1, len(traces)))
             fig_plt, ax = plt.subplots(figsize=figsize)
-            for itr, trace in enumerate(traces):
+            for itr, color in zip(range(len(traces)), colors):
+                trace = traces[itr, :]
                 if align:
                     ax.plot(
                         xaxis + sign * (self.biases[itr]),
                         trace,
                         ls="-",
+                        color=color,
                         linewidth=1,
                         label=lbs[itr],
                         **linekwds,
@@ -682,6 +686,7 @@ class EnergyCalibrator:
                         xaxis,
                         trace,
                         ls="-",
+                        color=color,
                         linewidth=1,
                         label=lbs[itr],
                         **linekwds,
@@ -696,6 +701,7 @@ class EnergyCalibrator:
                         tofseg,
                         traceseg,
                         ls="-",
+                        color=color,
                         linewidth=2,
                         **linesegkwds,
                     )
@@ -710,7 +716,7 @@ class EnergyCalibrator:
 
             if show_legend:
                 try:
-                    ax.legend(fontsize=12, **legkwds)
+                    ax.legend(fontsize=8, loc="upper right", **legkwds)
                 except TypeError:
                     pass
 
@@ -721,11 +727,10 @@ class EnergyCalibrator:
             colors = it.cycle(ColorCycle[10])
             ttp = [("(x, y)", "($x, $y)")]
 
-            figsize = kwds.pop("figsize", (800, 300))
             fig = pbk.figure(
                 title=ttl,
-                width=figsize[0],
-                height=figsize[1],
+                width=figsize[0] * 100,
+                height=figsize[1] * 100,
                 tooltips=ttp,
             )
             # Plotting the main traces

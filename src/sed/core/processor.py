@@ -1243,7 +1243,7 @@ class SedProcessor:
         self.ec.view(
             traces=self.ec.traces_normed,
             xaxis=self.ec.tof,
-            backend="bokeh",
+            backend="matplotlib",
         )
 
     # 2. extract ranges and get peak positions
@@ -1303,7 +1303,7 @@ class SedProcessor:
                     segs=self.ec.featranges,
                     xaxis=self.ec.tof,
                     peaks=self.ec.peaks,
-                    backend="bokeh",
+                    backend="matplotlib",
                 )
             except IndexError:
                 logger.error("Could not determine all peaks!")
