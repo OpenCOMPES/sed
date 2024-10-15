@@ -1245,6 +1245,9 @@ class SedProcessor:
             xaxis=self.ec.tof,
             backend="matplotlib",
         )
+        plt.xlabel("Time-of-flight")
+        plt.ylabel("Intensity")
+        plt.tight_layout()
 
     # 2. extract ranges and get peak positions
     @call_logger(logger)
