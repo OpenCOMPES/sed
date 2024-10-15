@@ -1652,12 +1652,9 @@ class EnergyCalibrator:
                     constant = v * scale_sign
                     log_str += f"\n   Constant: {constant}"
                 elif k == "columns":
-                    for k2, v2 in offsets["columns"].items():
-                        columns.append(k2)
-                        try:
-                            weight = v2["weight"]
-                        except KeyError:
-                            weight = 1
+                    for column_name, column_dict in offsets["columns"].items():
+                        columns.append(column_name)
+                        weight = column_dict.get("weight", 1)
                         if not isinstance(weight, (int, float, np.integer, np.floating)):
                             raise TypeError(
                                 f"Invalid type for weight of column {k}: {type(weight)}",
@@ -1665,18 +1662,14 @@ class EnergyCalibrator:
                         # flip sign if binding energy scale
                         weight = weight * scale_sign
                         weights.append(weight)
-                        pm = v2.get("preserve_mean", False)
-                        if str(pm).lower() in ["false", "0", "no"]:
-                            pm = False
-                        elif str(pm).lower() in ["true", "1", "yes"]:
-                            pm = True
+                        pm = column_dict.get("preserve_mean", False)
                         preserve_mean.append(pm)
-                        red = v2.get("reduction", None)
+                        red = column_dict.get("reduction", None)
                         if str(red).lower() in ["none", "null"]:
                             red = None
                         reductions.append(red)
                         log_str += (
-                            f"\n   Column[{k}]: Weight={weight}, Preserve Mean: {pm}, "
+                            f"\n   Column[{column_name}]: Weight={weight}, Preserve Mean: {pm}, "
                             f"Reductions: {red}."
                         )
 

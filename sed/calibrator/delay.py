@@ -357,19 +357,16 @@ class DelayCalibrator:
                         )
                     log_str += f"\n   Flip delay axis: {flip_delay_axis}"
                 elif k == "columns":
-                    for k2, v2 in offsets["columns"].items():
-                        columns.append(k2)
-                        try:
-                            weight = v2["weight"]
-                        except KeyError:
-                            weight = 1
+                    for column_name, column_dict in offsets["columns"].items():
+                        columns.append(column_name)
+                        weight = column_dict.get("weight", 1)
                         weights.append(weight)
-                        pm = v2.get("preserve_mean", False)
+                        pm = column_dict.get("preserve_mean", False)
                         preserve_mean.append(pm)
-                        red = v2.get("reduction", None)
+                        red = column_dict.get("reduction", None)
                         reductions.append(red)
                         log_str += (
-                            f"\n   Column[{k}]: Weight={weight}, Preserve Mean: {pm}, "
+                            f"\n   Column[{column_name}]: Weight={weight}, Preserve Mean: {pm}, "
                             f"Reductions: {red}."
                         )
 
