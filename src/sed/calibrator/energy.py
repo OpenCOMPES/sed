@@ -355,7 +355,7 @@ class EnergyCalibrator:
         plot_segs = []
         plot_peaks = []
         fig, ax = plt.subplots(figsize=figsize)
-        colors = plt.get_cmap("rainbow")(np.linspace(0, 1, len(traces)))
+        colors = it.cycle(plt.rcParams["axes.prop_cycle"].by_key()["color"])
         for itr, color in zip(range(len(traces)), colors):
             trace = traces[itr, :]
             # main traces
@@ -378,6 +378,9 @@ class EnergyCalibrator:
             plot_peaks.append(scatt)
         ax.legend(fontsize=8, loc="upper right")
         ax.set_title("")
+        plt.xlabel("Time-of-flight")
+        plt.ylabel("Intensity")
+        plt.tight_layout()
 
         def update(refid, ranges):
             self.add_ranges(ranges, refid, traces=traces, **kwds)
@@ -667,8 +670,8 @@ class EnergyCalibrator:
         figsize = kwds.pop("figsize", (6, 4))
 
         if backend == "matplotlib":
-            colors = plt.get_cmap("rainbow")(np.linspace(0, 1, len(traces)))
-            fig_plt, ax = plt.subplots(figsize=figsize)
+            colors = it.cycle(plt.rcParams["axes.prop_cycle"].by_key()["color"])
+            _, ax = plt.subplots(figsize=figsize)
             for itr, color in zip(range(len(traces)), colors):
                 trace = traces[itr, :]
                 if align:
