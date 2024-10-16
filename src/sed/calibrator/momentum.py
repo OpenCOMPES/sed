@@ -102,7 +102,7 @@ class MomentumCorrector:
         self.include_center: bool = False
         self.use_center: bool = False
         self.pouter: np.ndarray = None
-        self.pcent: tuple[float, ...] = None
+        self.pcent: tuple[float, float] = None
         self.pouter_ord: np.ndarray = None
         self.prefs: np.ndarray = None
         self.ptargs: np.ndarray = None
@@ -1348,7 +1348,9 @@ class MomentumCorrector:
 
         if annotated:
             tsr, tsc = kwds.pop("textshift", (3, 3))
-            txtsize = kwds.pop("textsize", 12)
+            txtsize = kwds.pop("textsize", 10)
+
+        title = kwds.pop("title", "")
 
         # Handle unexpected kwds:
         handled_kwds = {"figsize"}
@@ -1358,7 +1360,7 @@ class MomentumCorrector:
             )
 
         if backend == "matplotlib":
-            fig_plt, ax = plt.subplots(figsize=figsize)
+            _, ax = plt.subplots(figsize=figsize)
             ax.imshow(image.T, origin=origin, cmap=cmap, **imkwds)
 
             if cross:
@@ -1368,15 +1370,12 @@ class MomentumCorrector:
 
             # Add annotation to the figure
             if annotated:
-                for (
-                    p_keys,  # pylint: disable=unused-variable
-                    p_vals,
-                ) in points.items():
+                for p_keys, p_vals in points.items():
                     try:
-                        ax.scatter(p_vals[:, 0], p_vals[:, 1], **scatterkwds)
+                        ax.scatter(p_vals[:, 0], p_vals[:, 1], s=15, **scatterkwds)
                     except IndexError:
                         try:
-                            ax.scatter(p_vals[0], p_vals[1], **scatterkwds)
+                            ax.scatter(p_vals[0], p_vals[1], s=15, **scatterkwds)
                         except IndexError:
                             pass
 
@@ -1389,15 +1388,21 @@ class MomentumCorrector:
                                 fontsize=txtsize,
                             )
 
+            if crosshair and self.pcent is not None:
+                for radius in crosshair_radii:
+                    circle = plt.Circle(self.pcent, radius, color="k", fill=False)
+                    ax.add_patch(circle)
+
+            ax.set_title(title)
+
         elif backend == "bokeh":
             output_notebook(hide_banner=True)
             colors = it.cycle(ColorCycle[10])
             ttp = [("(x, y)", "($x, $y)")]
-            figsize = kwds.pop("figsize", (320, 300))
             palette = cm2palette(cmap)  # Retrieve palette colors
             fig = pbk.figure(
-                width=figsize[0],
-                height=figsize[1],
+                width=figsize[0] * 100,
+                height=figsize[1] * 100,
                 tooltips=ttp,
                 x_range=(0, num_rows),
                 y_range=(0, num_cols),
