@@ -88,7 +88,7 @@ def grid_histogram(
     if legkwds is None:
         legkwds = {}
 
-    figsz = kwds.pop("figsize", (6, 4))
+    figsz = kwds.pop("figsize", (3, 2))  # figure size of each panel
 
     if len(kwds) > 0:
         raise TypeError(f"grid_histogram() got unexpected keyword arguments {kwds.keys()}.")
@@ -98,13 +98,16 @@ def grid_histogram(
         nrow = int(np.ceil(nrv / ncol))
         histtype = kwds.pop("histtype", "bar")
 
-        fig, ax = plt.subplots(nrow, ncol, figsize=figsz)
+        figsize = [figsz[0] * ncol, figsz[1] * nrow]
+        fig, ax = plt.subplots(nrow, ncol, figsize=figsize)
         otherax = ax.copy()
         for i, zipped in enumerate(zip(rvs, rvbins, rvranges)):
             # Make each histogram plot
             rvname, rvbin, rvrg = zipped
             try:
                 axind = np.unravel_index(i, (nrow, ncol))
+                plt.setp(ax[axind].get_xticklabels(), fontsize=8)
+                plt.setp(ax[axind].get_yticklabels(), fontsize=8)
                 ax[axind].hist(
                     dct[rvname],
                     bins=rvbin,
@@ -119,6 +122,8 @@ def grid_histogram(
                 otherax[axind] = None
 
             except IndexError:
+                plt.setp(ax[i].get_xticklabels(), fontsize=8)
+                plt.setp(ax[i].get_yticklabels(), fontsize=8)
                 ax[i].hist(
                     dct[rvname],
                     bins=rvbin,
@@ -135,8 +140,7 @@ def grid_histogram(
         for oax in otherax.flatten():
             if oax is not None:
                 fig.delaxes(oax)
-        plt.xticks(fontsize=8)
-        plt.yticks(fontsize=8)
+
         plt.tight_layout()
 
     elif backend == "bokeh":
@@ -166,7 +170,7 @@ def grid_histogram(
             gridplot(
                 plots,  # type: ignore
                 ncols=ncol,
-                width=figsz[0] * 100 // ncol,
-                height=figsz[1] * 100 // (len(plots) // ncol),
+                width=figsz[0] * 100,
+                height=figsz[1] * 100,
             ),
         )

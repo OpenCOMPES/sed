@@ -334,6 +334,7 @@ scicat
 SDIAG
 sdir
 segs
+setp
 sfile
 shutil
 Sixten
@@ -404,6 +405,7 @@ xpos
 xratio
 xrng
 xscale
+xticklabels
 xticks
 xtrans
 Xuser
@@ -415,6 +417,7 @@ ylabel
 ypos
 yratio
 yscale
+yticklabels
 yticks
 ytrans
 zain
