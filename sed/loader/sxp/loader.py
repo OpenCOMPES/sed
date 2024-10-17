@@ -535,9 +535,10 @@ class SXPLoader(BaseLoader):
 
         """
         channel_dict = self._config["dataframe"]["channels"][channel]  # channel parameters
-        daq = self._config["dataframe"]["channels"][channel].get("daq", "DA03")
+        main_daq = self._config["dataframe"]["daq"]
+        channel_daq = self._config["dataframe"]["channels"][channel].get("daq", main_daq)
         # load file corresponding to daq
-        h5_file = h5py.File(Path(str(file_path).replace("DA03", daq)))
+        h5_file = h5py.File(Path(str(file_path).replace(main_daq, channel_daq)))
 
         [train_id, np_array] = self.create_numpy_array_per_channel(
             h5_file,
