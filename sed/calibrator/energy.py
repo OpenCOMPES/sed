@@ -107,12 +107,12 @@ class EnergyCalibrator:
         self.peaks: np.ndarray = np.asarray([])
         self.calibration: dict[str, Any] = self._config["energy"].get("calibration", {})
 
-        self.tof_column = self._config["dataframe"]["tof_column"]
-        self.tof_ns_column = self._config["dataframe"].get("tof_ns_column", None)
-        self.corrected_tof_column = self._config["dataframe"]["corrected_tof_column"]
-        self.energy_column = self._config["dataframe"]["energy_column"]
-        self.x_column = self._config["dataframe"]["x_column"]
-        self.y_column = self._config["dataframe"]["y_column"]
+        self.tof_column = self._config["dataframe"]["columns"]["tof"]
+        self.tof_ns_column = self._config["dataframe"]["columns"].get("tof_ns", None)
+        self.corrected_tof_column = self._config["dataframe"]["columns"]["corrected_tof"]
+        self.energy_column = self._config["dataframe"]["columns"]["energy"]
+        self.x_column = self._config["dataframe"]["columns"]["x"]
+        self.y_column = self._config["dataframe"]["columns"]["y"]
         self.binwidth: float = self._config["dataframe"]["tof_binwidth"]
         self.binning: int = self._config["dataframe"]["tof_binning"]
         self.x_width = self._config["energy"]["x_width"]
@@ -121,7 +121,7 @@ class EnergyCalibrator:
         self.tof_fermi = self._config["energy"]["tof_fermi"] / self.binning
         self.color_clip = self._config["energy"]["color_clip"]
         self.sector_delays = self._config["dataframe"].get("sector_delays", None)
-        self.sector_id_column = self._config["dataframe"].get("sector_id_column", None)
+        self.sector_id_column = self._config["dataframe"]["columns"].get("sector_id", None)
         self.offsets: dict[str, Any] = self._config["energy"].get("offsets", {})
         self.correction: dict[str, Any] = self._config["energy"].get("correction", {})
 
@@ -217,7 +217,7 @@ class EnergyCalibrator:
         Args:
             data_files (list[str]): list of file names to bin
             axes (list[str], optional): bin axes. Defaults to
-                config["dataframe"]["tof_column"].
+                config["dataframe"]["columns"]["tof"].
             bins (list[int], optional): number of bins.
                 Defaults to config["energy"]["bins"].
             ranges (Sequence[tuple[float, float]], optional): bin ranges.
@@ -612,7 +612,7 @@ class EnergyCalibrator:
         else:
             raise NotImplementedError()
 
-        self.calibration["creation_date"] = datetime.now().timestamp()
+        self.calibration["creation_date"] = datetime.now()
         return self.calibration
 
     def view(
@@ -802,9 +802,9 @@ class EnergyCalibrator:
             df (pd.DataFrame | dask.dataframe.DataFrame):
                 Dataframe to apply the energy axis calibration to.
             tof_column (str, optional): Label of the source column.
-                Defaults to config["dataframe"]["tof_column"].
+                Defaults to config["dataframe"]["columns"]["tof"].
             energy_column (str, optional): Label of the destination column.
-                Defaults to config["dataframe"]["energy_column"].
+                Defaults to config["dataframe"]["columns"]["energy"].
             calibration (dict, optional): Calibration dictionary. If provided,
                 overrides calibration from class or config.
                 Defaults to self.calibration or config["energy"]["calibration"].
@@ -843,12 +843,10 @@ class EnergyCalibrator:
         if len(kwds) > 0:
             for key, value in kwds.items():
                 calibration[key] = value
-            calibration["creation_date"] = datetime.now().timestamp()
+            calibration["creation_date"] = datetime.now()
 
         elif "creation_date" in calibration and not suppress_output:
-            datestring = datetime.fromtimestamp(calibration["creation_date"]).strftime(
-                "%m/%d/%Y, %H:%M:%S",
-            )
+            datestring = calibration["creation_date"].strftime("%m/%d/%Y, %H:%M:%S")
             logger.info(f"Using energy calibration parameters generated on {datestring}")
 
         # try to determine calibration type if not provided
@@ -915,17 +913,17 @@ class EnergyCalibrator:
             df[energy_column] = df[energy_column] + scale_sign * bias_voltage
             if not suppress_output:
                 logger.debug(f"Shifted energy column by constant bias value: {bias_voltage}.")
-        elif self._config["dataframe"]["bias_column"] in df.columns:
+        elif self._config["dataframe"]["columns"]["bias"] in df.columns:
             df = dfops.offset_by_other_columns(
                 df=df,
                 target_column=energy_column,
-                offset_columns=self._config["dataframe"]["bias_column"],
+                offset_columns=self._config["dataframe"]["columns"]["bias"],
                 weights=scale_sign,
             )
             if not suppress_output:
                 logger.debug(
                     "Shifted energy column by bias column: "
-                    f"{self._config['dataframe']['bias_column']}.",
+                    f"{self._config['dataframe']['columns']['bias']}.",
                 )
         else:
             logger.warning(
@@ -948,9 +946,9 @@ class EnergyCalibrator:
         Args:
             df (pd.DataFrame | dask.dataframe.DataFrame): Dataframe to convert.
             tof_column (str, optional): Name of the column containing the
-                time-of-flight steps. Defaults to config["dataframe"]["tof_column"].
+                time-of-flight steps. Defaults to config["dataframe"]["columns"]["tof"].
             tof_ns_column (str, optional): Name of the column to store the
-                time-of-flight in nanoseconds. Defaults to config["dataframe"]["tof_ns_column"].
+                time-of-flight in nanoseconds. Defaults to config["dataframe"]["columns"]["tof_ns"].
             binwidth (float, optional): Time-of-flight binwidth in ns.
                 Defaults to config["energy"]["tof_binwidth"].
             binning (int, optional): Time-of-flight binning factor.
@@ -1202,7 +1200,7 @@ class EnergyCalibrator:
             self.correction["amplitude"] = correction["amplitude"]
             self.correction["center"] = correction["center"]
             self.correction["correction_type"] = correction["correction_type"]
-            self.correction["creation_date"] = datetime.now().timestamp()
+            self.correction["creation_date"] = datetime.now()
             amplitude_slider.close()
             x_center_slider.close()
             y_center_slider.close()
@@ -1381,9 +1379,9 @@ class EnergyCalibrator:
             df (pd.DataFrame | dask.dataframe.DataFrame): The dataframe where
                 to apply the energy correction to.
             tof_column (str, optional): Name of the source column to convert.
-                Defaults to config["dataframe"]["tof_column"].
+                Defaults to config["dataframe"]["columns"]["tof"].
             new_tof_column (str, optional): Name of the destination column to convert.
-                Defaults to config["dataframe"]["corrected_tof_column"].
+                Defaults to config["dataframe"]["columns"]["corrected_tof"].
             correction_type (str, optional): Type of correction to apply to the TOF
                 axis. Valid values are:
 
@@ -1440,12 +1438,10 @@ class EnergyCalibrator:
             for key, value in kwds.items():
                 correction[key] = value
 
-            correction["creation_date"] = datetime.now().timestamp()
+            correction["creation_date"] = datetime.now()
 
         elif "creation_date" in correction and not suppress_output:
-            datestring = datetime.fromtimestamp(correction["creation_date"]).strftime(
-                "%m/%d/%Y, %H:%M:%S",
-            )
+            datestring = correction["creation_date"].strftime("%m/%d/%Y, %H:%M:%S")
             logger.info(f"Using energy correction parameters generated on {datestring}")
 
         missing_keys = {"correction_type", "center", "amplitude"} - set(correction.keys())
@@ -1494,9 +1490,9 @@ class EnergyCalibrator:
         Args:
             df (dask.dataframe.DataFrame): Dataframe to use.
             tof_column (str, optional): Name of the column containing the time-of-flight values.
-                Defaults to config["dataframe"]["tof_column"].
+                Defaults to config["dataframe"]["columns"]["tof"].
             sector_id_column (str, optional): Name of the column containing the sector id values.
-                Defaults to config["dataframe"]["sector_id_column"].
+                Defaults to config["dataframe"]["columns"]["sector_id"].
             sector_delays (np.ndarray, optional): Array containing the sector delays. Defaults to
                 config["dataframe"]["sector_delays"].
 
@@ -1592,9 +1588,10 @@ class EnergyCalibrator:
             # pylint:disable=duplicate-code
             # use passed parameters, overwrite config
             offsets = {}
-            offsets["creation_date"] = datetime.now().timestamp()
+            offsets["creation_date"] = datetime.now()
             # column-based offsets
             if columns is not None:
+                offsets["columns"] = {}
                 if isinstance(columns, str):
                     columns = [columns]
 
@@ -1623,7 +1620,7 @@ class EnergyCalibrator:
 
                 # store in offsets dictionary
                 for col, weight, pmean, red in zip(columns, weights, preserve_mean, reductions):
-                    offsets[col] = {
+                    offsets["columns"][col] = {
                         "weight": weight,
                         "preserve_mean": pmean,
                         "reduction": red,
@@ -1636,9 +1633,7 @@ class EnergyCalibrator:
                 raise TypeError(f"Invalid type for constant: {type(constant)}")
 
         elif "creation_date" in offsets and not suppress_output:
-            datestring = datetime.fromtimestamp(offsets["creation_date"]).strftime(
-                "%m/%d/%Y, %H:%M:%S",
-            )
+            datestring = offsets["creation_date"].strftime("%m/%d/%Y, %H:%M:%S")
             logger.info(f"Using energy offset parameters generated on {datestring}")
 
         if len(offsets) > 0:
@@ -1652,35 +1647,31 @@ class EnergyCalibrator:
             for k, v in offsets.items():
                 if k == "creation_date":
                     continue
-                if k == "constant":
+                elif k == "constant":
                     # flip sign if binding energy scale
                     constant = v * scale_sign
                     log_str += f"\n   Constant: {constant}"
-                else:
-                    columns.append(k)
-                    try:
-                        weight = v["weight"]
-                    except KeyError:
-                        weight = 1
-                    if not isinstance(weight, (int, float, np.integer, np.floating)):
-                        raise TypeError(f"Invalid type for weight of column {k}: {type(weight)}")
-                    # flip sign if binding energy scale
-                    weight = weight * scale_sign
-                    weights.append(weight)
-                    pm = v.get("preserve_mean", False)
-                    if str(pm).lower() in ["false", "0", "no"]:
-                        pm = False
-                    elif str(pm).lower() in ["true", "1", "yes"]:
-                        pm = True
-                    preserve_mean.append(pm)
-                    red = v.get("reduction", None)
-                    if str(red).lower() in ["none", "null"]:
-                        red = None
-                    reductions.append(red)
-                    log_str += (
-                        f"\n   Column[{k}]: Weight={weight}, Preserve Mean: {pm}, "
-                        f"Reductions: {red}."
-                    )
+                elif k == "columns":
+                    for column_name, column_dict in offsets["columns"].items():
+                        columns.append(column_name)
+                        weight = column_dict.get("weight", 1)
+                        if not isinstance(weight, (int, float, np.integer, np.floating)):
+                            raise TypeError(
+                                f"Invalid type for weight of column {column_name}: {type(weight)}",
+                            )
+                        # flip sign if binding energy scale
+                        weight = weight * scale_sign
+                        weights.append(weight)
+                        pm = column_dict.get("preserve_mean", False)
+                        preserve_mean.append(pm)
+                        red = column_dict.get("reduction", None)
+                        if str(red).lower() in ["none", "null"]:
+                            red = None
+                        reductions.append(red)
+                        log_str += (
+                            f"\n   Column[{column_name}]: Weight={weight}, Preserve Mean: {pm}, "
+                            f"Reductions: {red}."
+                        )
 
             if not suppress_output:
                 logger.info(log_str)

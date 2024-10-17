@@ -70,6 +70,9 @@ def get_all_loaders() -> list[ParameterSet]:
                     loader_name,
                     "config.yaml",
                 ),
+                folder_config={},
+                user_config={},
+                system_config={},
             ),
         )
         for loader_name in get_names_of_all_loaders()
@@ -95,8 +98,9 @@ def test_has_correct_read_dataframe_func(loader: BaseLoader, read_type: str) -> 
     # Fix for race condition during parallel testing
     if loader.__name__ in {"flash", "sxp"}:
         config = deepcopy(loader._config)  # pylint: disable=protected-access
-        config["core"]["paths"]["processed"] = (
-            config["core"]["paths"]["processed"] + f"_{read_type}"
+        config["core"]["paths"]["processed"] = Path(
+            config["core"]["paths"]["processed"],
+            f"_{read_type}",
         )
         loader = get_loader(loader_name=loader.__name__, config=config)
 
@@ -183,8 +187,9 @@ def test_timed_dataframe(loader: BaseLoader) -> None:
     # Fix for race condition during parallel testing
     if loader.__name__ in {"flash", "sxp"}:
         config = deepcopy(loader._config)  # pylint: disable=protected-access
-        config["core"]["paths"]["processed"] = (
-            config["core"]["paths"]["processed"] + "_timed_dataframe"
+        config["core"]["paths"]["processed"] = Path(
+            config["core"]["paths"]["processed"],
+            "_timed_dataframe",
         )
         loader = get_loader(loader_name=loader.__name__, config=config)
 
@@ -226,7 +231,10 @@ def test_get_count_rate(loader: BaseLoader) -> None:
     # Fix for race condition during parallel testing
     if loader.__name__ in {"flash", "sxp"}:
         config = deepcopy(loader._config)  # pylint: disable=protected-access
-        config["core"]["paths"]["processed"] = config["core"]["paths"]["processed"] + "_count_rate"
+        config["core"]["paths"]["processed"] = Path(
+            config["core"]["paths"]["processed"],
+            "_count_rate",
+        )
         loader = get_loader(loader_name=loader.__name__, config=config)
 
     if loader.__name__ != "BaseLoader":
@@ -273,8 +281,9 @@ def test_get_elapsed_time(loader: BaseLoader) -> None:
     # Fix for race condition during parallel testing
     if loader.__name__ in {"flash", "sxp"}:
         config = deepcopy(loader._config)  # pylint: disable=protected-access
-        config["core"]["paths"]["processed"] = (
-            config["core"]["paths"]["processed"] + "_elapsed_time"
+        config["core"]["paths"]["processed"] = Path(
+            config["core"]["paths"]["processed"],
+            "_elapsed_time",
         )
         loader = get_loader(loader_name=loader.__name__, config=config)
 

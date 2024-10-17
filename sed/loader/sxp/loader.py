@@ -116,7 +116,7 @@ class SXPLoader(BaseLoader):
                 ) from exc
 
             beamtime_dir = Path(
-                self._config["dataframe"]["beamtime_dir"][self._config["core"]["beamline"]],
+                self._config["static"]["beamtime_dir"][self._config["core"]["beamline"]],
             )
             beamtime_dir = beamtime_dir.joinpath(f"{year}/{beamtime_id}/")
 
@@ -158,8 +158,8 @@ class SXPLoader(BaseLoader):
             FileNotFoundError: If no files are found for the given run in the directory.
         """
         # Define the stream name prefixes based on the data acquisition identifier
-        stream_name_prefixes = self._config["dataframe"]["stream_name_prefixes"]
-        stream_name_postfixes = self._config["dataframe"].get("stream_name_postfixes", {})
+        stream_name_prefixes = self._config["static"]["stream_name_prefixes"]
+        stream_name_postfixes = self._config["static"].get("stream_name_postfixes", {})
 
         if isinstance(run_id, (int, np.integer)):
             run_id = str(run_id).zfill(4)

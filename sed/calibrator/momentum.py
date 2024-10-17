@@ -123,12 +123,12 @@ class MomentumCorrector:
         self.adjust_params: dict[str, Any] = {}
         self.calibration: dict[str, Any] = self._config["momentum"].get("calibration", {})
 
-        self.x_column = self._config["dataframe"]["x_column"]
-        self.y_column = self._config["dataframe"]["y_column"]
-        self.corrected_x_column = self._config["dataframe"]["corrected_x_column"]
-        self.corrected_y_column = self._config["dataframe"]["corrected_y_column"]
-        self.kx_column = self._config["dataframe"]["kx_column"]
-        self.ky_column = self._config["dataframe"]["ky_column"]
+        self.x_column = self._config["dataframe"]["columns"]["x"]
+        self.y_column = self._config["dataframe"]["columns"]["y"]
+        self.corrected_x_column = self._config["dataframe"]["columns"]["corrected_x"]
+        self.corrected_y_column = self._config["dataframe"]["columns"]["corrected_y"]
+        self.kx_column = self._config["dataframe"]["columns"]["kx"]
+        self.ky_column = self._config["dataframe"]["columns"]["ky"]
 
         self._state: int = 0
 
@@ -678,7 +678,7 @@ class MomentumCorrector:
         if self.pouter_ord is None:
             if self.pouter is not None:
                 self.pouter_ord = po.pointset_order(self.pouter)
-                self.correction["creation_date"] = datetime.now().timestamp()
+                self.correction["creation_date"] = datetime.now()
             else:
                 try:
                     features = np.asarray(
@@ -693,11 +693,7 @@ class MomentumCorrector:
                         ascale = np.asarray(ascale)
 
                     if "creation_date" in self.correction:
-                        datestring = datetime.fromtimestamp(
-                            self.correction["creation_date"],
-                        ).strftime(
-                            "%m/%d/%Y, %H:%M:%S",
-                        )
+                        datestring = self.correction["creation_date"].strftime("%m/%d/%Y, %H:%M:%S")
                         logger.info(
                             "No landmarks defined, using momentum correction parameters "
                             f"generated on {datestring}",
@@ -715,7 +711,7 @@ class MomentumCorrector:
                 self.add_features(features=features, rotsym=rotsym)
 
         else:
-            self.correction["creation_date"] = datetime.now().timestamp()
+            self.correction["creation_date"] = datetime.now()
 
         if ascale is not None:
             if isinstance(ascale, (int, float, np.floating, np.integer)):
@@ -1135,9 +1131,7 @@ class MomentumCorrector:
                 )
 
         elif "creation_date" in transformations:
-            datestring = datetime.fromtimestamp(transformations["creation_date"]).strftime(
-                "%m/%d/%Y, %H:%M:%S",
-            )
+            datestring = transformations["creation_date"].strftime("%m/%d/%Y, %H:%M:%S")
             logger.info(f"Using transformation parameters generated on {datestring}")
 
         def update(scale: float, xtrans: float, ytrans: float, angle: float):
@@ -1257,7 +1251,7 @@ class MomentumCorrector:
                 fig.canvas.draw_idle()
 
             if transformations != self.transformations:
-                transformations["creation_date"] = datetime.now().timestamp()
+                transformations["creation_date"] = datetime.now()
                 self.transformations = transformations
 
             if self._verbose:
@@ -1714,7 +1708,7 @@ class MomentumCorrector:
 
         # Assemble into return dictionary
         self.calibration = {}
-        self.calibration["creation_date"] = datetime.now().timestamp()
+        self.calibration["creation_date"] = datetime.now()
         self.calibration["kx_axis"] = k_row
         self.calibration["ky_axis"] = k_col
         self.calibration["grid"] = (k_rowgrid, k_colgrid)
@@ -1749,15 +1743,15 @@ class MomentumCorrector:
             df (pd.DataFrame | dask.dataframe.DataFrame): Dataframe to apply
                 the distortion correction to.
             x_column (str, optional): Label of the 'X' column before momentum
-                distortion correction. Defaults to config["momentum"]["x_column"].
+                distortion correction. Defaults to config["dataframe"]["columns"]["x"].
             y_column (str, optional): Label of the 'Y' column before momentum
-                distortion correction. Defaults to config["momentum"]["y_column"].
+                distortion correction. Defaults to config["dataframe"]["columns"]["y"].
             new_x_column (str, optional): Label of the 'X' column after momentum
                 distortion correction.
-                Defaults to config["momentum"]["corrected_x_column"].
+                Defaults to config["dataframe"]["columns"]["corrected_x"].
             new_y_column (str, optional): Label of the 'Y' column after momentum
                 distortion correction.
-                Defaults to config["momentum"]["corrected_y_column"].
+                Defaults to config["dataframe"]["columns"]["corrected_y"].
 
         Returns:
             tuple[pd.DataFrame | dask.dataframe.DataFrame, dict]: Dataframe with
@@ -1825,7 +1819,7 @@ class MomentumCorrector:
                 pass
         if len(self.adjust_params) > 0:
             metadata["registration"] = self.adjust_params
-            metadata["registration"]["creation_date"] = datetime.now().timestamp()
+            metadata["registration"]["creation_date"] = datetime.now()
             metadata["registration"]["applied"] = True
             metadata["registration"]["depends_on"] = (
                 "/entry/process/registration/transformations/rot_z"
@@ -1898,15 +1892,15 @@ class MomentumCorrector:
             df (pd.DataFrame | dask.dataframe.DataFrame): Dataframe to apply the
                 distortion correction to.
             x_column (str, optional): Label of the source 'X' column.
-                Defaults to config["momentum"]["corrected_x_column"] or
-                config["momentum"]["x_column"] (whichever is present).
+                Defaults to config["dataframe"]["columns"]["corrected_x"] or
+                config["dataframe"]["columns"]["x"] (whichever is present).
             y_column (str, optional): Label of the source 'Y' column.
-                Defaults to config["momentum"]["corrected_y_column"] or
-                config["momentum"]["y_column"] (whichever is present).
+                Defaults to config["dataframe"]["columns"]["corrected_y"] or
+                config["dataframe"]["columns"]["y"] (whichever is present).
             new_x_column (str, optional): Label of the destination 'X' column after
-                momentum calibration. Defaults to config["momentum"]["kx_column"].
+                momentum calibration. Defaults to config["dataframe"]["columns"]["kx"].
             new_y_column (str, optional): Label of the destination 'Y' column after
-                momentum calibration. Defaults to config["momentum"]["ky_column"].
+                momentum calibration. Defaults to config["dataframe"]["columns"]["ky"].
             calibration (dict, optional): Dictionary containing calibration parameters.
                 Defaults to 'self.calibration' or config["momentum"]["calibration"].
             suppress_output (bool, optional): Option to suppress output of diagnostic information.
@@ -1952,15 +1946,13 @@ class MomentumCorrector:
             ]:
                 if key in kwds:
                     calibration[key] = kwds.pop(key)
-            calibration["creation_date"] = datetime.now().timestamp()
+            calibration["creation_date"] = datetime.now()
 
             if len(kwds) > 0:
                 raise TypeError(f"append_k_axis() got unexpected keyword arguments {kwds.keys()}.")
 
         if "creation_date" in calibration and not suppress_output:
-            datestring = datetime.fromtimestamp(calibration["creation_date"]).strftime(
-                "%m/%d/%Y, %H:%M:%S",
-            )
+            datestring = calibration["creation_date"].strftime("%m/%d/%Y, %H:%M:%S")
             logger.info(f"Using momentum calibration parameters generated on {datestring}")
 
         try:

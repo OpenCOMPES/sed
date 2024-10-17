@@ -55,6 +55,7 @@ class DatasetsManager:
             system_config={},
             default_config=DatasetsManager.json_path["module"],
             verbose=False,
+            verify_config=False,
         )
 
     @staticmethod

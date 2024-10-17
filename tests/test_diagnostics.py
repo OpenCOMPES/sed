@@ -18,7 +18,12 @@ package_dir = os.path.dirname(find_spec("sed").origin)
 df_folder = package_dir + "/../tests/data/loader/mpes/"
 folder = package_dir + "/../tests/data/calibrator/"
 files = glob.glob(df_folder + "*.h5")
-config = parse_config(package_dir + "/../tests/data/config/config.yaml")
+config = parse_config(
+    package_dir + "/../tests/data/loader/mpes/config.yaml",
+    folder_config={},
+    user_config={},
+    system_config={},
+)
 loader = get_loader("mpes", config=config)
 
 
@@ -39,7 +44,7 @@ def test_plot_histogram(ncols: int, backend: str) -> None:
     bins = config["histogram"]["bins"]
     for loc, axis in enumerate(axes):
         if axis.startswith("@"):
-            axes[loc] = config["dataframe"].get(axis.strip("@"))
+            axes[loc] = config["dataframe"]["columns"].get(axis.strip("@"))
     values = {axis: dataframe[axis].compute() for axis in axes}
     grid_histogram(values, ncols, axes, bins, ranges, backend)
 

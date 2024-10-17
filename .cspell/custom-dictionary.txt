@@ -126,6 +126,7 @@ ftype
 fwhm
 genindex
 getgid
+getgrgid
 getmtime
 gpfs
 griddata
@@ -290,6 +291,7 @@ ptargs
 pullrequest
 pval
 pyarrow
+pydantic
 pyenv
 pygments
 pynxtools

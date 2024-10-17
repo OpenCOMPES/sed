@@ -131,14 +131,13 @@ bam_vals = 1000 * (np.random.normal(size=100) + 5)
 delay_stage_vals = np.linspace(0, 99, 100)
 cfg = {
     "core": {"loader": "flash"},
-    "dataframe": {"delay_column": "delay"},
+    "dataframe": {"columns": {"delay": "delay"}},
     "delay": {
         "offsets": {
             "constant": 1,
             "flip_delay_axis": True,
-            "bam": {
-                "weight": 0.001,
-                "preserve_mean": False,
+            "columns": {
+                "bam": {"weight": 0.001, "preserve_mean": False},
             },
         },
     },
@@ -168,7 +167,7 @@ def test_add_offset_from_config(df=test_dataframe) -> None:
     dc = DelayCalibrator(config=config)
     df, _ = dc.add_offsets(df.copy())
     assert "delay" in df.columns
-    assert "bam" in dc.offsets.keys()
+    assert "bam" in dc.offsets["columns"].keys()
     np.testing.assert_allclose(expected, df["delay"])
 
 
@@ -190,7 +189,7 @@ def test_add_offset_from_args(df=test_dataframe) -> None:
         columns="bam",
     )
     assert "delay" in df.columns
-    assert "bam" in dc.offsets.keys()
+    assert "bam" in dc.offsets["columns"].keys()
     expected = -np.array(
         delay_stage_vals + bam_vals * 1 + 1,
     )
@@ -201,7 +200,7 @@ def test_add_offset_from_dict(df=test_dataframe) -> None:
     """test that the timing offset is corrected for correctly from config"""
     cfg_ = cfg.copy()
     offsets = cfg["delay"]["offsets"]  # type:ignore
-    offsets["bam"].pop("weight")
+    offsets["columns"]["bam"].pop("weight")
     offsets["flip_delay_axis"] = False
     cfg_.pop("delay")
     config = parse_config(
@@ -216,5 +215,5 @@ def test_add_offset_from_dict(df=test_dataframe) -> None:
     dc = DelayCalibrator(config=config)
     df, _ = dc.add_offsets(df.copy(), offsets=offsets)
     assert "delay" in df.columns
-    assert "bam" in dc.offsets.keys()
+    assert "bam" in dc.offsets["columns"].keys()
     np.testing.assert_allclose(expected, df["delay"])

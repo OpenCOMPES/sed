@@ -210,7 +210,7 @@ def test_calibrate_append(energy_scale: str, calibration_method: str) -> None:
         method=calibration_method,
     )
     df, metadata = ec.append_energy_axis(df)
-    assert config["dataframe"]["energy_column"] in df.columns
+    assert config["dataframe"]["columns"]["energy"] in df.columns
     axis = calibdict["axis"]
     diff = np.diff(axis)
     if energy_scale == "kinetic":
@@ -256,7 +256,7 @@ def test_append_energy_axis_from_dict_kwds(calib_type: str, calib_dict: dict) ->
     df, _, _ = loader.read_dataframe(folders=df_folder, collect_metadata=False)
     ec = EnergyCalibrator(config=config, loader=loader)
     df, metadata = ec.append_energy_axis(df, calibration=calib_dict)
-    assert config["dataframe"]["energy_column"] in df.columns
+    assert config["dataframe"]["columns"]["energy"] in df.columns
 
     for key in calib_dict:
         np.testing.assert_equal(metadata["calibration"][key], calib_dict[key])
@@ -266,7 +266,7 @@ def test_append_energy_axis_from_dict_kwds(calib_type: str, calib_dict: dict) ->
     df, _, _ = loader.read_dataframe(folders=df_folder, collect_metadata=False)
     ec = EnergyCalibrator(config=config, loader=loader)
     df, metadata = ec.append_energy_axis(df, **calib_dict)
-    assert config["dataframe"]["energy_column"] in df.columns
+    assert config["dataframe"]["columns"]["energy"] in df.columns
 
     for key in calib_dict:
         np.testing.assert_equal(metadata["calibration"][key], calib_dict[key])
@@ -294,8 +294,10 @@ def test_append_tof_ns_axis() -> None:
     """
     cfg = {
         "dataframe": {
-            "tof_column": "t",
-            "tof_ns_column": "t_ns",
+            "columns": {
+                "tof": "t",
+                "tof_ns": "t_ns",
+            },
             "tof_binning": 2,
             "tof_binwidth": 1e-9,
         },
@@ -307,14 +309,14 @@ def test_append_tof_ns_axis() -> None:
     df, _, _ = loader.read_dataframe(folders=df_folder, collect_metadata=False)
     ec = EnergyCalibrator(config=config, loader=loader)
     df, _ = ec.append_tof_ns_axis(df, binwidth=2e-9, binning=2)
-    assert config["dataframe"]["tof_ns_column"] in df.columns
+    assert config["dataframe"]["columns"]["tof_ns"] in df.columns
     np.testing.assert_allclose(df[ec.tof_column], df[ec.tof_ns_column] / 4)
 
     # from config
     df, _, _ = loader.read_dataframe(folders=df_folder, collect_metadata=False)
     ec = EnergyCalibrator(config=config, loader=loader)
     df, _ = ec.append_tof_ns_axis(df)
-    assert config["dataframe"]["tof_ns_column"] in df.columns
+    assert config["dataframe"]["columns"]["tof_ns"] in df.columns
     np.testing.assert_allclose(df[ec.tof_column], df[ec.tof_ns_column] / 2)
 
     # illegal keywords:
@@ -390,7 +392,7 @@ def test_energy_correction(correction_type: str, correction_kwd: dict) -> None:
         **correction_kwd,
     )
     df, metadata = ec.apply_energy_correction(sample_df)
-    t = df[config["dataframe"]["corrected_tof_column"]]
+    t = df[config["dataframe"]["columns"]["corrected_tof"]]
     assert t[0] == t[2]
     assert t[0] < t[1]
     assert t[3] == t[5]
@@ -426,7 +428,7 @@ def test_energy_correction(correction_type: str, correction_kwd: dict) -> None:
         **correction,
     )
     df, metadata = ec.apply_energy_correction(sample_df)
-    t = df[config["dataframe"]["corrected_tof_column"]]
+    t = df[config["dataframe"]["columns"]["corrected_tof"]]
     assert t[0] == t[2]
     assert t[0] < t[1]
     assert t[3] == t[5]
@@ -514,7 +516,7 @@ def test_energy_correction_from_dict_kwds(correction_type: str, correction_kwd: 
         sample_df,
         correction=correction_dict,
     )
-    t = df[config["dataframe"]["corrected_tof_column"]]
+    t = df[config["dataframe"]["columns"]["corrected_tof"]]
     assert t[0] == t[2]
     assert t[0] < t[1]
     assert t[3] == t[5]
@@ -534,7 +536,7 @@ def test_energy_correction_from_dict_kwds(correction_type: str, correction_kwd: 
         loader=get_loader("mpes", config=config),
     )
     df, metadata = ec.apply_energy_correction(sample_df, **correction_dict)
-    t = df[config["dataframe"]["corrected_tof_column"]]
+    t = df[config["dataframe"]["columns"]["corrected_tof"]]
     assert t[0] == t[2]
     assert t[0] < t[1]
     assert t[3] == t[5]
@@ -585,7 +587,7 @@ def test_apply_energy_correction_raises(correction_type: str) -> None:
             sample_df,
             correction=correction_dict,
         )
-        assert config["dataframe"]["corrected_tof_column"] in df.columns
+        assert config["dataframe"]["columns"]["corrected_tof"] in df.columns
 
 
 @pytest.mark.parametrize(
@@ -603,12 +605,14 @@ def test_add_offsets_functionality(energy_scale: str) -> None:
                 },
                 "offsets": {
                     "constant": 1,
-                    "off1": {
-                        "weight": 1,
-                        "preserve_mean": True,
+                    "columns": {
+                        "off1": {
+                            "weight": 1,
+                            "preserve_mean": True,
+                        },
+                        "off2": {"weight": -1, "preserve_mean": False},
+                        "off3": {"weight": 1, "preserve_mean": False, "reduction": "mean"},
                     },
-                    "off2": {"weight": -1, "preserve_mean": False},
-                    "off3": {"weight": 1, "preserve_mean": False, "reduction": "mean"},
                 },
             },
         },
@@ -684,9 +688,11 @@ def test_add_offset_raises() -> None:
             },
             "offsets": {
                 "constant": 1,
-                "off1": {"weight": -1, "preserve_mean": True},
-                "off2": {"weight": -1, "preserve_mean": False},
-                "off3": {"weight": 1, "preserve_mean": False, "reduction": "mean"},
+                "columns": {
+                    "off1": {"weight": -1, "preserve_mean": True},
+                    "off2": {"weight": -1, "preserve_mean": False},
+                    "off3": {"weight": 1, "preserve_mean": False, "reduction": "mean"},
+                },
             },
         },
     }
@@ -719,17 +725,15 @@ def test_add_offset_raises() -> None:
 
     # invalid sign
     with pytest.raises(TypeError):
-        cfg = deepcopy(cfg_dict)
-        cfg["energy"]["offsets"]["off1"]["weight"] = "wrong_type"
-        config = parse_config(config=cfg, folder_config={}, user_config={}, system_config={})
+        config = parse_config(config=cfg_dict, folder_config={}, user_config={}, system_config={})
+        config["energy"]["offsets"]["columns"]["off1"]["weight"] = "wrong_type"
         ec = EnergyCalibrator(config=config, loader=get_loader("flash", config=config))
         _ = ec.add_offsets(t_df)
 
         # invalid constant
     with pytest.raises(TypeError):
-        cfg = deepcopy(cfg_dict)
-        cfg["energy"]["offsets"]["constant"] = "wrong_type"
-        config = parse_config(config=cfg, folder_config={}, user_config={}, system_config={})
+        config = parse_config(config=cfg_dict, folder_config={}, user_config={}, system_config={})
+        config["energy"]["offsets"]["constant"] = "wrong_type"
         ec = EnergyCalibrator(config=config, loader=get_loader("flash", config=config))
         _ = ec.add_offsets(t_df)
 
@@ -738,8 +742,10 @@ def test_align_dld_sectors() -> None:
     """test functionality and error handling of align_dld_sectors"""
     cfg_dict: dict[str, Any] = {
         "dataframe": {
-            "tof_column": "dldTimeSteps",
-            "sector_id_column": "dldSectorId",
+            "columns": {
+                "tof": "dldTimeSteps",
+                "sector_id": "dldSectorId",
+            },
             "sector_delays": [-0.35, -0.25, -0.15, -0.05, 0.05, 0.15, 0.25, 0.35],
         },
     }
@@ -767,7 +773,7 @@ def test_align_dld_sectors() -> None:
     t_df = dask.dataframe.from_pandas(df.copy(), npartitions=2)
     res, meta = ec.align_dld_sectors(
         t_df,
-        tof_column=cfg_dict["dataframe"]["tof_column"],
+        tof_column=cfg_dict["dataframe"]["columns"]["tof"],
         sector_delays=cfg_dict["dataframe"]["sector_delays"],
         sector_id_column="dldSectorId",
     )
