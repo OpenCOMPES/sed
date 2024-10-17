@@ -84,6 +84,7 @@ dfpart
 dfpid
 dictionarized
 dictmerge
+DOOCS
 dpkg
 dropna
 dset

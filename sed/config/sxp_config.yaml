@@ -17,6 +17,7 @@ dataframe:
   daq: DA03
   forward_fill_iterations: 2
   num_trains: 10
+  # num_pulses: 400 # only needed for data from new DAQ
   x_column: dldPosX
   corrected_x_column: "X"
   kx_column: "kx"
@@ -84,6 +85,11 @@ dataframe:
       format: per_train
       dataset_key: "/CONTROL/SCS_ILH_LAS/MDL/OPTICALDELAY_PP800/actualPosition/value"
       index_key: "/INDEX/trainId"
+#     test:
+#       daq: DA02 # change DAQ for a channel
+#       format: per_pulse
+#       dataset_key: "/INSTRUMENT/SA3_XTD10_XGM/XGM/DOOCS:output/data/intensitySa3TD"
+#       index_key: "/INSTRUMENT/SA3_XTD10_XGM/XGM/DOOCS:output/data/trainId"
 
   stream_name_prefixes:
     DA03: "RAW-R"

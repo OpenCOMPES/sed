@@ -256,6 +256,7 @@ class SXPLoader(BaseLoader):
         for i in train_id.index:
             # removing broken trailing hit copies
             num_trains = self._config["dataframe"].get("num_trains", 0)
+            num_pulses = self._config["dataframe"].get("num_pulses", 0)
             if num_trains:
                 try:
                     num_valid_hits = np.where(np.diff(mib_array[i].astype(np.int32)) < 0)[0][
@@ -270,7 +271,10 @@ class SXPLoader(BaseLoader):
             index = 0
             for train, train_end in enumerate(train_ends):
                 macrobunch_index.append(train_id[i] + np.uint(train))
-                microbunch_ids.append(mib_array[i, index:train_end])
+                if num_pulses:
+                    microbunch_ids.append(mib_array[i, index:train_end] % num_pulses)
+                else:
+                    microbunch_ids.append(mib_array[i, index:train_end])
                 indices.append(slice(index, train_end))
                 index = train_end + 1
             macrobunch_indices.append(indices)
@@ -509,7 +513,7 @@ class SXPLoader(BaseLoader):
 
     def create_dataframe_per_channel(
         self,
-        h5_file: h5py.File,
+        file_path: Path,
         channel: str,
     ) -> Union[Series, DataFrame]:
         """
@@ -520,7 +524,7 @@ class SXPLoader(BaseLoader):
         DataFrame depends on the channel's format specified in the configuration.
 
         Args:
-            h5_file (h5py.File): The h5py.File object representing the HDF5 file.
+            file_path (Path): The path to the main HDF5 file.
             channel (str): The name of the channel.
 
         Returns:
@@ -530,11 +534,16 @@ class SXPLoader(BaseLoader):
             ValueError: If the channel has an undefined format.
 
         """
+        channel_dict = self._config["dataframe"]["channels"][channel]  # channel parameters
+        main_daq = self._config["dataframe"]["daq"]
+        channel_daq = self._config["dataframe"]["channels"][channel].get("daq", main_daq)
+        # load file corresponding to daq
+        h5_file = h5py.File(Path(str(file_path).replace(main_daq, channel_daq)))
+
         [train_id, np_array] = self.create_numpy_array_per_channel(
             h5_file,
             channel,
         )  # numpy Array created
-        channel_dict = self._config["dataframe"]["channels"][channel]  # channel parameters
 
         # If np_array is size zero, fill with NaNs
         if np_array.size == 0:
@@ -585,7 +594,7 @@ class SXPLoader(BaseLoader):
 
     def concatenate_channels(
         self,
-        h5_file: h5py.File,
+        file_path: Path,
     ) -> DataFrame:
         """
         Concatenates the channels from the provided h5py.File into a pandas DataFrame.
@@ -595,7 +604,7 @@ class SXPLoader(BaseLoader):
         available channels specified in the configuration.
 
         Args:
-            h5_file (h5py.File): The h5py.File object representing the HDF5 file.
+            file_path (Path): The path to the main HDF5 file.
 
         Returns:
             DataFrame: A concatenated pandas DataFrame containing the channels.
@@ -604,11 +613,13 @@ class SXPLoader(BaseLoader):
             ValueError: If the group_name for any channel does not exist in the file.
 
         """
-        all_keys = parse_h5_keys(h5_file)  # Parses all channels present
-
         # Check for if the provided dataset_keys and index_keys actually exists in the file
         for channel in self._config["dataframe"]["channels"]:
             dataset_key = self._config["dataframe"]["channels"][channel]["dataset_key"]
+            daq = self._config["dataframe"]["channels"][channel].get("daq", "DA03")
+            # load file corresponding to daq
+            h5_file = h5py.File(Path(str(file_path).replace("DA03", daq)))
+            all_keys = parse_h5_keys(h5_file)  # Parses all channels present
             if dataset_key not in all_keys:
                 raise ValueError(
                     f"The dataset_key for channel {channel} does not exist.",
@@ -621,7 +632,7 @@ class SXPLoader(BaseLoader):
 
         # Create a generator expression to generate data frames for each channel
         data_frames = (
-            self.create_dataframe_per_channel(h5_file, each) for each in self.available_channels
+            self.create_dataframe_per_channel(file_path, each) for each in self.available_channels
         )
 
         # Use the reduce function to join the data frames into a single DataFrame
@@ -649,14 +660,13 @@ class SXPLoader(BaseLoader):
 
         """
         # Loads h5 file and creates a dataframe
-        with h5py.File(file_path, "r") as h5_file:
-            self.reset_multi_index()  # Reset MultiIndexes for next file
-            df = self.concatenate_channels(h5_file)
-            df = df.dropna(subset=self._config["dataframe"].get("tof_column", "dldTimeSteps"))
-            # correct the 3 bit shift which encodes the detector ID in the 8s time
-            if self._config["dataframe"].get("split_sector_id_from_dld_time", False):
-                df = split_dld_time_from_sector_id(df, config=self._config)
-            return df
+        self.reset_multi_index()  # Reset MultiIndexes for next file
+        df = self.concatenate_channels(file_path)
+        df = df.dropna(subset=self._config["dataframe"].get("tof_column", "dldTimeSteps"))
+        # correct the 3 bit shift which encodes the detector ID in the 8s time
+        if self._config["dataframe"].get("split_sector_id_from_dld_time", False):
+            df = split_dld_time_from_sector_id(df, config=self._config)
+        return df
 
     def create_buffer_file(self, h5_path: Path, parquet_path: Path) -> Union[bool, Exception]:
         """
