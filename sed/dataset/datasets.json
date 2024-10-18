@@ -21,6 +21,9 @@
             "energycal_2020_07_20"
         ]
     },
+    "Au_Mica": {
+        "url": "https://cloud.fhi-berlin.mpg.de:8443/dl/fiTjjP8DcLUXN84myzTXFHjt/sxp_example_data.zip"
+    },
     "Test": {
         "url": "http://test.com/files/file.zip",
         "subdirs": [
