@@ -28,6 +28,7 @@ dataframe:
   tof_ns_column: dldTime
   corrected_tof_column: "tm"
   bias_column: "sampleBias"
+  delay_column: "delayStage"
   tof_binwidth: 6.875E-12 # in seconds
   tof_binning: 0
   jitter_cols: ["dldPosX", "dldPosY", "dldTimeSteps"]
@@ -98,3 +99,13 @@ dataframe:
 
   beamtime_dir:
     sxp: "/gpfs/exfel/exp/SXP/"
+
+histogram:
+  # number of bins used for histogram visualization
+  bins: [80, 80, 80, 80]
+  # default axes to use for histogram visualization.
+  # Axes names starting with "@" refer to keys in the "dataframe" section
+  axes: ["@x_column", "@y_column", "@tof_column", "@delay_column"]
+  # default ranges to use for histogram visualization (in unbinned detector coordinates)
+  ranges: [[0, 4000], [0, 4000], [1000, 28000], [-1000, 1000]]
+

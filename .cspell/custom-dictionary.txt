@@ -382,6 +382,7 @@ xarray
 xaxis
 xcirc
 xdata
+XFEL
 xind
 Xinstrument
 xlabel
