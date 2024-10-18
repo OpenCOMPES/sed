@@ -108,4 +108,3 @@ histogram:
   axes: ["@x_column", "@y_column", "@tof_column", "@delay_column"]
   # default ranges to use for histogram visualization (in unbinned detector coordinates)
   ranges: [[0, 4000], [0, 4000], [1000, 28000], [-1000, 1000]]
-

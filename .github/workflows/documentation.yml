@@ -63,7 +63,6 @@ jobs:
         run: |
           cp -r $GITHUB_WORKSPACE/tutorial $GITHUB_WORKSPACE/docs/
           cp -r $GITHUB_WORKSPACE/sed/config $GITHUB_WORKSPACE/docs/sed
-          rm $GITHUB_WORKSPACE/docs/tutorial/5_sxp_workflow.ipynb
 
       # To be included later
       # - name: Cache docs build
@@ -79,10 +78,11 @@ jobs:
           cd $GITHUB_WORKSPACE/docs
           poetry run python scripts/download_data.py
 
-      - name: build Flash parquet files
+      - name: build parquet files
         run: |
           cd $GITHUB_WORKSPACE/docs
           poetry run python scripts/build_flash_parquets.py
+          poetry run python scripts/build_sxp_parquets.py
 
       - name: build Sphinx docs
         run: poetry run sphinx-build -b html $GITHUB_WORKSPACE/docs $GITHUB_WORKSPACE/_build
