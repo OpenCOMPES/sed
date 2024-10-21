@@ -41,7 +41,7 @@ default_histogram_keys = [
 
 def test_default_config() -> None:
     """Test the config loader for the default config."""
-    config = parse_config(verify_config=False)
+    config = parse_config(config={}, folder_config={}, user_config={}, system_config={})
     assert isinstance(config, dict)
     for key in default_config_keys:
         assert key in config.keys()
@@ -150,28 +150,86 @@ def test_save_dict() -> None:
 @pytest.mark.parametrize("config_path", config_paths)
 def test_config_model_valid(config_path) -> None:
     """Test the config model for a valid config."""
-    config = parse_config(config_path, user_config={}, system_config={}, verify_config=True)
+    config = parse_config(
+        config_path,
+        folder_config={},
+        user_config={},
+        system_config={},
+        verify_config=True,
+    )
     assert config is not None
 
 
 def test_invalid_config_extra_field():
     """Test that an invalid config with an extra field fails validation."""
-    default_config = parse_config(user_config={}, system_config={}, verify_config=True)
+    default_config = parse_config(
+        folder_config={},
+        user_config={},
+        system_config={},
+        verify_config=True,
+    )
     invalid_config = default_config.copy()
     invalid_config["extra_field"] = "extra_value"
     with pytest.raises(ValidationError):
-        parse_config(invalid_config, user_config={}, system_config={}, verify_config=True)
+        parse_config(
+            invalid_config,
+            folder_config={},
+            user_config={},
+            system_config={},
+            verify_config=True,
+        )
 
 
 def test_invalid_config_missing_field():
     """Test that an invalid config with a missing required field fails validation."""
-    default_config = parse_config(user_config={}, system_config={}, verify_config=True)
+    default_config = parse_config(
+        folder_config={},
+        user_config={},
+        system_config={},
+        verify_config=True,
+    )
     invalid_config = default_config.copy()
     del invalid_config["core"]["loader"]
     with pytest.raises(ValidationError):
         parse_config(
+            folder_config={},
             user_config={},
             system_config={},
             default_config=invalid_config,
             verify_config=True,
         )
+
+
+def test_invalid_config_wrong_values():
+    """Test that the validators for certain fields fails validation if not fulfilled."""
+    default_config = parse_config(
+        folder_config={},
+        user_config={},
+        system_config={},
+        verify_config=True,
+    )
+    invalid_config = default_config.copy()
+    invalid_config["core"]["loader"] = "nonexistent"
+    with pytest.raises(ValidationError) as e:
+        parse_config(
+            folder_config={},
+            user_config={},
+            system_config={},
+            default_config=invalid_config,
+            verify_config=True,
+        )
+    assert "Invalid loader nonexistent. Available loaders are:" in str(e.value)
+    invalid_config = default_config.copy()
+    invalid_config["core"]["copy_tool"] = {}
+    invalid_config["core"]["copy_tool"]["source"] = "./"
+    invalid_config["core"]["copy_tool"]["dest"] = "./"
+    invalid_config["core"]["copy_tool"]["gid"] = 9999
+    with pytest.raises(ValidationError) as e:
+        parse_config(
+            folder_config={},
+            user_config={},
+            system_config={},
+            default_config=invalid_config,
+            verify_config=True,
+        )
+    assert "Invalid value 9999 for gid. Group not found." in str(e.value)

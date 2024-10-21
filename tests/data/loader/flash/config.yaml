@@ -108,10 +108,8 @@ dataframe:
       sub_channels:
         sampleBias:
           slice: 0
-          dtype: float32
         tofVoltage:
           slice: 1
-          dtype: float64
         extractorVoltage:
           slice: 2
         extractorCurrent:

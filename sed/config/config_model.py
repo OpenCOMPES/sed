@@ -137,9 +137,8 @@ class DataframeModel(BaseModel):
     sector_id_reserved_bits: Optional[int] = None
     sector_delays: Optional[Sequence[float]] = None
     daq: Optional[str] = None
-    num_trains: Optional[int] = None
-
-    # write validator for model so that x_column gets converted to columns: x
+    # SXP specific settings
+    num_trains: Optional[PositiveInt] = None
 
 
 class BinningModel(BaseModel):
@@ -148,14 +147,14 @@ class BinningModel(BaseModel):
     hist_mode: Literal["numpy", "numba"]
     mode: Literal["fast", "lean", "legacy"]
     pbar: bool
-    threads_per_worker: int
+    threads_per_worker: PositiveInt
     threadpool_API: Literal["blas", "openmp"]
 
 
 class HistogramModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    bins: Sequence[int]
+    bins: Sequence[PositiveInt]
     axes: Sequence[str]
     ranges: Sequence[tuple[float, float]]
 
@@ -174,8 +173,8 @@ class StaticModel(BaseModel):
 class EnergyModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    bins: int
-    ranges: Sequence[int]
+    bins: PositiveInt
+    ranges: tuple[int, int]
     normalize: bool
     normalize_span: int
     normalize_order: int
@@ -238,7 +237,7 @@ class MomentumModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     axes: Sequence[str]
-    bins: Sequence[int]
+    bins: Sequence[PositiveInt]
     ranges: Sequence[tuple[int, int]]
     detector_ranges: Sequence[tuple[int, int]]
     center_pixel: tuple[int, int]
@@ -266,7 +265,7 @@ class MomentumModel(BaseModel):
 
         creation_date: Optional[datetime] = None
         feature_points: Sequence[tuple[float, float]]
-        rotation_symmetry: int
+        rotation_symmetry: PositiveInt
         include_center: bool
         use_center: bool
         ascale: Optional[Sequence[float]] = None
@@ -275,7 +274,7 @@ class MomentumModel(BaseModel):
 
     correction: Optional[MomentumCorrectionModel] = None
 
-    class MomentumTransformationModel(BaseModel):
+    class MomentumTransformationsModel(BaseModel):
         model_config = ConfigDict(extra="forbid")
 
         creation_date: Optional[datetime] = None
@@ -284,7 +283,7 @@ class MomentumModel(BaseModel):
         xtrans: Optional[float] = None
         ytrans: Optional[float] = None
 
-    transformations: Optional[MomentumTransformationModel] = None
+    transformations: Optional[MomentumTransformationsModel] = None
 
 
 class DelayModel(BaseModel):
@@ -295,7 +294,6 @@ class DelayModel(BaseModel):
     # Group keys in the datafile
     p1_key: Optional[str] = None
     p2_key: Optional[str] = None
-    p3_key: Optional[str] = None
     t0_key: Optional[str] = None
 
     class DelayCalibration(BaseModel):

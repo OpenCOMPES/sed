@@ -1,8 +1,8 @@
 # This file contains the default configuration for the flash loader.
 core:
   # defines the loader
-  loader: 'flash'
-  # # Since this will run on maxwell most probably, we have a lot of cores at our disposal
+  loader: flash
+  # Since this will run on maxwell most probably, we have a lot of cores at our disposal
   num_cores: 100
   # the beamline where experiment took place
   beamline: pg2
@@ -202,7 +202,7 @@ dataframe:
 
 # The nexus collection routine shall be finalized soon for both instruments
 # nexus:
-#   reader: "flash"
+#   reader: "mpes"
 #   definition: "NXmpes"
 #   input_files: ["NXmpes_config_HEXTOF_light.json"]
 

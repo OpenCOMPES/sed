@@ -686,7 +686,7 @@ class SXPLoader(BaseLoader):
         with h5py.File(file_path, "r") as h5_file:
             self.reset_multi_index()  # Reset MultiIndexes for next file
             df = self.concatenate_channels(h5_file)
-            df = df.dropna(subset=self._config["dataframe"].get("tof_column", "dldTimeSteps"))
+            df = df.dropna(subset=self._config["dataframe"]["columns"].get("tof", "dldTimeSteps"))
             # correct the 3 bit shift which encodes the detector ID in the 8s time
             if self._config["dataframe"].get("split_sector_id_from_dld_time", False):
                 df, _ = split_dld_time_from_sector_id(df, config=self._config)
@@ -763,7 +763,7 @@ class SXPLoader(BaseLoader):
             parquet_schemas = [pq.read_schema(file) for file in existing_parquet_filenames]
             config_schema = set(self.get_channels(formats="all", index=True))
             if self._config["dataframe"].get("split_sector_id_from_dld_time", False):
-                config_schema.add(self._config["dataframe"].get("sector_id_column", False))
+                config_schema.add(self._config["dataframe"]["columns"].get("sector_id", False))
 
             for i, schema in enumerate(parquet_schemas):
                 schema_set = set(schema.names)

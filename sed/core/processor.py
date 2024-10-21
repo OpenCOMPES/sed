@@ -1167,11 +1167,11 @@ class SedProcessor:
         Args:
             binned_data (xr.DataArray | tuple[np.ndarray, np.ndarray, np.ndarray], optional):
                 Binned data If provided as DataArray, Needs to contain dimensions
-                config["dataframe"]["tof_column"] and config["dataframe"]["bias_column"]. If
-                provided as tuple, needs to contain elements tof, biases, traces.
+                config["dataframe"]["columns"]["tof"] and config["dataframe"]["columns"]["bias"].
+                If provided as tuple, needs to contain elements tof, biases, traces.
             data_files (list[str], optional): list of file paths to bin
             axes (list[str], optional): bin axes.
-                Defaults to config["dataframe"]["tof_column"].
+                Defaults to config["dataframe"]["columns"]["tof"].
             bins (list, optional): number of bins.
                 Defaults to config["energy"]["bins"].
             ranges (Sequence[tuple[float, float]], optional): bin ranges.
@@ -1629,7 +1629,7 @@ class SedProcessor:
         Args:
             tof_ns_column (str, optional): Name of the generated column containing the
                 time-of-flight in nanosecond.
-                Defaults to config["dataframe"]["tof_ns_column"].
+                Defaults to config["dataframe"]["columns"]["tof_ns"].
             preview (bool, optional): Option to preview the first elements of the data frame.
                 Defaults to False.
             **kwds: additional arguments are passed to ``EnergyCalibrator.append_tof_ns_axis()``.

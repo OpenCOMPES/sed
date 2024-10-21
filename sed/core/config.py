@@ -63,7 +63,7 @@ def parse_config(
         FileNotFoundError: Raised if the provided file is not found.
 
     Returns:
-        ConfigModel: Loaded and possibly completed pydantic config model.
+        dict: Loaded and completed config dict, possibly verified by pydantic config model.
     """
     if config is None:
         config = {}
