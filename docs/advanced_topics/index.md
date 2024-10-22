@@ -2,13 +2,12 @@
 myst:
   html_meta:
     "description lang=en": |
-      Workflows showcasing different SED loaders and methods
+      Advanced topics describing specific workflows and functionalities
 ---
 # Workflows
 
 ```{toctree}
-../tutorial/4_hextof_workflow
-../tutorial/8_jittering_tutorial
 ../tutorial/6_binning_with_time-stamped_data
 ../tutorial/7_correcting_orthorhombic_symmetry
+../tutorial/8_jittering_tutorial
 ```

@@ -117,6 +117,8 @@ jobs:
         run: |
           mkdir -p docs-repo/${{ steps.version-folder.outputs.folder }}
           cp -r sphinx-docs/* docs-repo/${{ steps.version-folder.outputs.folder }}
+          rm -rf docs-repo/${{ steps.version-folder.outputs.folder }}/.doctrees
+          rm -rf docs-repo/${{ steps.version-folder.outputs.folder }}/tutorial/*.ipynb
 
       - name: Push changes
         run: |
