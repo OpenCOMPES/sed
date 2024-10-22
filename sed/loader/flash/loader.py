@@ -110,7 +110,7 @@ class FlashLoader(BaseLoader):
                 ) from exc
 
             beamtime_dir = Path(
-                self._config["static"]["beamtime_dir"][self._config["core"]["beamline"]],
+                self._config["core"]["beamtime_dir"][self._config["core"]["beamline"]],
             )
             beamtime_dir = beamtime_dir.joinpath(f"{year}/data/{beamtime_id}/")
 
@@ -175,7 +175,7 @@ class FlashLoader(BaseLoader):
             FileNotFoundError: If no files are found for the given run in the directory.
         """
         # Define the stream name prefixes based on the data acquisition identifier
-        stream_name_prefixes = self._config["static"]["stream_name_prefixes"]
+        stream_name_prefixes = self._config["core"]["stream_name_prefixes"]
 
         if folders is None:
             folders = self._config["core"]["base_folder"]

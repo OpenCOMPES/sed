@@ -33,7 +33,7 @@ def test_initialize_dirs(
     config_["core"]["year"] = "2000"
 
     # Find base path of beamline from config. Here, we use pg2
-    base_path = config_["static"]["beamtime_dir"]["pg2"]
+    base_path = config_["core"]["beamtime_dir"]["pg2"]
     expected_path = (
         Path(base_path) / config_["core"]["year"] / "data" / config_["core"]["beamtime_id"]
     )

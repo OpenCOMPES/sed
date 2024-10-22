@@ -61,6 +61,9 @@ class CoreModel(BaseModel):
     instrument: Optional[str] = None
     beamline: Optional[str] = None
     copy_tool: Optional[CopyToolModel] = None
+    stream_name_prefixes: Optional[dict] = None
+    stream_name_postfixes: Optional[dict] = None
+    beamtime_dir: Optional[dict] = None
 
     @field_validator("loader")
     @classmethod
@@ -157,17 +160,6 @@ class HistogramModel(BaseModel):
     bins: Sequence[PositiveInt]
     axes: Sequence[str]
     ranges: Sequence[tuple[float, float]]
-
-
-class StaticModel(BaseModel):
-    """Static configuration settings that shouldn't be changed by users."""
-
-    # flash specific settings
-    model_config = ConfigDict(extra="forbid")
-
-    stream_name_prefixes: Optional[dict] = None
-    stream_name_postfixes: Optional[dict] = None
-    beamtime_dir: Optional[dict] = None
 
 
 class EnergyModel(BaseModel):
@@ -360,4 +352,3 @@ class ConfigModel(BaseModel):
     histogram: HistogramModel
     metadata: Optional[MetadataModel] = None
     nexus: Optional[NexusModel] = None
-    static: Optional[StaticModel] = None

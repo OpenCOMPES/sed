@@ -6,6 +6,12 @@ core:
   year: 202302
   beamline: sxp
   instrument: sxp
+  stream_name_prefixes:
+    DA03: "RAW-R"
+  stream_name_postfixes:
+    DA03: "-DA03-"
+  beamtime_dir:
+    sxp: "/gpfs/exfel/exp/SXP/"
   paths:
     raw: "/path/to/data"
     # change this to a local directory where you want to store the parquet files
@@ -102,12 +108,3 @@ dataframe:
       format: per_train
       dataset_key: "/CONTROL/SCS_ILH_LAS/MDL/OPTICALDELAY_PP800/actualPosition/value"
       index_key: "/INDEX/trainId"
-
-static:
-  stream_name_prefixes:
-    DA03: "RAW-R"
-  stream_name_postfixes:
-    DA03: "-DA03-"
-
-  beamtime_dir:
-    sxp: "/gpfs/exfel/exp/SXP/"
