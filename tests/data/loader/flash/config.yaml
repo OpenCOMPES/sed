@@ -17,6 +17,21 @@ core:
 
   # beamtime_id: xxxxxxxx
   # year: 20xx
+    # The prefixes of the stream names for different DAQ systems for parsing filenames
+  stream_name_prefixes:
+    pbd: "GMD_DATA_gmd_data"
+    pbd2: "FL2PhotDiag_pbd2_gmd_data"
+    fl1user1: "FLASH1_USER1_stream_2"
+    fl1user2: "FLASH1_USER2_stream_2"
+    fl1user3: "FLASH1_USER3_stream_2"
+    fl2user1: "FLASH2_USER1_stream_2"
+    fl2user2: "FLASH2_USER2_stream_2"
+
+  # The beamtime directories for different DAQ systems.
+  # (Not to be changed by user)
+  beamtime_dir:
+    pg2: "/asap3/flash/gpfs/pg2/"
+
 
 dataframe:
   # The name of the DAQ system to use. Necessary to resolve the filenames/paths.
@@ -141,21 +156,3 @@ dataframe:
       index_key: "/FL1/Photon Diagnostic/GMD/Pulse resolved energy/energy tunnel/index"
       dataset_key: "/FL1/Photon Diagnostic/GMD/Pulse resolved energy/energy tunnel/value"
       slice: 0
-
-
-# (Not to be changed by user)
-static:
-  # The prefixes of the stream names for different DAQ systems for parsing filenames
-  stream_name_prefixes:
-    pbd: "GMD_DATA_gmd_data"
-    pbd2: "FL2PhotDiag_pbd2_gmd_data"
-    fl1user1: "FLASH1_USER1_stream_2"
-    fl1user2: "FLASH1_USER2_stream_2"
-    fl1user3: "FLASH1_USER3_stream_2"
-    fl2user1: "FLASH2_USER1_stream_2"
-    fl2user2: "FLASH2_USER2_stream_2"
-
-  # The beamtime directories for different DAQ systems.
-  # (Not to be changed by user)
-  beamtime_dir:
-    pg2: "/asap3/flash/gpfs/pg2/"
