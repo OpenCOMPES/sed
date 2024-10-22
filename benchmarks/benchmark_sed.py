@@ -35,7 +35,7 @@ dataframe = dask.dataframe.from_dask_array(array, columns=axes)
 test_data_dir = os.path.join(package_dir, "..", "tests", "data")
 runs = {"generic": None, "mpes": ["30", "50"], "flash": ["43878"], "sxp": ["0016"]}
 
-targets = load_config(package_dir + "/../benchmarks/benchmark_targets.yaml")
+targets = load_config(package_dir + "/../../benchmarks/benchmark_targets.yaml")
 
 
 def test_binning_1d() -> None:
@@ -59,7 +59,7 @@ def test_binning_1d() -> None:
     if np.mean(result) < 0.8 * targets["binning_1d"]:
         print(f"Updating targets for 'binning_1d' to {float(np.mean(result))}")
         targets["binning_1d"] = float(np.mean(result))
-        save_config(targets, package_dir + "/../benchmarks/benchmark_targets.yaml")
+        save_config(targets, package_dir + "/../../benchmarks/benchmark_targets.yaml")
 
 
 def test_binning_4d() -> None:
@@ -83,14 +83,14 @@ def test_binning_4d() -> None:
     if np.mean(result) < 0.8 * targets["binning_4d"]:
         print(f"Updating targets for 'binning_4d' to {float(np.mean(result))}")
         targets["binning_4d"] = float(np.mean(result))
-        save_config(targets, package_dir + "/../benchmarks/benchmark_targets.yaml")
+        save_config(targets, package_dir + "/../../benchmarks/benchmark_targets.yaml")
 
 
 def test_splinewarp() -> None:
     """Run a benchmark for the generation of the inverse dfield correction"""
     processor = SedProcessor(
         dataframe=dataframe.copy(),
-        config=package_dir + "/config/mpes_example_config.yaml",
+        config=package_dir + "/../../config/mpes_example_config.yaml",
         folder_config={},
         user_config={},
         system_config={},
@@ -109,14 +109,14 @@ def test_splinewarp() -> None:
     if np.mean(result) < 0.8 * targets["inv_dfield"]:
         print(f"Updating targets for 'inv_dfield' to {float(np.mean(result))}")
         targets["inv_dfield"] = float(np.mean(result))
-        save_config(targets, package_dir + "/../benchmarks/benchmark_targets.yaml")
+        save_config(targets, package_dir + "/../../benchmarks/benchmark_targets.yaml")
 
 
 def test_workflow_1d() -> None:
     """Run a benchmark for 1d binning of converted data"""
     processor = SedProcessor(
         dataframe=dataframe.copy(),
-        config=package_dir + "/config/mpes_example_config.yaml",
+        config=package_dir + "/../../config/mpes_example_config.yaml",
         folder_config={},
         user_config={},
         system_config={},
@@ -145,14 +145,14 @@ def test_workflow_1d() -> None:
     if np.mean(result) < 0.8 * targets["workflow_1d"]:
         print(f"Updating targets for 'workflow_1d' to {float(np.mean(result))}")
         targets["workflow_1d"] = float(np.mean(result))
-        save_config(targets, package_dir + "/../benchmarks/benchmark_targets.yaml")
+        save_config(targets, package_dir + "/../../benchmarks/benchmark_targets.yaml")
 
 
 def test_workflow_4d() -> None:
     """Run a benchmark for 4d binning of converted data"""
     processor = SedProcessor(
         dataframe=dataframe.copy(),
-        config=package_dir + "/config/mpes_example_config.yaml",
+        config=package_dir + "/../../config/mpes_example_config.yaml",
         folder_config={},
         user_config={},
         system_config={},
@@ -181,7 +181,7 @@ def test_workflow_4d() -> None:
     if np.mean(result) < 0.8 * targets["workflow_4d"]:
         print(f"Updating targets for 'workflow_4d' to {float(np.mean(result))}")
         targets["workflow_4d"] = float(np.mean(result))
-        save_config(targets, package_dir + "/../benchmarks/benchmark_targets.yaml")
+        save_config(targets, package_dir + "/../../benchmarks/benchmark_targets.yaml")
 
 
 @pytest.mark.parametrize("loader", get_all_loaders())
@@ -210,4 +210,4 @@ def test_loader_compute(loader: BaseLoader) -> None:
                 f"to {float(np.mean(result))}",
             )
             targets[f"loader_compute_{loader_name}"] = float(np.mean(result))
-            save_config(targets, package_dir + "/../benchmarks/benchmark_targets.yaml")
+            save_config(targets, package_dir + "/../../benchmarks/benchmark_targets.yaml")
