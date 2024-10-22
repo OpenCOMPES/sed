@@ -54,7 +54,7 @@ def test_binning_1d() -> None:
     )
     result = timer.repeat(5, number=1)
     print(result)
-    assert min(result) < targets["binning_1d"] * 1.25 # allows 25% error margin
+    assert min(result) < targets["binning_1d"] * 1.25  # allows 25% error margin
     # update targets if > 20% improvement occurs beyond old bestmark
     if np.mean(result) < 0.8 * targets["binning_1d"]:
         print(f"Updating targets for 'binning_1d' to {float(np.mean(result))}")
@@ -78,7 +78,7 @@ def test_binning_4d() -> None:
     )
     result = timer.repeat(5, number=1)
     print(result)
-    assert min(result) < targets["binning_4d"] * 1.25 # allows 25% error margin
+    assert min(result) < targets["binning_4d"] * 1.25  # allows 25% error margin
     # update targets if > 20% improvement occurs beyond old bestmark
     if np.mean(result) < 0.8 * targets["binning_4d"]:
         print(f"Updating targets for 'binning_4d' to {float(np.mean(result))}")
@@ -95,6 +95,7 @@ def test_splinewarp() -> None:
         user_config={},
         system_config={},
         verbose=True,
+        verify_config=False,
     )
     processor.apply_momentum_correction()
     timer = timeit.Timer(
@@ -103,7 +104,7 @@ def test_splinewarp() -> None:
     )
     result = timer.repeat(5, number=1)
     print(result)
-    assert min(result) < targets["inv_dfield"] * 1.25 # allows 25% error margin
+    assert min(result) < targets["inv_dfield"] * 1.25  # allows 25% error margin
     # update targets if > 20% improvement occurs beyond old bestmark
     if np.mean(result) < 0.8 * targets["inv_dfield"]:
         print(f"Updating targets for 'inv_dfield' to {float(np.mean(result))}")
@@ -120,6 +121,7 @@ def test_workflow_1d() -> None:
         user_config={},
         system_config={},
         verbose=True,
+        verify_config=False,
     )
     processor.dataframe["sampleBias"] = 16.7
     processor.add_jitter()
@@ -138,7 +140,7 @@ def test_workflow_1d() -> None:
     )
     result = timer.repeat(5, number=1)
     print(result)
-    assert min(result) < targets["workflow_1d"] * 1.25 # allows 25% error margin
+    assert min(result) < targets["workflow_1d"] * 1.25  # allows 25% error margin
     # update targets if > 20% improvement occurs beyond old bestmark
     if np.mean(result) < 0.8 * targets["workflow_1d"]:
         print(f"Updating targets for 'workflow_1d' to {float(np.mean(result))}")
@@ -155,6 +157,7 @@ def test_workflow_4d() -> None:
         user_config={},
         system_config={},
         verbose=True,
+        verify_config=False,
     )
     processor.dataframe["sampleBias"] = 16.7
     processor.add_jitter()
@@ -173,7 +176,7 @@ def test_workflow_4d() -> None:
     )
     result = timer.repeat(5, number=1)
     print(result)
-    assert min(result) < targets["workflow_4d"] * 1.25 # allows 25% error margin
+    assert min(result) < targets["workflow_4d"] * 1.25  # allows 25% error margin
     # update targets if > 20% improvement occurs beyond old bestmark
     if np.mean(result) < 0.8 * targets["workflow_4d"]:
         print(f"Updating targets for 'workflow_4d' to {float(np.mean(result))}")
@@ -199,7 +202,7 @@ def test_loader_compute(loader: BaseLoader) -> None:
         )
         result = timer.repeat(20, number=1)
         print(result)
-        assert min(result) < targets[f"loader_compute_{loader_name}"] * 1.25 # allows 25% margin
+        assert min(result) < targets[f"loader_compute_{loader_name}"] * 1.25  # allows 25% margin
         # update targets if > 20% improvement occurs beyond old bestmark
         if np.mean(result) < 0.8 * targets[f"loader_compute_{loader_name}"]:
             print(
