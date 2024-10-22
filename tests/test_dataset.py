@@ -15,7 +15,7 @@ from sed.dataset import dataset as ds
 from sed.dataset import DatasetsManager as dm
 
 package_dir = os.path.dirname(find_spec("sed").origin)
-json_path = os.path.join(package_dir, "datasets.json")
+json_path = os.path.join(package_dir, "../../config/datasets.json")
 
 
 @pytest.fixture
@@ -120,7 +120,7 @@ def test_rearrange_data(zip_file):  # noqa: ARG001
     ds._rearrange_data()
     assert os.path.exists("test/datasets/Test/test_file.txt")
     assert os.path.exists("test/datasets/Test/test_subdir.txt")
-    assert ~os.path.exists("test/datasets/Test/subdir")
+    assert not os.path.exists("test/datasets/Test/subdir")
 
     with pytest.raises(FileNotFoundError):
         ds._subdirs = ["non_existing_subdir"]

@@ -1,8 +1,7 @@
 [tool.poetry]
 name = "sed-processor"
-packages = [
-    {include = "sed"}
-]
+packages = [{include = "sed", from = "src"}]
+include = ["config"]
 version = "0.2.1a0"
 description = "Single Event Data Frame Processor: Backend to handle photoelectron resolved datastreams"
 authors = ["OpenCOMPES team <sed-processor@mpes.science>"]
@@ -83,7 +82,7 @@ omit = [
 ]
 
 [tool.ruff]
-include = ["sed/*.py", "tests/*.py"]
+include = ["src/*.py", "tests/*.py"]
 lint.select = [
     "E", # pycodestyle
     "W", # pycodestyle
