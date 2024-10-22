@@ -15,7 +15,7 @@ installation
 ```{toctree}
 :caption: Basic concepts
 ../tutorial/1_binning_fake_data
-../tutorial/8_jittering_tutorial
+../tutorial/2_conversion_pipeline_for_example_time-resolved_ARPES_data
 ../tutorial/3_metadata_collection_and_export_to_NeXus
 ```
 

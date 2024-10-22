@@ -30,6 +30,16 @@ Several example notebooks to demonstrate the functionality of SED for end-to-end
 workflows/index
 ```
 
+## Advanced topics
+
+There are also further example notebooks showing more advanced topics not required in every-day analysis.
+
+```{toctree}
+:maxdepth: 2
+
+advanced_topics/index
+```
+
 ## API
 
 ```{toctree}
