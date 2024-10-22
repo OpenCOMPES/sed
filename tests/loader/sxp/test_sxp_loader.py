@@ -87,7 +87,7 @@ def test_initialize_dirs(config_file: dict, fs) -> None:
     config["core"]["year"] = "2000"
 
     # Find base path of beamline from config.
-    base_path = config["static"]["beamtime_dir"]["sxp"]
+    base_path = config["core"]["beamtime_dir"]["sxp"]
     expected_path = Path(base_path) / config["core"]["year"] / config["core"]["beamtime_id"]
     # Create expected paths
     expected_raw_path = expected_path / "raw"
