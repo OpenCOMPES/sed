@@ -162,7 +162,6 @@ class HistogramModel(BaseModel):
     ranges: Sequence[tuple[float, float]]
 
 
-
 class EnergyModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
