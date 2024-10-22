@@ -22,7 +22,7 @@
         ]
     },
     "Au_Mica": {
-        "url": "https://cloud.fhi-berlin.mpg.de:8443/dl/fiTjjP8DcLUXN84myzTXFHjt/sxp_example_data.zip"
+        "url": "https://zenodo.org/records/13952965/files/Au_Mica_SXP.zip"
     },
     "Test": {
         "url": "http://test.com/files/file.zip",
