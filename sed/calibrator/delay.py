@@ -51,10 +51,10 @@ class DelayCalibrator:
         self._verbose = verbose
         set_verbosity(logger, self._verbose)
 
-        self.adc_column: str = self._config["dataframe"].get("adc_column", None)
-        self.delay_column: str = self._config["dataframe"]["delay_column"]
-        self.corrected_delay_column = self._config["dataframe"].get(
-            "corrected_delay_column",
+        self.adc_column: str = config["dataframe"]["columns"]["adc"]
+        self.delay_column: str = config["dataframe"]["columns"]["delay"]
+        self.corrected_delay_column = self._config["dataframe"]["columns"].get(
+            "corrected_delay",
             self.delay_column,
         )
         self.calibration: dict[str, Any] = self._config["delay"].get("calibration", {})
@@ -102,9 +102,9 @@ class DelayCalibrator:
             df (pd.DataFrame | dask.dataframe.DataFrame): The dataframe where
                 to apply the delay calibration to.
             adc_column (str, optional): Source column for delay calibration.
-                Defaults to config["dataframe"]["adc_column"].
+                Defaults to config["dataframe"]["columns"]["adc"].
             delay_column (str, optional): Destination column for delay calibration.
-                Defaults to config["dataframe"]["delay_column"].
+                Defaults to config["dataframe"]["columns"]["delay"].
             calibration (dict, optional): Calibration dictionary with parameters for
                 delay calibration.
             adc_range (tuple | list | np.ndarray, optional): The range of used
@@ -146,7 +146,7 @@ class DelayCalibrator:
             or datafile is not None
         ):
             calibration = {}
-            calibration["creation_date"] = datetime.now().timestamp()
+            calibration["creation_date"] = datetime.now()
             if adc_range is not None:
                 calibration["adc_range"] = adc_range
             if delay_range is not None:
@@ -158,9 +158,7 @@ class DelayCalibrator:
         else:
             # report usage of loaded parameters
             if "creation_date" in calibration and not suppress_output:
-                datestring = datetime.fromtimestamp(calibration["creation_date"]).strftime(
-                    "%m/%d/%Y, %H:%M:%S",
-                )
+                datestring = calibration["creation_date"].strftime("%m/%d/%Y, %H:%M:%S")
                 logger.info(f"Using delay calibration parameters generated on {datestring}")
 
         if adc_column is None:
@@ -212,7 +210,7 @@ class DelayCalibrator:
             )
             if not suppress_output:
                 logger.info(f"Converted delay_range (ps) = {calibration['delay_range']}")
-            calibration["creation_date"] = datetime.now().timestamp()
+            calibration["creation_date"] = datetime.now()
 
         if "delay_range" in calibration.keys():
             df[delay_column] = calibration["delay_range"][0] + (
@@ -285,9 +283,10 @@ class DelayCalibrator:
             # pylint:disable=duplicate-code
             # use passed parameters, overwrite config
             offsets = {}
-            offsets["creation_date"] = datetime.now().timestamp()
+            offsets["creation_date"] = datetime.now()
             # column-based offsets
             if columns is not None:
+                offsets["columns"] = {}
                 if weights is None:
                     weights = 1
                 if isinstance(weights, (int, float, np.integer, np.floating)):
@@ -314,7 +313,7 @@ class DelayCalibrator:
 
                 # store in offsets dictionary
                 for col, weight, pmean, red in zip(columns, weights, preserve_mean, reductions):
-                    offsets[col] = {
+                    offsets["columns"][col] = {
                         "weight": weight,
                         "preserve_mean": pmean,
                         "reduction": red,
@@ -330,9 +329,7 @@ class DelayCalibrator:
                 offsets["flip_delay_axis"] = flip_delay_axis
 
         elif "creation_date" in offsets and not suppress_output:
-            datestring = datetime.fromtimestamp(offsets["creation_date"]).strftime(
-                "%m/%d/%Y, %H:%M:%S",
-            )
+            datestring = offsets["creation_date"].strftime("%m/%d/%Y, %H:%M:%S")
             logger.info(f"Using delay offset parameters generated on {datestring}")
 
         if len(offsets) > 0:
@@ -359,21 +356,23 @@ class DelayCalibrator:
                             f"Invalid value for flip_delay_axis in config: {flip_delay_axis}.",
                         )
                     log_str += f"\n   Flip delay axis: {flip_delay_axis}"
-                else:
-                    columns.append(k)
-                    try:
-                        weight = v["weight"]
-                    except KeyError:
-                        weight = 1
-                    weights.append(weight)
-                    pm = v.get("preserve_mean", False)
-                    preserve_mean.append(pm)
-                    red = v.get("reduction", None)
-                    reductions.append(red)
-                    log_str += (
-                        f"\n   Column[{k}]: Weight={weight}, Preserve Mean: {pm}, "
-                        f"Reductions: {red}."
-                    )
+                elif k == "columns":
+                    for column_name, column_dict in offsets["columns"].items():
+                        columns.append(column_name)
+                        weight = column_dict.get("weight", 1)
+                        if not isinstance(weight, (int, float, np.integer, np.floating)):
+                            raise TypeError(
+                                f"Invalid type for weight of column {column_name}: {type(weight)}",
+                            )
+                        weights.append(weight)
+                        pm = column_dict.get("preserve_mean", False)
+                        preserve_mean.append(pm)
+                        red = column_dict.get("reduction", None)
+                        reductions.append(red)
+                        log_str += (
+                            f"\n   Column[{column_name}]: Weight={weight}, Preserve Mean: {pm}, "
+                            f"Reductions: {red}."
+                        )
 
             if not suppress_output:
                 logger.info(log_str)

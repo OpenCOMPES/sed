@@ -12,6 +12,7 @@ from pathlib import Path
 import yaml
 from platformdirs import user_config_path
 
+from sed.config.config_model import ConfigModel
 from sed.core.logging import setup_logging
 
 package_dir = os.path.dirname(find_spec("sed").origin)
@@ -29,6 +30,7 @@ def parse_config(
     system_config: dict | str = None,
     default_config: (dict | str) = f"{package_dir}/config/default.yaml",
     verbose: bool = True,
+    verify_config: bool = True,
 ) -> dict:
     """Load the config dictionary from a file, or pass the provided config dictionary.
     The content of the loaded config dictionary is then completed from a set of pre-configured
@@ -55,12 +57,13 @@ def parse_config(
             or file path. The loaded dictionary is completed with the default values.
             Defaults to *package_dir*/config/default.yaml".
         verbose (bool, optional): Option to report loaded config files. Defaults to True.
+        verify_config (bool, optional): Option to verify config file. Defaults to True.
     Raises:
         TypeError: Raised if the provided file is neither *json* nor *yaml*.
         FileNotFoundError: Raised if the provided file is not found.
 
     Returns:
-        dict: Loaded and possibly completed config dictionary.
+        dict: Loaded and completed config dict, possibly verified by pydantic config model.
     """
     if config is None:
         config = {}
@@ -141,7 +144,11 @@ def parse_config(
         base_dictionary=default_dict,
     )
 
-    return config_dict
+    if not verify_config:
+        return config_dict
+    # Run the config through the ConfigModel to ensure it is valid
+    config_model = ConfigModel(**config_dict)
+    return config_model.model_dump(exclude_unset=True, exclude_none=True)
 
 
 def load_config(config_path: str) -> dict:

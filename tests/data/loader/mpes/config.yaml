@@ -1,10 +1,8 @@
 core:
   paths:
-    data_raw_dir: "tests/data/loader/mpes/"
+    raw: "tests/data/loader/mpes/"
 
 dataframe:
-  # dataframe column name for the time stamp column
-  time_stamp_alias: "timeStamps"
   # hdf5 group name containing eventIDs occuring at every millisecond (used to calculate timestamps)
   ms_markers_key: "msMarkers"
   # hdf5 attribute containing the timestamp of the first event in a file
@@ -13,30 +11,6 @@ dataframe:
   timed_dataframe_unit_time: 0.001
   # list of columns to apply jitter to
   jitter_cols: ["X", "Y", "t", "ADC"]
-  # dataframe column containing x coordinates
-  x_column: "X"
-  # dataframe column containing y coordinates
-  y_column: "Y"
-  # dataframe column containing time-of-flight data
-  tof_column: "t"
-  # dataframe column containing analog-to-digital data
-  adc_column: "ADC"
-  # dataframe column containing bias voltage data
-  bias_column: "sampleBias"
-  # dataframe column containing corrected x coordinates
-  corrected_x_column: "Xm"
-  # dataframe column containing corrected y coordinates
-  corrected_y_column: "Ym"
-  # dataframe column containing corrected time-of-flight data
-  corrected_tof_column: "tm"
-  # dataframe column containing kx coordinates
-  kx_column: "kx"
-  # dataframe column containing ky coordinates
-  ky_column: "ky"
-  # dataframe column containing energy data
-  energy_column: "energy"
-  # dataframe column containing delay data
-  delay_column: "delay"
   # time length of a base time-of-flight bin in ns
   tof_binwidth: 4.125e-12
   # Binning factor of the tof_column-data compared to tof_binwidth (2^(tof_binning-1))
@@ -44,6 +18,22 @@ dataframe:
   # binning factor used for the adc coordinate (2^(adc_binning-1))
   adc_binning: 3
   # Default units for dataframe entries
+
+  columns:
+    x: X # dataframe column containing x coordinates
+    y: Y # dataframe column containing y coordinates
+    tof: t # dataframe column containing time-of-flight data
+    adc: ADC # dataframe column containing analog-to-digital data
+    bias: sampleBias # dataframe column containing bias voltage data
+    corrected_x: Xm # dataframe column containing corrected x coordinates
+    corrected_y: Ym # dataframe column containing corrected y coordinates
+    corrected_tof: tm # dataframe column containing corrected time-of-flight data
+    kx: kx # dataframe column containing kx coordinates
+    ky: ky # dataframe column containing ky coordinates
+    energy: energy # dataframe column containing energy data
+    delay: delay # dataframe column containing delay data
+    timestamp: timeStamps  # dataframe column containing timestamp data
+
   units:
     X: 'step'
     Y: 'step'

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import pathlib
 from collections.abc import Sequence
+from copy import deepcopy
 from datetime import datetime
 from typing import Any
 from typing import cast
@@ -161,22 +162,17 @@ class SedProcessor:
             verbose=self._verbose,
         )
 
-        self.use_copy_tool = self._config.get("core", {}).get(
-            "use_copy_tool",
-            False,
-        )
+        self.use_copy_tool = "copy_tool" in self._config["core"]
         if self.use_copy_tool:
             try:
                 self.ct = CopyTool(
-                    source=self._config["core"]["copy_tool_source"],
-                    dest=self._config["core"]["copy_tool_dest"],
                     num_cores=self._config["core"]["num_cores"],
-                    **self._config["core"].get("copy_tool_kwds", {}),
+                    **self._config["core"]["copy_tool"],
                 )
                 logger.debug(
-                    f"Initialized copy tool: Copy file from "
-                    f"'{self._config['core']['copy_tool_source']}' "
-                    f"to '{self._config['core']['copy_tool_dest']}'.",
+                    f"Initialized copy tool: Copy files from "
+                    f"'{self._config['core']['copy_tool']['source']}' "
+                    f"to '{self._config['core']['copy_tool']['dest']}'.",
                 )
             except KeyError:
                 self.use_copy_tool = False
@@ -703,11 +699,13 @@ class SedProcessor:
                 correction[key] = []
                 for point in value:
                     correction[key].append([float(i) for i in point])
+            elif key == "creation_date":
+                correction[key] = value.isoformat()
             else:
                 correction[key] = float(value)
 
         if "creation_date" not in correction:
-            correction["creation_date"] = datetime.now().timestamp()
+            correction["creation_date"] = datetime.now().isoformat()
 
         config = {
             "momentum": {
@@ -790,10 +788,13 @@ class SedProcessor:
             raise ValueError("No momentum transformation parameters to save!")
         transformations = {}
         for key, value in self.mc.transformations.items():
-            transformations[key] = float(value)
+            if key == "creation_date":
+                transformations[key] = value.isoformat()
+            else:
+                transformations[key] = float(value)
 
         if "creation_date" not in transformations:
-            transformations["creation_date"] = datetime.now().timestamp()
+            transformations["creation_date"] = datetime.now().isoformat()
 
         config = {
             "momentum": {
@@ -823,8 +824,8 @@ class SedProcessor:
                 - **inv_dfield** (np.ndarray, optional): Inverse deformation field.
 
         """
-        x_column = self._config["dataframe"]["x_column"]
-        y_column = self._config["dataframe"]["y_column"]
+        x_column = self._config["dataframe"]["columns"]["x"]
+        y_column = self._config["dataframe"]["columns"]["y"]
 
         if self._dataframe is not None:
             logger.info("Adding corrected X/Y columns to dataframe:")
@@ -938,11 +939,13 @@ class SedProcessor:
         for key, value in self.mc.calibration.items():
             if key in ["kx_axis", "ky_axis", "grid", "extent"]:
                 continue
-
-            calibration[key] = float(value)
+            elif key == "creation_date":
+                calibration[key] = value.isoformat()
+            else:
+                calibration[key] = float(value)
 
         if "creation_date" not in calibration:
-            calibration["creation_date"] = datetime.now().timestamp()
+            calibration["creation_date"] = datetime.now().isoformat()
 
         config = {"momentum": {"calibration": calibration}}
         save_config(config, filename, overwrite)
@@ -967,8 +970,8 @@ class SedProcessor:
                 Defaults to False.
             **kwds: Keyword args passed to ``MomentumCalibrator.append_k_axis``.
         """
-        x_column = self._config["dataframe"]["x_column"]
-        y_column = self._config["dataframe"]["y_column"]
+        x_column = self._config["dataframe"]["columns"]["x"]
+        y_column = self._config["dataframe"]["columns"]["y"]
 
         if self._dataframe is not None:
             logger.info("Adding kx/ky columns to dataframe:")
@@ -1074,16 +1077,18 @@ class SedProcessor:
         if len(self.ec.correction) == 0:
             raise ValueError("No energy correction parameters to save!")
         correction = {}
-        for key, val in self.ec.correction.items():
+        for key, value in self.ec.correction.items():
             if key == "correction_type":
-                correction[key] = val
+                correction[key] = value
             elif key == "center":
-                correction[key] = [float(i) for i in val]
+                correction[key] = [float(i) for i in value]
+            elif key == "creation_date":
+                correction[key] = value.isoformat()
             else:
-                correction[key] = float(val)
+                correction[key] = float(value)
 
         if "creation_date" not in correction:
-            correction["creation_date"] = datetime.now().timestamp()
+            correction["creation_date"] = datetime.now().isoformat()
 
         config = {"energy": {"correction": correction}}
         save_config(config, filename, overwrite)
@@ -1108,7 +1113,7 @@ class SedProcessor:
             **kwds:
                 Keyword args passed to ``EnergyCalibrator.apply_energy_correction()``.
         """
-        tof_column = self._config["dataframe"]["tof_column"]
+        tof_column = self._config["dataframe"]["columns"]["tof"]
 
         if self._dataframe is not None:
             logger.info("Applying energy correction to dataframe...")
@@ -1162,11 +1167,11 @@ class SedProcessor:
         Args:
             binned_data (xr.DataArray | tuple[np.ndarray, np.ndarray, np.ndarray], optional):
                 Binned data If provided as DataArray, Needs to contain dimensions
-                config["dataframe"]["tof_column"] and config["dataframe"]["bias_column"]. If
-                provided as tuple, needs to contain elements tof, biases, traces.
+                config["dataframe"]["columns"]["tof"] and config["dataframe"]["columns"]["bias"].
+                If provided as tuple, needs to contain elements tof, biases, traces.
             data_files (list[str], optional): list of file paths to bin
             axes (list[str], optional): bin axes.
-                Defaults to config["dataframe"]["tof_column"].
+                Defaults to config["dataframe"]["columns"]["tof"].
             bins (list, optional): number of bins.
                 Defaults to config["energy"]["bins"].
             ranges (Sequence[tuple[float, float]], optional): bin ranges.
@@ -1187,16 +1192,16 @@ class SedProcessor:
         if binned_data is not None:
             if isinstance(binned_data, xr.DataArray):
                 if (
-                    self._config["dataframe"]["tof_column"] not in binned_data.dims
-                    or self._config["dataframe"]["bias_column"] not in binned_data.dims
+                    self._config["dataframe"]["columns"]["tof"] not in binned_data.dims
+                    or self._config["dataframe"]["columns"]["bias"] not in binned_data.dims
                 ):
                     raise ValueError(
                         "If binned_data is provided as an xarray, it needs to contain dimensions "
-                        f"'{self._config['dataframe']['tof_column']}' and "
-                        f"'{self._config['dataframe']['bias_column']}'!.",
+                        f"'{self._config['dataframe']['columns']['tof']}' and "
+                        f"'{self._config['dataframe']['columns']['bias']}'!.",
                     )
-                tof = binned_data.coords[self._config["dataframe"]["tof_column"]].values
-                biases = binned_data.coords[self._config["dataframe"]["bias_column"]].values
+                tof = binned_data.coords[self._config["dataframe"]["columns"]["tof"]].values
+                biases = binned_data.coords[self._config["dataframe"]["columns"]["bias"]].values
                 traces = binned_data.values[:, :]
             else:
                 try:
@@ -1435,11 +1440,13 @@ class SedProcessor:
                 calibration[key] = value
             elif key == "coeffs":
                 calibration[key] = [float(i) for i in value]
+            elif key == "creation_date":
+                calibration[key] = value.isoformat()
             else:
                 calibration[key] = float(value)
 
         if "creation_date" not in calibration:
-            calibration["creation_date"] = datetime.now().timestamp()
+            calibration["creation_date"] = datetime.now().isoformat()
 
         config = {"energy": {"calibration": calibration}}
         save_config(config, filename, overwrite)
@@ -1470,7 +1477,7 @@ class SedProcessor:
             **kwds:
                 Keyword args passed to ``EnergyCalibrator.append_energy_axis()``.
         """
-        tof_column = self._config["dataframe"]["tof_column"]
+        tof_column = self._config["dataframe"]["columns"]["tof"]
 
         if self._dataframe is not None:
             logger.info("Adding energy column to dataframe:")
@@ -1536,7 +1543,7 @@ class SedProcessor:
         Raises:
             ValueError: If the energy column is not in the dataframe.
         """
-        energy_column = self._config["dataframe"]["energy_column"]
+        energy_column = self._config["dataframe"]["columns"]["energy"]
         if energy_column not in self._dataframe.columns:
             raise ValueError(
                 f"Energy column {energy_column} not found in dataframe! "
@@ -1600,10 +1607,14 @@ class SedProcessor:
         if len(self.ec.offsets) == 0:
             raise ValueError("No energy offset parameters to save!")
 
-        if "creation_date" not in self.ec.offsets.keys():
-            self.ec.offsets["creation_date"] = datetime.now().timestamp()
+        offsets = deepcopy(self.ec.offsets)
 
-        config = {"energy": {"offsets": self.ec.offsets}}
+        if "creation_date" not in offsets.keys():
+            offsets["creation_date"] = datetime.now()
+
+        offsets["creation_date"] = offsets["creation_date"].isoformat()
+
+        config = {"energy": {"offsets": offsets}}
         save_config(config, filename, overwrite)
         logger.info(f'Saved energy offset parameters to "{filename}".')
 
@@ -1618,13 +1629,13 @@ class SedProcessor:
         Args:
             tof_ns_column (str, optional): Name of the generated column containing the
                 time-of-flight in nanosecond.
-                Defaults to config["dataframe"]["tof_ns_column"].
+                Defaults to config["dataframe"]["columns"]["tof_ns"].
             preview (bool, optional): Option to preview the first elements of the data frame.
                 Defaults to False.
             **kwds: additional arguments are passed to ``EnergyCalibrator.append_tof_ns_axis()``.
 
         """
-        tof_column = self._config["dataframe"]["tof_column"]
+        tof_column = self._config["dataframe"]["columns"]["tof"]
 
         if self._dataframe is not None:
             logger.info("Adding time-of-flight column in nanoseconds to dataframe.")
@@ -1671,7 +1682,7 @@ class SedProcessor:
                 Defaults to False.
             **kwds: additional arguments are passed to ``EnergyCalibrator.align_dld_sectors()``.
         """
-        tof_column = self._config["dataframe"]["tof_column"]
+        tof_column = self._config["dataframe"]["columns"]["tof"]
 
         if self._dataframe is not None:
             logger.info("Aligning 8s sectors of dataframe")
@@ -1725,7 +1736,7 @@ class SedProcessor:
                 Defaults to False.
             **kwds: Keyword args passed to ``DelayCalibrator.append_delay_axis``.
         """
-        adc_column = self._config["dataframe"]["adc_column"]
+        adc_column = self._config["dataframe"]["columns"]["adc"]
         if adc_column not in self._dataframe.columns:
             raise ValueError(f"ADC column {adc_column} not found in dataframe, cannot calibrate!")
 
@@ -1796,11 +1807,13 @@ class SedProcessor:
                 calibration[key] = value
             elif key in ["adc_range", "delay_range", "delay_range_mm"]:
                 calibration[key] = [float(i) for i in value]
+            elif key == "creation_date":
+                calibration[key] = value.isoformat()
             else:
                 calibration[key] = float(value)
 
         if "creation_date" not in calibration:
-            calibration["creation_date"] = datetime.now().timestamp()
+            calibration["creation_date"] = datetime.now().isoformat()
 
         config = {
             "delay": {
@@ -1841,7 +1854,7 @@ class SedProcessor:
         Raises:
             ValueError: If the delay column is not in the dataframe.
         """
-        delay_column = self._config["dataframe"]["delay_column"]
+        delay_column = self._config["dataframe"]["columns"]["delay"]
         if delay_column not in self._dataframe.columns:
             raise ValueError(f"Delay column {delay_column} not found in dataframe! ")
 
@@ -1903,14 +1916,14 @@ class SedProcessor:
         if len(self.dc.offsets) == 0:
             raise ValueError("No delay offset parameters to save!")
 
-        if "creation_date" not in self.ec.offsets.keys():
-            self.ec.offsets["creation_date"] = datetime.now().timestamp()
+        offsets = deepcopy(self.dc.offsets)
 
-        config = {
-            "delay": {
-                "offsets": self.dc.offsets,
-            },
-        }
+        if "creation_date" not in offsets.keys():
+            offsets["creation_date"] = datetime.now()
+
+        offsets["creation_date"] = offsets["creation_date"].isoformat()
+
+        config = {"delay": {"offsets": offsets}}
         save_config(config, filename, overwrite)
         logger.info(f'Saved delay offset parameters to "{filename}".')
 
@@ -1964,7 +1977,7 @@ class SedProcessor:
             cols = self._config["dataframe"]["jitter_cols"]
         for loc, col in enumerate(cols):
             if col.startswith("@"):
-                cols[loc] = self._config["dataframe"].get(col.strip("@"))
+                cols[loc] = self._config["dataframe"]["columns"].get(col.strip("@"))
 
         if amps is None:
             amps = self._config["dataframe"]["jitter_amps"]
@@ -2024,7 +2037,7 @@ class SedProcessor:
         """
         time_stamp_column = kwds.pop(
             "time_stamp_column",
-            self._config["dataframe"].get("time_stamp_alias", ""),
+            self._config["dataframe"]["columns"].get("timestamp", ""),
         )
 
         if time_stamps is None and data is None:
@@ -2099,7 +2112,7 @@ class SedProcessor:
             axes = self._config["momentum"]["axes"]
         for loc, axis in enumerate(axes):
             if axis.startswith("@"):
-                axes[loc] = self._config["dataframe"].get(axis.strip("@"))
+                axes[loc] = self._config["dataframe"]["columns"].get(axis.strip("@"))
 
         if bins is None:
             bins = self._config["momentum"]["bins"]
@@ -2333,14 +2346,14 @@ class SedProcessor:
                     self._dataframe.partitions[df_partitions],
                     axis,
                     self._binned.coords[axis].values,
-                    self._config["dataframe"]["time_stamp_alias"],
+                    self._config["dataframe"]["columns"]["timestamp"],
                 )
             else:
                 self._normalization_histogram = normalization_histogram_from_timestamps(
                     self._dataframe,
                     axis,
                     self._binned.coords[axis].values,
-                    self._config["dataframe"]["time_stamp_alias"],
+                    self._config["dataframe"]["columns"]["timestamp"],
                 )
         else:
             if df_partitions is not None:
@@ -2406,13 +2419,13 @@ class SedProcessor:
         axes = list(axes)
         for loc, axis in enumerate(axes):
             if axis.startswith("@"):
-                axes[loc] = self._config["dataframe"].get(axis.strip("@"))
+                axes[loc] = self._config["dataframe"]["columns"].get(axis.strip("@"))
         if ranges is None:
             ranges = list(self._config["histogram"]["ranges"])
             for loc, axis in enumerate(axes):
-                if axis == self._config["dataframe"]["tof_column"]:
+                if axis == self._config["dataframe"]["columns"]["tof"]:
                     ranges[loc] = np.asarray(ranges[loc]) / self._config["dataframe"]["tof_binning"]
-                elif axis == self._config["dataframe"]["adc_column"]:
+                elif axis == self._config["dataframe"]["columns"]["adc"]:
                     ranges[loc] = np.asarray(ranges[loc]) / self._config["dataframe"]["adc_binning"]
 
         input_types = map(type, [axes, bins, ranges])
@@ -2515,7 +2528,7 @@ class SedProcessor:
                 )
                 input_files = kwds.pop(
                     "input_files",
-                    self._config["nexus"]["input_files"],
+                    [str(path) for path in self._config["nexus"]["input_files"]],
                 )
             except KeyError as exc:
                 raise ValueError(

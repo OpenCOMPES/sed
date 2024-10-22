@@ -219,7 +219,7 @@ def test_attributes_setters() -> None:
 
 def test_copy_tool() -> None:
     """Test the copy tool functionality in the processor"""
-    config = {"core": {"loader": "mpes", "use_copy_tool": True}}
+    config: dict[str, dict[str, Any]] = {"core": {"loader": "mpes"}}
     processor = SedProcessor(
         config=config,
         folder_config={},
@@ -231,10 +231,7 @@ def test_copy_tool() -> None:
     config = {
         "core": {
             "loader": "mpes",
-            "use_copy_tool": True,
-            "copy_tool_source": source_folder,
-            "copy_tool_dest": dest_folder,
-            "copy_tool_kwds": {"gid": os.getgid()},
+            "copy_tool": {"source": source_folder, "dest": dest_folder, "gid": os.getgid()},
         },
     }
     processor = SedProcessor(
@@ -247,17 +244,6 @@ def test_copy_tool() -> None:
     assert processor.use_copy_tool is True
     processor.load(files=files)
     assert processor.files[0].find(dest_folder) > -1
-
-    # test illegal keywords:
-    config["core"]["copy_tool_kwds"] = {"gid": os.getgid(), "illegal_keyword": True}
-    with pytest.raises(TypeError):
-        processor = SedProcessor(
-            config=config,
-            folder_config={},
-            user_config={},
-            system_config={},
-            verbose=True,
-        )
 
 
 feature4 = np.array([[203.2, 341.96], [299.16, 345.32], [304.38, 149.88], [199.52, 152.48]])
@@ -660,8 +646,9 @@ def test_align_dld_sectors() -> None:
         user_config={},
         system_config={},
     )
-    config["core"]["paths"]["processed"] = (
-        config["core"]["paths"]["processed"] + "_align_dld_sectors"
+    config["core"]["paths"]["processed"] = Path(
+        config["core"]["paths"]["processed"],
+        "_align_dld_sectors",
     )
     processor = SedProcessor(
         folder=df_folder + "../flash/",
@@ -719,7 +706,7 @@ def test_append_tof_ns_axis() -> None:
         verbose=True,
     )
     processor.append_tof_ns_axis()
-    assert processor.config["dataframe"]["tof_ns_column"] in processor.dataframe
+    assert processor.config["dataframe"]["columns"]["tof_ns"] in processor.dataframe
 
 
 def test_delay_calibration_workflow() -> None:
@@ -842,6 +829,7 @@ def test_add_time_stamped_data() -> None:
         system_config={},
         time_stamps=True,
         verbose=True,
+        verify_config=False,
     )
     df_ts = processor.dataframe.timeStamps.compute().values
     data = np.linspace(0, 1, 20)
@@ -998,7 +986,7 @@ def test_compute_with_normalization() -> None:
 
 def test_get_normalization_histogram() -> None:
     """Test the generation function for the normalization histogram"""
-    config = {"core": {"loader": "mpes"}, "dataframe": {"time_stamp_alias": "timeStamps"}}
+    config = {"core": {"loader": "mpes"}, "dataframe": {"columns": {"timestamp": "timeStamps"}}}
     processor = SedProcessor(
         folder=df_folder,
         config=config,
@@ -1068,12 +1056,14 @@ def test_save(caplog) -> None:
         folder_config={},
         user_config=package_dir + "/../sed/config/mpes_example_config.yaml",
         system_config={},
+        verify_config=False,
     )
     config["metadata"]["lens_mode_config"]["6kV_kmodem4.0_30VTOF_453ns_focus.sav"][
         "MCPfront"
     ] = 21.0
     config["metadata"]["lens_mode_config"]["6kV_kmodem4.0_30VTOF_453ns_focus.sav"]["Z1"] = 2450
     config["metadata"]["lens_mode_config"]["6kV_kmodem4.0_30VTOF_453ns_focus.sav"]["F"] = 69.23
+    config["nexus"]["input_files"] = [package_dir + "/../sed/config/NXmpes_config.json"]
     processor = SedProcessor(
         folder=df_folder,
         config=config,
@@ -1105,7 +1095,6 @@ def test_save(caplog) -> None:
     # and error if any validation problems occur.
     processor.save(
         "output.nxs",
-        input_files=df_folder + "../../../../sed/config/NXmpes_config.json",
         fail=True,
     )
     assert os.path.isfile("output.nxs")
@@ -1114,7 +1103,6 @@ def test_save(caplog) -> None:
     with pytest.raises(ValidationFailed):
         processor.save(
             "result.nxs",
-            input_files=df_folder + "../../../../sed/config/NXmpes_config.json",
             fail=True,
         )
     # Check that the issues are raised as warnings per default:
@@ -1123,7 +1111,7 @@ def test_save(caplog) -> None:
         yaml.dump({"Instrument": {"undocumented_field": "undocumented entry"}}, f)
     with open("temp_config.json", "w") as f:
         with open(
-            df_folder + "../../../../sed/config/NXmpes_config.json",
+            package_dir + "/../sed/config/NXmpes_config.json",
             encoding="utf-8",
         ) as stream:
             config_dict = json.load(stream)

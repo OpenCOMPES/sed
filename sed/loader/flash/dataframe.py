@@ -248,7 +248,7 @@ class DataFrameCreator:
             aux_alias = self._config.get("aux_alias", "dldAux")
             if channel == aux_alias:
                 try:
-                    sub_channels = self._config["channels"][aux_alias]["subChannels"]
+                    sub_channels = self._config["channels"][aux_alias]["sub_channels"]
                 except KeyError:
                     raise KeyError(
                         f"Provide 'subChannels' for auxiliary channel '{aux_alias}'.",

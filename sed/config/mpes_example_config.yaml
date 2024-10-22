@@ -4,19 +4,15 @@ core:
   # Number of parallel threads to use for parallelized jobs (e.g. binning, data conversion, copy, ...)
   num_cores: 20
   # Option to use the copy tool to mirror data to a local storage location before processing.
-  use_copy_tool: False
-  # path to the root of the source data directory
-  copy_tool_source: "/path/to/data/"
-  # path to the root or the local data storage
-  copy_tool_dest: "/path/to/localDataStore/"
-  # optional keywords for the copy tool:
-  copy_tool_kwds:
-    # group id to set for copied files and folders
-    gid: 1001
+  # copy_tool:
+    # # path to the root of the source data directory
+    # source: "/path/to/data/"
+    # # path to the root or the local data storage
+    # dest: "/path/to/localDataStore/"
+    # # group id to set for copied files and folders
+    # gid: 1000
 
 dataframe:
-  # dataframe column name for the time stamp column
-  time_stamp_alias: "timeStamps"
   # hdf5 group name containing eventIDs occurring at every millisecond (used to calculate timestamps)
   ms_markers_key: "msMarkers"
   # hdf5 attribute containing the timestamp of the first event in a file
@@ -25,30 +21,20 @@ dataframe:
   timed_dataframe_unit_time: 0.001
   # list of columns to apply jitter to
   jitter_cols: ["X", "Y", "t", "ADC"]
-  # dataframe column containing x coordinates
-  x_column: "X"
-  # dataframe column containing y coordinates
-  y_column: "Y"
-  # dataframe column containing time-of-flight data
-  tof_column: "t"
-  # dataframe column containing analog-to-digital data
-  adc_column: "ADC"
-  # dataframe column containing bias voltage data
-  bias_column: "sampleBias"
-  # dataframe column containing corrected x coordinates
-  corrected_x_column: "Xm"
-  # dataframe column containing corrected y coordinates
-  corrected_y_column: "Ym"
-  # dataframe column containing corrected time-of-flight data
-  corrected_tof_column: "tm"
-  # dataframe column containing kx coordinates
-  kx_column: "kx"
-  # dataframe column containing ky coordinates
-  ky_column: "ky"
-  # dataframe column containing energy data
-  energy_column: "energy"
-  # dataframe column containing delay data
-  delay_column: "delay"
+  columns:
+    x: X # dataframe column containing x coordinates
+    y: Y # dataframe column containing y coordinates
+    tof: t # dataframe column containing time-of-flight data
+    adc: ADC # dataframe column containing analog-to-digital data
+    bias: sampleBias # dataframe column containing bias voltage data
+    corrected_x: Xm # dataframe column containing corrected x coordinates
+    corrected_y: Ym # dataframe column containing corrected y coordinates
+    corrected_tof: tm # dataframe column containing corrected time-of-flight data
+    kx: kx # dataframe column containing kx coordinates
+    ky: ky # dataframe column containing ky coordinates
+    energy: energy # dataframe column containing energy data
+    delay: delay # dataframe column containing delay data
+    timestamp: timeStamps  # dataframe column containing timestamp data
   # time length of a base time-of-flight bin in ns
   tof_binwidth: 4.125e-12
   # Binning factor of the tof_column-data compared to tof_binwidth
@@ -155,7 +141,7 @@ energy:
 momentum:
   # binning axes to use for momentum correction/calibration.
   # Axes names starting with "@" refer to keys in the "dataframe" section
-  axes: ["@x_column", "@y_column", "@tof_column"]
+  axes: ["@x", "@y", "@tof"]
   # Bin numbers used for the respective axes
   bins: [512, 512, 300]
   # bin ranges to use (in unbinned detector coordinates)
@@ -226,7 +212,7 @@ histogram:
   bins: [80, 80, 80, 80]
   # default axes to use for histogram visualization.
   # Axes names starting with "@" refer to keys in the "dataframe" section
-  axes: ["@x_column", "@y_column", "@tof_column", "@adc_column"]
+  axes: ["@x", "@y", "@tof", "@adc"]
   # default ranges to use for histogram visualization (in unbinned detector coordinates)
   ranges: [[0, 1800], [0, 1800], [256000, 276000], [0, 32000]]
 

@@ -72,7 +72,6 @@ def hdf5_to_dataframe(
 
     electron_channels = []
     column_names = []
-
     for name, channel in channels.items():
         if channel["format"] == "per_electron":
             if channel["dataset_key"] in test_proc:
@@ -749,7 +748,7 @@ class MpesLoader(BaseLoader):
             )
 
         if folders is None:
-            folders = self._config["core"]["paths"]["data_raw_dir"]
+            folders = str(self._config["core"]["paths"]["raw"])
 
         if isinstance(folders, str):
             folders = [folders]
@@ -854,7 +853,7 @@ class MpesLoader(BaseLoader):
         # Get metadata from Epics archive if not present already
         epics_channels = self._config["metadata"]["epics_pvs"]
 
-        start = datetime.datetime.utcfromtimestamp(ts_from).isoformat()
+        start = datetime.datetime.utcfromtimestamp(ts_from)
 
         channels_missing = set(epics_channels) - set(
             metadata["file"].keys(),
@@ -862,7 +861,7 @@ class MpesLoader(BaseLoader):
         for channel in channels_missing:
             try:
                 _, vals = get_archiver_data(
-                    archiver_url=self._config["metadata"].get("archiver_url"),
+                    archiver_url=str(self._config["metadata"].get("archiver_url")),
                     archiver_channel=channel,
                     ts_from=ts_from,
                     ts_to=ts_to,
@@ -892,7 +891,7 @@ class MpesLoader(BaseLoader):
 
         # Determine the correct aperture_config
         stamps = sorted(
-            list(self._config["metadata"]["aperture_config"]) + [start],
+            list(self._config["metadata"]["aperture_config"].keys()) + [start],
         )
         current_index = stamps.index(start)
         timestamp = stamps[current_index - 1]  # pick last configuration before file date

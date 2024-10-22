@@ -6,10 +6,16 @@ core:
   year: 202302
   beamline: sxp
   instrument: sxp
+  stream_name_prefixes:
+    DA03: "RAW-R"
+  stream_name_postfixes:
+    DA03: "-DA03-"
+  beamtime_dir:
+    sxp: "/gpfs/exfel/exp/SXP/"
   paths:
-    data_raw_dir: "/path/to/data"
+    raw: "/path/to/data"
     # change this to a local directory where you want to store the parquet files
-    data_parquet_dir: "/path/to/parquet"
+    processed: "/path/to/parquet"
 
 binning:
   # Histogram computation mode to use.
@@ -28,19 +34,26 @@ dataframe:
   daq: DA03
   forward_fill_iterations: 2
   num_trains: 10
-  x_column: dldPosX
-  corrected_x_column: "X"
-  kx_column: "kx"
-  y_column: dldPosY
-  corrected_y_column: "Y"
-  ky_column: "ky"
-  tof_column: dldTimeSteps
-  tof_ns_column: dldTime
-  corrected_tof_column: "tm"
-  bias_column: "sampleBias"
   tof_binwidth: 6.875E-12 # in seconds
   tof_binning: 1
   jitter_cols: ["dldPosX", "dldPosY", "dldTimeSteps"]
+
+  # Column settings
+  columns:
+    x: dldPosX
+    corrected_x: X
+    kx: kx
+    y: dldPosY
+    corrected_y: Y
+    ky: ky
+    tof: dldTimeSteps
+    tof_ns: dldTime
+    corrected_tof: tm
+    timestamp: timeStamp
+    auxiliary: dldAux
+    sector_id: dldSectorID
+    delay: delayStage
+    corrected_delay: pumpProbeTime
 
   units:
     dldPosX: 'step'
@@ -95,11 +108,3 @@ dataframe:
       format: per_train
       dataset_key: "/CONTROL/SCS_ILH_LAS/MDL/OPTICALDELAY_PP800/actualPosition/value"
       index_key: "/INDEX/trainId"
-
-  stream_name_prefixes:
-    DA03: "RAW-R"
-  stream_name_postfixes:
-    DA03: "-DA03-"
-
-  beamtime_dir:
-    sxp: "/gpfs/exfel/exp/SXP/"

@@ -160,9 +160,9 @@ def split_dld_time_from_sector_id(
     Args:
         df (pd.DataFrame | dask.dataframe.DataFrame): Dataframe to use.
         tof_column (str, optional): Name of the column containing the
-            time-of-flight steps. Defaults to config["dataframe"]["tof_column"].
+            time-of-flight steps. Defaults to config["dataframe"]["columns"]["tof"].
         sector_id_column (str, optional): Name of the column containing the
-            sectorID. Defaults to config["dataframe"]["sector_id_column"].
+            sectorID. Defaults to config["dataframe"]["columns"]["sector_id"].
         sector_id_reserved_bits (int, optional): Number of bits reserved for the
         config (dict, optional): Dataframe configuration dictionary. Defaults to None.
 
@@ -172,11 +172,11 @@ def split_dld_time_from_sector_id(
     if tof_column is None:
         if config is None:
             raise ValueError("Either tof_column or config must be given.")
-        tof_column = config["tof_column"]
+        tof_column = config["columns"]["tof"]
     if sector_id_column is None:
         if config is None:
             raise ValueError("Either sector_id_column or config must be given.")
-        sector_id_column = config["sector_id_column"]
+        sector_id_column = config["columns"]["sector_id"]
     if sector_id_reserved_bits is None:
         if config is None:
             raise ValueError("Either sector_id_reserved_bits or config must be given.")
