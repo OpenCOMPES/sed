@@ -109,8 +109,10 @@ jobs:
           if [[ $GITHUB_REF == refs/tags/* ]]; then
             VERSION=${GITHUB_REF#refs/tags/}
             echo "folder=sed/$VERSION" >> $GITHUB_OUTPUT
-          else
+          elif [[ $GITHUB_REF == refs/heads/main ]]; then
             echo "folder=sed/latest" >> $GITHUB_OUTPUT
+          else
+            echo "folder=sed/develop" >> $GITHUB_OUTPUT
           fi
 
       - name: Copy documentation to the right version folder
