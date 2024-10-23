@@ -8,7 +8,4 @@ myst:
 
 ```{toctree}
 ../tutorial/4_hextof_workflow
-../tutorial/8_jittering_tutorial
-../tutorial/6_binning_with_time-stamped_data
-../tutorial/7_correcting_orthorhombic_symmetry
 ```
