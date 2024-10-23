@@ -13,8 +13,12 @@ SED (Single Event Data Frame) is a collection of routines and utilities to handl
 It features lazy evaluation of dataframe processing using dask, numba-accelerated multi-dimensional binning, calibration and correction for trARPES (Time- and angle-resolved photoemission spectroscopy) datasets.
 The package ensures provenance and FAIR data through metadata tracking, usage of the community defined NeXus format.
 
+## User guide
+
+We introduce different functionalities of the package by several step-by-step use guides:
+
 ```{toctree}
-:maxdepth: 2
+:maxdepth: 1
 
 user_guide/index
 
@@ -28,16 +32,6 @@ Several example notebooks to demonstrate the functionality of SED for end-to-end
 :maxdepth: 2
 
 workflows/index
-```
-
-## Advanced topics
-
-There are also further example notebooks showing more advanced topics not required in every-day analysis.
-
-```{toctree}
-:maxdepth: 2
-
-advanced_topics/index
 ```
 
 ## API
