@@ -18,7 +18,7 @@ The package ensures provenance and FAIR data through metadata tracking, usage of
 We introduce different functionalities of the package by several step-by-step use guides:
 
 ```{toctree}
-:maxdepth: 1
+:maxdepth: 2
 
 user_guide/index
 
