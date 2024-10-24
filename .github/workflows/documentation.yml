@@ -115,6 +115,11 @@ jobs:
             echo "folder=sed/develop" >> $GITHUB_OUTPUT
           fi
 
+      - name: Update switcher.json
+        run: |
+          echo "poetry run python docs-repo/sed/update_switcher.py docs-repo/sed/switcher.json $GITHUB_REF"
+          poetry run python docs-repo/sed/update_switcher.py docs-repo/sed/switcher.json $GITHUB_REF
+
       - name: Copy documentation to the right version folder
         run: |
           mkdir -p docs-repo/${{ steps.version-folder.outputs.folder }}
