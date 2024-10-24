@@ -92,6 +92,11 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           path: 'docs-repo'
 
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.9.0
         with:
@@ -117,8 +122,8 @@ jobs:
 
       - name: Update switcher.json
         run: |
-          echo "poetry run python docs-repo/sed/update_switcher.py docs-repo/sed/switcher.json $GITHUB_REF"
-          poetry run python docs-repo/sed/update_switcher.py docs-repo/sed/switcher.json $GITHUB_REF
+          echo "python docs-repo/sed/update_switcher.py docs-repo/sed/switcher.json $GITHUB_REF"
+          python docs-repo/sed/update_switcher.py docs-repo/sed/switcher.json $GITHUB_REF
 
       - name: Copy documentation to the right version folder
         run: |
