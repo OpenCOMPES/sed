@@ -6,14 +6,14 @@ myst:
 ---
 # User Guide
 
+## Installing SED
 ```{toctree}
-:caption: Installing SED
 :maxdepth: 1
 installation
 ```
 
+## Basic concepts
 ```{toctree}
-:caption: Basic concepts
 :maxdepth: 1
 ../tutorial/1_binning_fake_data
 ../tutorial/2_conversion_pipeline_for_example_time-resolved_ARPES_data
@@ -21,8 +21,9 @@ installation
 config
 ```
 
+## Advanced Topics
+
 ```{toctree}
 :maxdepth: 1
-:caption: Advanced Topics
 advanced_topics
 ```

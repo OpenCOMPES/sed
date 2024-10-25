@@ -122,8 +122,9 @@ jobs:
 
       - name: Update switcher.json
         run: |
-          echo "python docs-repo/sed/update_switcher.py docs-repo/sed/switcher.json $GITHUB_REF"
-          python docs-repo/sed/update_switcher.py docs-repo/sed/switcher.json $GITHUB_REF
+          VERSION=`grep "<title>SED documentation." index.html | sed -n 's/.*SED \(.*\) documentation.*/\1/p'`
+          echo "python docs-repo/sed/update_switcher.py docs-repo/sed/switcher.json $GITHUB_REF $VERSION"
+          python docs-repo/sed/update_switcher.py docs-repo/sed/switcher.json $GITHUB_REF $VERSION
 
       - name: Copy documentation to the right version folder
         run: |
