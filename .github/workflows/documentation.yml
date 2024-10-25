@@ -71,6 +71,14 @@ jobs:
         run: |
           poetry run pip install pydata-sphinx-theme
 
+      - name: Change version for develop build
+        if: startsWith(github.ref, 'refs/heads/') && github.ref != 'refs/heads/main'
+        run: |
+          VERSION=`sed -n 's/^version = "\(.*\)".*/\1/p' $GITHUB_WORKSPACE/pyproject.toml`
+          MOD_VERSION=$VERSION".dev0"
+          echo $MOD_VERSION
+          sed -i "s/^version = \"$VERSION\"/version = \"$MOD_VERSION\"/" $GITHUB_WORKSPACE/pyproject.toml
+
       - name: build Sphinx docs
         run: poetry run sphinx-build -b html $GITHUB_WORKSPACE/docs $GITHUB_WORKSPACE/_build
 
