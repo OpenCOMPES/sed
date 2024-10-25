@@ -9,7 +9,7 @@
 
 **sed-processor** is a backend to process and bin multidimensional single-event datastreams, with the intended primary use case in multidimensional photoelectron spectroscopy using time-of-flight instruments.
 
-It builds on [Dask](https://www.dask.org/) dataframes, where each column represents a multidimensional "coordinate" such as position, time-of-flight, pump-probe delay etc, and each entry represents one electron. The `SedProcessor` class provides a single user entry point, and provides functions for handling various workflows for coordinate transformation, e.g. corrections and calibrations.
+It builds on [Dask](https://www.dask.org/) dataframes, where each column represents a multidimensional "coordinate" such as position, time-of-flight, pump-probe delay etc., and each entry represents one electron. The `SedProcessor` class provides a single user entry point, and provides functions for handling various workflows for coordinate transformation, e.g. corrections and calibrations.
 
 Furthermore, "sed-processor" provides fast and parallelized binning routines to compute multidimensional histograms from the processed dataframes in a delayed fashion, thus reducing requirements on cpu power and memory consumption.
 
