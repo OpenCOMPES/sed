@@ -78,6 +78,7 @@ datestring
 ddir
 delaxes
 Desy
+Deutsches
 dfield
 dfops
 dfpart
@@ -93,6 +94,7 @@ dtype
 easimon
 ecalibdict
 electronanalyser
+Elektronen
 endstation
 energycal
 energycalfolder
