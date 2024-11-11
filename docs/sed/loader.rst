@@ -10,6 +10,7 @@ Loader Interface
    :undoc-members:
 
 .. _base_loader:
+
 Abstract BaseLoader
 ###################################################
 .. automodule:: sed.loader.base.loader
