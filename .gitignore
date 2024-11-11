@@ -5,7 +5,7 @@
 *.hdf5
 *.nxs
 *.nx
-*.nxs
+*.parquet
 *.zip
 **/datasets/*
 **/processed/*

@@ -85,6 +85,7 @@ dfpart
 dfpid
 dictionarized
 dictmerge
+DOOCS
 dpkg
 dropna
 dset
@@ -288,6 +289,7 @@ ptargs
 pullrequest
 pval
 pyarrow
+pydata
 pyenv
 pygments
 pynxtools
@@ -372,6 +374,7 @@ utime
 varnames
 venv
 verts
+viewcode
 vmax
 voxels
 VTOF
@@ -383,6 +386,7 @@ xarray
 xaxis
 xcirc
 xdata
+XFEL
 xind
 Xinstrument
 xlabel
