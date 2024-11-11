@@ -371,6 +371,7 @@ def test_pose_adjustment_save_load() -> None:
     """Test for the saving and loading of pose correction and application of momentum correction
     workflow"""
     config = {"core": {"loader": "mpes"}}
+    # pose adjustment w/ loaded image
     processor = SedProcessor(
         folder=df_folder,
         config=config,
@@ -379,7 +380,6 @@ def test_pose_adjustment_save_load() -> None:
         system_config={},
         verbose=True,
     )
-    # pose adjustment w/o loaded image
     processor.bin_and_load_momentum_calibration(apply=True)
     processor.define_features(
         features=feature7,
@@ -391,6 +391,33 @@ def test_pose_adjustment_save_load() -> None:
     processor.save_splinewarp(filename="sed_config_pose_adjustments.yaml")
     processor.pose_adjustment(**adjust_params, apply=True)  # type: ignore[arg-type]
     processor.save_transformations(filename="sed_config_pose_adjustments.yaml")
+    processor.apply_momentum_correction()
+    cdeform_field = processor.mc.cdeform_field.copy()
+    rdeform_field = processor.mc.rdeform_field.copy()
+    # pose adjustment w/o loaded image
+    processor = SedProcessor(
+        folder=df_folder,
+        config=config,
+        folder_config="sed_config_pose_adjustments.yaml",
+        user_config={},
+        system_config={},
+        verbose=True,
+    )
+    processor.pose_adjustment(**adjust_params, apply=True)  # type: ignore[arg-type]
+    processor.apply_momentum_correction()
+    # pose adjustment w/o loaded image and w/o correction
+    processor = SedProcessor(
+        folder=df_folder,
+        config=config,
+        folder_config="sed_config_pose_adjustments.yaml",
+        user_config={},
+        system_config={},
+        verbose=True,
+    )
+    processor.pose_adjustment(**adjust_params, use_correction=False, apply=True)  # type: ignore[arg-type]
+    assert np.all(processor.mc.cdeform_field != cdeform_field)
+    assert np.all(processor.mc.rdeform_field != rdeform_field)
+    # from config
     processor = SedProcessor(
         folder=df_folder,
         config=config,
@@ -403,6 +430,8 @@ def test_pose_adjustment_save_load() -> None:
     assert "Xm" in processor.dataframe.columns
     assert "Ym" in processor.dataframe.columns
     assert "momentum_correction" in processor.attributes.metadata
+    np.testing.assert_allclose(processor.mc.cdeform_field, cdeform_field)
+    np.testing.assert_allclose(processor.mc.rdeform_field, rdeform_field)
     os.remove("sed_config_pose_adjustments.yaml")
 
 

@@ -1732,7 +1732,7 @@ class MomentumCorrector:
                         self.spline_warp_estimate(verbose=verbose)
                     if self.transformations:
                         # Apply config pose adjustments
-                        self.pose_adjustment()
+                        self.pose_adjustment(apply=True)
                 else:
                     raise ValueError("No corrections or transformations defined!")
 
