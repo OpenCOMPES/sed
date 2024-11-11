@@ -52,7 +52,6 @@ jobs:
         run: |
           cp -r $GITHUB_WORKSPACE/tutorial $GITHUB_WORKSPACE/docs/
           cp -r $GITHUB_WORKSPACE/sed/config $GITHUB_WORKSPACE/docs/sed
-          rm $GITHUB_WORKSPACE/docs/tutorial/5_sxp_workflow.ipynb
 
 
       - name: download RAW data
@@ -61,10 +60,11 @@ jobs:
           cd $GITHUB_WORKSPACE/docs
           poetry run python scripts/download_data.py
 
-      - name: build Flash parquet files
+      - name: build parquet files
         run: |
           cd $GITHUB_WORKSPACE/docs
           poetry run python scripts/build_flash_parquets.py
+          poetry run python scripts/build_sxp_parquets.py
 
       # to be removed later. This theme doesn't support <3.9 python and our lock file contains 3.8
       - name: install pydata-sphinx-theme

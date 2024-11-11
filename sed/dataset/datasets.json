@@ -21,6 +21,9 @@
             "energycal_2020_07_20"
         ]
     },
+    "Au_Mica": {
+        "url": "https://zenodo.org/records/13952965/files/Au_Mica_SXP.zip"
+    },
     "Test": {
         "url": "http://test.com/files/file.zip",
         "subdirs": [

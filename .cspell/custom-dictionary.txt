@@ -84,6 +84,7 @@ dfpart
 dfpid
 dictionarized
 dictmerge
+DOOCS
 dpkg
 dropna
 dset
@@ -383,6 +384,7 @@ xarray
 xaxis
 xcirc
 xdata
+XFEL
 xind
 Xinstrument
 xlabel
