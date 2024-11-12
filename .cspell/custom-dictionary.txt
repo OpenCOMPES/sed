@@ -80,6 +80,7 @@ ddir
 delaxes
 delayeds
 Desy
+Deutsches
 dfield
 dfops
 dfpart
@@ -87,6 +88,7 @@ dfpid
 dictionarized
 dictmerge
 DLDAUX
+DOOCS
 dpkg
 dropna
 dset
@@ -96,6 +98,7 @@ dtypes
 easimon
 ecalibdict
 electronanalyser
+Elektronen
 endstation
 energycal
 energycalfolder
@@ -292,6 +295,7 @@ pullrequest
 pval
 pyarrow
 pydantic
+pydata
 pyenv
 pygments
 pynxtools
@@ -378,6 +382,7 @@ utime
 varnames
 venv
 verts
+viewcode
 vmax
 voxels
 VTOF
@@ -389,6 +394,7 @@ xarray
 xaxis
 xcirc
 xdata
+XFEL
 xind
 Xinstrument
 xlabel

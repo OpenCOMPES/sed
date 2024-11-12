@@ -89,6 +89,7 @@ dataframe:
     sampleTemperature: 'K'
     dldTime: 'ns'
     delay: 'ps'
+    delayStage: 'ps'
     timeStamp: 's'
     energy: 'eV'
     E: 'eV'
@@ -214,7 +215,7 @@ dataframe:
 #   scicat_token: <TOKEN>
 
 # The nexus collection routine shall be finalized soon for both instruments
-# nexus:
-#   reader: "mpes"
-#   definition: "NXmpes"
-#   input_files: ["NXmpes_config_HEXTOF_light.json"]
+nexus:
+  reader: "mpes"
+  definition: "NXmpes"
+  input_files: ["../sed/config/NXmpes_config-HEXTOF.json"]

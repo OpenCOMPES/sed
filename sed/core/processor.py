@@ -751,6 +751,7 @@ class SedProcessor:
         if self.mc.slice_corrected is None:
             if self.mc.slice is None:
                 self.mc.slice = np.zeros(self._config["momentum"]["bins"][0:2])
+                self.mc.bin_ranges = self._config["momentum"]["ranges"]
             self.mc.slice_corrected = self.mc.slice
 
         if not use_correction:
