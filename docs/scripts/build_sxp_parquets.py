@@ -1,10 +1,12 @@
-from pathlib import Path
+import os
+from importlib.util import find_spec
 
-import sed
 from sed import SedProcessor
 from sed.dataset import dataset
 
-config_file = Path(sed.__file__).parent / "config/sxp_example_config.yaml"
+package_dir = os.path.dirname(find_spec("sed").origin)
+
+config_file = package_dir + "/../../config/sxp_example_config.yaml"
 
 dataset.get("Au_Mica", root_dir="./tutorial")
 data_path = dataset.dir
