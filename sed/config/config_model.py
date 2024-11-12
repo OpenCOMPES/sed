@@ -107,6 +107,7 @@ class ChannelModel(BaseModel):
     dtype: Optional[str] = None
     max_hits: Optional[int] = None
     scale: Optional[float] = None
+    daq: Optional[str] = None
 
     class subChannel(BaseModel):
         model_config = ConfigDict(extra="forbid")
@@ -142,6 +143,7 @@ class DataframeModel(BaseModel):
     daq: Optional[str] = None
     # SXP specific settings
     num_trains: Optional[PositiveInt] = None
+    num_pulses: Optional[PositiveInt] = None
 
 
 class BinningModel(BaseModel):
