@@ -649,24 +649,28 @@ class SedProcessor:
         self.mc.spline_warp_estimate(use_center=use_center, **kwds)
 
         if self.mc.slice is not None and self._verbose:
-            print("Original slice with reference features")
-            self.mc.view(annotated=True, backend="bokeh", crosshair=True)
+            self.mc.view(
+                annotated=True,
+                backend="matplotlib",
+                crosshair=True,
+                title="Original slice with reference features",
+            )
 
-            print("Corrected slice with target features")
             self.mc.view(
                 image=self.mc.slice_corrected,
                 annotated=True,
                 points={"feats": self.mc.ptargs},
-                backend="bokeh",
+                backend="matplotlib",
                 crosshair=True,
+                title="Corrected slice with target features",
             )
 
-            print("Original slice with target features")
             self.mc.view(
                 image=self.mc.slice,
                 points={"feats": self.mc.ptargs},
                 annotated=True,
-                backend="bokeh",
+                backend="matplotlib",
+                title="Original slice with target features",
             )
 
     # 3a. Save spline-warp parameters to config file.
@@ -1243,8 +1247,11 @@ class SedProcessor:
         self.ec.view(
             traces=self.ec.traces_normed,
             xaxis=self.ec.tof,
-            backend="bokeh",
+            backend="matplotlib",
         )
+        plt.xlabel("Time-of-flight")
+        plt.ylabel("Intensity")
+        plt.tight_layout()
 
     # 2. extract ranges and get peak positions
     @call_logger(logger)
@@ -1303,7 +1310,7 @@ class SedProcessor:
                     segs=self.ec.featranges,
                     xaxis=self.ec.tof,
                     peaks=self.ec.peaks,
-                    backend="bokeh",
+                    backend="matplotlib",
                 )
             except IndexError:
                 logger.error("Could not determine all peaks!")
@@ -2381,7 +2388,7 @@ class SedProcessor:
         bins: Sequence[int] = None,
         axes: Sequence[str] = None,
         ranges: Sequence[tuple[float, float]] = None,
-        backend: str = "bokeh",
+        backend: str = "matplotlib",
         legend: bool = True,
         histkwds: dict = None,
         legkwds: dict = None,
@@ -2400,7 +2407,7 @@ class SedProcessor:
             ranges (Sequence[tuple[float, float]], optional): Value ranges of all
                 specified axes. Defaults to config["histogram"]["ranges"].
             backend (str, optional): Backend of the plotting library
-                ('matplotlib' or 'bokeh'). Defaults to "bokeh".
+                ("matplotlib" or "bokeh"). Defaults to "matplotlib".
             legend (bool, optional): Option to include a legend in the histogram plots.
                 Defaults to True.
             histkwds (dict, optional): Keyword arguments for histograms
