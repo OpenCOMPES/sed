@@ -88,20 +88,27 @@ def hdf5_to_dataframe(
     )
 
     # Delay-read all files
-    arrays = [
-        da.from_delayed(
-            dask.delayed(hdf5_to_array)(
-                h5file=h5py.File(f),
-                group_names=group_names,
-                time_stamps=time_stamps,
-                ms_markers_group=ms_markers_group,
-                first_event_time_stamp_key=first_event_time_stamp_key,
-            ),
-            dtype=test_array.dtype,
-            shape=(test_array.shape[0], np.nan),
-        )
-        for f in files
-    ]
+    arrays = []
+    for f in files:
+        try:
+            arrays.append(
+                da.from_delayed(
+                    dask.delayed(hdf5_to_array)(
+                        h5file=h5py.File(f),
+                        group_names=group_names,
+                        time_stamps=time_stamps,
+                        ms_markers_group=ms_markers_group,
+                        first_event_time_stamp_key=first_event_time_stamp_key,
+                    ),
+                    dtype=test_array.dtype,
+                    shape=(test_array.shape[0], np.nan),
+                ),
+            )
+        except OSError as exc:
+            if "Unable to synchronously open file" in str(exc):
+                print(f"Unable to open file {f}: {str(exc)}")
+                pass
+
     array_stack = da.concatenate(arrays, axis=1).T
 
     return ddf.from_dask_array(array_stack, columns=column_names)
@@ -169,20 +176,26 @@ def hdf5_to_timed_dataframe(
     )
 
     # Delay-read all files
-    arrays = [
-        da.from_delayed(
-            dask.delayed(hdf5_to_timed_array)(
-                h5file=h5py.File(f),
-                group_names=group_names,
-                time_stamps=time_stamps,
-                ms_markers_group=ms_markers_group,
-                first_event_time_stamp_key=first_event_time_stamp_key,
-            ),
-            dtype=test_array.dtype,
-            shape=(test_array.shape[0], np.nan),
-        )
-        for f in files
-    ]
+    arrays = []
+    for f in files:
+        try:
+            arrays.append(
+                da.from_delayed(
+                    dask.delayed(hdf5_to_timed_array)(
+                        h5file=h5py.File(f),
+                        group_names=group_names,
+                        time_stamps=time_stamps,
+                        ms_markers_group=ms_markers_group,
+                        first_event_time_stamp_key=first_event_time_stamp_key,
+                    ),
+                    dtype=test_array.dtype,
+                    shape=(test_array.shape[0], np.nan),
+                ),
+            )
+        except OSError as exc:
+            if "Unable to synchronously open file" in str(exc):
+                pass
+
     array_stack = da.concatenate(arrays, axis=1).T
 
     return ddf.from_dask_array(array_stack, columns=column_names)
