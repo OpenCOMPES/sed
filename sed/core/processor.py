@@ -1343,14 +1343,15 @@ class SedProcessor:
             **kwds,
         )
         if verbose:
-            print("Quality of Calibration:")
-            self.ec.view(
-                traces=self.ec.traces_normed,
-                xaxis=self.ec.calibration["axis"],
-                align=True,
-                energy_scale=energy_scale,
-                backend="bokeh",
-            )
+            if self.ec.traces_normed:
+                print("Quality of Calibration:")
+                self.ec.view(
+                    traces=self.ec.traces_normed,
+                    xaxis=self.ec.calibration["axis"],
+                    align=True,
+                    energy_scale=energy_scale,
+                    backend="bokeh",
+                )
             print("E/TOF relationship:")
             self.ec.view(
                 traces=self.ec.calibration["axis"][None, :],
