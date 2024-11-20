@@ -1343,7 +1343,7 @@ class SedProcessor:
             **kwds,
         )
         if verbose:
-            if self.ec.traces_normed:
+            if self.ec.traces_normed is not None:
                 print("Quality of Calibration:")
                 self.ec.view(
                     traces=self.ec.traces_normed,
