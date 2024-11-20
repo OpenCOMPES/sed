@@ -8,7 +8,6 @@ Whether you are a beamline scientist hoping to create a loader for your data, or
 
 This guide will walk you through the process of setting up your development environment, and the workflow for contributing to the project.
 
-.. contents::
 
 Getting Started
 ===============
@@ -73,7 +72,7 @@ Development Workflow
 
 3. **Write Tests:** If your contribution introduces new features or fixes a bug, add tests to cover your changes.
 
-4. **Run Tests:** To ensure no funtionality is broken, run the tests:
+4. **Run Tests:** To ensure no functionality is broken, run the tests:
 
     .. code-block:: bash
 

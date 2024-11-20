@@ -39,7 +39,7 @@ def simplify_binning_arguments(
                 - an integer describing the number of bins for all dimensions. This
                   requires "ranges" to be defined as well.
                 - A sequence containing one entry of the following types for each
-                  dimenstion:
+                  dimension:
 
                     - an integer describing the number of bins. This requires "ranges"
                       to be defined as well.
@@ -123,7 +123,7 @@ def simplify_binning_arguments(
                 f"Ranges must be a sequence, not {type(ranges)}.",
             )
 
-    # otherwise, all bins should by np.ndarrays here
+    # otherwise, all bins should be of type np.ndarray here
     elif all(isinstance(x, np.ndarray) for x in bins):
         bins = cast(List[np.ndarray], list(bins))
     else:

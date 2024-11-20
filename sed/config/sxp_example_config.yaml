@@ -17,6 +17,7 @@ dataframe:
   daq: DA03
   forward_fill_iterations: 2
   num_trains: 10
+  # num_pulses: 400 # only needed for data from new DAQ
   x_column: dldPosX
   corrected_x_column: "X"
   kx_column: "kx"
@@ -27,6 +28,7 @@ dataframe:
   tof_ns_column: dldTime
   corrected_tof_column: "tm"
   bias_column: "sampleBias"
+  delay_column: "delayStage"
   tof_binwidth: 6.875E-12 # in seconds
   tof_binning: 0
   jitter_cols: ["dldPosX", "dldPosY", "dldTimeSteps"]
@@ -84,6 +86,11 @@ dataframe:
       format: per_train
       dataset_key: "/CONTROL/SCS_ILH_LAS/MDL/OPTICALDELAY_PP800/actualPosition/value"
       index_key: "/INDEX/trainId"
+#     test:
+#       daq: DA02 # change DAQ for a channel
+#       format: per_pulse
+#       dataset_key: "/INSTRUMENT/SA3_XTD10_XGM/XGM/DOOCS:output/data/intensitySa3TD"
+#       index_key: "/INSTRUMENT/SA3_XTD10_XGM/XGM/DOOCS:output/data/trainId"
 
   stream_name_prefixes:
     DA03: "RAW-R"
@@ -92,3 +99,12 @@ dataframe:
 
   beamtime_dir:
     sxp: "/gpfs/exfel/exp/SXP/"
+
+histogram:
+  # number of bins used for histogram visualization
+  bins: [80, 80, 80, 80]
+  # default axes to use for histogram visualization.
+  # Axes names starting with "@" refer to keys in the "dataframe" section
+  axes: ["@x_column", "@y_column", "@tof_column", "@delay_column"]
+  # default ranges to use for histogram visualization (in unbinned detector coordinates)
+  ranges: [[0, 4000], [0, 4000], [1000, 28000], [-1000, 1000]]

@@ -5,8 +5,8 @@ core:
   loader: flash
   # the beamline where experiment took place
   beamline: pg2
-  # the ID number of the beamtimme
-  beamtime_id: 11013410
+  # the ID number of the beamtime
+  beamtime_id: 11019101
   # the year of the beamtime
   year: 2023
 
@@ -14,9 +14,9 @@ core:
   # provided, the loader will try to find the data based on year beamtimeID etc
   paths:
     # location of the raw data.
-    data_raw_dir: "tests/data/loader/flash/"
+    data_raw_dir: ""
     # location of the intermediate parquet files.
-    data_parquet_dir: "tests/data/loader/flash/parquet"
+    data_parquet_dir: ""
 
 binning:
   # Since this will run on maxwell most probably, we have a lot of cores at our disposal
@@ -78,6 +78,7 @@ dataframe:
     sampleTemperature: 'K'
     dldTime: 'ns'
     delay: 'ps'
+    delayStage: 'ps'
     timeStamp: 's'
     energy: 'eV'
     E: 'eV'
@@ -89,7 +90,7 @@ dataframe:
   # channelAlias:
   #   format: per_pulse/per_electron/per_train
   #   group_name: the hdf5 group path
-  #   slice: if the group contains multidim data, where to slice
+  #   slice: if the group contains multidimensional data, where to slice
 
   channels:
     # The timestamp
@@ -123,8 +124,8 @@ dataframe:
       group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
       slice: 3
 
-    # The auxillary channel has a special structure where the group further contains
-    # a multidim structure so further aliases are defined below
+    # The auxiliary channel has a special structure where the group further contains
+    # a multidimensional structure so further aliases are defined below
     dldAux:
       format: per_pulse
       group_name: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/"
@@ -190,7 +191,7 @@ metadata:
   scicat_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2Mzc0YmYyMmE4NWQ0N2QwMGE5MWRlN2MiLCJ1c2VybmFtZSI6Imt1dG55YWtkIiwiZW1haWwiOiJkbXl0cm8ua3V0bnlha2hvdkBkZXN5LmRlIiwiYXV0aFN0cmF0ZWd5IjoibG9jYWwiLCJpZCI6IjYzNzRiZjIyYTg1ZDQ3ZDAwYTkxZGU3YyIsInVzZXJJZCI6IjYzNzRiZjIyYTg1ZDQ3ZDAwYTkxZGU3YyIsImlhdCI6MTcyMDUxMzEyMCwiZXhwIjoxNzIwNTU2MzIwfQ.UhqLBoKVF-QM9AhXhpIe26bsJu5wD8uRaO9641uAN-I"
 
 # The nexus collection routine shall be finalized soon for both instruments
-# nexus:
-#   reader: "flash"
-#   definition: "NXmpes"
-#   input_files: ["NXmpes_config_HEXTOF_light.json"]
+nexus:
+  reader: "mpes"
+  definition: "NXmpes"
+  input_files: ["../sed/config/NXmpes_config-HEXTOF.json"]

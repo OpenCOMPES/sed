@@ -1,4 +1,4 @@
-name: Update depencies in poetry lockfile
+name: Update dependencies in poetry lockfile
 
 on:
   schedule:
