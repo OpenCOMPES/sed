@@ -8,5 +8,6 @@ myst:
 
 ```{toctree}
 ../tutorial/4_hextof_workflow
-../tutorial/5_sxp_workflow.ipynb
+../tutorial/5_sxp_workflow
+../tutorial/9_hextof_workflow_trXPD
 ```
