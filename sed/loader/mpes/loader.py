@@ -106,7 +106,7 @@ def hdf5_to_dataframe(
             )
         except OSError as exc:
             if "Unable to synchronously open file" in str(exc):
-                print(f"Unable to open file {f}: {str(exc)}")
+                print(f"Unable to open file {f}: {str(exc)}. Most likely the file is incomplete.")
                 pass
 
     array_stack = da.concatenate(arrays, axis=1).T
