@@ -37,8 +37,8 @@ data_path = dataset.dir
 config_override = {
     "core": {
         "paths": {
-            "data_raw_dir": data_path,
-            "data_parquet_dir": data_path + "/processed/",
+            "raw": data_path,
+            "processed": data_path + "/processed/",
         },
     },
 }
