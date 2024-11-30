@@ -1380,10 +1380,10 @@ class SedProcessor:
                     backend="matplotlib",
                     title="Quality of Calibration",
                 )
-            plt.xlabel("Energy (eV)")
-            plt.ylabel("Intensity")
-            plt.tight_layout()
-            plt.show()
+                plt.xlabel("Energy (eV)")
+                plt.ylabel("Intensity")
+                plt.tight_layout()
+                plt.show()
             if energy_scale == "kinetic":
                 self.ec.view(
                     traces=self.ec.calibration["axis"][None, :] + self.ec.biases[0],
