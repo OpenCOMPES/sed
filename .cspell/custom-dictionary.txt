@@ -177,6 +177,7 @@ levelname
 linalg
 linekwds
 linesegkwds
+linestyles
 linewidth
 linspace
 literalinclude
@@ -331,6 +332,7 @@ scandir
 scatt
 scatterkwds
 scicat
+scipy
 SDIAG
 sdir
 segs
@@ -350,6 +352,7 @@ subchannels
 subdir
 subdirs
 subfolders
+suptitle
 symscores
 targcenter
 termorder
@@ -376,6 +379,7 @@ TZCYXS
 tzoffset
 ubid
 UDLD
+ufunc
 unbinned
 uncategorised
 undoc
@@ -384,6 +388,7 @@ varnames
 venv
 verts
 viewcode
+vlines
 vmax
 voxels
 VTOF

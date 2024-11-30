@@ -1371,14 +1371,15 @@ class SedProcessor:
             **kwds,
         )
         if self._verbose:
-            self.ec.view(
-                traces=self.ec.traces_normed,
-                xaxis=self.ec.calibration["axis"],
-                align=True,
-                energy_scale=energy_scale,
-                backend="matplotlib",
-                title="Quality of Calibration",
-            )
+            if self.ec.traces_normed is not None:
+                self.ec.view(
+                    traces=self.ec.traces_normed,
+                    xaxis=self.ec.calibration["axis"],
+                    align=True,
+                    energy_scale=energy_scale,
+                    backend="matplotlib",
+                    title="Quality of Calibration",
+                )
             plt.xlabel("Energy (eV)")
             plt.ylabel("Intensity")
             plt.tight_layout()

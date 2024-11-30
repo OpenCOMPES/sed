@@ -7,6 +7,7 @@ import itertools as it
 from copy import deepcopy
 from datetime import datetime
 from typing import Any
+from typing import Literal
 
 import bokeh.palettes as bp
 import bokeh.plotting as pbk
@@ -1294,7 +1295,7 @@ class MomentumCorrector:
     def view(
         self,
         image: np.ndarray = None,
-        origin: str = "lower",
+        origin: Literal["upper", "lower"] = "lower",
         cmap: str = "terrain_r",
         figsize: tuple[int, int] = (4, 4),
         points: dict = None,
@@ -1312,8 +1313,8 @@ class MomentumCorrector:
 
         Args:
             image (np.ndarray, optional): The image to plot. Defaults to self.slice.
-            origin (str, optional): Figure origin specification ('lower' or 'upper').
-                Defaults to "lower".
+            origin (Literal["upper", "lower"], optional): Figure origin specification
+                ('lower' or 'upper'). Defaults to "lower".
             cmap (str, optional):  Colormap specification. Defaults to "terrain_r".
             figsize (tuple[int, int], optional): Figure size. Defaults to (4, 4).
             points (dict, optional): Points for annotation. Defaults to None.
