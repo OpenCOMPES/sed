@@ -1,3 +1,75 @@
 core:
   paths:
-    data_raw_dir: "tests/data/loader/mpes/"
+    raw: "tests/data/loader/mpes/"
+
+dataframe:
+  # hdf5 group name containing eventIDs occuring at every millisecond (used to calculate timestamps)
+  ms_markers_key: "msMarkers"
+  # hdf5 attribute containing the timestamp of the first event in a file
+  first_event_time_stamp_key: "FirstEventTimeStamp"
+  # Time stepping in seconds of the succesive events in the timed dataframe
+  timed_dataframe_unit_time: 0.001
+  # list of columns to apply jitter to
+  jitter_cols: ["X", "Y", "t", "ADC"]
+  # time length of a base time-of-flight bin in ns
+  tof_binwidth: 4.125e-12
+  # Binning factor of the tof_column-data compared to tof_binwidth (2^(tof_binning-1))
+  tof_binning: 2
+  # binning factor used for the adc coordinate (2^(adc_binning-1))
+  adc_binning: 3
+  # Default units for dataframe entries
+
+  columns:
+    x: X # dataframe column containing x coordinates
+    y: Y # dataframe column containing y coordinates
+    tof: t # dataframe column containing time-of-flight data
+    adc: ADC # dataframe column containing analog-to-digital data
+    bias: sampleBias # dataframe column containing bias voltage data
+    corrected_x: Xm # dataframe column containing corrected x coordinates
+    corrected_y: Ym # dataframe column containing corrected y coordinates
+    corrected_tof: tm # dataframe column containing corrected time-of-flight data
+    kx: kx # dataframe column containing kx coordinates
+    ky: ky # dataframe column containing ky coordinates
+    energy: energy # dataframe column containing energy data
+    delay: delay # dataframe column containing delay data
+    timestamp: timeStamps  # dataframe column containing timestamp data
+
+  units:
+    X: 'step'
+    Y: 'step'
+    t: 'step'
+    tof_voltage: 'V'
+    extractor_voltage: 'V'
+    extractor_current: 'A'
+    cryo_temperature: 'K'
+    sample_temperature: 'K'
+    dld_time: 'ns'
+    delay: 'ps'
+    timeStamp: 's'
+    energy: 'eV'
+    E: 'eV'
+    kx: '1/A'
+    ky: '1/A'
+
+  # dataframe channels and group names to read from the h5 files
+  channels:
+    # The X-channel
+    X:
+      format: per_electron
+      dataset_key: "Stream_0"
+    # The Y-channel
+    Y:
+      format: per_electron
+      dataset_key: "Stream_1"
+    # The tof-channel
+    t:
+      format: per_electron
+      dataset_key: "Stream_2"
+    # The ADC-channel
+    ADC:
+      format: per_electron
+      dataset_key: "Stream_4"
+    # The sample Bias-channel
+    sampleBias:
+      format: per_file
+      dataset_key: "KTOF:Lens:Sample:V"
