@@ -934,7 +934,7 @@ class SedProcessor:
                 Defaults to False.
             verbose (bool, optional): Option to print out diagnostic information.
                 Defaults to config["core"]["verbose"].
-            **kwds: Keyword args passed to ``DelayCalibrator.append_delay_axis``.
+            **kwds: Keyword args passed to ``MomentumCorrector.append_k_axis``.
         """
         if verbose is None:
             verbose = self.verbose
@@ -1735,15 +1735,13 @@ class SedProcessor:
             if verbose:
                 print("Adding delay column to dataframe:")
 
-            if read_delay_ranges:
+            if read_delay_ranges and delay_range is None:
                 try:
                     datafile = self._files[0]
                 except IndexError:
-                    print(
-                        "No datafile available, specify either",
-                        " 'datafile' or 'delay_range'",
+                    raise ValueError(
+                        "No datafile available, specify either 'datafile' or 'delay_range'.",
                     )
-                    raise
 
             df, metadata = self.dc.append_delay_axis(
                 self._dataframe,
