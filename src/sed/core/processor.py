@@ -973,7 +973,9 @@ class SedProcessor:
                 use. Defaults to None.
             preview (bool, optional): Option to preview the first elements of the data frame.
                 Defaults to False.
-            **kwds: Keyword args passed to ``MomentumCalibrator.append_k_axis``.
+            verbose (bool, optional): Option to print out diagnostic information.
+                Defaults to config["core"]["verbose"].
+            **kwds: Keyword args passed to ``MomentumCorrector.append_k_axis``.
         """
         x_column = self._config["dataframe"]["columns"]["x"]
         y_column = self._config["dataframe"]["columns"]["y"]
@@ -1729,6 +1731,7 @@ class SedProcessor:
     def calibrate_delay_axis(
         self,
         delay_range: tuple[float, float] = None,
+        read_delay_ranges: bool = True,
         datafile: str = None,
         preview: bool = False,
         **kwds,
@@ -1739,8 +1742,10 @@ class SedProcessor:
         Args:
             delay_range (tuple[float, float], optional): The scanned delay range in
                 picoseconds. Defaults to None.
+            read_delay_ranges (bool, optional): Option whether to read the delay ranges from the
+                data. Defaults to True. If false, parameters in the config will be used.
             datafile (str, optional): The file from which to read the delay ranges.
-                Defaults to None.
+                Defaults to the first file of the dataset.
             preview (bool, optional): Option to preview the first elements of the data frame.
                 Defaults to False.
             **kwds: Keyword args passed to ``DelayCalibrator.append_delay_axis``.
@@ -1752,14 +1757,13 @@ class SedProcessor:
         if self._dataframe is not None:
             logger.info("Adding delay column to dataframe:")
 
-            if delay_range is None and datafile is None:
-                if len(self.dc.calibration) == 0:
-                    try:
-                        datafile = self._files[0]
-                    except IndexError as exc:
-                        raise IndexError(
-                            "No datafile available, specify either 'datafile' or 'delay_range'",
-                        ) from exc
+            if read_delay_ranges and delay_range is None and datafile is None:
+                try:
+                    datafile = self._files[0]
+                except IndexError as exc:
+                    raise ValueError(
+                        "No datafile available, specify either 'datafile' or 'delay_range'.",
+                    ) from exc
 
             df, metadata = self.dc.append_delay_axis(
                 self._dataframe,
