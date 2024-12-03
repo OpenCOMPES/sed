@@ -1702,6 +1702,7 @@ class SedProcessor:
     def calibrate_delay_axis(
         self,
         delay_range: Tuple[float, float] = None,
+        read_delay_ranges: bool = True,
         datafile: str = None,
         preview: bool = False,
         verbose: bool = None,
@@ -1713,8 +1714,10 @@ class SedProcessor:
         Args:
             delay_range (Tuple[float, float], optional): The scanned delay range in
                 picoseconds. Defaults to None.
+            read_delay_ranges (bool, optional): Option whether to read the delay ranges from the
+                data. Defaults to True. If false, parameters in the config will be used.
             datafile (str, optional): The file from which to read the delay ranges.
-                Defaults to None.
+                Defaults to the first file of the dataset.
             preview (bool, optional): Option to preview the first elements of the data frame.
                 Defaults to False.
             verbose (bool, optional): Option to print out diagnostic information.
@@ -1732,16 +1735,15 @@ class SedProcessor:
             if verbose:
                 print("Adding delay column to dataframe:")
 
-            if delay_range is None and datafile is None:
-                if len(self.dc.calibration) == 0:
-                    try:
-                        datafile = self._files[0]
-                    except IndexError:
-                        print(
-                            "No datafile available, specify either",
-                            " 'datafile' or 'delay_range'",
-                        )
-                        raise
+            if read_delay_ranges:
+                try:
+                    datafile = self._files[0]
+                except IndexError:
+                    print(
+                        "No datafile available, specify either",
+                        " 'datafile' or 'delay_range'",
+                    )
+                    raise
 
             df, metadata = self.dc.append_delay_axis(
                 self._dataframe,

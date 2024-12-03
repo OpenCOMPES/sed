@@ -737,7 +737,7 @@ def test_delay_calibration_workflow() -> None:
         verbose=True,
     )
     delay_range = (-500, 1500)
-    processor.calibrate_delay_axis(delay_range=delay_range, preview=False)
+    processor.calibrate_delay_axis(delay_range=delay_range)
     # read from datafile
     processor = SedProcessor(
         folder=df_folder,
@@ -751,11 +751,18 @@ def test_delay_calibration_workflow() -> None:
         processor.add_delay_offset(constant=1)
     with pytest.raises(NotImplementedError):
         processor.calibrate_delay_axis()
+    with pytest.raises(NotImplementedError):
+        processor.calibrate_delay_axis(
+            p1_key="@trARPES:DelayStage:p1",
+            p2_key="@trARPES:DelayStage:p2",
+            t0_key="@trARPES:DelayStage:t0",
+            read_delay_ranges=False,
+        )
     processor.calibrate_delay_axis(
         p1_key="@trARPES:DelayStage:p1",
         p2_key="@trARPES:DelayStage:p2",
         t0_key="@trARPES:DelayStage:t0",
-        preview=True,
+        read_delay_ranges=True,
     )
     assert "delay" in processor.dataframe.columns
     creation_date_calibration = processor.dc.calibration["creation_date"]
@@ -776,7 +783,7 @@ def test_delay_calibration_workflow() -> None:
         system_config={},
         verbose=True,
     )
-    processor.calibrate_delay_axis()
+    processor.calibrate_delay_axis(read_delay_ranges=False)
     assert "delay" in processor.dataframe.columns
     assert (
         processor.attributes.metadata["delay_calibration"]["calibration"]["creation_date"]
