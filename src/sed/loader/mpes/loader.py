@@ -95,8 +95,6 @@ def hdf5_to_dataframe(
             search_pattern="Stream",
         )
 
-    test_proc.close()
-
     electron_channels = []
     column_names = []
     for name, channel in channels.items():
@@ -173,6 +171,8 @@ def hdf5_to_dataframe(
                     f"Entry \"{channel['dataset_key']}\" for channel \"{name}\" not found. "
                     "Skipping the channel.",
                 )
+            
+    test_proc.close()
 
     return dataframe
 
@@ -216,8 +216,6 @@ def hdf5_to_timed_dataframe(
             h5file=test_proc,
             search_pattern="Stream",
         )
-
-    test_proc.close()
 
     electron_channels = []
     column_names = []
@@ -282,6 +280,8 @@ def hdf5_to_timed_dataframe(
                     for partition, value in zip(dataframe.partitions, values)
                 ]
                 dataframe = ddf.from_delayed(delayeds)
+    
+    test_proc.close()
 
     return dataframe
 
@@ -1075,7 +1075,7 @@ class MpesLoader(BaseLoader):
         for fid in fids:
             try:
                 count_rate_, secs_ = get_count_rate(
-                    load_h5_in_memory(self.files[fid]),
+                    h5py.File(self.files[fid]),
                     ms_markers_key=ms_markers_key,
                 )
                 secs_list.append((accumulated_time + secs_).T)
@@ -1126,7 +1126,7 @@ class MpesLoader(BaseLoader):
         for fid in fids:
             try:
                 secs += get_elapsed_time(
-                    load_h5_in_memory(self.files[fid]),
+                    h5py.File(self.files[fid]),
                     ms_markers_key=ms_markers_key,
                 )
             except OSError as exc:
