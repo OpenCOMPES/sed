@@ -319,7 +319,7 @@ def hdf5_to_array(
         except KeyError:
             # get the start time of the file from its modification date if the key
             # does not exist (old files)
-            start_time = os.path.getmtime(h5file.filename)  # convert to ms
+            start_time = os.path.getmtime(h5filename)  # convert to ms
             # the modification time points to the time when the file was finished, so we
             # need to correct for the time it took to write the file
             start_time -= len(ms_marker) / 1000
@@ -403,7 +403,7 @@ def hdf5_to_timed_array(
         except KeyError:
             # get the start time of the file from its modification date if the key
             # does not exist (old files)
-            start_time = os.path.getmtime(h5file.filename)  # convert to ms
+            start_time = os.path.getmtime(h5filename)  # convert to ms
             # the modification time points to the time when the file was finished, so we
             # need to correct for the time it took to write the file
             start_time -= len(ms_marker) / 1000
