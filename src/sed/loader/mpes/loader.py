@@ -171,7 +171,7 @@ def hdf5_to_dataframe(
                     f"Entry \"{channel['dataset_key']}\" for channel \"{name}\" not found. "
                     "Skipping the channel.",
                 )
-            
+
     test_proc.close()
 
     return dataframe
@@ -280,7 +280,7 @@ def hdf5_to_timed_dataframe(
                     for partition, value in zip(dataframe.partitions, values)
                 ]
                 dataframe = ddf.from_delayed(delayeds)
-    
+
     test_proc.close()
 
     return dataframe
