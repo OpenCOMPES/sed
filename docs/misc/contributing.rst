@@ -8,7 +8,6 @@ Whether you are a beamline scientist hoping to create a loader for your data, or
 
 This guide will walk you through the process of setting up your development environment, and the workflow for contributing to the project.
 
-.. contents::
 
 Getting Started
 ===============

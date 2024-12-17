@@ -13,14 +13,12 @@ Getting datasets
    import os
    from sed.dataset import dataset
 
-Get
-~~~
+get()
+^^^^^
 
 The “get” just needs the data name, but another root_dir can be provided.
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Try to interrupt the download process and restart to see that it continues the download from where it stopped
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 .. code:: python
 
@@ -39,14 +37,12 @@ Try to interrupt the download process and restart to see that it continues the d
    Download complete.
 
 Not providing “remove_zip” at all will by default delete the zip file after extraction
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 .. code:: python
 
    dataset.get("WSe2")
 
 Setting the “use_existing” keyword to False allows to download the data in another location. Default is to use existing data
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 .. code:: python
 
@@ -62,10 +58,8 @@ Setting the “use_existing” keyword to False allows to download the data in a
 
 
 Interrupting extraction has similar behavior to download and just continues from where it stopped.
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 Or if user deletes the extracted documents, it re-extracts from zip file
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 .. code:: python
 
@@ -90,11 +84,12 @@ Or if user deletes the extracted documents, it re-extracts from zip file
 
    WSe2 data extracted successfully.
 
+remove()
+^^^^^^^^
+
 “remove” allows removal of some or all instances of existing data
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This would remove only one of the two existing paths
-''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 .. code:: python
 
@@ -105,7 +100,6 @@ This would remove only one of the two existing paths
    Removed <user_path>/datasets/WSe2
 
 This removes all instances, if any present
-''''''''''''''''''''''''''''''''''''''''''
 
 .. code:: python
 
@@ -116,10 +110,9 @@ This removes all instances, if any present
    WSe2 data is not present.
 
 Attributes useful for user
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 All available datasets after looking at module, user and folder levels
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 .. code:: python
 
@@ -130,7 +123,6 @@ All available datasets after looking at module, user and folder levels
    ['WSe2', 'TaS2', 'Gd_W110']
 
 The dir and subdirs where data is located
-'''''''''''''''''''''''''''''''''''''''''
 
 .. code:: python
 
@@ -150,7 +142,6 @@ The dir and subdirs where data is located
     '<user_path>/datasets/WSe2/energycal_2019_01_08']
 
 Existing locations where data is present
-''''''''''''''''''''''''''''''''''''''''
 
 .. code:: python
 
@@ -164,11 +155,12 @@ Existing locations where data is present
 Example of adding custom datasets
 ---------------------------------
 
+DatasetsManager
+^^^^^^^^^^^^^^^
+
 Allows to add or remove datasets in json file at any level (module, user, folder).
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 Looks at all levels to give the available datasets
-''''''''''''''''''''''''''''''''''''''''''''''''''
 
 .. code:: python
 
@@ -176,10 +168,8 @@ Looks at all levels to give the available datasets
    from sed.dataset import DatasetsManager
 
 We add a new dataset to both folder and user levels
-'''''''''''''''''''''''''''''''''''''''''''''''''''
 
 This dataset also has “rearrange_files” set to True, which takes all files in subfolders and puts them in the main dataset specific directory
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 .. code:: python
 
@@ -198,7 +188,6 @@ This dataset also has “rearrange_files” set to True, which takes all files i
    Added Example dataset to user datasets.json
 
 datasets.json should be available in execution folder after this
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 .. code:: python
 
@@ -210,7 +199,6 @@ datasets.json should be available in execution folder after this
    ['Example', 'WSe2', 'TaS2', 'Gd_W110']
 
 This will remove the Example dataset from the user json file
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 .. code:: python
 
@@ -221,7 +209,6 @@ This will remove the Example dataset from the user json file
    Removed Example dataset from user datasets.json
 
 Adding dataset that already exists will give an error. Likewise, removing one that doesn’t exist
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 .. code:: python
 
@@ -234,7 +221,6 @@ Adding dataset that already exists will give an error. Likewise, removing one th
 
 
 Now that dataset.json with Example exists in current dir, lets try to fetch it
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 .. code:: python
 
@@ -272,7 +258,6 @@ Now that dataset.json with Example exists in current dir, lets try to fetch it
    []
 
 lets download to another location
-'''''''''''''''''''''''''''''''''
 
 .. code:: python
 
@@ -300,7 +285,6 @@ lets download to another location
    Rearranging complete.
 
 we can remove one instance
-''''''''''''''''''''''''''
 
 .. code:: python
 
@@ -332,7 +316,7 @@ we can remove one instance
    ['<user_path>/datasets/Example']
 
 Default datasets.json
-------------------------
+---------------------
 
 .. literalinclude::  ../../sed/dataset/datasets.json
    :language: json

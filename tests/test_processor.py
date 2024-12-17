@@ -26,14 +26,14 @@ from sed.loader.loader_interface import get_loader
 
 #  pylint: disable=duplicate-code
 package_dir = os.path.dirname(find_spec("sed").origin)
-df_folder = package_dir + "/../tests/data/loader/mpes/"
-df_folder_generic = package_dir + "/../tests/data/loader/generic/"
-folder = package_dir + "/../tests/data/calibrator/"
+df_folder = package_dir + "/../../tests/data/loader/mpes/"
+df_folder_generic = package_dir + "/../../tests/data/loader/generic/"
+folder = package_dir + "/../../tests/data/calibrator/"
 files = glob.glob(df_folder + "*.h5")
 runs = ["30", "50"]
 runs_flash = ["43878", "43878"]
 loader = get_loader(loader_name="mpes")
-source_folder = package_dir + "/../"
+source_folder = package_dir + "/../../"
 dest_folder = tempfile.mkdtemp()
 gid = os.getgid()
 
@@ -219,7 +219,7 @@ def test_attributes_setters() -> None:
 
 def test_copy_tool() -> None:
     """Test the copy tool functionality in the processor"""
-    config = {"core": {"loader": "mpes", "use_copy_tool": True}}
+    config: dict[str, dict[str, Any]] = {"core": {"loader": "mpes"}}
     processor = SedProcessor(
         config=config,
         folder_config={},
@@ -231,10 +231,7 @@ def test_copy_tool() -> None:
     config = {
         "core": {
             "loader": "mpes",
-            "use_copy_tool": True,
-            "copy_tool_source": source_folder,
-            "copy_tool_dest": dest_folder,
-            "copy_tool_kwds": {"gid": os.getgid()},
+            "copy_tool": {"source": source_folder, "dest": dest_folder, "gid": os.getgid()},
         },
     }
     processor = SedProcessor(
@@ -247,17 +244,6 @@ def test_copy_tool() -> None:
     assert processor.use_copy_tool is True
     processor.load(files=files)
     assert processor.files[0].find(dest_folder) > -1
-
-    # test illegal keywords:
-    config["core"]["copy_tool_kwds"] = {"gid": os.getgid(), "illegal_keyword": True}
-    with pytest.raises(TypeError):
-        processor = SedProcessor(
-            config=config,
-            folder_config={},
-            user_config={},
-            system_config={},
-            verbose=True,
-        )
 
 
 feature4 = np.array([[203.2, 341.96], [299.16, 345.32], [304.38, 149.88], [199.52, 152.48]])
@@ -401,6 +387,7 @@ def test_pose_adjustment_save_load() -> None:
     """Test for the saving and loading of pose correction and application of momentum correction
     workflow"""
     config = {"core": {"loader": "mpes"}}
+    # pose adjustment w/ loaded image
     processor = SedProcessor(
         folder=df_folder,
         config=config,
@@ -409,7 +396,6 @@ def test_pose_adjustment_save_load() -> None:
         system_config={},
         verbose=True,
     )
-    # pose adjustment w/o loaded image
     processor.bin_and_load_momentum_calibration(apply=True)
     processor.define_features(
         features=feature7,
@@ -421,6 +407,33 @@ def test_pose_adjustment_save_load() -> None:
     processor.save_splinewarp(filename="sed_config_pose_adjustments.yaml")
     processor.pose_adjustment(**adjust_params, apply=True)  # type: ignore[arg-type]
     processor.save_transformations(filename="sed_config_pose_adjustments.yaml")
+    processor.apply_momentum_correction()
+    cdeform_field = processor.mc.cdeform_field.copy()
+    rdeform_field = processor.mc.rdeform_field.copy()
+    # pose adjustment w/o loaded image
+    processor = SedProcessor(
+        folder=df_folder,
+        config=config,
+        folder_config="sed_config_pose_adjustments.yaml",
+        user_config={},
+        system_config={},
+        verbose=True,
+    )
+    processor.pose_adjustment(**adjust_params, apply=True)  # type: ignore[arg-type]
+    processor.apply_momentum_correction()
+    # pose adjustment w/o loaded image and w/o correction
+    processor = SedProcessor(
+        folder=df_folder,
+        config=config,
+        folder_config="sed_config_pose_adjustments.yaml",
+        user_config={},
+        system_config={},
+        verbose=True,
+    )
+    processor.pose_adjustment(**adjust_params, use_correction=False, apply=True)  # type: ignore[arg-type]
+    assert np.all(processor.mc.cdeform_field != cdeform_field)
+    assert np.all(processor.mc.rdeform_field != rdeform_field)
+    # from config
     processor = SedProcessor(
         folder=df_folder,
         config=config,
@@ -433,6 +446,8 @@ def test_pose_adjustment_save_load() -> None:
     assert "Xm" in processor.dataframe.columns
     assert "Ym" in processor.dataframe.columns
     assert "momentum_correction" in processor.attributes.metadata
+    np.testing.assert_allclose(processor.mc.cdeform_field, cdeform_field)
+    np.testing.assert_allclose(processor.mc.rdeform_field, rdeform_field)
     os.remove("sed_config_pose_adjustments.yaml")
 
 
@@ -660,8 +675,9 @@ def test_align_dld_sectors() -> None:
         user_config={},
         system_config={},
     )
-    config["core"]["paths"]["processed"] = (
-        config["core"]["paths"]["processed"] + "_align_dld_sectors"
+    config["core"]["paths"]["processed"] = Path(
+        config["core"]["paths"]["processed"],
+        "_align_dld_sectors",
     )
     processor = SedProcessor(
         folder=df_folder + "../flash/",
@@ -719,7 +735,7 @@ def test_append_tof_ns_axis() -> None:
         verbose=True,
     )
     processor.append_tof_ns_axis()
-    assert processor.config["dataframe"]["tof_ns_column"] in processor.dataframe
+    assert processor.config["dataframe"]["columns"]["tof_ns"] in processor.dataframe
 
 
 def test_delay_calibration_workflow() -> None:
@@ -734,7 +750,7 @@ def test_delay_calibration_workflow() -> None:
         verbose=True,
     )
     delay_range = (-500, 1500)
-    processor.calibrate_delay_axis(delay_range=delay_range, preview=False)
+    processor.calibrate_delay_axis(delay_range=delay_range)
     # read from datafile
     processor = SedProcessor(
         folder=df_folder,
@@ -748,11 +764,18 @@ def test_delay_calibration_workflow() -> None:
         processor.add_delay_offset(constant=1)
     with pytest.raises(NotImplementedError):
         processor.calibrate_delay_axis()
+    with pytest.raises(NotImplementedError):
+        processor.calibrate_delay_axis(
+            p1_key="@trARPES:DelayStage:p1",
+            p2_key="@trARPES:DelayStage:p2",
+            t0_key="@trARPES:DelayStage:t0",
+            read_delay_ranges=False,
+        )
     processor.calibrate_delay_axis(
         p1_key="@trARPES:DelayStage:p1",
         p2_key="@trARPES:DelayStage:p2",
         t0_key="@trARPES:DelayStage:t0",
-        preview=True,
+        read_delay_ranges=True,
     )
     assert "delay" in processor.dataframe.columns
     creation_date_calibration = processor.dc.calibration["creation_date"]
@@ -773,7 +796,7 @@ def test_delay_calibration_workflow() -> None:
         system_config={},
         verbose=True,
     )
-    processor.calibrate_delay_axis()
+    processor.calibrate_delay_axis(read_delay_ranges=False)
     assert "delay" in processor.dataframe.columns
     assert (
         processor.attributes.metadata["delay_calibration"]["calibration"]["creation_date"]
@@ -836,12 +859,13 @@ def test_add_time_stamped_data() -> None:
     """Test the function to add time-stamped data"""
     processor = SedProcessor(
         folder=df_folder + "../mpes/",
-        config=package_dir + "/config/mpes_example_config.yaml",
+        config=package_dir + "/../../config/mpes_example_config.yaml",
         folder_config={},
         user_config={},
         system_config={},
         time_stamps=True,
         verbose=True,
+        verify_config=False,
     )
     df_ts = processor.dataframe.timeStamps.compute().values
     data = np.linspace(0, 1, 20)
@@ -998,7 +1022,7 @@ def test_compute_with_normalization() -> None:
 
 def test_get_normalization_histogram() -> None:
     """Test the generation function for the normalization histogram"""
-    config = {"core": {"loader": "mpes"}, "dataframe": {"time_stamp_alias": "timeStamps"}}
+    config = {"core": {"loader": "mpes"}, "dataframe": {"columns": {"timestamp": "timeStamps"}}}
     processor = SedProcessor(
         folder=df_folder,
         config=config,
@@ -1066,14 +1090,16 @@ def test_save(caplog) -> None:
     config = parse_config(
         config={"dataframe": {"tof_binning": 1}},
         folder_config={},
-        user_config=package_dir + "/../sed/config/mpes_example_config.yaml",
+        user_config=package_dir + "/../../config/mpes_example_config.yaml",
         system_config={},
+        verify_config=False,
     )
     config["metadata"]["lens_mode_config"]["6kV_kmodem4.0_30VTOF_453ns_focus.sav"][
         "MCPfront"
     ] = 21.0
     config["metadata"]["lens_mode_config"]["6kV_kmodem4.0_30VTOF_453ns_focus.sav"]["Z1"] = 2450
     config["metadata"]["lens_mode_config"]["6kV_kmodem4.0_30VTOF_453ns_focus.sav"]["F"] = 69.23
+    config["nexus"]["input_files"] = [package_dir + "/../../config/NXmpes_config.json"]
     processor = SedProcessor(
         folder=df_folder,
         config=config,
@@ -1105,7 +1131,6 @@ def test_save(caplog) -> None:
     # and error if any validation problems occur.
     processor.save(
         "output.nxs",
-        input_files=df_folder + "../../../../sed/config/NXmpes_config.json",
         fail=True,
     )
     assert os.path.isfile("output.nxs")
@@ -1114,7 +1139,6 @@ def test_save(caplog) -> None:
     with pytest.raises(ValidationFailed):
         processor.save(
             "result.nxs",
-            input_files=df_folder + "../../../../sed/config/NXmpes_config.json",
             fail=True,
         )
     # Check that the issues are raised as warnings per default:
@@ -1123,7 +1147,7 @@ def test_save(caplog) -> None:
         yaml.dump({"Instrument": {"undocumented_field": "undocumented entry"}}, f)
     with open("temp_config.json", "w") as f:
         with open(
-            df_folder + "../../../../sed/config/NXmpes_config.json",
+            package_dir + "/../../config/NXmpes_config.json",
             encoding="utf-8",
         ) as stream:
             config_dict = json.load(stream)

@@ -1,4 +1,4 @@
-[![Documentation Status](https://github.com/OpenCOMPES/sed/actions/workflows/documentation.yml/badge.svg)](https://opencompes.github.io/sed/)
+[![Documentation Status](https://github.com/OpenCOMPES/sed/actions/workflows/documentation.yml/badge.svg)]([https://opencompes.github.io/sed/](https://opencompes.github.io/docs/sed/latest/))
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 ![](https://github.com/OpenCOMPES/sed/actions/workflows/linting.yml/badge.svg?branch=main)
 ![](https://github.com/OpenCOMPES/sed/actions/workflows/testing_multiversion.yml/badge.svg?branch=main)
@@ -7,23 +7,21 @@
 [![](https://img.shields.io/pypi/v/sed-processor)](https://pypi.org/project/sed-processor)
 [![Coverage Status](https://coveralls.io/repos/github/OpenCOMPES/sed/badge.svg?branch=main&kill_cache=1)](https://coveralls.io/github/OpenCOMPES/sed?branch=main)
 
-Backend to handle photoelectron resolved datastreams.
+**sed-processor** is a backend to process and bin multidimensional single-event datastreams, with the intended primary use case in multidimensional photoelectron spectroscopy using time-of-flight instruments.
 
-# Table of Contents
-[Installation](#installation)
-  - [For Users (pip)](#for-users-pip)
-  - [For Contributors (pip)](#for-contributors-pip)
-  - [For Maintainers (poetry)](#for-maintainers-poetry)
+It builds on [Dask](https://www.dask.org/) dataframes, where each column represents a multidimensional "coordinate" such as position, time-of-flight, pump-probe delay etc., and each entry represents one electron. The `SedProcessor` class provides a single user entry point, and provides functions for handling various workflows for coordinate transformation, e.g. corrections and calibrations.
+
+Furthermore, "sed-processor" provides fast and parallelized binning routines to compute multidimensional histograms from the processed dataframes in a delayed fashion, thus reducing requirements on cpu power and memory consumption.
+
+Finally, in contains several export routines, including export into the [NeXus](https://www.nexusformat.org/) format with rich and standardized metadata annotation.
 
 # Installation
 
-## For Users (pip)
-
-### Prerequisites
+## Prerequisites
 - Python 3.8+
 - pip
 
-### Steps
+## Steps
 - Create a new virtual environment using either venv, pyenv, conda, etc. See below for an example.
 
 ```bash
@@ -58,75 +56,29 @@ python -m ipykernel install --user --name=sed_kernel
 pip install sed-processor
 ```
 
-## For Contributors (pip)
+# Documentation
+Comprehensive documentation including several workflow examples can be found here:
+https://opencompes.github.io/docs/sed/latest/
 
-### Prerequisites
-- Git
-- Python 3.8+
-- pip
 
-### Steps
-1. Clone the repository:
+# Contributing
+Users are welcome to contribute to the development of **sed-processor**. Information how to contribute, including how to install developer versions can be found in the [documentation](https://opencompes.github.io/docs/sed/latest/misc/contribution.html)
 
-```bash
-git clone https://github.com/OpenCOMPES/sed.git
-cd sed
-```
+We would like to thank our contributors!
 
-2. Create and activate a virtual environment:
+[![Contributors](https://contrib.rocks/image?repo=OpenCOMPES/sed)](https://github.com/OpenCOMPES/sed/graphs/contributors)
 
-```bash
-# Create a virtual environment
-python -m venv .sed-dev
 
-# Activate the virtual environment
-# On macOS/Linux
-source .sed-dev/bin/activate
+## License
 
-# On Windows
-.sed-dev\Scripts\activate
-```
+sed-processor is licenced under the MIT license
 
-3. Install the repository in editable mode with all dependencies:
+Copyright (c) 2022-2024 OpenCOMPES
 
-```bash
-pip install -e .[all]
-```
-
-Now you have the development version of `sed` installed in your local environment. Feel free to make changes and submit pull requests.
-
-## For Maintainers (poetry)
-
-### Prerequisites
-- Poetry: [Poetry Installation](https://python-poetry.org/docs/#installation)
-
-### Steps
-- Create a virtual environment by typing:
-
-```bash
-poetry shell
-```
-
-- A new shell will be spawned with the new environment activated.
-
-- Install the dependencies from the `pyproject.toml` by typing:
-
-```bash
-poetry install --with dev, docs
-```
-
-- If you wish to use the virtual environment created by Poetry to work in a Jupyter notebook, you first need to install the optional notebook dependencies and then create a Jupyter kernel for that.
-
-  - Install the optional dependencies:
-
-  ```bash
-  poetry install -E notebook
-  ```
-
-  - Make sure to run the command below within your virtual environment (`poetry run` ensures this) by typing:
-
-  ```bash
-  poetry run ipython kernel install --user --name=sed_poetry
-  ```
-
-  - The new kernel will now be available in your Jupyter kernels list.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

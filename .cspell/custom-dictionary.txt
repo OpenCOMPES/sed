@@ -80,6 +80,7 @@ ddir
 delaxes
 delayeds
 Desy
+Deutsches
 dfield
 dfops
 dfpart
@@ -87,6 +88,7 @@ dfpid
 dictionarized
 dictmerge
 DLDAUX
+DOOCS
 dpkg
 dropna
 dset
@@ -96,6 +98,7 @@ dtypes
 easimon
 ecalibdict
 electronanalyser
+Elektronen
 endstation
 energycal
 energycalfolder
@@ -126,6 +129,7 @@ ftype
 fwhm
 genindex
 getgid
+getgrgid
 getmtime
 gpfs
 griddata
@@ -173,6 +177,7 @@ levelname
 linalg
 linekwds
 linesegkwds
+linestyles
 linewidth
 linspace
 literalinclude
@@ -290,6 +295,8 @@ ptargs
 pullrequest
 pval
 pyarrow
+pydantic
+pydata
 pyenv
 pygments
 pynxtools
@@ -325,9 +332,11 @@ scandir
 scatt
 scatterkwds
 scicat
+scipy
 SDIAG
 sdir
 segs
+setp
 sfile
 shutil
 Sixten
@@ -343,6 +352,7 @@ subchannels
 subdir
 subdirs
 subfolders
+suptitle
 symscores
 targcenter
 termorder
@@ -369,6 +379,7 @@ TZCYXS
 tzoffset
 ubid
 UDLD
+ufunc
 unbinned
 uncategorised
 undoc
@@ -376,6 +387,8 @@ utime
 varnames
 venv
 verts
+viewcode
+vlines
 vmax
 voxels
 VTOF
@@ -387,6 +400,7 @@ xarray
 xaxis
 xcirc
 xdata
+XFEL
 xind
 Xinstrument
 xlabel
@@ -396,6 +410,8 @@ xpos
 xratio
 xrng
 xscale
+xticklabels
+xticks
 xtrans
 Xuser
 xval
@@ -406,6 +422,8 @@ ylabel
 ypos
 yratio
 yscale
+yticklabels
+yticks
 ytrans
 zain
 Zenodo

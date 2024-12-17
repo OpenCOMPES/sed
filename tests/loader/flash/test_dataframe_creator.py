@@ -234,7 +234,7 @@ def test_create_dataframe_per_train(config_dataframe: dict, h5_paths: list[Path]
     # The subchannels are stored in the second dimension
     # Only index amount of values are stored in the first dimension, the rest are NaNs
     # hence the slicing
-    subchannels = config_dataframe["channels"]["dldAux"]["subChannels"]
+    subchannels = config_dataframe["channels"]["dldAux"]["sub_channels"]
     for subchannel, values in subchannels.items():
         assert np.all(df.df_train[subchannel].dropna().values == data[: key.size, values["slice"]])
 

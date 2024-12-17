@@ -1,0 +1,42 @@
+{
+    "WSe2": {
+        "url": "https://zenodo.org/record/6369728/files/WSe2.zip",
+        "subdirs": [
+            "Scan049_1",
+            "energycal_2019_01_08"
+        ]
+    },
+    "Gd_W110": {
+        "url": "https://zenodo.org/records/10658470/files/single_event_data.zip",
+        "subdirs": [
+            "analysis_data",
+            "calibration_data"
+        ],
+        "rearrange_files": true
+    },
+    "W110": {
+        "url": "https://zenodo.org/records/12609441/files/single_event_data.zip",
+        "subdirs": [
+            "analysis_data",
+            "calibration_data"
+        ],
+        "rearrange_files": true
+    },
+    "TaS2": {
+        "url": "https://zenodo.org/records/10160182/files/TaS2.zip",
+        "subdirs": [
+            "Scan0121_1",
+            "energycal_2020_07_20"
+        ]
+    },
+    "Au_Mica": {
+        "url": "https://zenodo.org/records/13952965/files/Au_Mica_SXP.zip"
+    },
+    "Test": {
+        "url": "http://test.com/files/file.zip",
+        "subdirs": [
+            "subdir"
+        ],
+        "rearrange_files": true
+    }
+}

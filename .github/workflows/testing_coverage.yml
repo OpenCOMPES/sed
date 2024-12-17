@@ -3,6 +3,7 @@ name: pytest and coverage report
 # Triggers the workflow on push for all branches and PR only for main
 on:
   push:
+    branches: [ main ]
     paths-ignore:
       pyproject.toml
   pull_request:
