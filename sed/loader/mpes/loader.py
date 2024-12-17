@@ -98,8 +98,6 @@ def hdf5_to_dataframe(
             search_pattern="Stream",
         )
 
-    test_proc.close()
-
     column_names = [alias_dict.get(group, group) for group in group_names]
 
     if time_stamps:
@@ -136,6 +134,8 @@ def hdf5_to_dataframe(
                 pass
 
     array_stack = da.concatenate(arrays, axis=1).T
+
+    test_proc.close()
 
     return ddf.from_dask_array(array_stack, columns=column_names)
 
@@ -188,8 +188,6 @@ def hdf5_to_timed_dataframe(
             search_pattern="Stream",
         )
 
-    test_proc.close()
-
     column_names = [alias_dict.get(group, group) for group in group_names]
 
     if time_stamps:
@@ -225,6 +223,8 @@ def hdf5_to_timed_dataframe(
                 pass
 
     array_stack = da.concatenate(arrays, axis=1).T
+
+    test_proc.close()
 
     return ddf.from_dask_array(array_stack, columns=column_names)
 
@@ -720,16 +720,16 @@ class MpesLoader(BaseLoader):
         Returns:
             Tuple[float, float]: A tuple containing the start and end time stamps
         """
-        h5file = load_h5_in_memory(self.files[0])
+        h5filename = self.files[0]
         timestamps = hdf5_to_array(
-            h5file,
+            h5filename=h5filename,
             group_names=self._config["dataframe"]["hdf5_groupnames"],
             time_stamps=True,
         )
         ts_from = timestamps[-1][1]
-        h5file = load_h5_in_memory(self.files[-1])
+        h5filename = self.files[-1]
         timestamps = hdf5_to_array(
-            h5file,
+            h5filename=h5filename,
             group_names=self._config["dataframe"]["hdf5_groupnames"],
             time_stamps=True,
         )
