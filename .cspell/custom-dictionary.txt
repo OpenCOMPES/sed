@@ -171,6 +171,7 @@ joblib
 jpars
 jupyterlab
 kernelspec
+kmic
 kmodem
 KTOF
 kwds
