@@ -828,7 +828,7 @@ class MpesLoader(BaseLoader):
         Returns:
             tuple[float, float]: A tuple containing the start and end time stamps
         """
-        h5file = load_h5_in_memory(self.files[0])
+        h5filename = self.files[0]
         channels = []
         for channel in self._config["dataframe"]["channels"].values():
             if channel["format"] == "per_electron":
@@ -837,14 +837,14 @@ class MpesLoader(BaseLoader):
         if not channels:
             raise ValueError("No valid 'per_electron' channels found.")
         timestamps = hdf5_to_array(
-            h5file,
+            h5filename=h5filename,
             channels=channels,
             time_stamps=True,
         )
         ts_from = timestamps[-1][1]
-        h5file = load_h5_in_memory(self.files[-1])
+        h5filename = self.files[-1]
         timestamps = hdf5_to_array(
-            h5file,
+            h5filename=h5filename,
             channels=channels,
             time_stamps=True,
         )
