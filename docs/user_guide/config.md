@@ -12,18 +12,18 @@ The config mechanism returns the combined dictionary, and reports the loaded con
 
 ## Default configuration settings
 
-```{literalinclude} ../../sed/config/default.yaml
+```{literalinclude} ../../config/default.yaml
 :language: yaml
 ```
 
 ## Example configuration file for mpes (METIS momentum microscope at FHI-Berlin)
 
-```{literalinclude} ../../sed/config/mpes_example_config.yaml
+```{literalinclude} ../../config/mpes_example_config.yaml
 :language: yaml
 ```
 
 ## Example configuration file for flash (HEXTOF momentum microscope at FLASH, Desy)
 
-```{literalinclude} ../../sed/config/flash_example_config.yaml
+```{literalinclude} ../../config/flash_example_config.yaml
 :language: yaml
 ```
