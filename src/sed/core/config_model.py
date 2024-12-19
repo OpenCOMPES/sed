@@ -94,6 +94,7 @@ class ColumnsModel(BaseModel):
     corrected_delay: Optional[str] = None
     sector_id: Optional[str] = None
     auxiliary: Optional[str] = None
+    pulse_id: Optional[str] = None
 
 
 class ChannelModel(BaseModel):
@@ -140,6 +141,9 @@ class DataframeModel(BaseModel):
     sector_id_reserved_bits: Optional[int] = None
     sector_delays: Optional[Sequence[float]] = None
     daq: Optional[str] = None
+    index: Optional[Union[Sequence[str], str]] = None
+    formats: Optional[Union[Sequence[str], str]] = None
+    fill_formats: Optional[Union[Sequence[str], str]] = None
     # SXP specific settings
     num_trains: Optional[PositiveInt] = None
     num_pulses: Optional[PositiveInt] = None

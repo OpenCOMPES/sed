@@ -31,6 +31,7 @@ core:
   # (Not to be changed by user)
   beamtime_dir:
     pg2: "/asap3/flash/gpfs/pg2/"
+    cfel: "/asap3/fs-flash-o/gpfs/hextof/"
 
 
 dataframe:
@@ -52,6 +53,10 @@ dataframe:
   sector_delays: [0., 0., 0., 0., 0., 0., 0., 0.]
 
   jitter_cols: ["dldPosX", "dldPosY", "dldTimeSteps"]
+  # The index and formats of the data
+  index: [trainId, pulseId, electronId]
+  formats: [per_train, per_pulse, per_electron]
+  fill_formats: [per_train, per_pulse]            # Channels with this format will be forward filled
   columns:
     x: dldPosX
     corrected_x: X

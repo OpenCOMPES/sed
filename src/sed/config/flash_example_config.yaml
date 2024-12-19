@@ -32,6 +32,7 @@ core:
   # (Not to be changed by user)
   beamtime_dir:
     pg2: "/asap3/flash/gpfs/pg2/"
+    cfel: "/asap3/fs-flash-o/gpfs/hextof/"
 
 binning:
   # Histogram computation mode to use.
@@ -59,6 +60,11 @@ dataframe:
 
   # Columns used for jitter correction
   jitter_cols: [dldPosX, dldPosY, dldTimeSteps]
+
+  # The index and formats of the data
+  index: [trainId, pulseId, electronId]
+  formats: [per_train, per_pulse, per_electron]
+  fill_formats: [per_train, per_pulse]            # Channels with this format will be forward filled
 
   # Column settings
   columns:
