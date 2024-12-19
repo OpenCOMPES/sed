@@ -43,6 +43,8 @@ cdeform
 cdeformfield
 cdisp
 centroidnn
+cfel
+CFEL
 chessy
 clim
 cmap
@@ -63,6 +65,7 @@ cryo
 cstart
 cstep
 csvfile
+cumsum
 custom-dictionary
 cval
 cvdist
@@ -168,6 +171,7 @@ joblib
 jpars
 jupyterlab
 kernelspec
+kmic
 kmodem
 KTOF
 kwds
