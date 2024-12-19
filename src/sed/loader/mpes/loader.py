@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import datetime
 import glob
+import io
 import json
 import os
 from collections.abc import Sequence
@@ -27,8 +28,32 @@ from sed.core.logging import set_verbosity
 from sed.core.logging import setup_logging
 from sed.loader.base.loader import BaseLoader
 
+
 # Configure logging
 logger = setup_logging("mpes_loader")
+
+
+def load_h5_in_memory(file_path):
+    """
+    Load an HDF5 file entirely into memory and open it with h5py.
+
+    Parameters:
+        file_path (str): Path to the .h5 file.
+
+    Returns:
+        h5py.File: An h5py File object representing the in-memory HDF5 file.
+    """
+    # Read the entire file into memory
+    with open(file_path, "rb") as f:
+        file_content = f.read()
+
+    # Load the content into a BytesIO object
+    file_buffer = io.BytesIO(file_content)
+
+    # Open the HDF5 file using h5py from the in-memory buffer
+    h5_file = h5py.File(file_buffer, "r")
+
+    return h5_file
 
 
 def hdf5_to_dataframe(
@@ -62,7 +87,7 @@ def hdf5_to_dataframe(
         ddf.DataFrame: The delayed Dask DataFrame
     """
     # Read a file to parse the file structure
-    test_proc = h5py.File(files[test_fid])
+    test_proc = load_h5_in_memory(files[test_fid])
 
     if channels is None:
         channels = get_datasets_and_aliases(
@@ -96,7 +121,7 @@ def hdf5_to_dataframe(
         column_names.append(time_stamp_alias)
 
     test_array = hdf5_to_array(
-        h5file=test_proc,
+        h5filename=files[test_fid],
         channels=electron_channels,
         time_stamps=time_stamps,
         ms_markers_key=ms_markers_key,
@@ -110,7 +135,7 @@ def hdf5_to_dataframe(
             arrays.append(
                 da.from_delayed(
                     dask.delayed(hdf5_to_array)(
-                        h5file=h5py.File(f),
+                        h5filename=f,
                         channels=electron_channels,
                         time_stamps=time_stamps,
                         ms_markers_key=ms_markers_key,
@@ -147,6 +172,8 @@ def hdf5_to_dataframe(
                     "Skipping the channel.",
                 )
 
+    test_proc.close()
+
     return dataframe
 
 
@@ -182,7 +209,7 @@ def hdf5_to_timed_dataframe(
         ddf.DataFrame: The delayed Dask DataFrame
     """
     # Read a file to parse the file structure
-    test_proc = h5py.File(files[test_fid])
+    test_proc = load_h5_in_memory(files[test_fid])
 
     if channels is None:
         channels = get_datasets_and_aliases(
@@ -212,7 +239,7 @@ def hdf5_to_timed_dataframe(
         column_names.append(time_stamp_alias)
 
     test_array = hdf5_to_timed_array(
-        h5file=test_proc,
+        h5filename=files[test_fid],
         channels=electron_channels,
         time_stamps=time_stamps,
         ms_markers_key=ms_markers_key,
@@ -226,7 +253,7 @@ def hdf5_to_timed_dataframe(
             arrays.append(
                 da.from_delayed(
                     dask.delayed(hdf5_to_timed_array)(
-                        h5file=h5py.File(f),
+                        h5filename=f,
                         channels=electron_channels,
                         time_stamps=time_stamps,
                         ms_markers_key=ms_markers_key,
@@ -253,6 +280,8 @@ def hdf5_to_timed_dataframe(
                     for partition, value in zip(dataframe.partitions, values)
                 ]
                 dataframe = ddf.from_delayed(delayeds)
+
+    test_proc.close()
 
     return dataframe
 
@@ -312,7 +341,7 @@ def get_datasets_and_aliases(
 
 
 def hdf5_to_array(
-    h5file: h5py.File,
+    h5filename: str,
     channels: Sequence[dict[str, Any]],
     time_stamps=False,
     ms_markers_key: str = "msMarkers",
@@ -322,8 +351,7 @@ def hdf5_to_array(
     2-dimensional array with the corresponding values.
 
     Args:
-        h5file (h5py.File):
-            hdf5 file handle to read from
+        h5filename (str): hdf5 file name to read from
         channels (Sequence[dict[str, any]]):
             channel dicts containing group names and types to read.
         time_stamps (bool, optional):
@@ -338,6 +366,8 @@ def hdf5_to_array(
     """
 
     # Delayed array for loading an HDF5 file of reasonable size (e.g. < 1GB)
+
+    h5file = load_h5_in_memory(h5filename)
     # Read out groups:
     data_list = []
     for channel in channels:
@@ -371,7 +401,7 @@ def hdf5_to_array(
         except KeyError:
             # get the start time of the file from its modification date if the key
             # does not exist (old files)
-            start_time = os.path.getmtime(h5file.filename)  # convert to ms
+            start_time = os.path.getmtime(h5filename)  # convert to ms
             # the modification time points to the time when the file was finished, so we
             # need to correct for the time it took to write the file
             start_time -= len(ms_marker) / 1000
@@ -394,11 +424,13 @@ def hdf5_to_array(
 
         data_list.append(time_stamp_data)
 
+    h5file.close()
+
     return np.asarray(data_list)
 
 
 def hdf5_to_timed_array(
-    h5file: h5py.File,
+    h5filename: str,
     channels: Sequence[dict[str, Any]],
     time_stamps=False,
     ms_markers_key: str = "msMarkers",
@@ -408,8 +440,7 @@ def hdf5_to_timed_array(
     timed version of a 2-dimensional array with the corresponding values.
 
     Args:
-        h5file (h5py.File):
-            hdf5 file handle to read from
+        h5filename (str): hdf5 file name to read from
         channels (Sequence[dict[str, any]]):
             channel dicts containing group names and types to read.
         time_stamps (bool, optional):
@@ -425,6 +456,8 @@ def hdf5_to_timed_array(
     """
 
     # Delayed array for loading an HDF5 file of reasonable size (e.g. < 1GB)
+
+    h5file = load_h5_in_memory(h5filename)
 
     # Read out groups:
     data_list = []
@@ -458,7 +491,7 @@ def hdf5_to_timed_array(
         except KeyError:
             # get the start time of the file from its modification date if the key
             # does not exist (old files)
-            start_time = os.path.getmtime(h5file.filename)  # convert to ms
+            start_time = os.path.getmtime(h5filename)  # convert to ms
             # the modification time points to the time when the file was finished, so we
             # need to correct for the time it took to write the file
             start_time -= len(ms_marker) / 1000
@@ -466,6 +499,8 @@ def hdf5_to_timed_array(
         time_stamp_data = start_time + np.arange(len(ms_marker)) / 1000
 
         data_list.append(time_stamp_data)
+
+    h5file.close()
 
     return np.asarray(data_list)
 
@@ -793,7 +828,7 @@ class MpesLoader(BaseLoader):
         Returns:
             tuple[float, float]: A tuple containing the start and end time stamps
         """
-        h5file = h5py.File(self.files[0])
+        h5file = load_h5_in_memory(self.files[0])
         channels = []
         for channel in self._config["dataframe"]["channels"].values():
             if channel["format"] == "per_electron":
@@ -807,7 +842,7 @@ class MpesLoader(BaseLoader):
             time_stamps=True,
         )
         ts_from = timestamps[-1][1]
-        h5file = h5py.File(self.files[-1])
+        h5file = load_h5_in_memory(self.files[-1])
         timestamps = hdf5_to_array(
             h5file,
             channels=channels,
