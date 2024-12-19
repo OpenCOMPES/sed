@@ -45,8 +45,8 @@ def test_get_channels_by_format(config_dataframe: dict) -> None:
     # Request channels for 'all' formats using a list.
     format_all = get_channels(ch_dict, ["all"])
 
-    # Request index channels only. No need for channel_dict.
-    format_index = get_channels(index=True)
+    # Request index channels only.
+    format_index = get_channels(ch_dict, index=True)
 
     # Request 'per_electron' format and include index channels.
     format_index_electron = get_channels(ch_dict, ["per_electron"], index=True)
