@@ -1,12 +1,6 @@
 from __future__ import annotations
 
 
-# TODO: move to config
-MULTI_INDEX = ["trainId", "pulseId", "electronId"]
-PULSE_ALIAS = MULTI_INDEX[1]
-FORMATS = ["per_electron", "per_pulse", "per_train"]
-
-
 def get_channels(
     config_dataframe: dict = {},
     formats: str | list[str] = None,
@@ -29,7 +23,9 @@ def get_channels(
         List[str]: A list of channels with the specified format(s).
     """
     channel_dict = config_dataframe.get("channels", {})
-    aux_alias = config_dataframe.get("aux_alias", "dldAux")
+    index_list = config_dataframe.get("index", None)
+    formats_list = config_dataframe.get("formats")
+    aux_alias = channel_dict.get("auxiliary", "dldAux")
 
     # If 'formats' is a single string, convert it to a list for uniform processing.
     if isinstance(formats, str):
@@ -39,7 +35,7 @@ def get_channels(
     if formats == ["all"]:
         channels = get_channels(
             config_dataframe,
-            FORMATS,
+            formats_list,
             index,
             extend_aux,
         )
@@ -47,24 +43,26 @@ def get_channels(
 
     channels = []
 
-    # Include channels from multi_index if 'index' is True.
+    # Include channels from index_list if 'index' is True.
     if index:
-        channels.extend(MULTI_INDEX)
+        channels.extend(index_list)
 
     if formats:
         # If 'formats' is a list, check if all elements are valid.
-        err_msg = (
-            "Invalid format. Please choose from 'per_electron', 'per_pulse', 'per_train', 'all'."
-        )
         for format_ in formats:
-            if format_ not in FORMATS + ["all"]:
-                raise ValueError(err_msg)
+            if format_ not in formats_list + ["all"]:
+                raise ValueError(
+                    f"Invalid format: {format_}. " f"Valid formats are: {formats_list + ['all']}",
+                )
 
         # Get the available channels excluding 'pulseId'.
         available_channels = list(channel_dict.keys())
         # pulse alias is an index and should not be included in the list of channels.
-        if PULSE_ALIAS in available_channels:
-            available_channels.remove(PULSE_ALIAS)
+        # Remove specified channels if they are present in available_channels.
+        channels_to_remove = ["pulseId", "numEvents"]
+        for channel in channels_to_remove:
+            if channel in available_channels:
+                available_channels.remove(channel)
 
         for format_ in formats:
             # Gather channels based on the specified format(s).
@@ -75,7 +73,7 @@ def get_channels(
             )
             # Include 'dldAuxChannels' if the format is 'per_train' and extend_aux is True.
             # Otherwise, include 'dldAux'.
-            if format_ == FORMATS[2] and aux_alias in available_channels:
+            if format_ == "per_train" and aux_alias in available_channels:
                 if extend_aux:
                     channels.extend(
                         channel_dict[aux_alias]["sub_channels"].keys(),

@@ -7,9 +7,12 @@ import dask.dataframe as dd
 import pyarrow.parquet as pq
 from joblib import delayed
 from joblib import Parallel
+from pandas import MultiIndex
 
 from sed.core.dfops import forward_fill_lazy
 from sed.core.logging import setup_logging
+from sed.loader.flash.dataframe import BaseDataFrameCreator
+from sed.loader.flash.dataframe import CFELDataFrameCreator
 from sed.loader.flash.dataframe import DataFrameCreator
 from sed.loader.flash.utils import get_channels
 from sed.loader.flash.utils import get_dtypes
@@ -39,11 +42,9 @@ class BufferFilePaths:
 
     def __init__(
         self,
-        config: dict,
         h5_paths: list[Path],
         folder: Path,
         suffix: str,
-        remove_invalid_files: bool,
     ) -> None:
         """Initializes the BufferFilePaths.
 
@@ -55,9 +56,6 @@ class BufferFilePaths:
         suffix = f"_{suffix}" if suffix else ""
         folder = folder / "buffer"
         folder.mkdir(parents=True, exist_ok=True)
-
-        if remove_invalid_files:
-            h5_paths = self.remove_invalid_files(config, h5_paths)
 
         self._file_paths = self._create_file_paths(h5_paths, folder, suffix)
 
@@ -92,18 +90,6 @@ class BufferFilePaths:
             return self._file_paths
         return [file_set for file_set in self if any(not file_set[key].exists() for key in DF_TYP)]
 
-    def remove_invalid_files(self, config, h5_paths: list[Path]) -> list[Path]:
-        valid_h5_paths = []
-        for h5_path in h5_paths:
-            try:
-                dfc = DataFrameCreator(config_dataframe=config, h5_path=h5_path)
-                dfc.validate_channel_keys()
-                valid_h5_paths.append(h5_path)
-            except InvalidFileError as e:
-                logger.info(f"Skipping invalid file: {h5_path.stem}\n{e}")
-
-        return valid_h5_paths
-
 
 class BufferHandler:
     """
@@ -124,12 +110,34 @@ class BufferHandler:
         self.n_cores: int = config["core"].get("num_cores", os.cpu_count() - 1)
         self.fp: BufferFilePaths = None
         self.df: dict[str, dd.DataFrame] = {typ: None for typ in DF_TYP}
+        fill_formats = self._config.get("fill_formats")
         self.fill_channels: list[str] = get_channels(
             self._config,
-            ["per_pulse", "per_train"],
+            fill_formats,
             extend_aux=True,
         )
         self.metadata: dict = {}
+
+        core_beamline = config["core"].get("beamline")
+        self.DataFrameCreator: type[BaseDataFrameCreator] = None
+        if core_beamline == "pg2":
+            self.DataFrameCreator = DataFrameCreator
+        elif core_beamline == "cfel":
+            self.DataFrameCreator = CFELDataFrameCreator
+        else:
+            raise ValueError(f"Unsupported core beamline: {core_beamline}")
+
+    def _validate_h5_files(self, config, h5_paths: list[Path]) -> list[Path]:
+        valid_h5_paths = []
+        for h5_path in h5_paths:
+            try:
+                dfc = self.DataFrameCreator(config_dataframe=config, h5_path=h5_path)
+                dfc.validate_channel_keys()
+                valid_h5_paths.append(h5_path)
+            except InvalidFileError as e:
+                logger.info(f"Skipping invalid file: {h5_path.stem}\n{e}")
+
+        return valid_h5_paths
 
     def _schema_check(self, files: list[Path], expected_schema_set: set) -> None:
         """
@@ -171,8 +179,8 @@ class BufferHandler:
             paths (dict[str, Path]): Dictionary containing the paths to the H5 and buffer files.
         """
 
-        # Create a DataFrameCreator instance and the h5 file
-        df = DataFrameCreator(config_dataframe=self._config, h5_path=paths["raw"]).df
+        # Create a self.DataFrameCreator instance and the h5 file
+        df = self.DataFrameCreator(config_dataframe=self._config, h5_path=paths["raw"]).df
 
         # forward fill all the non-electron channels
         df[self.fill_channels] = df[self.fill_channels].ffill()
@@ -186,8 +194,11 @@ class BufferHandler:
         )
 
         # timed dataframe
-        # drop the electron channels and only take rows with the first electronId
-        df_timed = df[self.fill_channels].loc[:, :, 0]
+        if isinstance(df.index, MultiIndex):
+            # drop the electron channels and only take rows with the first electronId
+            df_timed = df[self.fill_channels].loc[:, :, 0]
+        else:
+            df_timed = df[self.fill_channels]
         dtypes = get_dtypes(self._config, df_timed.columns.values)
         df_timed.astype(dtypes).reset_index().to_parquet(paths["timed"])
         logger.debug(f"Processed {paths['raw'].stem}")
@@ -288,7 +299,10 @@ class BufferHandler:
         Returns:
             Tuple[dd.DataFrame, dd.DataFrame]: The electron and timed dataframes.
         """
-        self.fp = BufferFilePaths(self._config, h5_paths, folder, suffix, remove_invalid_files)
+        if remove_invalid_files:
+            h5_paths = self._validate_h5_files(self._config, h5_paths)
+
+        self.fp = BufferFilePaths(h5_paths, folder, suffix)
 
         if not force_recreate:
             schema_set = set(

@@ -175,7 +175,7 @@ class FlashLoader(BaseLoader):
             FileNotFoundError: If no files are found for the given run in the directory.
         """
         # Define the stream name prefixes based on the data acquisition identifier
-        stream_name_prefixes = self._config["core"]["stream_name_prefixes"]
+        stream_name_prefixes = self._config["core"].get("stream_name_prefixes")
 
         if folders is None:
             folders = self._config["core"]["base_folder"]
@@ -186,7 +186,10 @@ class FlashLoader(BaseLoader):
         daq = self._config["dataframe"]["daq"]
 
         # Generate the file patterns to search for in the directory
-        file_pattern = f"{stream_name_prefixes[daq]}_run{run_id}_*." + extension
+        if stream_name_prefixes:
+            file_pattern = f"{stream_name_prefixes[daq]}_run{run_id}_*." + extension
+        else:
+            file_pattern = f"*{run_id}*." + extension
 
         files: list[Path] = []
         # Use pathlib to search for matching files in each directory
