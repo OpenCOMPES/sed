@@ -318,7 +318,7 @@ we can remove one instance
 Default datasets.json
 ---------------------
 
-.. literalinclude::  ../../sed/dataset/datasets.json
+.. literalinclude::  ../../src/sed/config/datasets.json
    :language: json
 
 API

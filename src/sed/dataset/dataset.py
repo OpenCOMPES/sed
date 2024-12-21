@@ -10,6 +10,7 @@ import os
 import shutil
 import zipfile
 from datetime import datetime
+from importlib.util import find_spec
 
 import requests
 from tqdm.auto import tqdm
@@ -20,6 +21,7 @@ from sed.core.config import save_config
 from sed.core.config import USER_CONFIG_PATH
 from sed.core.logging import setup_logging
 
+package_dir = os.path.dirname(find_spec("sed").origin)
 
 # Configure logging
 logger = setup_logging("dataset")
@@ -32,7 +34,7 @@ class DatasetsManager:
     FILENAME = NAME + ".json"
     json_path = {}
     json_path["user"] = os.path.join(USER_CONFIG_PATH, FILENAME)
-    json_path["module"] = os.path.join(os.path.dirname(__file__), "../../../config", FILENAME)
+    json_path["module"] = os.path.join(package_dir, "config", FILENAME)
     json_path["folder"] = "./" + FILENAME
 
     @staticmethod
