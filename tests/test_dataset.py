@@ -15,7 +15,7 @@ from sed.dataset import dataset as ds
 from sed.dataset import DatasetsManager as dm
 
 package_dir = os.path.dirname(find_spec("sed").origin)
-json_path = os.path.join(package_dir, "../../config/datasets.json")
+json_path = os.path.join(package_dir, "config/datasets.json")
 
 
 @pytest.fixture

@@ -90,7 +90,7 @@ def test_splinewarp() -> None:
     """Run a benchmark for the generation of the inverse dfield correction"""
     processor = SedProcessor(
         dataframe=dataframe.copy(),
-        config=package_dir + "/../../config/mpes_example_config.yaml",
+        config=package_dir + "/config/mpes_example_config.yaml",
         folder_config={},
         user_config={},
         system_config={},
@@ -116,7 +116,7 @@ def test_workflow_1d() -> None:
     """Run a benchmark for 1d binning of converted data"""
     processor = SedProcessor(
         dataframe=dataframe.copy(),
-        config=package_dir + "/../../config/mpes_example_config.yaml",
+        config=package_dir + "/config/mpes_example_config.yaml",
         folder_config={},
         user_config={},
         system_config={},
@@ -152,7 +152,7 @@ def test_workflow_4d() -> None:
     """Run a benchmark for 4d binning of converted data"""
     processor = SedProcessor(
         dataframe=dataframe.copy(),
-        config=package_dir + "/../../config/mpes_example_config.yaml",
+        config=package_dir + "/config/mpes_example_config.yaml",
         folder_config={},
         user_config={},
         system_config={},

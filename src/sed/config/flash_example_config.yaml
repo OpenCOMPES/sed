@@ -218,4 +218,4 @@ dataframe:
 nexus:
   reader: "mpes"
   definition: "NXmpes"
-  input_files: ["../config/NXmpes_config-HEXTOF.json"]
+  input_files: ["../src/sed/config/NXmpes_config-HEXTOF.json"]

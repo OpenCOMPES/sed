@@ -50,7 +50,8 @@ jobs:
       - name: copy tutorial files to docs
         run: |
           cp -r $GITHUB_WORKSPACE/tutorial $GITHUB_WORKSPACE/docs/
-          cp -r $GITHUB_WORKSPACE/config $GITHUB_WORKSPACE/docs/
+          mkdir -p $GITHUB_WORKSPACE/docs/src/sed
+          cp -r $GITHUB_WORKSPACE/src/sed/config $GITHUB_WORKSPACE/docs/src/sed/
 
       - name: download RAW data
         # if: steps.cache-primes.outputs.cache-hit != 'true'
