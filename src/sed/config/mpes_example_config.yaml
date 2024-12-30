@@ -1,0 +1,313 @@
+core:
+  # The loader to use. The mpes loader allows for loading hdf5 files from the METIS momentum microscope.
+  loader: mpes
+  # Number of parallel threads to use for parallelized jobs (e.g. binning, data conversion, copy, ...)
+  num_cores: 20
+  # Option to use the copy tool to mirror data to a local storage location before processing.
+  # copy_tool:
+    # # path to the root of the source data directory
+    # source: "/path/to/data/"
+    # # path to the root or the local data storage
+    # dest: "/path/to/localDataStore/"
+    # # group id to set for copied files and folders
+    # gid: 1000
+
+dataframe:
+  # hdf5 group name containing eventIDs occurring at every millisecond (used to calculate timestamps)
+  ms_markers_key: "msMarkers"
+  # hdf5 attribute containing the timestamp of the first event in a file
+  first_event_time_stamp_key: "FirstEventTimeStamp"
+  # Time stepping in seconds of the successive events in the timed dataframe
+  timed_dataframe_unit_time: 0.001
+  # list of columns to apply jitter to
+  jitter_cols: ["X", "Y", "t", "ADC"]
+  columns:
+    x: X # dataframe column containing x coordinates
+    y: Y # dataframe column containing y coordinates
+    tof: t # dataframe column containing time-of-flight data
+    adc: ADC # dataframe column containing analog-to-digital data
+    bias: sampleBias # dataframe column containing bias voltage data
+    corrected_x: Xm # dataframe column containing corrected x coordinates
+    corrected_y: Ym # dataframe column containing corrected y coordinates
+    corrected_tof: tm # dataframe column containing corrected time-of-flight data
+    kx: kx # dataframe column containing kx coordinates
+    ky: ky # dataframe column containing ky coordinates
+    energy: energy # dataframe column containing energy data
+    delay: delay # dataframe column containing delay data
+    timestamp: timeStamps  # dataframe column containing timestamp data
+  # time length of a base time-of-flight bin in ns
+  tof_binwidth: 4.125e-12
+  # Binning factor of the tof_column-data compared to tof_binwidth
+  tof_binning: 4
+  # binning factor used for the adc coordinate
+  adc_binning: 4
+  # Default units for dataframe entries
+  units:
+    X: 'step'
+    Y: 'step'
+    t: 'step'
+    tof_voltage: 'V'
+    extractor_voltage: 'V'
+    extractor_current: 'A'
+    cryo_temperature: 'K'
+    sample_temperature: 'K'
+    dld_time: 'ns'
+    delay: 'ps'
+    timeStamp: 's'
+    energy: 'eV'
+    E: 'eV'
+    kx: '1/A'
+    ky: '1/A'
+
+  # dataframe channels and group names to read from the h5 files
+  channels:
+    # The X-channel
+    X:
+      format: per_electron
+      dataset_key: "Stream_0"
+    # The Y-channel
+    Y:
+      format: per_electron
+      dataset_key: "Stream_1"
+    # The tof-channel
+    t:
+      format: per_electron
+      dataset_key: "Stream_2"
+    # The ADC-channel
+    ADC:
+      format: per_electron
+      dataset_key: "Stream_4"
+    # The sample Bias-channel
+    sampleBias:
+      format: per_file
+      dataset_key: "KTOF:Lens:Sample:V"
+
+energy:
+  # Number of bins to use for energy calibration traces
+  bins: 1000
+  # Bin ranges to use for energy calibration curves (for tof_binning=1)
+  ranges: [256000, 276000]
+  # hdf5 path to attribute storing bias information for a given file
+  bias_key: "@KTOF:Lens:Sample:V"
+  # Option to normalize energy calibration traces
+  normalize: True
+  # Pixel range for smoothing
+  normalize_span: 7
+  # Spline order for smoothing
+  normalize_order: 1
+  # Radius parameter for fastdtw algorithm to find path correspondence
+  fastdtw_radius: 2
+  # Window around a peak to make sure that no other peaks are present
+  peak_window: 7
+  # Method to use for energy calibration
+  calibration_method: "lmfit"
+  # Energy scale to use for energy calibration
+  energy_scale: "kinetic"
+  # Approximate position of the high-energy-cutoff in tof_column bins,
+  # used for displaying a graph to choose the energy correction function parameters.
+  tof_fermi: 264500
+  # TOF range to visualize for the correction tool around tof_fermi
+  tof_width: [-600, 1000]
+  # x-integration range for the correction tool around the center pixel
+  x_width: [-20, 20]
+  # y-integration range for the correction tool around the center pixel
+  y_width: [-20, 20]
+  # High intensity cutoff for the visualization tool
+  color_clip: 300
+  correction:
+    # Correction type
+    correction_type: "Lorentzian"
+    # Correction amplitude
+    amplitude: 2.5
+    # center coordinates for the correction (in detector coordinates)
+    center: [730.0, 730.0]
+    # gamma value for the Lorentzian correction (same for x and y)
+    gamma: 920.0
+    # sigma value for the gaussian correction (same for x and y)
+    sigma: 700.0
+    # diameter value for the radial correction (same for x and y)
+    diameter: 3000.0
+  # Default energy calibration
+  calibration:
+    # time-of-flight distance (in m)
+    d: 1.058206295066418
+    # time offset (in ns)
+    t0: 7.684410678887588e-07
+    # energy offset (in eV)
+    E0: -30.440035779171833
+    # energy scale of calibration
+    energy_scale: "kinetic"
+
+momentum:
+  # binning axes to use for momentum correction/calibration.
+  # Axes names starting with "@" refer to keys in the "dataframe" section
+  axes: ["@x", "@y", "@tof"]
+  # Bin numbers used for the respective axes
+  bins: [512, 512, 300]
+  # bin ranges to use (in unbinned detector coordinates)
+  ranges: [[-256, 1792], [-256, 1792], [264000, 272000]]
+  # The x/y pixel ranges of the detector
+  detector_ranges: [[0, 2048], [0, 2048]]
+  # The center pixel of the detector in the binned x/y coordinates
+  center_pixel: [256, 256]
+  # Sigma parameter for feature selection (intensity above background)
+  sigma: 5
+  # FWHM parameter for feature selection (width of features to extract)
+  fwhm: 8
+  # Sigma_radius parameter for feature selection (variation of radius size)
+  sigma_radius: 1
+  # default momentum calibration
+  calibration:
+    # x momentum scaling factor
+    kx_scale: 0.010729535670610963
+    # y momentum scaling factor
+    ky_scale: 0.010729535670610963
+    # x BZ center pixel
+    x_center: 256.0
+    # y BZ center pixel
+    y_center: 256.0
+    # x start value of the calibration dataset
+    rstart: -256.
+    # y start value of the calibration dataset
+    cstart: -256.
+    # x direction pixel stepping of the calibration dataset
+    rstep: 4.0
+    # y direction pixel stepping of the calibration dataset
+    cstep: 4.0
+  correction:
+    # default feature points used for calculating the distortion correction.
+    feature_points: [[203.2, 341.96], [299.16, 345.32], [350.25, 243.70], [304.38, 149.88], [199.52, 152.48], [154.28, 242.27], [248.29, 248.62]]
+    # rotational symmetry of the structure used for correction. Should be an even number
+    rotation_symmetry: 6
+    # Option whether the center of the structure is included in the feature points.
+    include_center: True
+    # Option whether the center should be included in the correction algorithm
+    use_center: True
+
+delay:
+  # value ranges of the analog-to-digital converter axes used for encoding the delay stage position
+  # (in unbinned coordinates)
+  adc_range: [1900, 25600]
+  # hdf5 attribute containing the starting point of the delay stage
+  p1_key: "@trARPES:DelayStage:p1"
+  # hdf5 attribute containing the end point of the delay stage
+  p2_key: "@trARPES:DelayStage:p2"
+  # hdf5 attribute containing the t0 value of the delay stage
+  t0_key: "@trARPES:DelayStage:t0"
+
+binning:
+  # Histogram computation mode to use.
+  hist_mode: "numba"
+  # Mode for histogram recombination to use
+  mode: "fast"
+  # Whether to display a progress bar
+  pbar: True
+  # Number of multithreading threads per worker thread
+  threads_per_worker: 4
+  # API for numpy multithreading
+  threadpool_API: "blas"
+
+histogram:
+  # number of bins used for histogram visualization
+  bins: [80, 80, 80, 80]
+  # default axes to use for histogram visualization.
+  # Axes names starting with "@" refer to keys in the "dataframe" section
+  axes: ["@x", "@y", "@tof", "@adc"]
+  # default ranges to use for histogram visualization (in unbinned detector coordinates)
+  ranges: [[0, 1800], [0, 1800], [256000, 276000], [0, 32000]]
+
+metadata:
+  # URL of the epics archiver request engine
+  archiver_url: "http://aa0.fhi-berlin.mpg.de:17668/retrieval/data/getData.json?pv="
+  # EPICS channels to collect from EPICS archiver
+  epics_pvs: ["KTOF:Lens:Extr:I", "trARPES:Carving:TEMP_RBV", "trARPES:XGS600:PressureAC:P_RD", "KTOF:Lens:UDLD:V", "KTOF:Lens:Sample:V", "KTOF:Apertures:m1.RBV", "KTOF:Apertures:m2.RBV", "KTOF:Apertures:m3.RBV", "trARPES:Carving:TRX.RBV", "trARPES:Carving:TRY.RBV", "trARPES:Carving:TRZ.RBV", "trARPES:Carving:THT.RBV", "trARPES:Carving:PHI.RBV", "trARPES:Carving:OMG.RBV"]
+  # hdf5 attribute containing the field aperture "in" motor position
+  fa_in_channel: 'KTOF:Apertures:m1.RBV'
+  # hdf5 attribute containing the field aperture "hor" motor position
+  fa_hor_channel: 'KTOF:Apertures:m2.RBV'
+  # hdf5 attribute containing the contrast aperture "in" motor position
+  ca_in_channel: 'KTOF:Apertures:m3.RBV'
+  # dictionary containing contrast and field aperture motor positions and sizes
+  aperture_config:
+    "2018-01-23T19:35:15":
+      fa_size:
+        '750': [[-3.0, -1.4], [-5.4, -4.6]]
+        grid: [[-3.0, -1.4], [0.15, 1.75]]
+        '1500': [[-3.0, -1.4], [6.25, 7.75]]
+        '200': [[3.3, 4.4], [-5.4, -4.6]]
+        '500': [[3.3, 4.4], [0.15, 1.75]]
+        '1000': [[3.3, 4.4], [6.25, 7.75]]
+        '20': [[9.6, 10.1], [-5.4, -4.6]]
+        '50': [[9.6, 10.1], [0.15, 1.75]]
+        '100': [[9.6, 10.1], [6.25, 7.75]]
+        open: [[-15, -9.0], [-15, -8.9]]
+      ca_size:
+        '50': [8.0, 8.4]
+        '200': [-0.5, -0.9]
+        '100': [3.4, 3.8]
+        grid: [-5.3, -5.9]
+        open: [-12.0, -8]
+    "2020-01-23T19:35:15":
+      fa_size:
+        '750': [[-6.2, -4.8], [5.0, 6.0]]
+        grid: [[-6.2, -4.8], [-0.7, -0.3]]
+        '500': [[-6.2, -4.8], [-7.0, -6.0]]
+        '200': [[0.5, 0.9], [-0.7, -0.3]]
+        '100': [[0.5, 0.9], [-7.0, -6.0]]
+        '300': [[0.5, 0.9], [5.0, 6.0]]
+        '10': [[6.5, 6.9], [-7.0, -6.0]]
+        '20': [[6.5, 6.9], [-0.7, -0.3]]
+        '50': [[6.5, 6.9], [5.0, 6.0]]
+        open: [[-15, -8.5], [-15, -8.9]]
+      ca_size:
+        '50': [9.0, 11.0]
+        '300': [-0.1, 0.1]
+        '200': [0.7, 1.5]
+        '100': [5.1, 5.9]
+        grid: [-5.5, -5.2]
+        open: [-15, -8.5]
+  # dictionary containing lens mode configurations
+  lens_mode_config:
+    "6kV_kmodem4.0_20VTOF_v3.sav":
+      Extr: 6000.0
+      UCA: 1200
+      UFA: 600.0
+      Z1: 2452.9
+      Z2: 1489.9
+      A: 420.07
+      B: 2494.8
+      C: 489.2
+      D: 228.05
+      E: 113.82
+      F: 54.232
+      G: 20.0
+      H: 25.5
+      I: 36.0
+      TOF: 20.0
+      MCPfront: 20.0
+    "6kV_kmodem4.0_30VTOF_453ns_focus.sav":
+      Extr: 6000.0
+      UCA: 1200
+      UFA: 600.0
+      Z1: 2452.9
+      Z2: 1489.9
+      A: 403.07
+      B: 2500
+      C: 422.25
+      D: 208.88
+      E: 199.49
+      F: 68.735
+      G: 30.0
+      H: 30.0
+      I: 44.5
+      TOF: 30.0
+      MCPfront: 30.0
+
+nexus:
+  # pynxtools reader to use for saving NXmpes files
+  reader: "mpes"
+  # NeXus application definition to use for saving
+  definition: "NXmpes"
+  # List containing additional input files to be handed to the pynxtools converter tool,
+  # e.g. containing a configuration file, and additional metadata.
+  input_files: ["../src/sed/config/NXmpes_config.json"]

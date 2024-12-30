@@ -35,7 +35,7 @@ dataframe = dask.dataframe.from_dask_array(array, columns=axes)
 test_data_dir = os.path.join(package_dir, "..", "tests", "data")
 runs = {"generic": None, "mpes": ["30", "50"], "flash": ["43878"], "sxp": ["0016"]}
 
-targets = load_config(package_dir + "/../benchmarks/benchmark_targets.yaml")
+targets = load_config(package_dir + "/../../benchmarks/benchmark_targets.yaml")
 
 
 def test_binning_1d() -> None:
@@ -54,12 +54,12 @@ def test_binning_1d() -> None:
     )
     result = timer.repeat(5, number=1)
     print(result)
-    assert min(result) < targets["binning_1d"] * 1.25 # allows 25% error margin
+    assert min(result) < targets["binning_1d"] * 1.25  # allows 25% error margin
     # update targets if > 20% improvement occurs beyond old bestmark
     if np.mean(result) < 0.8 * targets["binning_1d"]:
         print(f"Updating targets for 'binning_1d' to {float(np.mean(result))}")
         targets["binning_1d"] = float(np.mean(result))
-        save_config(targets, package_dir + "/../benchmarks/benchmark_targets.yaml")
+        save_config(targets, package_dir + "/../../benchmarks/benchmark_targets.yaml")
 
 
 def test_binning_4d() -> None:
@@ -78,12 +78,12 @@ def test_binning_4d() -> None:
     )
     result = timer.repeat(5, number=1)
     print(result)
-    assert min(result) < targets["binning_4d"] * 1.25 # allows 25% error margin
+    assert min(result) < targets["binning_4d"] * 1.25  # allows 25% error margin
     # update targets if > 20% improvement occurs beyond old bestmark
     if np.mean(result) < 0.8 * targets["binning_4d"]:
         print(f"Updating targets for 'binning_4d' to {float(np.mean(result))}")
         targets["binning_4d"] = float(np.mean(result))
-        save_config(targets, package_dir + "/../benchmarks/benchmark_targets.yaml")
+        save_config(targets, package_dir + "/../../benchmarks/benchmark_targets.yaml")
 
 
 def test_splinewarp() -> None:
@@ -95,6 +95,7 @@ def test_splinewarp() -> None:
         user_config={},
         system_config={},
         verbose=True,
+        verify_config=False,
     )
     processor.apply_momentum_correction()
     timer = timeit.Timer(
@@ -103,12 +104,12 @@ def test_splinewarp() -> None:
     )
     result = timer.repeat(5, number=1)
     print(result)
-    assert min(result) < targets["inv_dfield"] * 1.25 # allows 25% error margin
+    assert min(result) < targets["inv_dfield"] * 1.25  # allows 25% error margin
     # update targets if > 20% improvement occurs beyond old bestmark
     if np.mean(result) < 0.8 * targets["inv_dfield"]:
         print(f"Updating targets for 'inv_dfield' to {float(np.mean(result))}")
         targets["inv_dfield"] = float(np.mean(result))
-        save_config(targets, package_dir + "/../benchmarks/benchmark_targets.yaml")
+        save_config(targets, package_dir + "/../../benchmarks/benchmark_targets.yaml")
 
 
 def test_workflow_1d() -> None:
@@ -120,7 +121,9 @@ def test_workflow_1d() -> None:
         user_config={},
         system_config={},
         verbose=True,
+        verify_config=False,
     )
+    processor.dataframe["sampleBias"] = 16.7
     processor.add_jitter()
     processor.apply_momentum_correction()
     processor.apply_momentum_calibration()
@@ -137,12 +140,12 @@ def test_workflow_1d() -> None:
     )
     result = timer.repeat(5, number=1)
     print(result)
-    assert min(result) < targets["workflow_1d"] * 1.25 # allows 25% error margin
+    assert min(result) < targets["workflow_1d"] * 1.25  # allows 25% error margin
     # update targets if > 20% improvement occurs beyond old bestmark
     if np.mean(result) < 0.8 * targets["workflow_1d"]:
         print(f"Updating targets for 'workflow_1d' to {float(np.mean(result))}")
         targets["workflow_1d"] = float(np.mean(result))
-        save_config(targets, package_dir + "/../benchmarks/benchmark_targets.yaml")
+        save_config(targets, package_dir + "/../../benchmarks/benchmark_targets.yaml")
 
 
 def test_workflow_4d() -> None:
@@ -154,7 +157,9 @@ def test_workflow_4d() -> None:
         user_config={},
         system_config={},
         verbose=True,
+        verify_config=False,
     )
+    processor.dataframe["sampleBias"] = 16.7
     processor.add_jitter()
     processor.apply_momentum_correction()
     processor.apply_momentum_calibration()
@@ -171,12 +176,12 @@ def test_workflow_4d() -> None:
     )
     result = timer.repeat(5, number=1)
     print(result)
-    assert min(result) < targets["workflow_4d"] * 1.25 # allows 25% error margin
+    assert min(result) < targets["workflow_4d"] * 1.25  # allows 25% error margin
     # update targets if > 20% improvement occurs beyond old bestmark
     if np.mean(result) < 0.8 * targets["workflow_4d"]:
         print(f"Updating targets for 'workflow_4d' to {float(np.mean(result))}")
         targets["workflow_4d"] = float(np.mean(result))
-        save_config(targets, package_dir + "/../benchmarks/benchmark_targets.yaml")
+        save_config(targets, package_dir + "/../../benchmarks/benchmark_targets.yaml")
 
 
 @pytest.mark.parametrize("loader", get_all_loaders())
@@ -197,7 +202,7 @@ def test_loader_compute(loader: BaseLoader) -> None:
         )
         result = timer.repeat(20, number=1)
         print(result)
-        assert min(result) < targets[f"loader_compute_{loader_name}"] * 1.25 # allows 25% margin
+        assert min(result) < targets[f"loader_compute_{loader_name}"] * 1.25  # allows 25% margin
         # update targets if > 20% improvement occurs beyond old bestmark
         if np.mean(result) < 0.8 * targets[f"loader_compute_{loader_name}"]:
             print(
@@ -205,4 +210,4 @@ def test_loader_compute(loader: BaseLoader) -> None:
                 f"to {float(np.mean(result))}",
             )
             targets[f"loader_compute_{loader_name}"] = float(np.mean(result))
-            save_config(targets, package_dir + "/../benchmarks/benchmark_targets.yaml")
+            save_config(targets, package_dir + "/../../benchmarks/benchmark_targets.yaml")

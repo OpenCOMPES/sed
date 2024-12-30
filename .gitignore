@@ -12,6 +12,10 @@
 **/buffer/*
 **/sed_config.yaml
 **/datasets.json
+copy_yaml_to_json.ipynb
+
+# local copies
+**/*.local.*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -145,3 +149,6 @@ dmypy.json
 
 # IDE stuff
 \.vscode
+
+# poetry local config
+poetry.toml
