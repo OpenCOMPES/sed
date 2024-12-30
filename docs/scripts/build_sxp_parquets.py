@@ -6,7 +6,7 @@ from sed.dataset import dataset
 
 package_dir = os.path.dirname(find_spec("sed").origin)
 
-config_file = package_dir + "/../../config/sxp_example_config.yaml"
+config_file = package_dir + "/../../src/sed/config/sxp_example_config.yaml"
 
 dataset.get("Au_Mica", root_dir="./tutorial")
 data_path = dataset.dir

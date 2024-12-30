@@ -28,7 +28,7 @@ def parse_config(
     folder_config: dict | str = None,
     user_config: dict | str = None,
     system_config: dict | str = None,
-    default_config: (dict | str) = f"{package_dir}/../../config/default.yaml",
+    default_config: (dict | str) = f"{package_dir}/config/default.yaml",
     verbose: bool = True,
     verify_config: bool = True,
 ) -> dict:

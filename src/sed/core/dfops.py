@@ -179,8 +179,8 @@ def map_columns_2d(
         x_column (str): The X column of the dataframe to apply mapping to.
         y_column (str): The Y column of the dataframe to apply mapping to.
         **kwds:
-            - *new_x_column": Name of the new x-column. Default is to overwrite the x-column.
-            - *new_y_column": Name of the new y-column. Default is to overwrite the y-column.
+            - *new_x_column*: Name of the new x-column. Default is to overwrite the x-column.
+            - *new_y_column*: Name of the new y-column. Default is to overwrite the y-column.
 
             Additional keyword argument are passed to the 2D mapping function.
 

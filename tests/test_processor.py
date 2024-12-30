@@ -859,7 +859,7 @@ def test_add_time_stamped_data() -> None:
     """Test the function to add time-stamped data"""
     processor = SedProcessor(
         folder=df_folder + "../mpes/",
-        config=package_dir + "/../../config/mpes_example_config.yaml",
+        config=package_dir + "/config/mpes_example_config.yaml",
         folder_config={},
         user_config={},
         system_config={},
@@ -1090,7 +1090,7 @@ def test_save(caplog) -> None:
     config = parse_config(
         config={"dataframe": {"tof_binning": 1}},
         folder_config={},
-        user_config=package_dir + "/../../config/mpes_example_config.yaml",
+        user_config=package_dir + "/config/mpes_example_config.yaml",
         system_config={},
         verify_config=False,
     )
@@ -1099,7 +1099,7 @@ def test_save(caplog) -> None:
     ] = 21.0
     config["metadata"]["lens_mode_config"]["6kV_kmodem4.0_30VTOF_453ns_focus.sav"]["Z1"] = 2450
     config["metadata"]["lens_mode_config"]["6kV_kmodem4.0_30VTOF_453ns_focus.sav"]["F"] = 69.23
-    config["nexus"]["input_files"] = [package_dir + "/../../config/NXmpes_config.json"]
+    config["nexus"]["input_files"] = [package_dir + "/config/NXmpes_config.json"]
     processor = SedProcessor(
         folder=df_folder,
         config=config,
@@ -1147,7 +1147,7 @@ def test_save(caplog) -> None:
         yaml.dump({"Instrument": {"undocumented_field": "undocumented entry"}}, f)
     with open("temp_config.json", "w") as f:
         with open(
-            package_dir + "/../../config/NXmpes_config.json",
+            package_dir + "/config/NXmpes_config.json",
             encoding="utf-8",
         ) as stream:
             config_dict = json.load(stream)
