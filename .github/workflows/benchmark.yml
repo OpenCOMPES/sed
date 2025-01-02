@@ -18,6 +18,8 @@ jobs:
       # Check out repo and set up Python
       - name: Check out the repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: tibdex/github-app-token@v1
         id: generate-token
@@ -37,7 +39,7 @@ jobs:
 
       - name: Install package
         run: |
-          uv pip install "."
+          uv pip install ".[dev]"
 
       # Run benchmarks
       - name: Run benchmarks on python 3.10
