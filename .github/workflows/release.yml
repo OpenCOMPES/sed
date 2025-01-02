@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: test-pypi
-      url: https://test-pypi.org/p/sed-processor
+      url: https://test.pypi.org/p/sed-processor
     permissions:
       id-token: write
 
