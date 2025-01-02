@@ -18,6 +18,8 @@ jobs:
     steps:
       # Check out repo and set up Python
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       # Setup python
       - name: Set up Python 3.10
@@ -31,7 +33,7 @@ jobs:
 
       - name: Install package
         run: |
-          uv pip install ".[dev]"
+          uv pip install -e ".[dev]"
 
       # Run pytest with coverage report, saving to xml
       - name: Run tests on python 3.10
