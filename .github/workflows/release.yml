@@ -53,4 +53,6 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
+          password: ${{ secrets.PYPI_TEST }}
+          verbose: true
           packages-dir: sed-processor/dist
