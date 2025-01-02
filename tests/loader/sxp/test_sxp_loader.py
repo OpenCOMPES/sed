@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import os
-from importlib.util import find_spec
 from pathlib import Path
 
 import pytest
@@ -10,8 +9,8 @@ import pytest
 from sed.core.config import parse_config
 from sed.loader.sxp.loader import SXPLoader
 
-package_dir = os.path.dirname(find_spec("sed").origin)
-config_path = os.path.join(package_dir, "../../tests/data/loader/sxp/config.yaml")
+test_dir = os.path.join(os.path.dirname(__file__), "../..")
+config_path = os.path.join(test_dir, "data/loader/sxp/config.yaml")
 H5_PATH = "RAW-R0016-DA03-S00000.h5"
 
 
