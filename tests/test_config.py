@@ -5,7 +5,6 @@ from __future__ import annotations
 import copy
 import os
 import tempfile
-from importlib.util import find_spec
 from pathlib import Path
 
 import pytest
@@ -16,9 +15,8 @@ from sed.core.config import load_config
 from sed.core.config import parse_config
 from sed.core.config import save_config
 
-package_dir = os.path.dirname(find_spec("sed").origin)
-
-test_config_dir = Path(package_dir).joinpath("../tests/data/loader/")
+test_dir = os.path.dirname(__file__)
+test_config_dir = Path(f"{test_dir}/data/loader/")
 config_paths = test_config_dir.glob("*/*.yaml")
 
 default_config_keys = [
@@ -92,10 +90,10 @@ def test_load_does_not_modify() -> None:
 def test_load_config() -> None:
     """Test if the config loader can handle json and yaml files."""
     config_json = load_config(
-        f"{package_dir}/../../tests/data/config/config.json",
+        f"{test_dir}/data/config/config.json",
     )
     config_yaml = load_config(
-        f"{package_dir}/../../tests/data/config/config.yaml",
+        f"{test_dir}/data/config/config.yaml",
     )
     assert config_json == config_yaml
 
@@ -103,7 +101,7 @@ def test_load_config() -> None:
 def test_load_config_raise() -> None:
     """Test if the config loader raises an error for a wrong file type."""
     with pytest.raises(TypeError):
-        load_config(f"{package_dir}/../../README.md")
+        load_config(f"{test_dir}/../README.md")
 
 
 def test_complete_dictionary() -> None:

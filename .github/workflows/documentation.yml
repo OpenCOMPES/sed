@@ -11,6 +11,8 @@ on:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
+env:
+  UV_SYSTEM_PYTHON: true
 
 jobs:
   build:
@@ -26,21 +28,24 @@ jobs:
           remove-android: 'true'
           remove-docker-images: 'true'
 
-      #  Check out repo and set up Python
-      - name: Check out the repository
-        uses: actions/checkout@v4
+      # Check out repo and set up Python
+      - uses: actions/checkout@v4
         with:
-          lfs: true
+          fetch-depth: 0
 
-      # Use cached python and dependencies, install poetry
-      - name: "Setup Python, Poetry and Dependencies"
-        uses: packetcoders/action-setup-cache-python-poetry@main
+      # Setup python
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
         with:
-          python-version: 3.9
-          poetry-version: 1.8.3
+          python-version: "3.10"
 
-      - name: Install notebook dependencies
-        run: poetry install -E notebook --with docs
+      - name: Install dependencies
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: Install package
+        run: |
+          uv pip install ".[docs,notebook]"
 
       - name: Install pandoc
         run: |
@@ -57,32 +62,16 @@ jobs:
         # if: steps.cache-primes.outputs.cache-hit != 'true'
         run: |
           cd $GITHUB_WORKSPACE/docs
-          poetry run python scripts/download_data.py
+          python scripts/download_data.py
 
       - name: build parquet files
         run: |
           cd $GITHUB_WORKSPACE/docs
-          poetry run python scripts/build_flash_parquets.py
-          poetry run python scripts/build_sxp_parquets.py
-
-      - name: Change version for develop build
-        if: startsWith(github.ref, 'refs/heads/') && github.ref != 'refs/heads/main'
-        run: |
-          VERSION=`sed -n 's/^version = "\(.*\)".*/\1/p' $GITHUB_WORKSPACE/pyproject.toml`
-          MOD_VERSION=$VERSION".dev0"
-          echo $MOD_VERSION
-          sed -i "s/^version = \"$VERSION\"/version = \"$MOD_VERSION\"/" $GITHUB_WORKSPACE/pyproject.toml
-
-      - name: Change version for release build
-        if: startsWith(github.ref, 'refs/tags/')
-        run: |
-          OLD_VERSION=`sed -n 's/^version = "\(.*\)".*/\1/p' $GITHUB_WORKSPACE/pyproject.toml`
-          NEW_VERSION=`echo ${GITHUB_REF#refs/tags/} | sed -n 's/^v\(.*\)/\1/p'`
-          echo $NEW_VERSION
-          sed -i "s/^version = \"$OLD_VERSION\"/version = \"$NEW_VERSION\"/" $GITHUB_WORKSPACE/pyproject.toml
+          python scripts/build_flash_parquets.py
+          python scripts/build_sxp_parquets.py
 
       - name: build Sphinx docs
-        run: poetry run sphinx-build -b html $GITHUB_WORKSPACE/docs $GITHUB_WORKSPACE/_build
+        run: sphinx-build -b html $GITHUB_WORKSPACE/docs $GITHUB_WORKSPACE/_build
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -96,16 +85,11 @@ jobs:
     needs: build
     steps:
       - name: Checkout docs repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           repository: ${{ github.repository_owner }}/docs
           token: ${{ secrets.GITHUB_TOKEN }}
           path: 'docs-repo'
-
-      - name: Set up Python 3.9
-        uses: actions/setup-python@v4
-        with:
-          python-version: 3.9
 
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.9.0

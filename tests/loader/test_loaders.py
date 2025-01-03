@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 from copy import deepcopy
-from importlib.util import find_spec
 from pathlib import Path
 from typing import cast
 
@@ -19,9 +18,8 @@ from sed.loader.loader_interface import get_loader
 from sed.loader.loader_interface import get_names_of_all_loaders
 from sed.loader.utils import gather_files
 
-package_dir = os.path.dirname(find_spec("sed").origin)
-
-test_data_dir = os.path.join(package_dir, "../../tests/data")
+test_dir = os.path.join(os.path.dirname(__file__), "..")
+test_data_dir = os.path.join(test_dir, "data")
 
 read_types = ["one_file", "files", "one_folder", "folders", "one_run", "runs"]
 runs = {"generic": None, "mpes": ["30", "50"], "flash": ["43878", "43878"], "sxp": ["0016", "0016"]}

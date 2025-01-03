@@ -24,29 +24,29 @@ from sed import SedProcessor
 from sed.core.config import parse_config
 from sed.loader.loader_interface import get_loader
 
-#  pylint: disable=duplicate-code
 package_dir = os.path.dirname(find_spec("sed").origin)
-df_folder = package_dir + "/../../tests/data/loader/mpes/"
-df_folder_generic = package_dir + "/../../tests/data/loader/generic/"
-folder = package_dir + "/../../tests/data/calibrator/"
+test_dir = os.path.dirname(__file__)
+df_folder = f"{test_dir}/data/loader/mpes/"
+df_folder_generic = f"{test_dir}/data/loader/generic/"
+calibration_folder = f"{test_dir}/data/calibrator/"
 files = glob.glob(df_folder + "*.h5")
 runs = ["30", "50"]
 runs_flash = ["43878", "43878"]
 loader = get_loader(loader_name="mpes")
-source_folder = package_dir + "/../../"
+source_folder = f"{test_dir}/../"
 dest_folder = tempfile.mkdtemp()
 gid = os.getgid()
 
 traces_list = []
-with open(folder + "traces.csv", newline="", encoding="utf-8") as csvfile:
+with open(calibration_folder + "traces.csv", newline="", encoding="utf-8") as csvfile:
     reader = csv.reader(csvfile, quoting=csv.QUOTE_NONNUMERIC)
     for row in reader:
         traces_list.append(row)
 traces = np.asarray(traces_list).T
-with open(folder + "tof.csv", newline="", encoding="utf-8") as csvfile:
+with open(calibration_folder + "tof.csv", newline="", encoding="utf-8") as csvfile:
     reader = csv.reader(csvfile, quoting=csv.QUOTE_NONNUMERIC)
     tof = np.asarray(next(reader))
-with open(folder + "biases.csv", newline="", encoding="utf-8") as csvfile:
+with open(calibration_folder + "biases.csv", newline="", encoding="utf-8") as csvfile:
     reader = csv.reader(csvfile, quoting=csv.QUOTE_NONNUMERIC)
     biases = np.asarray(next(reader))
 

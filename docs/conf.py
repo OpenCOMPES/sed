@@ -13,6 +13,8 @@ import sys
 
 import tomlkit
 
+from sed import __version__
+
 sys.path.insert(0, os.path.abspath(".."))
 
 # -- Project information -----------------------------------------------------
@@ -22,7 +24,7 @@ def _get_project_meta():
     with open("../pyproject.toml") as pyproject:
         file_contents = pyproject.read()
 
-    return tomlkit.parse(file_contents)["tool"]["poetry"]
+    return tomlkit.parse(file_contents)["project"]
 
 
 # -- Project information -----------------------------------------------------
@@ -32,7 +34,7 @@ copyright = "2024, OpenCOMPES team"
 author = "OpenCOMPES team"
 
 # The short X.Y version
-version = str(pkg_meta["version"])
+version = __version__
 # The full version, including alpha/beta/rc tags
 release = version
 
@@ -93,7 +95,7 @@ templates_path = ["_templates"]
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "**.ipynb_checkpoints"]
 
 
 # -- Options for HTML output -------------------------------------------------

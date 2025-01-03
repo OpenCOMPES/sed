@@ -7,7 +7,6 @@ import glob
 import itertools
 import os
 from copy import deepcopy
-from importlib.util import find_spec
 from typing import Any
 from typing import Literal
 
@@ -21,9 +20,9 @@ from sed.calibrator.energy import EnergyCalibrator
 from sed.core.config import parse_config
 from sed.loader.loader_interface import get_loader
 
-package_dir = os.path.dirname(find_spec("sed").origin)
-df_folder = package_dir + "/../../tests/data/loader/mpes/"
-folder = package_dir + "/../../tests/data/calibrator/"
+test_dir = os.path.join(os.path.dirname(__file__), "..")
+df_folder = test_dir + "/data/loader/mpes/"
+folder = test_dir + "/data/calibrator/"
 files = glob.glob(df_folder + "*.h5")
 
 traces_list = []

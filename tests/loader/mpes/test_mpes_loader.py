@@ -4,16 +4,14 @@ from __future__ import annotations
 import logging
 import os
 from copy import deepcopy
-from importlib.util import find_spec
 
 import pytest
 
 from sed.core.config import parse_config
 from sed.loader.mpes.loader import MpesLoader
 
-package_dir = os.path.dirname(find_spec("sed").origin)
-
-test_data_dir = os.path.join(package_dir, "../../tests/data/loader/mpes")
+test_dir = os.path.join(os.path.dirname(__file__), "../..")
+test_data_dir = os.path.join(test_dir, "data/loader/mpes")
 
 config = parse_config(
     os.path.join(test_data_dir, "config.yaml"),
