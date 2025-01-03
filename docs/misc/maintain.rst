@@ -11,8 +11,8 @@ Users can generate documentation locally using the following steps:
 
 .. code-block:: bash
 
-    pip install pipx
-    pipx install poetry
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    uv python install 3.10
 
 1. **Clone Repository:**
 
@@ -39,19 +39,20 @@ Doing this step will slow down the build process significantly. It also requires
 
 .. code-block:: bash
 
-    poetry shell
+    uv venv -p=3.10 .venv
+    source .venv/bin/activate
 
 6. **Install Dependencies:**
 
 .. code-block:: bash
 
-    poetry install --with docs
+    uv pip install -e .[docs]
 
 7. **Build Documentation:**
 
 .. code-block:: bash
 
-    poetry run sphinx-build -b html docs _build
+    sphinx-build -b html docs _build
 
 8. **View Documentation:**
 
@@ -147,10 +148,5 @@ To create a release, follow these steps:
 
 - *Release Job:*
     - This workflow is responsible for versioning and releasing the package.
-    - A release job runs on every git tag push (e.g., `git tag v0.1.5`) and publishes the package to PyPI.
-    - If the publish is successful, the version in the `pyproject.toml` file is updated and pushed to the main branch.
-
-- *Prerelease Job:*
-    - This workflow is triggered automatically on every pull request (PR) to the main branch.
-    - It increments the version number for prerelease (e.g., from 0.1.5 to 0.1.6a0 to 0.1.6a1) and publishes the package to PyPI.
-    - If the publish is successful, the version in the `pyproject.toml` file is updated and pushed to the main branch.
+    - A release job runs on every git release and publishes the package to PyPI.
+    - The package version is dynamically obtained from the most recent git tag.
