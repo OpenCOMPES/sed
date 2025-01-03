@@ -5,8 +5,6 @@ name: Publish to PyPI
 on:
   release:
     types: [published]
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
 
 # Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
 # However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
@@ -22,8 +20,8 @@ jobs:
     name: Upload release to PyPI
     runs-on: ubuntu-latest
     environment:
-      name: test-pypi
-      url: https://test.pypi.org/p/sed-processor
+      name: pypi
+      url: https://pypi.org/p/sed-processor
     permissions:
       id-token: write
 
@@ -52,7 +50,5 @@ jobs:
       - name: Publish package distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          repository-url: https://test.pypi.org/legacy/
-          password: ${{ secrets.PYPI_TEST }}
           verbose: true
           packages-dir: sed-processor/dist
