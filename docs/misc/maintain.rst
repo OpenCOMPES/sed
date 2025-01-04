@@ -105,14 +105,14 @@ Here's how the workflow works:
    - The workflow is divided into two jobs: build and deploy.
 
      a. **Build Job:**
-        - Sets up the build environment, checks out the repository, and installs necessary dependencies using Poetry.
+        - Sets up the build environment, checks out the repository, and installs necessary dependencies using uv.
         - Installs notebook dependencies and Pandoc.
-        - Copies tutorial files to the docs directory and removes unnecessary notebooks.
+        - Copies tutorial files to the docs directory.
         - Downloads RAW data for tutorials.
         - Builds Sphinx documentation.
 
      b. **Deploy Job:**
-        - Deploys the built documentation to GitHub Pages.
+        - Deploys the built documentation to GitHub Pages repository.
 
 5. **Manual Execution:**
    - To manually trigger the workflow, go to the Actions tab on GitHub.

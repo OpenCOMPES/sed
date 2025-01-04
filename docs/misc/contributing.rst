@@ -28,8 +28,7 @@ Getting Started
 
 
 
-2. **Install uv and Python:**
-   - Ensure you have uv and Python 3.9, 3.10, 3.11 or 3.12 installed. You can install it e.g. using the following commands:
+2. **Install uv and Python:** Ensure you have uv and Python 3.9, 3.10, 3.11 or 3.12 installed. You can install it e.g. using the following commands:
 
     .. code-block:: bash
 
@@ -42,8 +41,7 @@ Getting Started
 
         git clone https://github.com/OpenCOMPES/sed.git
 
-4. **Set up virtual environment:**
-   - Create a python virtual environment, and activate it. You can optionally select the python version, and set the path
+4. **Set up virtual environment:** Create a python virtual environment, and activate it. You can optionally select the python version, and set the path
 
     .. code-block:: bash
 
@@ -51,8 +49,7 @@ Getting Started
         source .venv/bin/activate
 
 
-5. **Install Dependencies:**
-   - Navigate to the project directory and install the project and its dependencies (including development ones) in "editable" mode using uv. Optionally, the jupyter notebook can be installed as well:
+5. **Install Dependencies:** Navigate to the project directory and install the project and its dependencies (including development ones) in "editable" mode using uv. Optionally, the jupyter notebook can be installed as well:
 
     .. code-block:: bash
 
