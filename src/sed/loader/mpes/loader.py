@@ -235,6 +235,10 @@ def hdf5_to_timed_dataframe(
         logger.error(error_msg)
         raise ValueError(error_msg)
 
+    if ms_markers_key not in test_proc.keys():
+        logger.warning("msMarkers not found, not creating timed dataframe.")
+        return None
+
     if time_stamps:
         column_names.append(time_stamp_alias)
 

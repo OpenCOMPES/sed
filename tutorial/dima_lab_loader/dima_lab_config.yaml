@@ -1,0 +1,30 @@
+core:
+  # The loader to use. The mpes loader allows for loading hdf5 files from the METIS momentum microscope.
+  loader: mpes
+  # Number of parallel threads to use for parallelized jobs (e.g. binning, data conversion, copy, ...)
+  num_cores: 20
+
+dataframe:
+  # hdf5 group name containing eventIDs occurring at every millisecond (used to calculate timestamps)
+  # ms_markers_key: "msMarkers"
+  # hdf5 attribute containing the timestamp of the first event in a file
+  # first_event_time_stamp_key: "FirstEventTimeStamp"
+  # Time stepping in seconds of the successive events in the timed dataframe
+  timed_dataframe_unit_time: 0.001
+  # list of columns to apply jitter to
+  jitter_cols: ["X", "Y", "t"]
+
+  # dataframe channels and group names to read from the h5 files
+  channels:
+    # The X-channel
+    X:
+      format: per_electron
+      dataset_key: "DLD/DLD/xPos"
+    # The Y-channel
+    Y:
+      format: per_electron
+      dataset_key: "DLD/DLD/yPos"
+    # The tof-channel
+    t:
+      format: per_electron
+      dataset_key: "DLD/DLD/times"
