@@ -4,7 +4,8 @@
         "./tests/data/*",
         "*.toml",
         "Makefile",
-        "*.bat"
+        "*.bat",
+        "*.egg-info",
     ],
     "dictionaryDefinitions": [
         {

@@ -2,36 +2,44 @@
 name: Unit Tests
 
 on:
+  schedule:
+    - cron:  '0 1 * * 1'
   workflow_dispatch:
   push:
     branches: [ main, v1_feature_branch ]
     paths-ignore:
       pyproject.toml
 
+env:
+  UV_SYSTEM_PYTHON: true
+
 jobs:
   pytest:
+    runs-on: ubuntu-latest
     # Using matrix strategy
     strategy:
       matrix:
         python-version: ["3.9", "3.10", "3.11", "3.12"]
-    runs-on: ubuntu-latest
+
     steps:
       # Check out repo and set up Python
-      - name: Check out the repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          lfs: true
+          fetch-depth: 0
 
-      - name: "Setup Python, Poetry and Dependencies"
-        uses: packetcoders/action-setup-cache-python-poetry@main
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
         with:
-          python-version: ${{matrix.python-version}}
-          poetry-version: 1.8.3
+          python-version: ${{ matrix.python-version }}
 
-      - name: Install project dependencies
-        run: poetry install
+      - name: Install dependencies
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
 
-      # Use cached python and dependencies, install poetry
+      - name: Install package
+        run: |
+          uv pip install ".[dev]"
+
       - name: Run tests on python ${{matrix.python-version}}
         run: |
-          poetry run pytest --full-trace --show-capture=no -sv -n auto tests/
+          pytest --full-trace --show-capture=no -sv -n auto tests/

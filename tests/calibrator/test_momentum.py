@@ -5,7 +5,6 @@ from __future__ import annotations
 import csv
 import glob
 import os
-from importlib.util import find_spec
 from typing import Any
 
 import numpy as np
@@ -16,10 +15,9 @@ from sed.core import SedProcessor
 from sed.core.config import parse_config
 from sed.loader.loader_interface import get_loader
 
-# pylint: disable=duplicate-code
-package_dir = os.path.dirname(find_spec("sed").origin)
-df_folder = package_dir + "/../../tests/data/loader/mpes/"
-folder = package_dir + "/../../tests/data/calibrator/"
+test_dir = os.path.join(os.path.dirname(__file__), "..")
+df_folder = test_dir + "/data/loader/mpes/"
+folder = test_dir + "/data/calibrator/"
 files = glob.glob(df_folder + "*.h5")
 
 momentum_map_list = []

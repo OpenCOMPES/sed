@@ -149,6 +149,3 @@ dmypy.json
 
 # IDE stuff
 \.vscode
-
-# poetry local config
-poetry.toml

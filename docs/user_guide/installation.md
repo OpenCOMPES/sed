@@ -23,10 +23,10 @@ source .sed-venv/bin/activate
 - Install `sed`, distributed as `sed-processor` on PyPI:
 
 ```bash
-pip install sed-processor[all]
+pip install sed-processor[notebook]
 ```
 
-- If you do not use Jupyter Notebook or Jupyter Lab, you can skip the installing those dependencies:
+- If you do not use Jupyter Notebook or Jupyter Lab, you can skip the installation of those dependencies:
 
 ```bash
 pip install sed-processor

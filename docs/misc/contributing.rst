@@ -28,13 +28,12 @@ Getting Started
 
 
 
-2. **Install Python and Poetry:**
-   - Ensure you have Python 3.8, 3.9, 3.10 or 3.11 and poetry installed.
+2. **Install uv and Python:** Ensure you have uv and Python 3.9, 3.10, 3.11 or 3.12 installed. You can install it e.g. using the following commands:
 
     .. code-block:: bash
 
-        pip install pipx
-        pipx install poetry
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        uv python install 3.10
 
 3. **Clone Repository:**
 
@@ -42,25 +41,32 @@ Getting Started
 
         git clone https://github.com/OpenCOMPES/sed.git
 
-4. **Install Dependencies:**
-   - Navigate to the project directory and install the project dependencies (including development ones) using Poetry:
+4. **Set up virtual environment:** Create a python virtual environment, and activate it. You can optionally select the python version, and set the path
 
     .. code-block:: bash
 
-        poetry install --dev
+        uv venv -p=3.10 .venv
+        source .venv/bin/activate
+
+
+5. **Install Dependencies:** Navigate to the project directory and install the project and its dependencies (including development ones) in "editable" mode using uv. Optionally, the jupyter notebook can be installed as well:
+
+    .. code-block:: bash
+
+        uv pip install -e .[dev,notebook]
 
 
 Development Workflow
 =====================
 
 .. note::
-   This guide assumes that you have Python (version 3.8, 3.9, 3.10, 3.11) and poetry with dev dependencies installed on your machine.
+   This guide assumes that you followed the previous steps and have uv, python and the package with dev dependencies installed on your machine.
 
 1. **Install pre-commit hooks:** To ensure your code is formatted correctly, install pre-commit hooks:
 
     .. code-block:: bash
 
-        pip install pre-commit
+        pre-commit install
 
 
 2. **Create a Branch:** Create a new branch for your feature or bug fix and make changes:
@@ -86,7 +92,7 @@ Development Workflow
         git commit -a -m "Your commit message"
 
 
-6. **Push Changes:** Push your changes to your fork:
+6. **Push Changes:** Push your changes to your new branch:
 
     .. code-block:: bash
 
