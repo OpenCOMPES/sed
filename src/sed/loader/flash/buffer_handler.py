@@ -187,7 +187,7 @@ class BufferHandler:
 
         # timed dataframe
         # drop the electron channels and only take rows with the first electronId
-        df_timed = df[self.fill_channels].loc[:, :, 0]
+        df_timed = df.dropna(subset=electron_channels)[self.fill_channels].loc[:, :, 0]
         dtypes = get_dtypes(self._config, df_timed.columns.values)
         df_timed.astype(dtypes).reset_index().to_parquet(paths["timed"])
         logger.debug(f"Processed {paths['raw'].stem}")
