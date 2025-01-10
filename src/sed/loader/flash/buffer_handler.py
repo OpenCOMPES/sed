@@ -234,7 +234,6 @@ class BufferHandler:
         logger.debug(f"Saving timed buffer with shape: {timed_df.shape}")
         timed_df.to_parquet(paths["timed"])
 
-
         logger.debug(f"Processed {paths['raw'].stem} in {time.time() - start_time:.2f}s")
 
     def _save_buffer_files(self, force_recreate: bool, debug: bool) -> None:
@@ -308,6 +307,7 @@ class BufferHandler:
                 config=self._config,
             )
             self.metadata.update(meta)
+
     def process_and_load_dataframe(
         self,
         h5_paths: list[Path],
@@ -358,4 +358,3 @@ class BufferHandler:
         self._get_dataframes()
 
         return self.df["electron"], self.df["timed"]
-

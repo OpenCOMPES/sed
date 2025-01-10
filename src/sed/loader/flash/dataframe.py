@@ -299,12 +299,12 @@ class DataFrameCreator:
         """
         logger.debug("Creating combined DataFrame")
         self.validate_channel_keys()
-        
+
         df = pd.concat((self.df_electron, self.df_pulse, self.df_train), axis=1).sort_index()
         logger.debug(f"Created DataFrame with shape: {df.shape}")
-        
+
         # Filter negative pulse values
         df = df[df.index.get_level_values("pulseId") >= 0]
         logger.debug(f"Filtered DataFrame shape: {df.shape}")
-        
+
         return df

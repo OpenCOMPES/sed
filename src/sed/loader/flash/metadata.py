@@ -63,7 +63,7 @@ class MetadataRetriever:
             Exception: If the request to retrieve metadata fails.
         """
         logger.debug(f"Fetching metadata for beamtime {beamtime_id}, runs: {runs}")
-        
+
         if metadata is None:
             metadata = {}
 
@@ -100,7 +100,7 @@ class MetadataRetriever:
                 timeout=10,
             )
             dataset_response.raise_for_status()
-            
+
             if not dataset_response.content:
                 logger.debug("Empty response, trying old URL format")
                 dataset_response = requests.get(
@@ -109,7 +109,7 @@ class MetadataRetriever:
                     timeout=10,
                 )
             return dataset_response.json()
-            
+
         except requests.exceptions.RequestException as exception:
             logger.warning(f"Failed to retrieve metadata for PID {pid}: {str(exception)}")
             return {}
