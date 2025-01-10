@@ -4,8 +4,6 @@ from a Scicat Instance based on beamtime and run IDs.
 """
 from __future__ import annotations
 
-import warnings
-
 import requests
 from sed.core.logging import setup_logging
 
