@@ -185,30 +185,6 @@ class BufferHandler:
         # Take only first electron per event
         return df_timed.loc[:, :, 0]
 
-    def _create_timed_dataframe(self, df: dd.DataFrame) -> dd.DataFrame:
-        """Creates the timed dataframe, optionally filtering by electron events.
-
-        Args:
-            df (dd.DataFrame): The input dataframe containing all data
-
-        Returns:
-            dd.DataFrame: The timed dataframe
-        """
-        # Get channels that should be in timed dataframe
-        timed_channels = self.fill_channels
-
-        if self.filter_timed_by_electron:
-            # Get electron channels to use for filtering
-            electron_channels = get_channels(self._config, "per_electron")
-            # Filter rows where electron data exists
-            df_timed = df.dropna(subset=electron_channels)[timed_channels]
-        else:
-            # Take all timed data rows without filtering
-            df_timed = df[timed_channels]
-
-        # Take only first electron per event
-        return df_timed.loc[:, :, 0]
-
     def _save_buffer_file(self, paths: dict[str, Path]) -> None:
         """Creates the electron and timed buffer files from the raw H5 file."""
         logger.debug(f"Processing file: {paths['raw'].stem}")
