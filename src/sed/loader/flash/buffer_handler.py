@@ -185,7 +185,16 @@ class BufferHandler:
         return df_timed.loc[:, :, 0]
 
     def _save_buffer_file(self, paths: dict[str, Path]) -> None:
-        """Creates the electron and timed buffer files from the raw H5 file."""
+        """
+        Creates the electron and timed buffer files from the raw H5 file.
+        First the dataframe is accessed and forward filled in the non-electron channels.
+        Then the data types are set. For the electron dataframe, all values not in the electron
+        channels are dropped. For the timed dataframe, only the train and pulse channels are taken
+        and it pulse resolved (no longer electron resolved). Both are saved as parquet files.
+
+        Args:
+            paths (dict[str, Path]): Dictionary containing the paths to the H5 and buffer files.
+        """
         # Create a DataFrameCreator instance and get the h5 file
         df = DataFrameCreator(config_dataframe=self._config, h5_path=paths["raw"]).df
 
