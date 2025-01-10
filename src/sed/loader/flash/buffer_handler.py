@@ -130,6 +130,7 @@ class BufferHandler:
             extend_aux=True,
         )
         self.metadata: dict = {}
+        self.filter_timed_by_electron: bool = None
 
     def _schema_check(self, files: list[Path], expected_schema_set: set) -> None:
         """
@@ -159,6 +160,30 @@ class BufferHandler:
                     "Please check the configuration file or set force_recreate to True.",
                 )
 
+    def _create_timed_dataframe(self, df: dd.DataFrame) -> dd.DataFrame:
+        """Creates the timed dataframe, optionally filtering by electron events.
+
+        Args:
+            df (dd.DataFrame): The input dataframe containing all data
+
+        Returns:
+            dd.DataFrame: The timed dataframe
+        """
+        # Get channels that should be in timed dataframe
+        timed_channels = self.fill_channels
+
+        if self.filter_timed_by_electron:
+            # Get electron channels to use for filtering
+            electron_channels = get_channels(self._config, "per_electron")
+            # Filter rows where electron data exists
+            df_timed = df.dropna(subset=electron_channels)[timed_channels]
+        else:
+            # Take all timed data rows without filtering
+            df_timed = df[timed_channels]
+
+        # Take only first electron per event
+        return df_timed.loc[:, :, 0]
+
     def _save_buffer_file(self, paths: dict[str, Path]) -> None:
         """
         Creates the electron and timed buffer files from the raw H5 file.
@@ -170,26 +195,24 @@ class BufferHandler:
         Args:
             paths (dict[str, Path]): Dictionary containing the paths to the H5 and buffer files.
         """
-
-        # Create a DataFrameCreator instance and the h5 file
+        # Create a DataFrameCreator instance and get the h5 file
         df = DataFrameCreator(config_dataframe=self._config, h5_path=paths["raw"]).df
 
         # forward fill all the non-electron channels
         df[self.fill_channels] = df[self.fill_channels].ffill()
 
-        # Reset the index of the DataFrame and save both the electron and timed dataframes
-        # electron resolved dataframe
+        # Save electron resolved dataframe
         electron_channels = get_channels(self._config, "per_electron")
         dtypes = get_dtypes(self._config, df.columns.values)
         df.dropna(subset=electron_channels).astype(dtypes).reset_index().to_parquet(
             paths["electron"],
         )
 
-        # timed dataframe
-        # drop the electron channels and only take rows with the first electronId
-        df_timed = df.dropna(subset=electron_channels)[self.fill_channels].loc[:, :, 0]
+        # Create and save timed dataframe
+        df_timed = self._create_timed_dataframe(df)
         dtypes = get_dtypes(self._config, df_timed.columns.values)
         df_timed.astype(dtypes).reset_index().to_parquet(paths["timed"])
+
         logger.debug(f"Processed {paths['raw'].stem}")
 
     def _save_buffer_files(self, force_recreate: bool, debug: bool) -> None:
@@ -272,6 +295,7 @@ class BufferHandler:
         suffix: str = "",
         debug: bool = False,
         remove_invalid_files: bool = False,
+        filter_timed_by_electron: bool = True,
     ) -> tuple[dd.DataFrame, dd.DataFrame]:
         """
         Runs the buffer file creation process.
@@ -284,11 +308,14 @@ class BufferHandler:
             force_recreate (bool): Flag to force recreation of buffer files.
             suffix (str): Suffix for buffer file names.
             debug (bool): Flag to enable debug mode.):
+            remove_invalid_files (bool): Flag to remove invalid files.
+            filter_timed_by_electron (bool): Flag to filter timed data by valid electron events.
 
         Returns:
             Tuple[dd.DataFrame, dd.DataFrame]: The electron and timed dataframes.
         """
         self.fp = BufferFilePaths(self._config, h5_paths, folder, suffix, remove_invalid_files)
+        self.filter_timed_by_electron = filter_timed_by_electron
 
         if not force_recreate:
             schema_set = set(
