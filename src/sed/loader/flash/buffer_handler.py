@@ -212,7 +212,7 @@ class BufferHandler:
         df_timed = self._create_timed_dataframe(df)
         dtypes = get_dtypes(self._config, df_timed.columns.values)
         df_timed.astype(dtypes).reset_index().to_parquet(paths["timed"])
-        
+
         logger.debug(f"Processed {paths['raw'].stem}")
 
     def _save_buffer_files(self, force_recreate: bool, debug: bool) -> None:

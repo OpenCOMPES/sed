@@ -320,8 +320,8 @@ class FlashLoader(BaseLoader):
             ftype (str, optional): The file extension type. Defaults to "h5".
             metadata (dict, optional): Additional metadata. Defaults to None.
             collect_metadata (bool, optional): Whether to collect metadata. Defaults to False.
-            filter_timed_by_electron (bool, optional): When True, the timed dataframe will only 
-                contain data points where valid electron events were detected. When False, all 
+            filter_timed_by_electron (bool, optional): When True, the timed dataframe will only
+                contain data points where valid electron events were detected. When False, all
                 timed data points are included regardless of electron detection. Defaults to True.
 
         Keyword Args:
