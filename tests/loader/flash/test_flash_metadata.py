@@ -16,8 +16,8 @@ def mock_requests(requests_mock) -> None:
 # Test cases for MetadataRetriever
 def test_get_metadata(mock_requests: None) -> None:  # noqa: ARG001
     metadata_config = {
-        "scicat_url": "https://example.com",
-        "scicat_token": "fake_token",
+        "archiver_url": "https://example.com",
+        "token": "fake_token",
     }
     retriever = MetadataRetriever(metadata_config)
     metadata = retriever.get_metadata("11013410", ["43878"])
@@ -27,8 +27,8 @@ def test_get_metadata(mock_requests: None) -> None:  # noqa: ARG001
 
 def test_get_metadata_with_existing_metadata(mock_requests: None) -> None:  # noqa: ARG001
     metadata_config = {
-        "scicat_url": "https://example.com",
-        "scicat_token": "fake_token",
+        "archiver_url": "https://example.com",
+        "token": "fake_token",
     }
     retriever = MetadataRetriever(metadata_config)
     existing_metadata = {"existing": "metadata"}
@@ -39,8 +39,8 @@ def test_get_metadata_with_existing_metadata(mock_requests: None) -> None:  # no
 
 def test_get_metadata_per_run(mock_requests: None) -> None:  # noqa: ARG001
     metadata_config = {
-        "scicat_url": "https://example.com",
-        "scicat_token": "fake_token",
+        "archiver_url": "https://example.com",
+        "token": "fake_token",
     }
     retriever = MetadataRetriever(metadata_config)
     metadata = retriever._get_metadata_per_run("11013410/43878")
@@ -50,8 +50,8 @@ def test_get_metadata_per_run(mock_requests: None) -> None:  # noqa: ARG001
 
 def test_create_dataset_url_by_PID() -> None:
     metadata_config = {
-        "scicat_url": "https://example.com",
-        "scicat_token": "fake_token",
+        "archiver_url": "https://example.com",
+        "token": "fake_token",
     }
     retriever = MetadataRetriever(metadata_config)
     # Assuming the dataset follows the new format
