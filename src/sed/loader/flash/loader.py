@@ -303,7 +303,6 @@ class FlashLoader(BaseLoader):
         ftype: str = "h5",
         metadata: dict = {},
         collect_metadata: bool = False,
-        filter_timed_by_electron: bool = True,
         **kwds,
     ) -> tuple[dd.DataFrame, dd.DataFrame, dict]:
         """
@@ -320,9 +319,6 @@ class FlashLoader(BaseLoader):
             ftype (str, optional): The file extension type. Defaults to "h5".
             metadata (dict, optional): Additional metadata. Defaults to None.
             collect_metadata (bool, optional): Whether to collect metadata. Defaults to False.
-            filter_timed_by_electron (bool, optional): When True, the timed dataframe will only
-                contain data points where valid electron events were detected. When False, all
-                timed data points are included regardless of electron detection. Defaults to True.
 
         Keyword Args:
             detector (str, optional): The detector to use. Defaults to "".
@@ -334,6 +330,9 @@ class FlashLoader(BaseLoader):
             remove_invalid_files (bool, optional): Whether to exclude invalid files.
                 Defaults to False.
             scicat_token (str, optional): The scicat token to use for fetching metadata.
+            filter_timed_by_electron (bool, optional): When True, the timed dataframe will only
+                contain data points where valid electron events were detected. When False, all
+                timed data points are included regardless of electron detection. Defaults to True.
 
         Returns:
             tuple[dd.DataFrame, dd.DataFrame, dict]: A tuple containing the concatenated DataFrame
@@ -349,6 +348,7 @@ class FlashLoader(BaseLoader):
         debug = kwds.pop("debug", False)
         remove_invalid_files = kwds.pop("remove_invalid_files", False)
         scicat_token = kwds.pop("scicat_token", None)
+        filter_timed_by_electron = kwds.pop("filter_timed_by_electron", True)
 
         if len(kwds) > 0:
             raise ValueError(f"Unexpected keyword arguments: {kwds.keys()}")
