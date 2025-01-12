@@ -330,6 +330,9 @@ class FlashLoader(BaseLoader):
             remove_invalid_files (bool, optional): Whether to exclude invalid files.
                 Defaults to False.
             scicat_token (str, optional): The scicat token to use for fetching metadata.
+            filter_timed_by_electron (bool, optional): When True, the timed dataframe will only
+                contain data points where valid electron events were detected. When False, all
+                timed data points are included regardless of electron detection. Defaults to True.
 
         Returns:
             tuple[dd.DataFrame, dd.DataFrame, dict]: A tuple containing the concatenated DataFrame
@@ -345,6 +348,7 @@ class FlashLoader(BaseLoader):
         debug = kwds.pop("debug", False)
         remove_invalid_files = kwds.pop("remove_invalid_files", False)
         scicat_token = kwds.pop("scicat_token", None)
+        filter_timed_by_electron = kwds.pop("filter_timed_by_electron", True)
 
         if len(kwds) > 0:
             raise ValueError(f"Unexpected keyword arguments: {kwds.keys()}")
@@ -391,6 +395,7 @@ class FlashLoader(BaseLoader):
             suffix=detector,
             debug=debug,
             remove_invalid_files=remove_invalid_files,
+            filter_timed_by_electron=filter_timed_by_electron,
         )
 
         if self.instrument == "wespe":
