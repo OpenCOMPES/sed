@@ -4,7 +4,13 @@ from a Scicat Instance based on beamtime and run IDs.
 """
 from __future__ import annotations
 
+import os
+from pathlib import Path
+
 import requests
+from dotenv import load_dotenv
+from dotenv import set_key
+
 from sed.core.logging import setup_logging
 
 logger = setup_logging("flash_metadata_retriever")
@@ -21,23 +27,37 @@ class MetadataRetriever:
         Initializes the MetadataRetriever class.
 
         Args:
-            metadata_config (dict): Takes a dict containing
-            at least url, and optionally token for the scicat instance.
-            token (str, optional): The token to use for fetching metadata.
+            metadata_config (dict): Takes a dict containing at least url for the scicat instance.
+            token (str, optional): The token to use for fetching metadata. If provided,
+                will be saved to .env file for future use.
         """
-        self.token = metadata_config.get("token", None)
+        # Token handling
         if token:
-            self.token = token
-        self.url = metadata_config.get("archiver_url", None)
+            # Save token to .env file in user's home directory
+            env_path = Path.home() / ".sed" / ".env"
+            env_path.parent.mkdir(parents=True, exist_ok=True)
+            set_key(str(env_path), "SCICAT_TOKEN", token)
+        else:
+            # Try to load token from config or environment
+            self.token = metadata_config.get("token")
+            if not self.token:
+                load_dotenv(Path.home() / ".sed" / ".env")
+                self.token = os.getenv("SCICAT_TOKEN")
 
-        if not self.token or not self.url:
-            raise ValueError("No URL or token provided for fetching metadata from scicat.")
+        if not self.token:
+            raise ValueError(
+                "Token is required for metadata collection. Either provide a token "
+                "parameter or set the SCICAT_TOKEN environment variable.",
+            )
+
+        self.url = metadata_config.get("archiver_url")
+        if not self.url:
+            raise ValueError("No URL provided for fetching metadata from scicat.")
 
         self.headers = {
             "Content-Type": "application/json",
             "Accept": "application/json",
         }
-        self.token = metadata_config["token"]
 
     def get_metadata(
         self,

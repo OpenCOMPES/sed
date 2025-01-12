@@ -14,7 +14,6 @@ from pydantic import FilePath
 from pydantic import HttpUrl
 from pydantic import NewPath
 from pydantic import PositiveInt
-from pydantic import SecretStr
 
 from sed.loader.loader_interface import get_names_of_all_loaders
 
@@ -323,7 +322,6 @@ class MetadataModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     archiver_url: Optional[HttpUrl] = None
-    token: Optional[SecretStr] = None
     epics_pvs: Optional[Sequence[str]] = None
     fa_in_channel: Optional[str] = None
     fa_hor_channel: Optional[str] = None
