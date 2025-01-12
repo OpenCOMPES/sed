@@ -13,7 +13,9 @@ from pydantic import ValidationError
 from sed.core.config import complete_dictionary
 from sed.core.config import load_config
 from sed.core.config import parse_config
+from sed.core.config import read_env_var
 from sed.core.config import save_config
+from sed.core.config import save_env_var
 
 test_dir = os.path.dirname(__file__)
 test_config_dir = Path(f"{test_dir}/data/loader/")
@@ -231,3 +233,48 @@ def test_invalid_config_wrong_values():
             verify_config=True,
         )
     assert "Invalid value 9999 for gid. Group not found." in str(e.value)
+
+
+def test_env_var_read_write(tmp_path, monkeypatch):
+    """Test reading and writing environment variables."""
+    # Mock USER_CONFIG_PATH to use a temporary directory
+    monkeypatch.setattr("sed.core.config.USER_CONFIG_PATH", tmp_path)
+
+    # Test writing a new variable
+    save_env_var("TEST_VAR", "test_value")
+    assert read_env_var("TEST_VAR") == "test_value"
+
+    # Test writing multiple variables
+    save_env_var("TEST_VAR2", "test_value2")
+    assert read_env_var("TEST_VAR") == "test_value"
+    assert read_env_var("TEST_VAR2") == "test_value2"
+
+    # Test overwriting an existing variable
+    save_env_var("TEST_VAR", "new_value")
+    assert read_env_var("TEST_VAR") == "new_value"
+    assert read_env_var("TEST_VAR2") == "test_value2"  # Other variables unchanged
+
+    # Test reading non-existent variable
+    assert read_env_var("NON_EXISTENT_VAR") is None
+
+
+def test_env_var_read_no_file(tmp_path, monkeypatch):
+    """Test reading environment variables when .env file doesn't exist."""
+    # Mock USER_CONFIG_PATH to use an empty temporary directory
+    monkeypatch.setattr("sed.core.config.USER_CONFIG_PATH", tmp_path)
+
+    # Test reading from non-existent file
+    assert read_env_var("TEST_VAR") is None
+
+
+def test_env_var_special_characters():
+    """Test reading and writing environment variables with special characters."""
+    test_cases = {
+        "TEST_URL": "http://example.com/path?query=value",
+        "TEST_PATH": "/path/to/something/with/spaces and special=chars",
+        "TEST_QUOTES": "value with 'single' and \"double\" quotes",
+    }
+
+    for var_name, value in test_cases.items():
+        save_env_var(var_name, value)
+        assert read_env_var(var_name) == value

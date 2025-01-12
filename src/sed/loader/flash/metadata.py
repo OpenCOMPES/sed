@@ -4,13 +4,10 @@ from a Scicat Instance based on beamtime and run IDs.
 """
 from __future__ import annotations
 
-import os
-from pathlib import Path
-
 import requests
-from dotenv import load_dotenv
-from dotenv import set_key
 
+from sed.core.config import read_env_var
+from sed.core.config import save_env_var
 from sed.core.logging import setup_logging
 
 logger = setup_logging("flash_metadata_retriever")
@@ -33,16 +30,11 @@ class MetadataRetriever:
         """
         # Token handling
         if token:
-            # Save token to .env file in user's home directory
-            env_path = Path.home() / ".sed" / ".env"
-            env_path.parent.mkdir(parents=True, exist_ok=True)
-            set_key(str(env_path), "SCICAT_TOKEN", token)
+            self.token = token
+            save_env_var("SCICAT_TOKEN", self.token)
         else:
-            # Try to load token from config or environment
-            self.token = metadata_config.get("token")
-            if not self.token:
-                load_dotenv(Path.home() / ".sed" / ".env")
-                self.token = os.getenv("SCICAT_TOKEN")
+            # Try to load token from config or .env file
+            self.token = read_env_var("SCICAT_TOKEN")
 
         if not self.token:
             raise ValueError(

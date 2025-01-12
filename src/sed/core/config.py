@@ -242,3 +242,54 @@ def complete_dictionary(dictionary: dict, base_dictionary: dict) -> dict:
                     dictionary[k] = v
 
     return dictionary
+
+
+def read_env_var(var_name: str) -> str | None:
+    """Read an environment variable from the .env file in the user config directory.
+
+    Args:
+        var_name (str): Name of the environment variable to read
+
+    Returns:
+        str | None: Value of the environment variable or None if not found
+    """
+    env_path = USER_CONFIG_PATH / ".env"
+    if not env_path.exists():
+        logger.debug(f"Environment variable {var_name} not found in .env file")
+        return None
+
+    with open(env_path) as f:
+        for line in f:
+            if line.startswith(f"{var_name}="):
+                return line.strip().split("=", 1)[1]
+    logger.debug(f"Environment variable {var_name} not found in .env file")
+    return None
+
+
+def save_env_var(var_name: str, value: str) -> None:
+    """Save an environment variable to the .env file in the user config directory.
+    If the file exists, preserves other variables. If not, creates a new file.
+
+    Args:
+        var_name (str): Name of the environment variable to save
+        value (str): Value to save for the environment variable
+    """
+    env_path = USER_CONFIG_PATH / ".env"
+    env_content = {}
+
+    # Read existing variables if file exists
+    if env_path.exists():
+        with open(env_path) as f:
+            for line in f:
+                if "=" in line:
+                    key, val = line.strip().split("=", 1)
+                    env_content[key] = val
+
+    # Update or add new variable
+    env_content[var_name] = value
+
+    # Write all variables back to file
+    with open(env_path, "w") as f:
+        for key, val in env_content.items():
+            f.write(f"{key}={val}\n")
+    logger.debug(f"Environment variable {var_name} saved to .env file")
