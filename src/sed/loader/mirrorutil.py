@@ -368,7 +368,10 @@ def mycopy(source: str, dest: str, gid: int, mode: int, replace: bool = False):
     if replace:
         if os.path.exists(dest):
             os.remove(dest)
-    shutil.copy2(source, dest)
+    try:
+        shutil.copy2(source, dest)
+    except OSError:
+        shutil.copy(source, dest)
     # fix permissions and group ownership:
     os.chown(dest, -1, gid)
     os.chmod(dest, mode)
