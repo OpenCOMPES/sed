@@ -11,6 +11,7 @@ from pathlib import Path
 
 import yaml
 from platformdirs import user_config_path
+from pydantic import ValidationError
 
 from sed.core.config_model import ConfigModel
 from sed.core.logging import setup_logging
@@ -21,6 +22,17 @@ USER_CONFIG_PATH = user_config_path(appname="sed", appauthor="OpenCOMPES", ensur
 
 # Configure logging
 logger = setup_logging("config")
+
+
+class ConfigError(Exception):
+    """Exception raised for errors in the config file."""
+
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(self.message)
+
+    def __str__(self):
+        return self.message
 
 
 def parse_config(
@@ -61,6 +73,7 @@ def parse_config(
     Raises:
         TypeError: Raised if the provided file is neither *json* nor *yaml*.
         FileNotFoundError: Raised if the provided file is not found.
+        ConfigError: Raised if there is a validation error in the config file.
 
     Returns:
         dict: Loaded and completed config dict, possibly verified by pydantic config model.
@@ -146,9 +159,19 @@ def parse_config(
 
     if not verify_config:
         return config_dict
-    # Run the config through the ConfigModel to ensure it is valid
-    config_model = ConfigModel(**config_dict)
-    return config_model.model_dump(exclude_unset=True, exclude_none=True)
+
+    try:
+        # Run the config through the ConfigModel to ensure it is valid
+        config_model = ConfigModel(**config_dict)
+        return config_model.model_dump(exclude_unset=True, exclude_none=True)
+    except ValidationError as e:
+        error_msg = (
+            "Invalid configuration file detected. The following validation errors were found:\n"
+        )
+        for error in e.errors():
+            error_msg += f"\n- {' -> '.join(str(loc) for loc in error['loc'])}: {error['msg']}"
+        logger.error(error_msg)
+        raise ConfigError(error_msg) from e
 
 
 def load_config(config_path: str) -> dict:
