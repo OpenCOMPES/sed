@@ -131,10 +131,14 @@ jobs:
             VERSION=${GITHUB_REF#refs/tags/}
             echo "folder=sed/$VERSION" >> $GITHUB_OUTPUT
             rm docs-repo/sed/stable
+            rm -rf docs-repo/sed/latest
             ln -s -r docs-repo/sed/$VERSION docs-repo/sed/stable
+            ln -s -r docs-repo/sed/$VERSION docs-repo/sed/latest
           elif [[ $GITHUB_REF == refs/heads/main ]]; then
+            rm -rf docs-repo/sed/latest
             echo "folder=sed/latest" >> $GITHUB_OUTPUT
           else
+            rm -rf docs-repo/sed/develop
             echo "folder=sed/develop" >> $GITHUB_OUTPUT
           fi
 
