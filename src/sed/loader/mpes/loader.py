@@ -159,7 +159,12 @@ def hdf5_to_dataframe(
     for name, channel in channels.items():
         if channel["format"] == "per_file":
             if channel["dataset_key"] in test_proc.attrs:
-                values = [float(get_attribute(h5py.File(f), channel["dataset_key"])) for f in files]
+                values = []
+                for f in files:
+                    try:
+                        values.append(float(get_attribute(h5py.File(f), channel["dataset_key"])))
+                    except OSError:
+                        pass
                 delayeds = [
                     add_value(partition, name, value)
                     for partition, value in zip(dataframe.partitions, values)
@@ -274,7 +279,12 @@ def hdf5_to_timed_dataframe(
     for name, channel in channels.items():
         if channel["format"] == "per_file":
             if channel["dataset_key"] in test_proc.attrs:
-                values = [float(get_attribute(h5py.File(f), channel["dataset_key"])) for f in files]
+                values = []
+                for f in files:
+                    try:
+                        values.append(float(get_attribute(h5py.File(f), channel["dataset_key"])))
+                    except OSError:
+                        pass
                 delayeds = [
                     add_value(partition, name, value)
                     for partition, value in zip(dataframe.partitions, values)
@@ -843,11 +853,23 @@ class MpesLoader(BaseLoader):
         )
         ts_from = timestamps[-1][1]
         h5filename = self.files[-1]
-        timestamps = hdf5_to_array(
-            h5filename=h5filename,
-            channels=channels,
-            time_stamps=True,
-        )
+        try:
+            timestamps = hdf5_to_array(
+                h5filename=h5filename,
+                channels=channels,
+                time_stamps=True,
+            )
+        except OSError:
+            try:
+                h5filename = self.files[-2]
+                timestamps = hdf5_to_array(
+                    h5filename=h5filename,
+                    channels=channels,
+                    time_stamps=True,
+                )
+            except OSError:
+                ts_to = ts_from
+                logger.warning("Could not read end time, using start time as end time!")
         ts_to = timestamps[-1][-1]
         return (ts_from, ts_to)
 
