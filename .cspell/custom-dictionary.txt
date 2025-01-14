@@ -89,7 +89,6 @@ dictionarized
 dictmerge
 DLDAUX
 DOOCS
-dotenv
 dpkg
 dropna
 dset

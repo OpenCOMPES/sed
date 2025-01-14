@@ -81,7 +81,7 @@ class MetadataRetriever:
             pid = f"{beamtime_id}/{run}"
             logger.debug(f"Retrieving metadata for PID: {pid}")
             metadata_run = self._get_metadata_per_run(pid)
-            metadata.update(metadata_run)
+            metadata.update(metadata_run)  # TODO: Not correct for multiple runs
 
         logger.debug(f"Retrieved metadata with {len(metadata)} entries")
         return metadata
@@ -111,6 +111,7 @@ class MetadataRetriever:
             )
             dataset_response.raise_for_status()
 
+            # Check if response is an empty object because wrong url for older implementation
             if not dataset_response.content:
                 logger.debug("Empty response, trying old URL format")
                 dataset_response = requests.get(
@@ -118,11 +119,13 @@ class MetadataRetriever:
                     headers=headers2,
                     timeout=10,
                 )
+            # If the dataset request is successful, return the retrieved metadata
+            # as a JSON object
             return dataset_response.json()
 
         except requests.exceptions.RequestException as exception:
             logger.warning(f"Failed to retrieve metadata for PID {pid}: {str(exception)}")
-            return {}
+            return {}  # Return an empty dictionary for this run
 
     def _create_old_dataset_url(self, pid: str) -> str:
         return "{burl}/{url}/%2F{npid}".format(
