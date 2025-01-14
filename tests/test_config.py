@@ -10,7 +10,6 @@ from pathlib import Path
 import pytest
 
 from sed.core.config import complete_dictionary
-from sed.core.config import ConfigError
 from sed.core.config import load_config
 from sed.core.config import parse_config
 from sed.core.config import save_config
@@ -168,7 +167,7 @@ def test_invalid_config_extra_field():
     )
     invalid_config = default_config.copy()
     invalid_config["extra_field"] = "extra_value"
-    with pytest.raises(ConfigError):
+    with pytest.raises(ValueError):
         parse_config(
             invalid_config,
             folder_config={},
@@ -188,7 +187,7 @@ def test_invalid_config_missing_field():
     )
     invalid_config = default_config.copy()
     del invalid_config["core"]["loader"]
-    with pytest.raises(ConfigError):
+    with pytest.raises(ValueError):
         parse_config(
             folder_config={},
             user_config={},
@@ -208,7 +207,7 @@ def test_invalid_config_wrong_values():
     )
     invalid_config = default_config.copy()
     invalid_config["core"]["loader"] = "nonexistent"
-    with pytest.raises(ConfigError) as e:
+    with pytest.raises(ValueError) as e:
         parse_config(
             folder_config={},
             user_config={},
@@ -222,7 +221,7 @@ def test_invalid_config_wrong_values():
     invalid_config["core"]["copy_tool"]["source"] = "./"
     invalid_config["core"]["copy_tool"]["dest"] = "./"
     invalid_config["core"]["copy_tool"]["gid"] = 9999
-    with pytest.raises(ConfigError) as e:
+    with pytest.raises(ValueError) as e:
         parse_config(
             folder_config={},
             user_config={},

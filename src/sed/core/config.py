@@ -24,17 +24,6 @@ USER_CONFIG_PATH = user_config_path(appname="sed", appauthor="OpenCOMPES", ensur
 logger = setup_logging("config")
 
 
-class ConfigError(Exception):
-    """Exception raised for errors in the config file."""
-
-    def __init__(self, message: str):
-        self.message = message
-        super().__init__(self.message)
-
-    def __str__(self):
-        return self.message
-
-
 def parse_config(
     config: dict | str = None,
     folder_config: dict | str = None,
@@ -73,7 +62,7 @@ def parse_config(
     Raises:
         TypeError: Raised if the provided file is neither *json* nor *yaml*.
         FileNotFoundError: Raised if the provided file is not found.
-        ConfigError: Raised if there is a validation error in the config file.
+        ValueError: Raised if there is a validation error in the config file.
 
     Returns:
         dict: Loaded and completed config dict, possibly verified by pydantic config model.
@@ -171,7 +160,7 @@ def parse_config(
         for error in e.errors():
             error_msg += f"\n- {' -> '.join(str(loc) for loc in error['loc'])}: {error['msg']}"
         logger.error(error_msg)
-        raise ConfigError(error_msg) from e
+        raise ValueError(error_msg) from e
 
 
 def load_config(config_path: str) -> dict:
