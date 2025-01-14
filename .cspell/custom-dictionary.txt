@@ -99,6 +99,7 @@ easimon
 ecalibdict
 elab
 elabapi
+elabid
 electronanalyser
 Elektronen
 endstation
@@ -341,6 +342,7 @@ sdir
 segs
 setp
 sfile
+sharelink
 shutil
 Sixten
 sohail

@@ -237,22 +237,51 @@ class MetadataRetriever:
             logger.warning(f"No elabFTW entry found for run {runs[0]}")
             return metadata
 
-        # Scan metadata
-        metadata_json = json.loads(experiment.metadata)
-        for key, val in metadata_json["extra_fields"].items():
-            metadata[key] = val["value"]
+        if "elabFTW" not in metadata:
+            metadata["elabFTW"] = {}
 
         exp_id = experiment.id
         # Get the links to items
         links = self.linksApi.read_entity_items_links(entity_type="experiments", id=exp_id)
         # Get the items
         items = [self.itemsApi.get_item(link.entityid) for link in links]
-        # Get the metadata
-        for item in items:
+        items_dict = {item.category_title: item for item in items}
+        items_dict["scan"] = experiment
+
+        # Sort the metadata
+        for category, item in items_dict.items():
+            if category not in metadata["elabFTW"]:
+                metadata["elabFTW"][category] = {}
+            metadata["elabFTW"][category]["title"] = item.title
+            metadata["elabFTW"][category]["summary"] = item.body
+            metadata["elabFTW"][category]["id"] = item.id
+            metadata["elabFTW"][category]["elabid"] = item.elabid
+            metadata["elabFTW"][category]["link"] = item.sharelink
             if item.metadata is not None:
                 metadata_json = json.loads(item.metadata)
                 for key, val in metadata_json["extra_fields"].items():
-                    metadata[key] = val["value"]
+                    if val is not None and val != "None":
+                        metadata["elabFTW"][category][key] = val["value"]
+
+        # group beam profiles:
+        if (
+            "Laser Status" in metadata["elabFTW"]
+            and "pump_profile_x" in metadata["elabFTW"]["Laser Status"]
+            and "pump_profile_y" in metadata["elabFTW"]["Laser Status"]
+        ):
+            metadata["elabFTW"]["Laser Status"]["pump_profile"] = [
+                float(metadata["elabFTW"]["Laser Status"]["pump_profile_x"]),
+                float(metadata["elabFTW"]["Laser Status"]["pump_profile_y"]),
+            ]
+        if (
+            "Laser Status" in metadata["elabFTW"]
+            and "probe_profile_x" in metadata["elabFTW"]["Laser Status"]
+            and "probe_profile_y" in metadata["elabFTW"]["Laser Status"]
+        ):
+            metadata["elabFTW"]["Laser Status"]["probe_profile"] = [
+                float(metadata["elabFTW"]["Laser Status"]["probe_profile_x"]),
+                float(metadata["elabFTW"]["Laser Status"]["probe_profile_y"]),
+            ]
 
         return metadata
 
