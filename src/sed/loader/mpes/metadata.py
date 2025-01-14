@@ -17,7 +17,7 @@ from sed.core.config import read_env_var
 from sed.core.config import save_env_var
 from sed.core.logging import setup_logging
 
-logger = setup_logging("flash_metadata_retriever")
+logger = setup_logging("mpes_metadata_retriever")
 
 
 class MetadataRetriever:
@@ -42,12 +42,6 @@ class MetadataRetriever:
         else:
             # Try to load token from config or .env file
             self.token = read_env_var("ELAB_TOKEN")
-
-        if not self.token:
-            raise ValueError(
-                "Token is required for metadata collection. Either provide a token "
-                "parameter or set the ELAB_TOKEN environment variable.",
-            )
 
         self._config = metadata_config
 
@@ -229,6 +223,12 @@ class MetadataRetriever:
         Returns:
             dict: Updated metadata dictionary
         """
+        if not self.token:
+            logger.warning(
+                "No valid token found. Token is required for metadata collection. Either provide "
+                "a token parameter or set the ELAB_TOKEN environment variable.",
+            )
+            return metadata
         logger.info("Collecting data from the elabFTW instance...")
         # Get the experiment
         try:
@@ -270,7 +270,7 @@ class MetadataRetriever:
             if item.metadata is not None:
                 metadata_json = json.loads(item.metadata)
                 for key, val in metadata_json["extra_fields"].items():
-                    if val["value"] and val["value"] != ["None"]:
+                    if val["value"] is not None and val["value"] != "" and val["value"] != ["None"]:
                         try:
                             metadata["elabFTW"][category][key] = float(val["value"])
                         except ValueError:
