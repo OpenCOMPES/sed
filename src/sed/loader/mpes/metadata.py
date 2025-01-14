@@ -241,6 +241,14 @@ class MetadataRetriever:
             metadata["elabFTW"] = {}
 
         exp_id = experiment.id
+        # Get user information
+        user = self.usersApi.read_user(experiment.userid)
+        metadata["elabFTW"]["user"] = {}
+        metadata["elabFTW"]["user"]["name"] = user.fullname
+        metadata["elabFTW"]["user"]["email"] = user.email
+        metadata["elabFTW"]["user"]["id"] = user.userid
+        if user.orcid:
+            metadata["elabFTW"]["user"]["orcid"] = user.orcid
         # Get the links to items
         links = self.linksApi.read_entity_items_links(entity_type="experiments", id=exp_id)
         # Get the items
@@ -256,11 +264,12 @@ class MetadataRetriever:
             metadata["elabFTW"][category]["summary"] = item.body
             metadata["elabFTW"][category]["id"] = item.id
             metadata["elabFTW"][category]["elabid"] = item.elabid
-            metadata["elabFTW"][category]["link"] = item.sharelink
+            if item.sharelink:
+                metadata["elabFTW"][category]["link"] = item.sharelink
             if item.metadata is not None:
                 metadata_json = json.loads(item.metadata)
                 for key, val in metadata_json["extra_fields"].items():
-                    if val is not None and val != "None":
+                    if val["value"] and val["value"] != ["None"]:
                         metadata["elabFTW"][category][key] = val["value"]
 
         # group beam profiles:

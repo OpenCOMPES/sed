@@ -268,6 +268,7 @@ ontop
 OPCPA
 openmp
 OPTICALDELAY
+orcid
 otherax
 packetcoders
 Pandoc
@@ -388,6 +389,7 @@ ufunc
 unbinned
 uncategorised
 undoc
+userid
 utime
 varnames
 venv
