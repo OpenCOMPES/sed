@@ -16,6 +16,7 @@ from sed.core.config import parse_config
 from sed.core.config import read_env_var
 from sed.core.config import save_config
 from sed.core.config import save_env_var
+from sed.core.config import USER_CONFIG_PATH
 
 test_dir = os.path.dirname(__file__)
 test_config_dir = Path(f"{test_dir}/data/loader/")
@@ -278,3 +279,83 @@ def test_env_var_special_characters():
     for var_name, value in test_cases.items():
         save_env_var(var_name, value)
         assert read_env_var(var_name) == value
+
+
+@pytest.fixture
+def cleanup_env_files():
+    """Cleanup any .env files before and after tests"""
+    # Clean up any existing .env files
+    for path in [Path(".env"), USER_CONFIG_PATH / ".env"]:
+        if path.exists():
+            path.unlink()
+
+    yield
+
+    # Clean up after tests
+    for path in [Path(".env"), USER_CONFIG_PATH / ".env"]:
+        if path.exists():
+            path.unlink()
+
+
+def test_env_var_precedence(cleanup_env_files):  # noqa: ARG001
+    """Test that environment variables are read in correct order of precedence"""
+    # Set up test values in different locations
+    os.environ["TEST_VAR"] = "os_value"
+
+    with open(".env", "w") as f:
+        f.write("TEST_VAR=local_value\n")
+
+    save_env_var("TEST_VAR", "user_value")  # Saves to USER_CONFIG_PATH
+
+    # Should get OS value first
+    assert read_env_var("TEST_VAR") == "os_value"
+
+    # Remove from OS env and should get local value
+    del os.environ["TEST_VAR"]
+    assert read_env_var("TEST_VAR") == "local_value"
+
+    # Remove local .env and should get user config value
+    Path(".env").unlink()
+    assert read_env_var("TEST_VAR") == "user_value"
+
+    # Remove user config and should get None
+    (USER_CONFIG_PATH / ".env").unlink()
+    assert read_env_var("TEST_VAR") is None
+
+
+def test_env_var_save_and_load(cleanup_env_files):  # noqa: ARG001
+    """Test saving and loading environment variables"""
+    # Save a variable
+    save_env_var("TEST_VAR", "test_value")
+
+    # Should be able to read it back
+    assert read_env_var("TEST_VAR") == "test_value"
+
+    # Save another variable - should preserve existing ones
+    save_env_var("OTHER_VAR", "other_value")
+    assert read_env_var("TEST_VAR") == "test_value"
+    assert read_env_var("OTHER_VAR") == "other_value"
+
+
+def test_env_var_not_found(cleanup_env_files):  # noqa: ARG001
+    """Test behavior when environment variable is not found"""
+    assert read_env_var("NONEXISTENT_VAR") is None
+
+
+def test_env_file_format(cleanup_env_files):  # noqa: ARG001
+    """Test that .env file parsing handles different formats correctly"""
+    with open(".env", "w") as f:
+        f.write(
+            """
+                TEST_VAR=value1
+                SPACES_VAR  =  value2
+                EMPTY_VAR=
+                #COMMENT=value3
+                INVALID_LINE
+                """,
+        )
+
+    assert read_env_var("TEST_VAR") == "value1"
+    assert read_env_var("SPACES_VAR") == "value2"
+    assert read_env_var("EMPTY_VAR") == ""
+    assert read_env_var("COMMENT") is None
