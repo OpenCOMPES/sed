@@ -97,6 +97,8 @@ dtype
 dtypes
 easimon
 ecalibdict
+elab
+elabapi
 electronanalyser
 Elektronen
 endstation
@@ -104,6 +106,7 @@ energycal
 energycalfolder
 ENERGYDISPERSION
 ENOSPC
+entityid
 equiscale
 Eref
 errorbar

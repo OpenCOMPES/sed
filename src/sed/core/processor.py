@@ -38,8 +38,8 @@ from sed.io import to_nexus
 from sed.io import to_tiff
 from sed.loader import CopyTool
 from sed.loader import get_loader
-from sed.loader.mpes.loader import get_archiver_data
 from sed.loader.mpes.loader import MpesLoader
+from sed.loader.mpes.metadata import get_archiver_data
 
 N_CPU = psutil.cpu_count()
 
