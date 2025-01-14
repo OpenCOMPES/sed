@@ -258,6 +258,7 @@ class MetadataRetriever:
 
         # Sort the metadata
         for category, item in items_dict.items():
+            category = category.replace(":", "").replace(" ", "_").lower()
             if category not in metadata["elabFTW"]:
                 metadata["elabFTW"][category] = {}
             metadata["elabFTW"][category]["title"] = item.title
@@ -270,27 +271,62 @@ class MetadataRetriever:
                 metadata_json = json.loads(item.metadata)
                 for key, val in metadata_json["extra_fields"].items():
                     if val["value"] and val["value"] != ["None"]:
-                        metadata["elabFTW"][category][key] = val["value"]
+                        try:
+                            metadata["elabFTW"][category][key] = float(val["value"])
+                        except ValueError:
+                            metadata["elabFTW"][category][key] = val["value"]
 
         # group beam profiles:
         if (
-            "Laser Status" in metadata["elabFTW"]
-            and "pump_profile_x" in metadata["elabFTW"]["Laser Status"]
-            and "pump_profile_y" in metadata["elabFTW"]["Laser Status"]
+            "laser_status" in metadata["elabFTW"]
+            and "pump_profile_x" in metadata["elabFTW"]["laser_status"]
+            and "pump_profile_y" in metadata["elabFTW"]["laser_status"]
         ):
-            metadata["elabFTW"]["Laser Status"]["pump_profile"] = [
-                float(metadata["elabFTW"]["Laser Status"]["pump_profile_x"]),
-                float(metadata["elabFTW"]["Laser Status"]["pump_profile_y"]),
+            metadata["elabFTW"]["laser_status"]["pump_profile"] = [
+                float(metadata["elabFTW"]["laser_status"]["pump_profile_x"]),
+                float(metadata["elabFTW"]["laser_status"]["pump_profile_y"]),
             ]
         if (
-            "Laser Status" in metadata["elabFTW"]
-            and "probe_profile_x" in metadata["elabFTW"]["Laser Status"]
-            and "probe_profile_y" in metadata["elabFTW"]["Laser Status"]
+            "laser_status" in metadata["elabFTW"]
+            and "probe_profile_x" in metadata["elabFTW"]["laser_status"]
+            and "probe_profile_y" in metadata["elabFTW"]["laser_status"]
         ):
-            metadata["elabFTW"]["Laser Status"]["probe_profile"] = [
-                float(metadata["elabFTW"]["Laser Status"]["probe_profile_x"]),
-                float(metadata["elabFTW"]["Laser Status"]["probe_profile_y"]),
+            metadata["elabFTW"]["laser_status"]["probe_profile"] = [
+                float(metadata["elabFTW"]["laser_status"]["probe_profile_x"]),
+                float(metadata["elabFTW"]["laser_status"]["probe_profile_y"]),
             ]
+
+        # fix preparation date
+        if "sample" in metadata["elabFTW"] and "preparation_date" in metadata["elabFTW"]["sample"]:
+            metadata["elabFTW"]["sample"]["preparation_date"] = (
+                datetime.datetime.strptime(
+                    metadata["elabFTW"]["sample"]["preparation_date"],
+                    "%Y-%m-%d",
+                )
+                .replace(tzinfo=datetime.timezone.utc)
+                .isoformat()
+            )
+
+        # fix polarizations
+        if (
+            "scan" in metadata["elabFTW"]
+            and "pump_polarization" in metadata["elabFTW"]["scan"]
+            and isinstance(metadata["elabFTW"]["scan"]["pump_polarization"], str)
+        ):
+            if metadata["elabFTW"]["scan"]["pump_polarization"] == "s":
+                metadata["elabFTW"]["scan"]["pump_polarization"] = 90
+            elif metadata["elabFTW"]["scan"]["pump_polarization"] == "p":
+                metadata["elabFTW"]["scan"]["pump_polarization"] = 0
+
+        if (
+            "scan" in metadata["elabFTW"]
+            and "probe_polarization" in metadata["elabFTW"]["scan"]
+            and isinstance(metadata["elabFTW"]["scan"]["probe_polarization"], str)
+        ):
+            if metadata["elabFTW"]["scan"]["probe_polarization"] == "s":
+                metadata["elabFTW"]["scan"]["probe_polarization"] = 90
+            elif metadata["elabFTW"]["scan"]["probe_polarization"] == "p":
+                metadata["elabFTW"]["scan"]["probe_polarization"] = 0
 
         return metadata
 
