@@ -4,9 +4,13 @@ from a Scicat Instance based on beamtime and run IDs.
 """
 from __future__ import annotations
 
-import warnings
-
 import requests
+
+from sed.core.config import read_env_var
+from sed.core.config import save_env_var
+from sed.core.logging import setup_logging
+
+logger = setup_logging("flash_metadata_retriever")
 
 
 class MetadataRetriever:
@@ -15,28 +19,37 @@ class MetadataRetriever:
     on beamtime and run IDs.
     """
 
-    def __init__(self, metadata_config: dict, scicat_token: str = None) -> None:
+    def __init__(self, metadata_config: dict, token: str = None) -> None:
         """
         Initializes the MetadataRetriever class.
 
         Args:
-            metadata_config (dict): Takes a dict containing
-            at least url, and optionally token for the scicat instance.
-            scicat_token (str, optional): The token to use for fetching metadata.
+            metadata_config (dict): Takes a dict containing at least url for the scicat instance.
+            token (str, optional): The token to use for fetching metadata. If provided,
+                will be saved to .env file for future use.
         """
-        self.token = metadata_config.get("scicat_token", None)
-        if scicat_token:
-            self.token = scicat_token
-        self.url = metadata_config.get("scicat_url", None)
+        # Token handling
+        if token:
+            self.token = token
+            save_env_var("SCICAT_TOKEN", self.token)
+        else:
+            # Try to load token from config or .env file
+            self.token = read_env_var("SCICAT_TOKEN")
 
-        if not self.token or not self.url:
-            raise ValueError("No URL or token provided for fetching metadata from scicat.")
+        if not self.token:
+            raise ValueError(
+                "Token is required for metadata collection. Either provide a token "
+                "parameter or set the SCICAT_TOKEN environment variable.",
+            )
+
+        self.url = metadata_config.get("archiver_url")
+        if not self.url:
+            raise ValueError("No URL provided for fetching metadata from scicat.")
 
         self.headers = {
             "Content-Type": "application/json",
             "Accept": "application/json",
         }
-        self.token = metadata_config["scicat_token"]
 
     def get_metadata(
         self,
@@ -59,19 +72,18 @@ class MetadataRetriever:
         Raises:
             Exception: If the request to retrieve metadata fails.
         """
-        # If metadata is not provided, initialize it as an empty dictionary
+        logger.debug(f"Fetching metadata for beamtime {beamtime_id}, runs: {runs}")
+
         if metadata is None:
             metadata = {}
 
-        # Iterate over the list of runs
         for run in runs:
             pid = f"{beamtime_id}/{run}"
-            # Retrieve metadata for each run and update the overall metadata dictionary
+            logger.debug(f"Retrieving metadata for PID: {pid}")
             metadata_run = self._get_metadata_per_run(pid)
-            metadata.update(
-                metadata_run,
-            )  # TODO: Not correct for multiple runs
+            metadata.update(metadata_run)  # TODO: Not correct for multiple runs
 
+        logger.debug(f"Retrieved metadata with {len(metadata)} entries")
         return metadata
 
     def _get_metadata_per_run(self, pid: str) -> dict:
@@ -91,14 +103,17 @@ class MetadataRetriever:
         headers2["Authorization"] = f"Bearer {self.token}"
 
         try:
+            logger.debug(f"Attempting to fetch metadata with new URL format for PID: {pid}")
             dataset_response = requests.get(
                 self._create_new_dataset_url(pid),
                 headers=headers2,
                 timeout=10,
             )
             dataset_response.raise_for_status()
+
             # Check if response is an empty object because wrong url for older implementation
             if not dataset_response.content:
+                logger.debug("Empty response, trying old URL format")
                 dataset_response = requests.get(
                     self._create_old_dataset_url(pid),
                     headers=headers2,
@@ -107,9 +122,9 @@ class MetadataRetriever:
             # If the dataset request is successful, return the retrieved metadata
             # as a JSON object
             return dataset_response.json()
+
         except requests.exceptions.RequestException as exception:
-            # If the request fails, raise warning
-            print(warnings.warn(f"Failed to retrieve metadata for PID {pid}: {str(exception)}"))
+            logger.warning(f"Failed to retrieve metadata for PID {pid}: {str(exception)}")
             return {}  # Return an empty dictionary for this run
 
     def _create_old_dataset_url(self, pid: str) -> str:

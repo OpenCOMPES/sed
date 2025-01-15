@@ -12,7 +12,10 @@ import pytest
 from sed.core.config import complete_dictionary
 from sed.core.config import load_config
 from sed.core.config import parse_config
+from sed.core.config import read_env_var
 from sed.core.config import save_config
+from sed.core.config import save_env_var
+from sed.core.config import USER_CONFIG_PATH
 
 test_dir = os.path.dirname(__file__)
 test_config_dir = Path(f"{test_dir}/data/loader/")
@@ -230,3 +233,128 @@ def test_invalid_config_wrong_values():
             verify_config=True,
         )
     assert "Invalid value 9999 for gid. Group not found." in str(e.value)
+
+
+def test_env_var_read_write(tmp_path, monkeypatch):
+    """Test reading and writing environment variables."""
+    # Mock USER_CONFIG_PATH to use a temporary directory
+    monkeypatch.setattr("sed.core.config.USER_CONFIG_PATH", tmp_path)
+
+    # Test writing a new variable
+    save_env_var("TEST_VAR", "test_value")
+    assert read_env_var("TEST_VAR") == "test_value"
+
+    # Test writing multiple variables
+    save_env_var("TEST_VAR2", "test_value2")
+    assert read_env_var("TEST_VAR") == "test_value"
+    assert read_env_var("TEST_VAR2") == "test_value2"
+
+    # Test overwriting an existing variable
+    save_env_var("TEST_VAR", "new_value")
+    assert read_env_var("TEST_VAR") == "new_value"
+    assert read_env_var("TEST_VAR2") == "test_value2"  # Other variables unchanged
+
+    # Test reading non-existent variable
+    assert read_env_var("NON_EXISTENT_VAR") is None
+
+
+def test_env_var_read_no_file(tmp_path, monkeypatch):
+    """Test reading environment variables when .env file doesn't exist."""
+    # Mock USER_CONFIG_PATH to use an empty temporary directory
+    monkeypatch.setattr("sed.core.config.USER_CONFIG_PATH", tmp_path)
+
+    # Test reading from non-existent file
+    assert read_env_var("TEST_VAR") is None
+
+
+def test_env_var_special_characters():
+    """Test reading and writing environment variables with special characters."""
+    test_cases = {
+        "TEST_URL": "http://example.com/path?query=value",
+        "TEST_PATH": "/path/to/something/with/spaces and special=chars",
+        "TEST_QUOTES": "value with 'single' and \"double\" quotes",
+    }
+
+    for var_name, value in test_cases.items():
+        save_env_var(var_name, value)
+        assert read_env_var(var_name) == value
+
+
+@pytest.fixture
+def cleanup_env_files():
+    """Cleanup any .env files before and after tests"""
+    # Clean up any existing .env files
+    for path in [Path(".env"), USER_CONFIG_PATH / ".env"]:
+        if path.exists():
+            path.unlink()
+
+    yield
+
+    # Clean up after tests
+    for path in [Path(".env"), USER_CONFIG_PATH / ".env"]:
+        if path.exists():
+            path.unlink()
+
+
+def test_env_var_precedence(cleanup_env_files):  # noqa: ARG001
+    """Test that environment variables are read in correct order of precedence"""
+    # Set up test values in different locations
+    os.environ["TEST_VAR"] = "os_value"
+
+    with open(".env", "w") as f:
+        f.write("TEST_VAR=local_value\n")
+
+    save_env_var("TEST_VAR", "user_value")  # Saves to USER_CONFIG_PATH
+
+    # Should get OS value first
+    assert read_env_var("TEST_VAR") == "os_value"
+
+    # Remove from OS env and should get local value
+    del os.environ["TEST_VAR"]
+    assert read_env_var("TEST_VAR") == "local_value"
+
+    # Remove local .env and should get user config value
+    Path(".env").unlink()
+    assert read_env_var("TEST_VAR") == "user_value"
+
+    # Remove user config and should get None
+    (USER_CONFIG_PATH / ".env").unlink()
+    assert read_env_var("TEST_VAR") is None
+
+
+def test_env_var_save_and_load(cleanup_env_files):  # noqa: ARG001
+    """Test saving and loading environment variables"""
+    # Save a variable
+    save_env_var("TEST_VAR", "test_value")
+
+    # Should be able to read it back
+    assert read_env_var("TEST_VAR") == "test_value"
+
+    # Save another variable - should preserve existing ones
+    save_env_var("OTHER_VAR", "other_value")
+    assert read_env_var("TEST_VAR") == "test_value"
+    assert read_env_var("OTHER_VAR") == "other_value"
+
+
+def test_env_var_not_found(cleanup_env_files):  # noqa: ARG001
+    """Test behavior when environment variable is not found"""
+    assert read_env_var("NONEXISTENT_VAR") is None
+
+
+def test_env_file_format(cleanup_env_files):  # noqa: ARG001
+    """Test that .env file parsing handles different formats correctly"""
+    with open(".env", "w") as f:
+        f.write(
+            """
+                TEST_VAR=value1
+                SPACES_VAR  =  value2
+                EMPTY_VAR=
+                #COMMENT=value3
+                INVALID_LINE
+                """,
+        )
+
+    assert read_env_var("TEST_VAR") == "value1"
+    assert read_env_var("SPACES_VAR") == "value2"
+    assert read_env_var("EMPTY_VAR") == ""
+    assert read_env_var("COMMENT") is None

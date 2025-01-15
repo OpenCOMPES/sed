@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+import time
 
 import dask.dataframe as dd
 import pyarrow.parquet as pq
@@ -20,7 +21,7 @@ from sed.loader.utils import split_dld_time_from_sector_id
 
 DF_TYP = ["electron", "timed"]
 
-logger = setup_logging(__name__)
+logger = setup_logging("flash_buffer_handler")
 
 
 class BufferFilePaths:
@@ -135,16 +136,15 @@ class BufferHandler:
     def _schema_check(self, files: list[Path], expected_schema_set: set) -> None:
         """
         Checks the schema of the Parquet files.
-
-        Raises:
-            ValueError: If the schema of the Parquet files does not match the configuration.
         """
+        logger.debug(f"Checking schema for {len(files)} files")
         existing = [file for file in files if file.exists()]
         parquet_schemas = [pq.read_schema(file) for file in existing]
 
         for filename, schema in zip(existing, parquet_schemas):
             schema_set = set(schema.names)
             if schema_set != expected_schema_set:
+                logger.error(f"Schema mismatch in file: {filename}")
                 missing_in_parquet = expected_schema_set - schema_set
                 missing_in_config = schema_set - expected_schema_set
 
@@ -159,6 +159,7 @@ class BufferHandler:
                     f"{' '.join(errors)}. "
                     "Please check the configuration file or set force_recreate to True.",
                 )
+        logger.debug("Schema check passed successfully")
 
     def _create_timed_dataframe(self, df: dd.DataFrame) -> dd.DataFrame:
         """Creates the timed dataframe, optionally filtering by electron events.
@@ -185,35 +186,31 @@ class BufferHandler:
         return df_timed.loc[:, :, 0]
 
     def _save_buffer_file(self, paths: dict[str, Path]) -> None:
-        """
-        Creates the electron and timed buffer files from the raw H5 file.
-        First the dataframe is accessed and forward filled in the non-electron channels.
-        Then the data types are set. For the electron dataframe, all values not in the electron
-        channels are dropped. For the timed dataframe, only the train and pulse channels are taken
-        and it pulse resolved (no longer electron resolved). Both are saved as parquet files.
-
-        Args:
-            paths (dict[str, Path]): Dictionary containing the paths to the H5 and buffer files.
-        """
-        # Create a DataFrameCreator instance and get the h5 file
+        """Creates the electron and timed buffer files from the raw H5 file."""
+        logger.debug(f"Processing file: {paths['raw'].stem}")
+        start_time = time.time()
+        # Create DataFrameCreator and get get dataframe
         df = DataFrameCreator(config_dataframe=self._config, h5_path=paths["raw"]).df
 
-        # forward fill all the non-electron channels
+        # Forward fill non-electron channels
+        logger.debug(f"Forward filling {len(self.fill_channels)} channels")
         df[self.fill_channels] = df[self.fill_channels].ffill()
 
         # Save electron resolved dataframe
         electron_channels = get_channels(self._config, "per_electron")
         dtypes = get_dtypes(self._config, df.columns.values)
-        df.dropna(subset=electron_channels).astype(dtypes).reset_index().to_parquet(
-            paths["electron"],
-        )
+        electron_df = df.dropna(subset=electron_channels).astype(dtypes).reset_index()
+        logger.debug(f"Saving electron buffer with shape: {electron_df.shape}")
+        electron_df.to_parquet(paths["electron"])
 
         # Create and save timed dataframe
         df_timed = self._create_timed_dataframe(df)
         dtypes = get_dtypes(self._config, df_timed.columns.values)
-        df_timed.astype(dtypes).reset_index().to_parquet(paths["timed"])
+        timed_df = df_timed.astype(dtypes).reset_index()
+        logger.debug(f"Saving timed buffer with shape: {timed_df.shape}")
+        timed_df.to_parquet(paths["timed"])
 
-        logger.debug(f"Processed {paths['raw'].stem}")
+        logger.debug(f"Processed {paths['raw'].stem} in {time.time() - start_time:.2f}s")
 
     def _save_buffer_files(self, force_recreate: bool, debug: bool) -> None:
         """
