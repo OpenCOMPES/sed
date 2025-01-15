@@ -242,3 +242,78 @@ def complete_dictionary(dictionary: dict, base_dictionary: dict) -> dict:
                     dictionary[k] = v
 
     return dictionary
+
+
+def _parse_env_file(file_path: Path) -> dict:
+    """Helper function to parse a .env file into a dictionary.
+
+    Args:
+        file_path (Path): Path to the .env file
+
+    Returns:
+        dict: Dictionary of environment variables from the file
+    """
+    env_content = {}
+    if file_path.exists():
+        with open(file_path) as f:
+            for line in f:
+                line = line.strip()
+                if line and "=" in line:
+                    key, val = line.split("=", 1)
+                    env_content[key.strip()] = val.strip()
+    return env_content
+
+
+def read_env_var(var_name: str) -> str | None:
+    """Read an environment variable from multiple locations in order:
+    1. OS environment variables
+    2. .env file in current directory
+    3. .env file in user config directory
+
+    Args:
+        var_name (str): Name of the environment variable to read
+
+    Returns:
+        str | None: Value of the environment variable or None if not found
+    """
+    # First check OS environment variables
+    value = os.getenv(var_name)
+    if value is not None:
+        logger.debug(f"Found {var_name} in OS environment variables")
+        return value
+
+    # Then check .env in current directory
+    local_vars = _parse_env_file(Path(".env"))
+    if var_name in local_vars:
+        logger.debug(f"Found {var_name} in ./.env file")
+        return local_vars[var_name]
+
+    # Finally check .env in user config directory
+    user_vars = _parse_env_file(USER_CONFIG_PATH / ".env")
+    if var_name in user_vars:
+        logger.debug(f"Found {var_name} in user config .env file")
+        return user_vars[var_name]
+
+    logger.debug(f"Environment variable {var_name} not found in any location")
+    return None
+
+
+def save_env_var(var_name: str, value: str) -> None:
+    """Save an environment variable to the .env file in the user config directory.
+    If the file exists, preserves other variables. If not, creates a new file.
+
+    Args:
+        var_name (str): Name of the environment variable to save
+        value (str): Value to save for the environment variable
+    """
+    env_path = USER_CONFIG_PATH / ".env"
+    env_content = _parse_env_file(env_path)
+
+    # Update or add new variable
+    env_content[var_name] = value
+
+    # Write all variables back to file
+    with open(env_path, "w") as f:
+        for key, val in env_content.items():
+            f.write(f"{key}={val}\n")
+    logger.debug(f"Environment variable {var_name} saved to .env file")

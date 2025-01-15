@@ -207,14 +207,14 @@ class FlashLoader(BaseLoader):
         # Return the list of found files
         return [str(file.resolve()) for file in files]
 
-    def parse_metadata(self, scicat_token: str = None) -> dict:
+    def parse_metadata(self, token: str = None) -> dict:
         """Uses the MetadataRetriever class to fetch metadata from scicat for each run.
 
         Returns:
             dict: Metadata dictionary
-            scicat_token (str, optional):: The scicat token to use for fetching metadata
+            token (str, optional):: The scicat token to use for fetching metadata
         """
-        metadata_retriever = MetadataRetriever(self._config["metadata"], scicat_token)
+        metadata_retriever = MetadataRetriever(self._config["metadata"], token)
         metadata = metadata_retriever.get_metadata(
             beamtime_id=self._config["core"]["beamtime_id"],
             runs=self.runs,
@@ -329,7 +329,9 @@ class FlashLoader(BaseLoader):
             debug (bool, optional): Whether to run buffer creation in serial. Defaults to False.
             remove_invalid_files (bool, optional): Whether to exclude invalid files.
                 Defaults to False.
-            scicat_token (str, optional): The scicat token to use for fetching metadata.
+            token (str, optional): The scicat token to use for fetching metadata. If provided,
+                will be saved to .env file for future use. If not provided, will check environment
+                variables when collect_metadata is True.
             filter_timed_by_electron (bool, optional): When True, the timed dataframe will only
                 contain data points where valid electron events were detected. When False, all
                 timed data points are included regardless of electron detection. Defaults to True.
@@ -341,13 +343,14 @@ class FlashLoader(BaseLoader):
         Raises:
             ValueError: If neither 'runs' nor 'files'/'raw_dir' is provided.
             FileNotFoundError: If the conversion fails for some files or no data is available.
+            ValueError: If collect_metadata is True and no token is available.
         """
         detector = kwds.pop("detector", "")
         force_recreate = kwds.pop("force_recreate", False)
         processed_dir = kwds.pop("processed_dir", None)
         debug = kwds.pop("debug", False)
         remove_invalid_files = kwds.pop("remove_invalid_files", False)
-        scicat_token = kwds.pop("scicat_token", None)
+        token = kwds.pop("token", None)
         filter_timed_by_electron = kwds.pop("filter_timed_by_electron", True)
 
         if len(kwds) > 0:
@@ -401,7 +404,7 @@ class FlashLoader(BaseLoader):
         if self.instrument == "wespe":
             df, df_timed = wespe_convert(df, df_timed)
 
-        self.metadata.update(self.parse_metadata(scicat_token) if collect_metadata else {})
+        self.metadata.update(self.parse_metadata(token) if collect_metadata else {})
         self.metadata.update(bh.metadata)
 
         print(f"loading complete in {time.time() - t0: .2f} s")
