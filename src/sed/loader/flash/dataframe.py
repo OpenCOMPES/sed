@@ -14,6 +14,9 @@ import pandas as pd
 
 from sed.loader.flash.utils import get_channels
 from sed.loader.flash.utils import InvalidFileError
+from sed.core.logging import setup_logging
+
+logger = setup_logging("flash_dataframe_creator")
 
 
 class DataFrameCreator:
@@ -34,6 +37,7 @@ class DataFrameCreator:
             config_dataframe (dict): The configuration dictionary with only the dataframe key.
             h5_path (Path): Path to the h5 file.
         """
+        logger.debug(f"Initializing DataFrameCreator for file: {h5_path}")
         self.h5_file = h5py.File(h5_path, "r")
         self.multi_index = get_channels(index=True)
         self._config = config_dataframe
@@ -76,6 +80,7 @@ class DataFrameCreator:
             tuple[pd.Index, np.ndarray | h5py.Dataset]: A tuple containing the train ID
             pd.Index and the channel's data.
         """
+        logger.debug(f"Getting dataset array for channel: {channel}")
         # Get the data from the necessary h5 file and channel
         index_key, dataset_key = self.get_index_dataset_key(channel)
 
@@ -85,6 +90,7 @@ class DataFrameCreator:
         if slice_:
             slice_index = self._config["channels"][channel].get("slice", None)
             if slice_index is not None:
+                logger.debug(f"Slicing dataset with index: {slice_index}")
                 dataset = np.take(dataset, slice_index, axis=1)
         # If np_array is size zero, fill with NaNs, fill it with NaN values
         # of the same shape as index
@@ -291,10 +297,14 @@ class DataFrameCreator:
         Returns:
             pd.DataFrame: The combined pandas DataFrame.
         """
-
+        logger.debug("Creating combined DataFrame")
         self.validate_channel_keys()
-        # been tested with merge, join and concat
-        # concat offers best performance, almost 3 times faster
+
         df = pd.concat((self.df_electron, self.df_pulse, self.df_train), axis=1).sort_index()
-        # all the negative pulse values are dropped as they are invalid
-        return df[df.index.get_level_values("pulseId") >= 0]
+        logger.debug(f"Created DataFrame with shape: {df.shape}")
+
+        # Filter negative pulse values
+        df = df[df.index.get_level_values("pulseId") >= 0]
+        logger.debug(f"Filtered DataFrame shape: {df.shape}")
+
+        return df
