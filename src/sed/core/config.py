@@ -54,11 +54,11 @@ def parse_config(
         user_config (dict | str, optional): user-based config dictionary
             or file path. The loaded dictionary is completed with the user-based values,
             taking preference over system and default values.
-            Defaults to the file ".config/sed/config.yaml" in the current user's home directory.
+            Defaults to the file ".config/sed/config_v1.yaml" in the current user's home directory.
         system_config (dict | str, optional): system-wide config dictionary
             or file path. The loaded dictionary is completed with the system-wide values,
-            taking preference over default values. Defaults to the file "/etc/sed/config.yaml"
-            on linux, and "%ALLUSERSPROFILE%/sed/config.yaml" on windows.
+            taking preference over default values. Defaults to the file "/etc/sed/config_v1.yaml"
+            on linux, and "%ALLUSERSPROFILE%/sed/config_v1.yaml" on windows.
         default_config (dict | str, optional): default config dictionary
             or file path. The loaded dictionary is completed with the default values.
             Defaults to *package_dir*/config/default.yaml".
@@ -98,7 +98,7 @@ def parse_config(
         user_dict = copy.deepcopy(user_config)
     else:
         if user_config is None:
-            user_config = str(USER_CONFIG_PATH.joinpath("config.yaml"))
+            user_config = str(USER_CONFIG_PATH.joinpath("config_v1.yaml"))
         if Path(user_config).exists():
             user_dict = load_config(user_config)
             if verbose:
@@ -109,7 +109,7 @@ def parse_config(
         system_dict = copy.deepcopy(system_config)
     else:
         if system_config is None:
-            system_config = str(SYSTEM_CONFIG_PATH.joinpath("config.yaml"))
+            system_config = str(SYSTEM_CONFIG_PATH.joinpath("config_v1.yaml"))
         if Path(system_config).exists():
             system_dict = load_config(system_config)
             if verbose:

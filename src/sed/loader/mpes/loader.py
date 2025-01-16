@@ -902,10 +902,13 @@ class MpesLoader(BaseLoader):
             metadata=metadata,
         )
 
-        metadata = metadata_retriever.fetch_elab_metadata(
-            runs=self.runs,
-            metadata=metadata,
-        )
+        if self.runs:
+            metadata = metadata_retriever.fetch_elab_metadata(
+                runs=self.runs,
+                metadata=metadata,
+            )
+        else:
+            logger.warning('Fetching elabFTW metadata only supported for loading from "runs"')
 
         return metadata
 
