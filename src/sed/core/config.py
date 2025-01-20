@@ -24,6 +24,7 @@ SYSTEM_CONFIG_PATH = (
     if platform.system() == "Windows"
     else Path("/etc/").joinpath("sed")
 )
+ENV_DIR = Path(".env")
 
 # Configure logging
 logger = setup_logging("config")
@@ -292,7 +293,7 @@ def read_env_var(var_name: str) -> str | None:
         return value
 
     # 2. check .env in current directory
-    local_vars = _parse_env_file(Path(".env"))
+    local_vars = _parse_env_file(ENV_DIR)
     if var_name in local_vars:
         logger.debug(f"Found {var_name} in ./.env file")
         return local_vars[var_name]
