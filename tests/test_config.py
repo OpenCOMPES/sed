@@ -285,17 +285,26 @@ def test_env_var_precedence(mock_env_file, tmp_path, monkeypatch):  # noqa: ARG0
     # Create local .env directory if it doesn't exist
     local_env_dir = tmp_path / "local"
     local_env_dir.mkdir(exist_ok=True)
+    system_env_dir = tmp_path / "system"
+    system_env_dir.mkdir(exist_ok=True)
     monkeypatch.setattr("sed.core.config.ENV_DIR", local_env_dir / ".env")
+    monkeypatch.setattr("sed.core.config.SYSTEM_CONFIG_PATH", system_env_dir)
 
     # Set up test values in different locations
     os.environ["TEST_VAR"] = "os_value"
 
-    # Save to user config first (lowest precedence)
+    # Save to system config first (4th precedence)
+    with open(system_env_dir / ".env", "w") as f:
+        f.write("TEST_VAR=system_value\n")
+
+    # Save to user config first (3rd precedence)
     save_env_var("TEST_VAR", "user_value")
 
-    # Create local .env file (medium precedence)
+    # Create local .env file (2nd precedence)
     with open(local_env_dir / ".env", "w") as f:
         f.write("TEST_VAR=local_value\n")
+
+    assert read_env_var("TEST_VAR") == "os_value"
 
     # Remove from OS env to test other precedence levels
     monkeypatch.delenv("TEST_VAR", raising=False)
@@ -305,8 +314,12 @@ def test_env_var_precedence(mock_env_file, tmp_path, monkeypatch):  # noqa: ARG0
     (local_env_dir / ".env").unlink()
     assert read_env_var("TEST_VAR") == "user_value"
 
-    # Remove user config and should get None
+    # Remove user config and should get system value
     (mock_env_file / ".env").unlink()
+    assert read_env_var("TEST_VAR") == "system_value"
+
+    # Remove system config and should get None
+    (system_env_dir / ".env").unlink()
     assert read_env_var("TEST_VAR") is None
 
 
