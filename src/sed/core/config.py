@@ -19,6 +19,11 @@ from sed.core.logging import setup_logging
 package_dir = os.path.dirname(find_spec("sed").origin)
 
 USER_CONFIG_PATH = user_config_path(appname="sed", appauthor="OpenCOMPES", ensure_exists=True)
+SYSTEM_CONFIG_PATH = (
+    Path(os.environ["ALLUSERSPROFILE"]).joinpath("sed")
+    if platform.system() == "Windows"
+    else Path("/etc/").joinpath("sed")
+)
 
 # Configure logging
 logger = setup_logging("config")
@@ -49,11 +54,11 @@ def parse_config(
         user_config (dict | str, optional): user-based config dictionary
             or file path. The loaded dictionary is completed with the user-based values,
             taking preference over system and default values.
-            Defaults to the file ".sed/config.yaml" in the current user's home directory.
+            Defaults to the file ".config/sed/config_v1.yaml" in the current user's home directory.
         system_config (dict | str, optional): system-wide config dictionary
             or file path. The loaded dictionary is completed with the system-wide values,
-            taking preference over default values. Defaults to the file "/etc/sed/config.yaml"
-            on linux, and "%ALLUSERSPROFILE%/sed/config.yaml" on windows.
+            taking preference over default values. Defaults to the file "/etc/sed/config_v1.yaml"
+            on linux, and "%ALLUSERSPROFILE%/sed/config_v1.yaml" on windows.
         default_config (dict | str, optional): default config dictionary
             or file path. The loaded dictionary is completed with the default values.
             Defaults to *package_dir*/config/default.yaml".
@@ -93,9 +98,7 @@ def parse_config(
         user_dict = copy.deepcopy(user_config)
     else:
         if user_config is None:
-            user_config = str(
-                Path.home().joinpath(".sed").joinpath("config.yaml"),
-            )
+            user_config = str(USER_CONFIG_PATH.joinpath("config_v1.yaml"))
         if Path(user_config).exists():
             user_dict = load_config(user_config)
             if verbose:
@@ -106,14 +109,7 @@ def parse_config(
         system_dict = copy.deepcopy(system_config)
     else:
         if system_config is None:
-            if platform.system() in ["Linux", "Darwin"]:
-                system_config = str(
-                    Path("/etc/").joinpath("sed").joinpath("config.yaml"),
-                )
-            elif platform.system() == "Windows":
-                system_config = str(
-                    Path(os.environ["ALLUSERSPROFILE"]).joinpath("sed").joinpath("config.yaml"),
-                )
+            system_config = str(SYSTEM_CONFIG_PATH.joinpath("config_v1.yaml"))
         if Path(system_config).exists():
             system_dict = load_config(system_config)
             if verbose:
@@ -281,6 +277,7 @@ def read_env_var(var_name: str) -> str | None:
     1. OS environment variables
     2. .env file in current directory
     3. .env file in user config directory
+    4. .env file in system config directory
 
     Args:
         var_name (str): Name of the environment variable to read
@@ -288,23 +285,29 @@ def read_env_var(var_name: str) -> str | None:
     Returns:
         str | None: Value of the environment variable or None if not found
     """
-    # First check OS environment variables
+    # 1. check OS environment variables
     value = os.getenv(var_name)
     if value is not None:
         logger.debug(f"Found {var_name} in OS environment variables")
         return value
 
-    # Then check .env in current directory
+    # 2. check .env in current directory
     local_vars = _parse_env_file(Path(".env"))
     if var_name in local_vars:
         logger.debug(f"Found {var_name} in ./.env file")
         return local_vars[var_name]
 
-    # Finally check .env in user config directory
+    # 3. check .env in user config directory
     user_vars = _parse_env_file(USER_CONFIG_PATH / ".env")
     if var_name in user_vars:
         logger.debug(f"Found {var_name} in user config .env file")
         return user_vars[var_name]
+
+    # 4. check .env in system config directory
+    system_vars = _parse_env_file(SYSTEM_CONFIG_PATH / ".env")
+    if var_name in system_vars:
+        logger.debug(f"Found {var_name} in system config .env file")
+        return system_vars[var_name]
 
     logger.debug(f"Environment variable {var_name} not found in any location")
     return None
