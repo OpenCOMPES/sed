@@ -19,6 +19,7 @@ from sed.core.logging import setup_logging
 package_dir = os.path.dirname(find_spec("sed").origin)
 
 USER_CONFIG_PATH = user_config_path(appname="sed", appauthor="OpenCOMPES", ensure_exists=True)
+ENV_DIR = Path(".env")
 
 # Configure logging
 logger = setup_logging("config")
@@ -295,7 +296,7 @@ def read_env_var(var_name: str) -> str | None:
         return value
 
     # Then check .env in current directory
-    local_vars = _parse_env_file(Path(".env"))
+    local_vars = _parse_env_file(ENV_DIR)
     if var_name in local_vars:
         logger.debug(f"Found {var_name} in ./.env file")
         return local_vars[var_name]
