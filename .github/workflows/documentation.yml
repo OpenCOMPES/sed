@@ -107,11 +107,16 @@ jobs:
         run: |
           if [[ $GITHUB_REF == refs/tags/* ]]; then
             VERSION=${GITHUB_REF#refs/tags/}
-            echo "folder=sed/$VERSION" >> $GITHUB_OUTPUT
-            rm docs-repo/sed/stable
-            rm -rf docs-repo/sed/latest
-            ln -s -r docs-repo/sed/$VERSION docs-repo/sed/stable
-            ln -s -r docs-repo/sed/$VERSION docs-repo/sed/latest
+              echo "folder=sed/$VERSION" >> $GITHUB_OUTPUT
+            if [[ $VERSION == *a* ]]; then
+              rm -rf docs-repo/sed/latest
+              ln -s -r docs-repo/sed/$VERSION docs-repo/sed/latest
+            else
+              rm -rf docs-repo/sed/stable
+              rm -rf docs-repo/sed/latest
+              ln -s -r docs-repo/sed/$VERSION docs-repo/sed/stable
+              ln -s -r docs-repo/sed/$VERSION docs-repo/sed/latest
+            fi
           elif [[ $GITHUB_REF == refs/heads/main ]]; then
             rm -rf docs-repo/sed/latest
             echo "folder=sed/latest" >> $GITHUB_OUTPUT

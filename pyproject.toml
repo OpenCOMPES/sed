@@ -18,8 +18,16 @@ authors = [
 ]
 readme = "README.md"
 keywords = ["sed", "mpes", "flash", "arpes"]
-license = {text = "MIT"}
+license = { file = "LICENSE" }
 requires-python = ">=3.9,<3.13"
+classifiers = [
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
 dependencies = [
     "bokeh>=2.4.2",
     "dask>=2021.12.0,<2024.8",
