@@ -29,7 +29,7 @@ MpesLoader
    :members:
    :undoc-members:
 
-.. automodule:: sed.loader.flash.metadata
+.. automodule:: sed.loader.mpes.metadata
    :members:
    :undoc-members:
 
