@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import datetime
 import json
+from copy import deepcopy
 from urllib.error import HTTPError
 from urllib.error import URLError
 from urllib.request import urlopen
@@ -35,6 +36,7 @@ class MetadataRetriever:
             token (str, optional): The token to use for fetching metadata. If provided,
                 will be saved to .env file for future use.
         """
+        self._config = deepcopy(metadata_config)
         # Token handling
         if token:
             self.token = token
@@ -49,9 +51,7 @@ class MetadataRetriever:
             )
             return
 
-        self._config = metadata_config
-
-        self.url = metadata_config.get("elab_url")
+        self.url = self._config.get("elab_url")
         if not self.url:
             logger.warning(
                 "No URL provided for fetching metadata from elabFTW."
