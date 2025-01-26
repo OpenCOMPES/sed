@@ -42,6 +42,30 @@ def test_metadata_retriever_init(metadata_retriever):
     assert metadata_retriever.url == "http://example.com"
 
 
+def test_metadata_retriever_no_token(metadata_config, tmp_path, monkeypatch):
+    monkeypatch.setattr("sed.core.config.ENV_DIR", tmp_path / ".env")
+    monkeypatch.setattr("sed.core.config.SYSTEM_CONFIG_PATH", tmp_path)
+    monkeypatch.setattr("sed.core.config.USER_CONFIG_PATH", tmp_path)
+    retriever = MetadataRetriever(metadata_config)
+    assert retriever.token is None
+
+    metadata = {}
+    runs = ["run1"]
+    updated_metadata = retriever.fetch_elab_metadata(runs, metadata)
+    assert updated_metadata == metadata
+
+
+def test_metadata_retriever_no_url(metadata_config):
+    metadata_config.pop("elab_url")
+    retriever = MetadataRetriever(metadata_config, "dummy_token")
+    assert retriever.url is None
+
+    metadata = {}
+    runs = ["run1"]
+    updated_metadata = retriever.fetch_elab_metadata(runs, metadata)
+    assert updated_metadata == metadata
+
+
 @patch("sed.loader.mpes.metadata.urlopen")
 def test_get_archiver_data(mock_urlopen):
     """Test get_archiver_data using a mock of urlopen."""
@@ -73,6 +97,49 @@ def test_fetch_epics_metadata(mock_get_archiver_data, metadata_retriever):
     updated_metadata = metadata_retriever.fetch_epics_metadata(ts_from, ts_to, metadata)
 
     assert updated_metadata["file"]["channel1"] == 10
+
+
+@patch("sed.loader.mpes.metadata.get_archiver_data")
+def test_fetch_epics_metadata_missing_channels(mock_get_archiver_data, metadata_retriever):
+    """Test fetch_epics_metadata with missing EPICS channels."""
+    mock_get_archiver_data.return_value = (np.array([1.5]), np.array([10]))
+    metadata = {"file": {"channel1": 10}}
+    ts_from = datetime.datetime(2023, 1, 1).timestamp()
+    ts_to = datetime.datetime(2023, 1, 2).timestamp()
+
+    updated_metadata = metadata_retriever.fetch_epics_metadata(ts_from, ts_to, metadata)
+
+    assert "channel1" in updated_metadata["file"]
+
+
+@patch("sed.loader.mpes.metadata.get_archiver_data")
+def test_fetch_epics_metadata_missing_aperture_config(mock_get_archiver_data, metadata_retriever):
+    """Test fetch_epics_metadata with missing aperture configuration."""
+    mock_get_archiver_data.return_value = (np.array([1.5]), np.array([10]))
+    metadata = {"file": {}}
+    ts_from = datetime.datetime(2023, 1, 1).timestamp()
+    ts_to = datetime.datetime(2023, 1, 2).timestamp()
+    metadata_retriever._config["aperture_config"] = {}
+
+    updated_metadata = metadata_retriever.fetch_epics_metadata(ts_from, ts_to, metadata)
+
+    assert "instrument" in updated_metadata
+
+
+@patch("sed.loader.mpes.metadata.get_archiver_data")
+def test_fetch_epics_metadata_missing_field_aperture(mock_get_archiver_data, metadata_retriever):
+    """Test fetch_epics_metadata with missing field aperture shape and size."""
+    mock_get_archiver_data.return_value = (np.array([1.5]), np.array([10]))
+    metadata = {"file": {}}
+    ts_from = datetime.datetime(2023, 1, 1).timestamp()
+    ts_to = datetime.datetime(2023, 1, 2).timestamp()
+
+    updated_metadata = metadata_retriever.fetch_epics_metadata(ts_from, ts_to, metadata)
+
+    assert updated_metadata["instrument"]["analyzer"]["fa_shape"] == "circle"
+    assert updated_metadata["instrument"]["analyzer"]["ca_shape"] == "circle"
+    assert np.isnan(updated_metadata["instrument"]["analyzer"]["fa_size"])
+    assert np.isnan(updated_metadata["instrument"]["analyzer"]["ca_size"])
 
 
 @patch("sed.loader.mpes.metadata.elabapi_python")
