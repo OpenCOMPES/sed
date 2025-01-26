@@ -2283,6 +2283,8 @@ class SedProcessor:
                 )
                 # if the axes are named correctly, xarray figures out the normalization correctly
                 self._normalized = self._binned / self._normalization_histogram
+                # Set datatype of binned data
+                self._normalized.data = self._normalized.data.astype(self._binned.data.dtype)
                 self._attributes.add(
                     self._normalization_histogram.values,
                     name="normalization_histogram",
