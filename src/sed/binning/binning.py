@@ -479,13 +479,7 @@ def normalization_histogram_from_timed_dataframe(
     Returns:
         xr.DataArray: Calculated normalization histogram.
     """
-    bins = df[axis].map_partitions(
-        pd.cut,
-        bins=bin_centers_to_bin_edges(bin_centers),
-    )
-
-    histogram = df[axis].groupby([bins]).count().compute().values * time_unit
-    # histogram = bin_dataframe(df, axes=[axis], bins=[bin_centers]) * time_unit
+    histogram = bin_dataframe(df, axes=[axis], bins=[bin_centers]) * time_unit
 
     data_array = xr.DataArray(
         data=histogram,
