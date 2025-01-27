@@ -47,15 +47,14 @@ class MetadataRetriever:
 
         if not self.token:
             logger.warning(
-                "No valid token provided for elabFTW." "Fetching elabFTW metadata will be skipped.",
+                "No valid token provided for elabFTW. Fetching elabFTW metadata will be skipped.",
             )
             return
 
         self.url = self._config.get("elab_url")
         if not self.url:
             logger.warning(
-                "No URL provided for fetching metadata from elabFTW."
-                "Fetching elabFTW metadata will be skipped.",
+                "No URL provided for elabFTW. Fetching elabFTW metadata will be skipped.",
             )
             return
 
