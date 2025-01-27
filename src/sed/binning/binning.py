@@ -465,6 +465,7 @@ def normalization_histogram_from_timed_dataframe(
     axis: str,
     bin_centers: np.ndarray,
     time_unit: float,
+    **kwds,
 ) -> xr.DataArray:
     """Get a normalization histogram from a timed dataframe.
 
@@ -475,11 +476,12 @@ def normalization_histogram_from_timed_dataframe(
             histogram.
         bin_centers (np.ndarray): Bin centers used for binning of the axis.
         time_unit (float): Time unit the data frame entries are based on.
+        **kwds: Additional keyword arguments passed to the bin_dataframe function.
 
     Returns:
         xr.DataArray: Calculated normalization histogram.
     """
-    histogram = bin_dataframe(df, axes=[axis], bins=[bin_centers]) * time_unit
+    histogram = bin_dataframe(df, axes=[axis], bins=[bin_centers], **kwds) * time_unit
 
     data_array = xr.DataArray(
         data=histogram,
