@@ -8,7 +8,6 @@ import tempfile
 from pathlib import Path
 
 import pytest
-from pydantic import ValidationError
 
 from sed.core.config import complete_dictionary
 from sed.core.config import load_config
@@ -16,7 +15,6 @@ from sed.core.config import parse_config
 from sed.core.config import read_env_var
 from sed.core.config import save_config
 from sed.core.config import save_env_var
-from sed.core.config import USER_CONFIG_PATH
 
 test_dir = os.path.dirname(__file__)
 test_config_dir = Path(f"{test_dir}/data/loader/")
@@ -171,7 +169,7 @@ def test_invalid_config_extra_field():
     )
     invalid_config = default_config.copy()
     invalid_config["extra_field"] = "extra_value"
-    with pytest.raises(ValidationError):
+    with pytest.raises(ValueError):
         parse_config(
             invalid_config,
             folder_config={},
@@ -191,7 +189,7 @@ def test_invalid_config_missing_field():
     )
     invalid_config = default_config.copy()
     del invalid_config["core"]["loader"]
-    with pytest.raises(ValidationError):
+    with pytest.raises(ValueError):
         parse_config(
             folder_config={},
             user_config={},
@@ -211,7 +209,7 @@ def test_invalid_config_wrong_values():
     )
     invalid_config = default_config.copy()
     invalid_config["core"]["loader"] = "nonexistent"
-    with pytest.raises(ValidationError) as e:
+    with pytest.raises(ValueError) as e:
         parse_config(
             folder_config={},
             user_config={},
@@ -225,7 +223,7 @@ def test_invalid_config_wrong_values():
     invalid_config["core"]["copy_tool"]["source"] = "./"
     invalid_config["core"]["copy_tool"]["dest"] = "./"
     invalid_config["core"]["copy_tool"]["gid"] = 9999
-    with pytest.raises(ValidationError) as e:
+    with pytest.raises(ValueError) as e:
         parse_config(
             folder_config={},
             user_config={},
@@ -236,11 +234,15 @@ def test_invalid_config_wrong_values():
     assert "Invalid value 9999 for gid. Group not found." in str(e.value)
 
 
-def test_env_var_read_write(tmp_path, monkeypatch):
-    """Test reading and writing environment variables."""
-    # Mock USER_CONFIG_PATH to use a temporary directory
+@pytest.fixture
+def mock_env_file(tmp_path, monkeypatch):
+    """Mock the .env file for testing"""
     monkeypatch.setattr("sed.core.config.USER_CONFIG_PATH", tmp_path)
+    yield tmp_path
 
+
+def test_env_var_read_write(mock_env_file):  # noqa: ARG001
+    """Test reading and writing environment variables."""
     # Test writing a new variable
     save_env_var("TEST_VAR", "test_value")
     assert read_env_var("TEST_VAR") == "test_value"
@@ -259,16 +261,13 @@ def test_env_var_read_write(tmp_path, monkeypatch):
     assert read_env_var("NON_EXISTENT_VAR") is None
 
 
-def test_env_var_read_no_file(tmp_path, monkeypatch):
+def test_env_var_read_no_file(mock_env_file):  # noqa: ARG001
     """Test reading environment variables when .env file doesn't exist."""
-    # Mock USER_CONFIG_PATH to use an empty temporary directory
-    monkeypatch.setattr("sed.core.config.USER_CONFIG_PATH", tmp_path)
-
     # Test reading from non-existent file
     assert read_env_var("TEST_VAR") is None
 
 
-def test_env_var_special_characters():
+def test_env_var_special_characters(mock_env_file):  # noqa: ARG001
     """Test reading and writing environment variables with special characters."""
     test_cases = {
         "TEST_URL": "http://example.com/path?query=value",
@@ -281,50 +280,55 @@ def test_env_var_special_characters():
         assert read_env_var(var_name) == value
 
 
-@pytest.fixture
-def cleanup_env_files():
-    """Cleanup any .env files before and after tests"""
-    # Clean up any existing .env files
-    for path in [Path(".env"), USER_CONFIG_PATH / ".env"]:
-        if path.exists():
-            path.unlink()
-
-    yield
-
-    # Clean up after tests
-    for path in [Path(".env"), USER_CONFIG_PATH / ".env"]:
-        if path.exists():
-            path.unlink()
-
-
-def test_env_var_precedence(cleanup_env_files):  # noqa: ARG001
+def test_env_var_precedence(mock_env_file, tmp_path, monkeypatch):  # noqa: ARG001
     """Test that environment variables are read in correct order of precedence"""
+    # Create local .env directory if it doesn't exist
+    local_env_dir = tmp_path / "local"
+    local_env_dir.mkdir(exist_ok=True)
+    system_env_dir = tmp_path / "system"
+    system_env_dir.mkdir(exist_ok=True)
+    monkeypatch.setattr("sed.core.config.ENV_DIR", local_env_dir / ".env")
+    monkeypatch.setattr("sed.core.config.SYSTEM_CONFIG_PATH", system_env_dir)
+
     # Set up test values in different locations
     os.environ["TEST_VAR"] = "os_value"
 
-    with open(".env", "w") as f:
+    # Save to system config first (4th precedence)
+    with open(system_env_dir / ".env", "w") as f:
+        f.write("TEST_VAR=system_value\n")
+
+    # Save to user config first (3rd precedence)
+    save_env_var("TEST_VAR", "user_value")
+
+    # Create local .env file (2nd precedence)
+    with open(local_env_dir / ".env", "w") as f:
         f.write("TEST_VAR=local_value\n")
 
-    save_env_var("TEST_VAR", "user_value")  # Saves to USER_CONFIG_PATH
-
-    # Should get OS value first
     assert read_env_var("TEST_VAR") == "os_value"
 
-    # Remove from OS env and should get local value
-    del os.environ["TEST_VAR"]
+    # Remove from OS env to test other precedence levels
+    monkeypatch.delenv("TEST_VAR", raising=False)
     assert read_env_var("TEST_VAR") == "local_value"
 
     # Remove local .env and should get user config value
-    Path(".env").unlink()
+    (local_env_dir / ".env").unlink()
     assert read_env_var("TEST_VAR") == "user_value"
 
-    # Remove user config and should get None
-    (USER_CONFIG_PATH / ".env").unlink()
+    # Remove user config and should get system value
+    (mock_env_file / ".env").unlink()
+    assert read_env_var("TEST_VAR") == "system_value"
+
+    # Remove system config and should get None
+    (system_env_dir / ".env").unlink()
     assert read_env_var("TEST_VAR") is None
 
 
-def test_env_var_save_and_load(cleanup_env_files):  # noqa: ARG001
+def test_env_var_save_and_load(mock_env_file, monkeypatch):  # noqa: ARG001
     """Test saving and loading environment variables"""
+    # Clear any existing OS environment variables
+    monkeypatch.delenv("TEST_VAR", raising=False)
+    monkeypatch.delenv("OTHER_VAR", raising=False)
+
     # Save a variable
     save_env_var("TEST_VAR", "test_value")
 
@@ -337,14 +341,20 @@ def test_env_var_save_and_load(cleanup_env_files):  # noqa: ARG001
     assert read_env_var("OTHER_VAR") == "other_value"
 
 
-def test_env_var_not_found(cleanup_env_files):  # noqa: ARG001
+def test_env_var_not_found(mock_env_file):  # noqa: ARG001
     """Test behavior when environment variable is not found"""
     assert read_env_var("NONEXISTENT_VAR") is None
 
 
-def test_env_file_format(cleanup_env_files):  # noqa: ARG001
+def test_env_file_format(mock_env_file, monkeypatch):  # noqa: ARG001
     """Test that .env file parsing handles different formats correctly"""
-    with open(".env", "w") as f:
+    # Clear any existing OS environment variables
+    monkeypatch.delenv("TEST_VAR", raising=False)
+    monkeypatch.delenv("SPACES_VAR", raising=False)
+    monkeypatch.delenv("EMPTY_VAR", raising=False)
+    monkeypatch.delenv("COMMENT", raising=False)
+
+    with open(mock_env_file / ".env", "w") as f:
         f.write(
             """
                 TEST_VAR=value1

@@ -1,4 +1,4 @@
-[![Documentation Status](https://github.com/OpenCOMPES/sed/actions/workflows/documentation.yml/badge.svg)]([https://opencompes.github.io/sed/](https://opencompes.github.io/docs/sed/latest/))
+[![Documentation Status](https://github.com/OpenCOMPES/sed/actions/workflows/documentation.yml/badge.svg)](https://opencompes.github.io/docs/sed/stable/)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 ![](https://github.com/OpenCOMPES/sed/actions/workflows/linting.yml/badge.svg?branch=main)
 ![](https://github.com/OpenCOMPES/sed/actions/workflows/testing_multiversion.yml/badge.svg?branch=main)
@@ -58,11 +58,11 @@ pip install sed-processor
 
 # Documentation
 Comprehensive documentation including several workflow examples can be found here:
-https://opencompes.github.io/docs/sed/latest/
+https://opencompes.github.io/docs/sed/stable/
 
 
 # Contributing
-Users are welcome to contribute to the development of **sed-processor**. Information how to contribute, including how to install developer versions can be found in the [documentation](https://opencompes.github.io/docs/sed/latest/misc/contribution.html)
+Users are welcome to contribute to the development of **sed-processor**. Information how to contribute, including how to install developer versions can be found in the [documentation](https://opencompes.github.io/docs/sed/stable/misc/contribution.html)
 
 We would like to thank our contributors!
 
