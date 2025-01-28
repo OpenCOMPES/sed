@@ -11,6 +11,7 @@ import pytest
 
 from sed.loader.mpes.metadata import get_archiver_data
 from sed.loader.mpes.metadata import MetadataRetriever
+from tests.test_config import mock_env_file  # noqa: F401
 
 
 @pytest.fixture
@@ -33,7 +34,7 @@ def metadata_config():
 
 
 @pytest.fixture
-def metadata_retriever(metadata_config):
+def metadata_retriever(metadata_config, mock_env_file):  # noqa: ARG001
     return MetadataRetriever(metadata_config, "dummy_token")
 
 
@@ -43,9 +44,9 @@ def test_metadata_retriever_init(metadata_retriever):
 
 
 def test_metadata_retriever_no_token(metadata_config, tmp_path, monkeypatch):
-    monkeypatch.setattr("sed.core.config.ENV_DIR", tmp_path / ".env")
-    monkeypatch.setattr("sed.core.config.SYSTEM_CONFIG_PATH", tmp_path)
-    monkeypatch.setattr("sed.core.config.USER_CONFIG_PATH", tmp_path)
+    monkeypatch.setattr("sed.core.config.ENV_DIR", tmp_path / ".dummy_env")
+    monkeypatch.setattr("sed.core.config.SYSTEM_CONFIG_PATH", tmp_path / "system")
+    monkeypatch.setattr("sed.core.config.USER_CONFIG_PATH", tmp_path / "user")
     retriever = MetadataRetriever(metadata_config)
     assert retriever.token is None
 
@@ -55,7 +56,7 @@ def test_metadata_retriever_no_token(metadata_config, tmp_path, monkeypatch):
     assert updated_metadata == metadata
 
 
-def test_metadata_retriever_no_url(metadata_config):
+def test_metadata_retriever_no_url(metadata_config, mock_env_file):  # noqa: ARG001
     metadata_config.pop("elab_url")
     retriever = MetadataRetriever(metadata_config, "dummy_token")
     assert retriever.url is None
@@ -143,7 +144,7 @@ def test_fetch_epics_metadata_missing_field_aperture(mock_get_archiver_data, met
 
 
 @patch("sed.loader.mpes.metadata.elabapi_python")
-def test_fetch_elab_metadata(mock_elabapi_python, metadata_config):
+def test_fetch_elab_metadata(mock_elabapi_python, metadata_config, mock_env_file):  # noqa: ARG001
     """Test fetch_elab_metadata using a mock of elabapi_python."""
     mock_experiment = MagicMock()
     mock_experiment.id = 1
