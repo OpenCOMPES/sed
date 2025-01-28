@@ -93,8 +93,8 @@ notebook = [
 
 [tool.coverage.report]
 omit = [
-    "config.py",
-    "config-3.py",
+    "./config.py",
+    "./config-3.py",
 ]
 
 [tool.ruff]
