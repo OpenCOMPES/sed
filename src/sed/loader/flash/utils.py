@@ -58,9 +58,8 @@ def get_channels(
         # Get the available channels excluding 'pulseId'.
         available_channels = list(channel_dict.keys())
         # pulse alias is an index and should not be included in the list of channels.
-        # Remove specified channels if they are present in available_channels.
-        channels_to_remove = ["pulseId", "numEvents"]
-        for channel in channels_to_remove:
+        # Remove index channels if they are present in available_channels.
+        for channel in index_list:
             if channel in available_channels:
                 available_channels.remove(channel)
 

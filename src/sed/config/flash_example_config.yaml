@@ -217,8 +217,7 @@ dataframe:
 
 # metadata collection from scicat
 # metadata:
-#   scicat_url: <URL>
-#   scicat_token: <TOKEN>
+#   archiver_url: <URL>
 
 # The nexus collection routine shall be finalized soon for both instruments
 nexus:

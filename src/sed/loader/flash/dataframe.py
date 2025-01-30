@@ -14,9 +14,9 @@ import h5py
 import numpy as np
 import pandas as pd
 
+from sed.core.logging import setup_logging
 from sed.loader.flash.utils import get_channels
 from sed.loader.flash.utils import InvalidFileError
-from sed.core.logging import setup_logging
 
 logger = setup_logging("flash_dataframe_creator")
 
@@ -434,7 +434,7 @@ class CFELDataFrameCreator(BaseDataFrameCreator):
             dataset = self.get_dataset_array(channel)
             # Electron and pulse resolved MultiIndex is created. Since this is train data,
             # the electron and pulse index is always 0
-            index = np.cumsum([0, *self.get_dataset_array("numEvents")[:-1]])
+            index = np.cumsum([0, *self.get_dataset_array("index")[:-1]])
             # Auxiliary dataset (which is stored in the same dataset as other DLD channels)
             # contains multiple channels inside. Even though they are resolved per train,
             # they come in pulse format, so the extra values are sliced and individual channels are

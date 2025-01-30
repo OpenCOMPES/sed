@@ -102,7 +102,7 @@ dataframe:
     #   format: per_file
     #   dataset_key: "/uncategorised/FLASH.DIAG/TIMINGINFO/TIME1.BUNCH_FIRST_INDEX.1/time"
     # event key
-    numEvents:
+    index:
       format: per_file
       dataset_key: /DLD/NumOfEvents
     # detector x position
@@ -156,11 +156,10 @@ dataframe:
 
 # metadata collection from scicat
 # metadata:
-#   scicat_url: <URL>
-#   scicat_token: <TOKEN>
+#   archiver_url: <URL>
 
 # The nexus collection routine shall be finalized soon for both instruments
 # nexus:
-#   reader: "flash"
+#   reader: "mpes"
 #   definition: "NXmpes"
-#   input_files: ["NXmpes_config_HEXTOF_light.json"]
+#   input_files: ["NXmpes_config-HEXTOF.json"]
