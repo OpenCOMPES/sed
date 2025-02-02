@@ -2283,6 +2283,8 @@ class SedProcessor:
                 )
                 # if the axes are named correctly, xarray figures out the normalization correctly
                 self._normalized = self._binned / self._normalization_histogram
+                # Set datatype of binned data
+                self._normalized.data = self._normalized.data.astype(self._binned.data.dtype)
                 self._attributes.add(
                     self._normalization_histogram.values,
                     name="normalization_histogram",
@@ -2375,6 +2377,12 @@ class SedProcessor:
                     axis,
                     self._binned.coords[axis].values,
                     self._config["dataframe"]["timed_dataframe_unit_time"],
+                    hist_mode=self.config["binning"]["hist_mode"],
+                    mode=self.config["binning"]["mode"],
+                    pbar=self.config["binning"]["pbar"],
+                    n_cores=self.config["core"]["num_cores"],
+                    threads_per_worker=self.config["binning"]["threads_per_worker"],
+                    threadpool_api=self.config["binning"]["threadpool_API"],
                 )
             else:
                 self._normalization_histogram = normalization_histogram_from_timed_dataframe(
@@ -2382,6 +2390,12 @@ class SedProcessor:
                     axis,
                     self._binned.coords[axis].values,
                     self._config["dataframe"]["timed_dataframe_unit_time"],
+                    hist_mode=self.config["binning"]["hist_mode"],
+                    mode=self.config["binning"]["mode"],
+                    pbar=self.config["binning"]["pbar"],
+                    n_cores=self.config["core"]["num_cores"],
+                    threads_per_worker=self.config["binning"]["threads_per_worker"],
+                    threadpool_api=self.config["binning"]["threadpool_API"],
                 )
 
         return self._normalization_histogram
