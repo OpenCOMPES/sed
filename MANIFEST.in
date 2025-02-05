@@ -1,0 +1,5 @@
+prune *
+exclude *
+recursive-include src/sed *.py
+include pyproject.toml README.md
+graft src/sed/config/

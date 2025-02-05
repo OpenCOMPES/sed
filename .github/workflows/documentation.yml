@@ -5,12 +5,14 @@ on:
     branches: [ main ]
     tags: [ v* ]
     paths:
-      - sed/**/*
+      - src/sed/**/*
       - tutorial/**
       - .github/workflows/documentation.yml
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
+env:
+  UV_SYSTEM_PYTHON: true
 
 jobs:
   build:
@@ -26,69 +28,50 @@ jobs:
           remove-android: 'true'
           remove-docker-images: 'true'
 
-      #  Check out repo and set up Python
-      - name: Check out the repository
-        uses: actions/checkout@v4
+      # Check out repo and set up Python
+      - uses: actions/checkout@v4
         with:
-          lfs: true
+          fetch-depth: 0
 
-      # Use cached python and dependencies, install poetry
-      - name: "Setup Python, Poetry and Dependencies"
-        uses: packetcoders/action-setup-cache-python-poetry@main
+      # Setup python
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
         with:
-          python-version: 3.9
-          poetry-version: 1.8.3
+          python-version: "3.10"
 
-      - name: Install notebook dependencies
-        run: poetry install -E notebook --with docs
+      - name: Install dependencies
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: Install package
+        run: |
+          uv pip install ".[docs,notebook]"
 
       - name: Install pandoc
         run: |
           sudo wget https://github.com/jgm/pandoc/releases/download/3.1.8/pandoc-3.1.8-1-amd64.deb
           sudo dpkg -i pandoc-3.1.8-1-amd64.deb
 
-      # rm because hextof_workflow notebook can not run outside maxwell
       - name: copy tutorial files to docs
         run: |
           cp -r $GITHUB_WORKSPACE/tutorial $GITHUB_WORKSPACE/docs/
-          cp -r $GITHUB_WORKSPACE/sed/config $GITHUB_WORKSPACE/docs/sed
-
+          mkdir -p $GITHUB_WORKSPACE/docs/src/sed
+          cp -r $GITHUB_WORKSPACE/src/sed/config $GITHUB_WORKSPACE/docs/src/sed/
 
       - name: download RAW data
         # if: steps.cache-primes.outputs.cache-hit != 'true'
         run: |
           cd $GITHUB_WORKSPACE/docs
-          poetry run python scripts/download_data.py
+          python scripts/download_data.py
 
       - name: build parquet files
         run: |
           cd $GITHUB_WORKSPACE/docs
-          poetry run python scripts/build_flash_parquets.py
-          poetry run python scripts/build_sxp_parquets.py
-
-      # to be removed later. This theme doesn't support <3.9 python and our lock file contains 3.8
-      - name: install pydata-sphinx-theme
-        run: |
-          poetry run pip install pydata-sphinx-theme
-
-      - name: Change version for develop build
-        if: startsWith(github.ref, 'refs/heads/') && github.ref != 'refs/heads/main'
-        run: |
-          VERSION=`sed -n 's/^version = "\(.*\)".*/\1/p' $GITHUB_WORKSPACE/pyproject.toml`
-          MOD_VERSION=$VERSION".dev0"
-          echo $MOD_VERSION
-          sed -i "s/^version = \"$VERSION\"/version = \"$MOD_VERSION\"/" $GITHUB_WORKSPACE/pyproject.toml
-
-      - name: Change version for release build
-        if: startsWith(github.ref, 'refs/tags/')
-        run: |
-          OLD_VERSION=`sed -n 's/^version = "\(.*\)".*/\1/p' $GITHUB_WORKSPACE/pyproject.toml`
-          NEW_VERSION=`echo ${GITHUB_REF#refs/tags/} | sed -n 's/^v\(.*\)/\1/p'`
-          echo $NEW_VERSION
-          sed -i "s/^version = \"$OLD_VERSION\"/version = \"$NEW_VERSION\"/" $GITHUB_WORKSPACE/pyproject.toml
+          python scripts/build_flash_parquets.py
+          python scripts/build_sxp_parquets.py
 
       - name: build Sphinx docs
-        run: poetry run sphinx-build -b html $GITHUB_WORKSPACE/docs $GITHUB_WORKSPACE/_build
+        run: sphinx-build -b html $GITHUB_WORKSPACE/docs $GITHUB_WORKSPACE/_build
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -102,16 +85,11 @@ jobs:
     needs: build
     steps:
       - name: Checkout docs repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           repository: ${{ github.repository_owner }}/docs
           token: ${{ secrets.GITHUB_TOKEN }}
           path: 'docs-repo'
-
-      - name: Set up Python 3.9
-        uses: actions/setup-python@v4
-        with:
-          python-version: 3.9
 
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.9.0
@@ -129,11 +107,16 @@ jobs:
         run: |
           if [[ $GITHUB_REF == refs/tags/* ]]; then
             VERSION=${GITHUB_REF#refs/tags/}
-            echo "folder=sed/$VERSION" >> $GITHUB_OUTPUT
-            rm docs-repo/sed/stable
-            rm -rf docs-repo/sed/latest
-            ln -s -r docs-repo/sed/$VERSION docs-repo/sed/stable
-            ln -s -r docs-repo/sed/$VERSION docs-repo/sed/latest
+              echo "folder=sed/$VERSION" >> $GITHUB_OUTPUT
+            if [[ $VERSION == *a* ]]; then
+              rm -rf docs-repo/sed/latest
+              ln -s -r docs-repo/sed/$VERSION docs-repo/sed/latest
+            else
+              rm -rf docs-repo/sed/stable
+              rm -rf docs-repo/sed/latest
+              ln -s -r docs-repo/sed/$VERSION docs-repo/sed/stable
+              ln -s -r docs-repo/sed/$VERSION docs-repo/sed/latest
+            fi
           elif [[ $GITHUB_REF == refs/heads/main ]]; then
             rm -rf docs-repo/sed/latest
             echo "folder=sed/latest" >> $GITHUB_OUTPUT

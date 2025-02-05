@@ -1,93 +1,22 @@
 """Tests for FlashLoader functionality"""
+from __future__ import annotations
+
 import os
-from importlib.util import find_spec
 from pathlib import Path
 from typing import Literal
 
 import pytest
 
-from sed.core.config import parse_config
+from .test_buffer_handler import create_parquet_dir
 from sed.loader.flash.loader import FlashLoader
-
-package_dir = os.path.dirname(find_spec("sed").origin)
-config_path = os.path.join(package_dir, "../tests/data/loader/flash/config.yaml")
-H5_PATH = "FLASH1_USER3_stream_2_run43878_file1_20230130T153807.1.h5"
-
-
-@pytest.fixture(name="config_file")
-def fixture_config_file() -> dict:
-    """Fixture providing a configuration file for FlashLoader tests.
-
-    Returns:
-        dict: The parsed configuration file.
-    """
-    return parse_config(config_path)
-
-
-def test_get_channels_by_format(config_file: dict) -> None:
-    """
-    Test function to verify the 'get_channels' method in FlashLoader class for
-    retrieving channels based on formats and index inclusion.
-    """
-    # Initialize the FlashLoader instance with the given config_file.
-    fl = FlashLoader(config_file)
-
-    # Define expected channels for each format.
-    electron_channels = ["dldPosX", "dldPosY", "dldTimeSteps"]
-    pulse_channels = [
-        "sampleBias",
-        "tofVoltage",
-        "extractorVoltage",
-        "extractorCurrent",
-        "cryoTemperature",
-        "sampleTemperature",
-        "dldTimeBinSize",
-        "gmdTunnel",
-    ]
-    train_channels = ["timeStamp", "delayStage"]
-    index_channels = ["trainId", "pulseId", "electronId"]
-
-    # Call get_channels method with different format options.
-
-    # Request channels for 'per_electron' format using a list.
-    format_electron = fl.get_channels(["per_electron"])
-
-    # Request channels for 'per_pulse' format using a string.
-    format_pulse = fl.get_channels("per_pulse")
-
-    # Request channels for 'per_train' format using a list.
-    format_train = fl.get_channels(["per_train"])
-
-    # Request channels for 'all' formats using a list.
-    format_all = fl.get_channels(["all"])
-
-    # Request index channels only.
-    format_index = fl.get_channels(index=True)
-
-    # Request 'per_electron' format and include index channels.
-    format_index_electron = fl.get_channels(["per_electron"], index=True)
-
-    # Request 'all' formats and include index channels.
-    format_all_index = fl.get_channels(["all"], index=True)
-
-    # Assert that the obtained channels match the expected channels.
-    assert set(electron_channels) == set(format_electron)
-    assert set(pulse_channels) == set(format_pulse)
-    assert set(train_channels) == set(format_train)
-    assert set(electron_channels + pulse_channels + train_channels) == set(format_all)
-    assert set(index_channels) == set(format_index)
-    assert set(index_channels + electron_channels) == set(format_index_electron)
-    assert set(index_channels + electron_channels + pulse_channels + train_channels) == set(
-        format_all_index,
-    )
 
 
 @pytest.mark.parametrize(
     "sub_dir",
     ["online-0/fl1user3/", "express-0/fl1user3/", "FL1USER3/"],
 )
-def test_initialize_paths(
-    config_file: dict,
+def test_initialize_dirs(
+    config: dict,
     fs,
     sub_dir: Literal["online-0/fl1user3/", "express-0/fl1user3/", "FL1USER3/"],
 ) -> None:
@@ -98,128 +27,208 @@ def test_initialize_paths(
     fs: A fixture for a fake file system.
     sub_dir (Literal["online-0/fl1user3/", "express-0/fl1user3/", "FL1USER3/"]): Sub-directory.
     """
-    config = config_file
-    del config["core"]["paths"]
-    config["core"]["beamtime_id"] = "12345678"
-    config["core"]["year"] = "2000"
+    config_ = config.copy()
+    del config_["core"]["paths"]
+    config_["core"]["beamtime_id"] = "12345678"
+    config_["core"]["year"] = "2000"
 
     # Find base path of beamline from config. Here, we use pg2
-    base_path = config["dataframe"]["beamtime_dir"]["pg2"]
+    base_path = config_["core"]["beamtime_dir"]["pg2"]
     expected_path = (
-        Path(base_path) / config["core"]["year"] / "data" / config["core"]["beamtime_id"]
+        Path(base_path) / config_["core"]["year"] / "data" / config_["core"]["beamtime_id"]
     )
     # Create expected paths
     expected_raw_path = expected_path / "raw" / "hdf" / sub_dir
-    expected_processed_path = expected_path / "processed" / "parquet"
+    expected_processed_path = expected_path / "processed"
 
     # Create a fake file system for testing
     fs.create_dir(expected_raw_path)
     fs.create_dir(expected_processed_path)
 
-    # Instance of class with correct config and call initialize_paths
-    fl = FlashLoader(config=config)
-    data_raw_dir, data_parquet_dir = fl.initialize_paths()
+    # Instance of class with correct config and call initialize_dirs
+    fl = FlashLoader(config=config_)
+    fl._initialize_dirs()
+    assert str(expected_raw_path) == fl.raw_dir
+    assert str(expected_processed_path) == fl.processed_dir
 
-    assert expected_raw_path == data_raw_dir[0]
-    assert expected_processed_path == data_parquet_dir
+    # remove beamtime_id, year and daq from config to raise error
+    del config_["core"]["beamtime_id"]
+    with pytest.raises(ValueError) as e:
+        fl._initialize_dirs()
+    assert "The beamtime_id and year are required." in str(e.value)
 
 
-def test_initialize_paths_filenotfound(config_file: dict) -> None:
+def test_initialize_dirs_filenotfound(config: dict) -> None:
     """
     Test FileNotFoundError during the initialization of paths.
     """
     # Test the FileNotFoundError
-    config = config_file
-    del config["core"]["paths"]
-    config["core"]["beamtime_id"] = "11111111"
-    config["core"]["year"] = "2000"
+    config_ = config.copy()
+    del config_["core"]["paths"]
+    config_["core"]["beamtime_id"] = "11111111"
+    config_["core"]["year"] = "2000"
 
-    # Instance of class with correct config and call initialize_paths
-    fl = FlashLoader(config=config)
+    # Instance of class with correct config and call initialize_dirs
     with pytest.raises(FileNotFoundError):
-        _, _ = fl.initialize_paths()
+        fl = FlashLoader(config=config_)
+        fl._initialize_dirs()
 
 
-def test_invalid_channel_format(config_file: dict) -> None:
+def test_save_read_parquet_flash(config: dict) -> None:
     """
-    Test ValueError for an invalid channel format.
+    Test the functionality of saving and reading parquet files with FlashLoader.
+
+    This test performs three main actions:
+    1. First call to create and read parquet files. Verifies new files are created.
+    2. Second call with the same parameters to check that it only reads from
+    the existing parquet files without creating new ones. It asserts that the files' modification
+    times remain unchanged, indicating no new files were created or existing files overwritten.
+    3. Third call with `force_recreate=True` to force the recreation of parquet files.
+    It verifies that the files were indeed overwritten by checking that their modification
+    times have changed.
     """
-    config = config_file
-    config["dataframe"]["channels"]["dldPosX"]["format"] = "foo"
+    config_ = config.copy()
+    data_parquet_dir = create_parquet_dir(config_, "flash_save_read")
+    config_["core"]["paths"]["processed"] = data_parquet_dir
+    fl = FlashLoader(config=config_)
 
-    fl = FlashLoader(config=config)
-
-    with pytest.raises(ValueError):
-        fl.read_dataframe()
-
-
-def test_group_name_not_in_h5(config_file: dict) -> None:
-    """
-    Test ValueError when the group_name for a channel does not exist in the H5 file.
-    """
-    config = config_file
-    config["dataframe"]["channels"]["dldPosX"]["group_name"] = "foo"
-    fl = FlashLoader(config=config)
-
-    with pytest.raises(ValueError) as e:
-        fl.create_dataframe_per_file(Path(config["core"]["paths"]["data_raw_dir"] + H5_PATH))
-
-    assert str(e.value.args[0]) == "The group_name for channel dldPosX does not exist."
-
-
-def test_buffer_schema_mismatch(config_file: dict) -> None:
-    """
-    Test function to verify schema mismatch handling in the FlashLoader's 'read_dataframe' method.
-
-    The test validates the error handling mechanism when the available channels do not match the
-    schema of the existing parquet files.
-
-    Test Steps:
-    - Attempt to read a dataframe after adding a new channel 'gmdTunnel2' to the configuration.
-    - Check for an expected error related to the mismatch between available channels and schema.
-    - Force recreation of dataframe with the added channel, ensuring successful dataframe creation.
-    - Simulate a missing channel scenario by removing 'gmdTunnel2' from the configuration.
-    - Check for an error indicating a missing channel in the configuration.
-    - Clean up created buffer files after the test.
-    """
-    fl = FlashLoader(config=config_file)
-
-    # Read a dataframe for a specific run
-    fl.read_dataframe(runs=["43878"])
-
-    # Manipulate the configuration to introduce a new channel 'gmdTunnel2'
-    config = config_file
-    config["dataframe"]["channels"]["gmdTunnel2"] = {
-        "group_name": "/FL1/Photon Diagnostic/GMD/Pulse resolved energy/energy tunnel/",
-        "format": "per_pulse",
+    # First call: should create and read the parquet file
+    df1, _, _ = fl.read_dataframe(runs=[43878, 43879])
+    # Check if new files were created
+    data_parquet_dir = data_parquet_dir.joinpath("buffer")
+    new_files = {
+        file: os.path.getmtime(data_parquet_dir.joinpath(file))
+        for file in os.listdir(data_parquet_dir)
     }
+    assert new_files
 
-    # Reread the dataframe with the modified configuration, expecting a schema mismatch error
+    # Second call: should only read the parquet file, not create new ones
+    df2, _, _ = fl.read_dataframe(runs=[43878, 43879])
+
+    # Verify no new files were created after the second call
+    final_files = {
+        file: os.path.getmtime(data_parquet_dir.joinpath(file))
+        for file in os.listdir(data_parquet_dir)
+    }
+    assert (
+        new_files == final_files
+    ), "Files were overwritten or new files were created after the second call."
+
+    # Third call: We force_recreate the parquet files
+    df3, _, _ = fl.read_dataframe(runs=[43878, 43879], force_recreate=True)
+
+    # Verify files were overwritten
+    new_files = {
+        file: os.path.getmtime(data_parquet_dir.joinpath(file))
+        for file in os.listdir(data_parquet_dir)
+    }
+    assert new_files != final_files, "Files were not overwritten after the third call."
+
+    # remove the parquet files
+    for file in new_files:
+        data_parquet_dir.joinpath(file).unlink()
+
+
+def test_get_elapsed_time_fid(config: dict) -> None:
+    """Test get_elapsed_time method of FlashLoader class"""
+    # Create an instance of FlashLoader
     fl = FlashLoader(config=config)
-    with pytest.raises(ValueError) as e:
-        fl.read_dataframe(runs=["43878"])
-    expected_error = e.value.args
 
-    # Validate the specific error messages for schema mismatch
-    assert "The available channels do not match the schema of file" in expected_error[0]
-    assert expected_error[2] == "Missing in parquet: {'gmdTunnel2'}"
-    assert expected_error[4] == "Please check the configuration file or set force_recreate to True."
+    # Mock the file_statistics and files
+    fl.metadata = {
+        "file_statistics": {
+            "timed": {
+                "0": {"columns": {"timeStamp": {"min": 10, "max": 20}}},
+                "1": {"columns": {"timeStamp": {"min": 20, "max": 30}}},
+                "2": {"columns": {"timeStamp": {"min": 30, "max": 40}}},
+            },
+        },
+    }
+    fl.files = ["file0", "file1", "file2"]
 
-    # Force recreation of the dataframe, including the added channel 'gmdTunnel2'
-    fl.read_dataframe(runs=["43878"], force_recreate=True)
+    # Test get_elapsed_time with fids
+    assert fl.get_elapsed_time(fids=[0, 1]) == 20
 
-    # Remove 'gmdTunnel2' from the configuration to simulate a missing channel scenario
-    del config["dataframe"]["channels"]["gmdTunnel2"]
+    # # Test get_elapsed_time with runs
+    # # Assuming get_files_from_run_id(43878) returns ["file0", "file1"]
+    # assert fl.get_elapsed_time(runs=[43878]) == 20
+
+    # Test get_elapsed_time with aggregate=False
+    assert fl.get_elapsed_time(fids=[0, 1], aggregate=False) == [10, 10]
+
+    # Test KeyError when file_statistics is missing
+    fl.metadata = {"something": "else"}
+    with pytest.raises(KeyError) as e:
+        fl.get_elapsed_time(fids=[0, 1])
+
+    assert "File statistics missing. Use 'read_dataframe' first." in str(e.value)
+    # Test KeyError when time_stamps is missing
+    fl.metadata = {
+        "file_statistics": {
+            "timed": {
+                "0": {},
+                "1": {"columns": {"timeStamp": {"min": 20, "max": 30}}},
+            },
+        },
+    }
+    with pytest.raises(KeyError) as e:
+        fl.get_elapsed_time(fids=[0, 1])
+
+    assert "Timestamp metadata missing in file 0" in str(e.value)
+
+
+def test_get_elapsed_time_run(config: dict) -> None:
+    """Test get_elapsed_time method of FlashLoader class"""
+    config_ = config.copy()
+    config_["core"]["paths"] = {
+        "raw": "tests/data/loader/flash/",
+        "processed": "tests/data/loader/flash/parquet/get_elapsed_time_run",
+    }
+    config_ = config.copy()
+    data_parquet_dir = create_parquet_dir(config_, "get_elapsed_time_run")
+    config_["core"]["paths"]["processed"] = data_parquet_dir
+    # Create an instance of FlashLoader
+    fl = FlashLoader(config=config_)
+
+    fl.read_dataframe(runs=[43878, 43879])
+    min_max = fl.metadata["file_statistics"]["electron"]["0"]["columns"]["timeStamp"]
+    expected_elapsed_time_0 = min_max["max"] - min_max["min"]
+    min_max = fl.metadata["file_statistics"]["electron"]["1"]["columns"]["timeStamp"]
+    expected_elapsed_time_1 = min_max["max"] - min_max["min"]
+
+    elapsed_time = fl.get_elapsed_time(runs=[43878])
+    assert elapsed_time == expected_elapsed_time_0
+
+    elapsed_time = fl.get_elapsed_time(runs=[43878, 43879], aggregate=False)
+    assert elapsed_time == [expected_elapsed_time_0, expected_elapsed_time_1]
+
+    elapsed_time = fl.get_elapsed_time(runs=[43878, 43879])
+    assert elapsed_time == expected_elapsed_time_0 + expected_elapsed_time_1
+
+    # remove the parquet files
+    for file in os.listdir(Path(fl.processed_dir, "buffer")):
+        Path(fl.processed_dir, "buffer").joinpath(file).unlink()
+
+
+def test_available_runs(monkeypatch: pytest.MonkeyPatch, config: dict) -> None:
+    """Test available_runs property of FlashLoader class"""
+    # Create an instance of FlashLoader
     fl = FlashLoader(config=config)
-    with pytest.raises(ValueError) as e:
-        # Attempt to read the dataframe again to check for the missing channel error
-        fl.read_dataframe(runs=["43878"])
 
-    expected_error = e.value.args
-    # Check for the specific error message indicating a missing channel in the configuration
-    assert expected_error[3] == "Missing in config: {'gmdTunnel2'}"
+    # Mock the raw_dir and files
+    fl.raw_dir = "/path/to/raw_dir"
+    files = [
+        "run1_file1.h5",
+        "run3_file1.h5",
+        "run2_file1.h5",
+        "run1_file2.h5",
+    ]
 
-    # Clean up created buffer files after the test
-    _, parquet_data_dir = fl.initialize_paths()
-    for file in os.listdir(Path(parquet_data_dir, "buffer")):
-        os.remove(Path(parquet_data_dir, "buffer", file))
+    # Mock the glob method to return the mock files
+    def mock_glob(*args, **kwargs):  # noqa: ARG001
+        return [Path(fl.raw_dir, file) for file in files]
+
+    monkeypatch.setattr(Path, "glob", mock_glob)
+
+    # Test available_runs
+    assert fl.available_runs == [1, 2, 3]

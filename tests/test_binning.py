@@ -1,11 +1,10 @@
 """This file contains code that performs several tests for the sed.binning module
 """
+from __future__ import annotations
+
+from collections.abc import Sequence
 from typing import Any
 from typing import cast
-from typing import List
-from typing import Sequence
-from typing import Tuple
-from typing import Union
 
 import dask.dataframe as ddf
 import numpy as np
@@ -64,12 +63,12 @@ arrays_round = [get_linear_bin_edges(b, r) for r, b in zip(ranges_round, bins_ro
     [bins[:1], bins[:2], bins[:3]],
     ids=lambda x: f"bins:{len(x)}",
 )
-def test_histdd_error_is_raised(_samples: np.ndarray, _bins: List[int]) -> None:
+def test_histdd_error_is_raised(_samples: np.ndarray, _bins: list[int]) -> None:
     """Test if the correct error is raised if the bins and sample shapes do not match
 
     Args:
         _samples (np.ndarray): Samples array
-        _bins (List[Tuple]): Bins list
+        _bins (list[int]): Bins list
     """
     with pytest.raises(ValueError):
         if _samples.shape[1] == len(_bins):
@@ -95,12 +94,12 @@ def test_histdd_error_is_raised(_samples: np.ndarray, _bins: List[int]) -> None:
     if x[2] < 7
     else f"ndim: {x[2]-6}-round",
 )
-def test_histdd_bins_as_numpy(args: Tuple[np.ndarray, np.ndarray, int]) -> None:
+def test_histdd_bins_as_numpy(args: tuple[np.ndarray, np.ndarray, int]) -> None:
     """Test whether the numba_histogramdd functions produces the same result
     as np.histogramdd if called with a list of bin edges
 
     Args:
-        args (Tuple[np.ndarray, np.ndarray, int]): Tuple of
+        args (tuple[np.ndarray, np.ndarray, int]): Tuple of
             (samples, bin_edges, dimension)
     """
     sample_, bins_, _ = args
@@ -128,12 +127,12 @@ def test_histdd_bins_as_numpy(args: Tuple[np.ndarray, np.ndarray, int]) -> None:
     if x[3] < 7
     else f"ndim: {x[3]-6}-round",
 )
-def test_histdd_ranges_as_numpy(args: Tuple[np.ndarray, tuple, tuple, int]) -> None:
+def test_histdd_ranges_as_numpy(args: tuple[np.ndarray, tuple, tuple, int]) -> None:
     """Test whether the numba_histogramdd functions produces the same result
     as np.histogramdd if called with bin numbers and ranges
 
     Args:
-        args (Tuple[np.ndarray, np.ndarray, np.ndarray, int]): Tuple of
+        args (tuple[np.ndarray, np.ndarray, np.ndarray, int]): Tuple of
             (samples, bins, ranges, dimension)
     """
     sample_, bins_, ranges_, _ = args
@@ -161,12 +160,12 @@ def test_histdd_ranges_as_numpy(args: Tuple[np.ndarray, tuple, tuple, int]) -> N
     if x[3] < 7
     else f"ndim: {x[3]-6}-round",
 )
-def test_histdd_one_bins_as_numpy(args: Tuple[np.ndarray, int, tuple, int]) -> None:
+def test_histdd_one_bins_as_numpy(args: tuple[np.ndarray, int, tuple, int]) -> None:
     """Test whether the numba_histogramdd functions produces the same result
     as np.histogramdd if called with bin numbers and ranges
 
     Args:
-        args (Tuple[np.ndarray, np.ndarray, np.ndarray, int]): Tuple of
+        args (tuple[np.ndarray, np.ndarray, np.ndarray, int]): Tuple of
             (samples, bins, ranges, dimension)
     """
     sample_, bins_, ranges_, _ = args
@@ -195,13 +194,13 @@ def test_histdd_one_bins_as_numpy(args: Tuple[np.ndarray, int, tuple, int]) -> N
     else f"ndim: {x[4]-6}-round",
 )
 def test_from_bins_equals_from_bin_range(
-    args: Tuple[np.ndarray, int, tuple, np.ndarray, int],
+    args: tuple[np.ndarray, int, tuple, np.ndarray, int],
 ) -> None:
     """Test whether the numba_histogramdd functions produces the same result
     if called with bin numbers and ranges or with bin edges.
 
     Args:
-        args (Tuple[np.ndarray, int, tuple, np.ndarray, int]): Tuple of
+        args (tuple[np.ndarray, int, tuple, np.ndarray, int]): Tuple of
             (samples, bins, ranges, bin_edges, dimension)
     """
     sample_, bins_, ranges_, arrays_, _ = args
@@ -219,11 +218,11 @@ def test_from_bins_equals_from_bin_range(
     ],
     ids=lambda x: f"ndim: {x[2]}",
 )
-def test_numba_hist_from_bins(args: Tuple[np.ndarray, np.ndarray, int]) -> None:
+def test_numba_hist_from_bins(args: tuple[np.ndarray, np.ndarray, int]) -> None:
     """Run tests using the _hist_from_bins function without numba jit.
 
     Args:
-        args (Tuple[np.ndarray, np.ndarray, int]): Tuple of
+        args (tuple[np.ndarray, np.ndarray, int]): Tuple of
             (samples, bin_edges, dimension)
     """
     sample_, arrays_, _ = args
@@ -253,11 +252,11 @@ def test_numba_hist_from_bins(args: Tuple[np.ndarray, np.ndarray, int]) -> None:
     ],
     ids=lambda x: f"ndim: {x[3]}",
 )
-def test_numba_hist_from_bins_ranges(args: Tuple[np.ndarray, int, tuple, int]) -> None:
+def test_numba_hist_from_bins_ranges(args: tuple[np.ndarray, int, tuple, int]) -> None:
     """Run tests using the _hist_from_bins_ranges function without numba jit.
 
     Args:
-        args (Tuple[np.ndarray, int, tuple, int]): Tuple of
+        args (tuple[np.ndarray, int, tuple, int]): Tuple of
             (samples, bins, ranges, dimension)
     """
     sample_, bins_, ranges_, _ = args
@@ -316,18 +315,18 @@ def test_bin_edges_to_bin_centers() -> None:
     ],
 )
 def test_simplify_binning_arguments(
-    args: Tuple[List[int], List[str], List[Tuple[float, float]]],
+    args: tuple[list[int], list[str], list[tuple[float, float]]],
     arg_type: str,
 ) -> None:
     """Test the result of the _simplify_binning_arguments functions for number of
     bins and ranges
     """
-    bins_: Union[int, list, dict] = None
-    axes_: List[str] = None
-    ranges_: List[Tuple[float, float]] = None
-    bins_expected: List[Any] = None
-    axes_expected: List[Any] = None
-    ranges_expected: List[Any] = None
+    bins_: int | list | dict = None
+    axes_: list[str] = None
+    ranges_: list[tuple[float, float]] = None
+    bins_expected: list[Any] = None
+    axes_expected: list[Any] = None
+    ranges_expected: list[Any] = None
 
     bin_centers = []
     for i in range(len(args[1])):

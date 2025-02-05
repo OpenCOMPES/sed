@@ -1,6 +1,9 @@
+"""This code  performs several tests for the metadata handler module.
+"""
+from __future__ import annotations
+
 import json
 from typing import Any
-from typing import Dict
 
 import numpy as np
 import pytest
@@ -8,7 +11,7 @@ import pytest
 from sed.core.metadata import DuplicateEntryError
 from sed.core.metadata import MetaHandler
 
-metadata: Dict[Any, Any] = {}
+metadata: dict[Any, Any] = {}
 metadata["entry_title"] = "Title"
 # sample
 metadata["sample"] = {}

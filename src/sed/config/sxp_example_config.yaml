@@ -1,0 +1,125 @@
+core:
+  loader: sxp
+  # Since this will run on maxwell most probably, we have a lot of cores at our disposal
+  num_cores: 100
+  beamtime_id: p005639
+  year: 202302
+  beamline: sxp
+  instrument: sxp
+  stream_name_prefixes:
+    DA03: "RAW-R"
+  stream_name_postfixes:
+    DA03: "-DA03-"
+  beamtime_dir:
+    sxp: "/gpfs/exfel/exp/SXP/"
+  paths:
+    raw: "/path/to/data"
+    # change this to a local directory where you want to store the parquet files
+    processed: "/path/to/parquet"
+
+binning:
+  # Histogram computation mode to use.
+  hist_mode: "numba"
+  # Mode for histogram recombination to use
+  mode: fast
+  # Whether to display a progress bar
+  pbar: True
+  # Number of multithreading threads per worker thread
+  threads_per_worker: 4
+  # API for numpy multithreading
+  threadpool_API: "blas"
+
+dataframe:
+  ubid_offset: 0
+  daq: DA03
+  forward_fill_iterations: 2
+  num_trains: 10
+  # num_pulses: 400 # only needed for data from new DAQ
+  tof_binwidth: 6.875E-12 # in seconds
+  tof_binning: 1
+  jitter_cols: ["dldPosX", "dldPosY", "dldTimeSteps"]
+
+  # Column settings
+  columns:
+    x: dldPosX
+    corrected_x: X
+    kx: kx
+    y: dldPosY
+    corrected_y: Y
+    ky: ky
+    tof: dldTimeSteps
+    tof_ns: dldTime
+    corrected_tof: tm
+    timestamp: timeStamp
+    auxiliary: dldAux
+    sector_id: dldSectorID
+    delay: delayStage
+    corrected_delay: pumpProbeTime
+
+  units:
+    dldPosX: 'step'
+    dldPosY: 'step'
+    dldTimeSteps: 'step'
+    tof_voltage: 'V'
+    extractorVoltage: 'V'
+    extractorCurrent: 'A'
+    cryoTemperature: 'K'
+    sampleTemperature: 'K'
+    dldTime: 'ns'
+    delay: 'ps'
+    delayStage: 'ps'
+    timeStamp: 's'
+    energy: 'eV'
+    # E: 'eV'
+    kx: '1/A'
+    ky: '1/A'
+
+  channels:
+    timeStamp:
+      format: per_train
+      dataset_key: "/INDEX/timestamp"
+      index_key: "/INDEX/trainId"
+      scale: 1000000000
+    pulseId:
+      format: per_electron
+      dataset_key: "/INSTRUMENT/SXP_TR_XPES/DET/MCP_DETECTOR:output/data/starterCounter"
+      index_key: "/INSTRUMENT/SXP_TR_XPES/DET/MCP_DETECTOR:output/data/trainId"
+      max_hits: 10000
+    trainId:
+      format: per_electron
+      dataset_key: "/INSTRUMENT/SXP_TR_XPES/DET/MCP_DETECTOR:output/data/masterCounter"
+      index_key: "/INSTRUMENT/SXP_TR_XPES/DET/MCP_DETECTOR:output/data/trainId"
+      max_hits: 10000
+    dldPosX:
+      format: per_electron
+      dataset_key: "/INSTRUMENT/SXP_TR_XPES/DET/MCP_DETECTOR:output/data/x"
+      index_key: "/INSTRUMENT/SXP_TR_XPES/DET/MCP_DETECTOR:output/data/trainId"
+      max_hits: 10000
+    dldPosY:
+      format: per_electron
+      dataset_key: "/INSTRUMENT/SXP_TR_XPES/DET/MCP_DETECTOR:output/data/y"
+      index_key: "/INSTRUMENT/SXP_TR_XPES/DET/MCP_DETECTOR:output/data/trainId"
+      max_hits: 10000
+    dldTimeSteps:
+      format: per_electron
+      dataset_key: "/INSTRUMENT/SXP_TR_XPES/DET/MCP_DETECTOR:output/data/t"
+      index_key: "/INSTRUMENT/SXP_TR_XPES/DET/MCP_DETECTOR:output/data/trainId"
+      max_hits: 10000
+    delayStage:
+      format: per_train
+      dataset_key: "/CONTROL/SCS_ILH_LAS/MDL/OPTICALDELAY_PP800/actualPosition/value"
+      index_key: "/INDEX/trainId"
+    # test:
+    #   daq: DA02 # change DAQ for a channel
+    #   format: per_pulse
+    #   dataset_key: "/INSTRUMENT/SA3_XTD10_XGM/XGM/DOOCS:output/data/intensitySa3TD"
+    #   index_key: "/INSTRUMENT/SA3_XTD10_XGM/XGM/DOOCS:output/data/trainId"
+
+histogram:
+  # number of bins used for histogram visualization
+  bins: [80, 80, 80, 80]
+  # default axes to use for histogram visualization.
+  # Axes names starting with "@" refer to keys in the "dataframe" section
+  axes: ["@x", "@y", "@tof", "@delay"]
+  # default ranges to use for histogram visualization (in unbinned detector coordinates)
+  ranges: [[0, 4000], [0, 4000], [1000, 28000], [-1000, 1000]]

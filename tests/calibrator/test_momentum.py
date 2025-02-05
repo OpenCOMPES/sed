@@ -1,11 +1,11 @@
 """Module tests.calibrator.momentum, tests for the sed.calibrator.momentum module
 """
+from __future__ import annotations
+
 import csv
 import glob
 import os
-from importlib.util import find_spec
 from typing import Any
-from typing import Dict
 
 import numpy as np
 import pytest
@@ -15,10 +15,9 @@ from sed.core import SedProcessor
 from sed.core.config import parse_config
 from sed.loader.loader_interface import get_loader
 
-# pylint: disable=duplicate-code
-package_dir = os.path.dirname(find_spec("sed").origin)
-df_folder = package_dir + "/../tests/data/loader/mpes/"
-folder = package_dir + "/../tests/data/calibrator/"
+test_dir = os.path.join(os.path.dirname(__file__), "..")
+df_folder = test_dir + "/data/loader/mpes/"
+folder = test_dir + "/data/calibrator/"
 files = glob.glob(df_folder + "*.h5")
 
 momentum_map_list = []
@@ -67,6 +66,10 @@ def test_feature_extract() -> None:
     mc.feature_extract(fwhm=10, sigma=12, sigma_radius=4, rotsym=6)
     assert len(mc.pcent) == 2
     assert len(mc.pouter_ord) == 6
+
+    # illegal keywords
+    with pytest.raises(TypeError):
+        mc.feature_extract(features=np.ndarray([1, 2]), illegal_kwd=True)
 
 
 @pytest.mark.parametrize(
@@ -167,6 +170,10 @@ def test_pose_correction() -> None:
     dfield = np.array([mc.cdeform_field, mc.rdeform_field])
     mc.pose_adjustment(scale=1.2, xtrans=8, ytrans=7, angle=-4, apply=True)
     assert np.all(np.array([mc.cdeform_field, mc.rdeform_field]) != dfield)
+
+    # Illegal keywords:
+    with pytest.raises(TypeError):
+        mc.reset_deformation(illegal_kwd=True)
 
 
 def test_apply_correction() -> None:
@@ -280,8 +287,8 @@ depends_on_list = [
     zip(transformations_list, depends_on_list),
 )
 def test_apply_registration(
-    transformations: Dict[Any, Any],
-    depends_on: Dict[Any, Any],
+    transformations: dict[Any, Any],
+    depends_on: dict[Any, Any],
 ) -> None:
     """Test the application of the distortion correction to the dataframe."""
     config = parse_config(
@@ -351,6 +358,10 @@ def test_apply_registration(
                 metadata["registration"]["center"],
             )
 
+    # illegal keywords:
+    with pytest.raises(TypeError):
+        mc.pose_adjustment(illegal_kwd=True)
+
 
 def test_momentum_calibration_equiscale() -> None:
     """Test the calibration using one point and the k-distance,
@@ -383,6 +394,10 @@ def test_momentum_calibration_equiscale() -> None:
     assert "ky" in df.columns
     for key, value in mc.calibration.items():
         np.testing.assert_equal(metadata["calibration"][key], value)
+
+    # illegal keywords:
+    with pytest.raises(TypeError):
+        mc.append_k_axis(df, illegal_kwd=True)
 
 
 def test_momentum_calibration_two_points() -> None:
@@ -422,6 +437,10 @@ def test_momentum_calibration_two_points() -> None:
     # Test with passing calibration parameters
     calibration = mc.calibration.copy()
     calibration.pop("creation_date")
+    calibration.pop("grid")
+    calibration.pop("extent")
+    calibration.pop("kx_axis")
+    calibration.pop("ky_axis")
     df, _, _ = get_loader(loader_name="mpes", config=config).read_dataframe(
         folders=df_folder,
         collect_metadata=False,

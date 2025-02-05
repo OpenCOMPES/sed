@@ -38,6 +38,7 @@ caldir
 calib
 calibdict
 caplog
+capsys
 cdeform
 cdeformfield
 cdisp
@@ -77,6 +78,8 @@ datastreams
 datestring
 ddir
 delaxes
+delayeds
+delenv
 Desy
 Deutsches
 dfield
@@ -85,12 +88,14 @@ dfpart
 dfpid
 dictionarized
 dictmerge
+DLDAUX
 DOOCS
 dpkg
 dropna
 dset
 dsets
 dtype
+dtypes
 easimon
 ecalibdict
 electronanalyser
@@ -125,6 +130,7 @@ ftype
 fwhm
 genindex
 getgid
+getgrgid
 getmtime
 gpfs
 griddata
@@ -290,6 +296,7 @@ ptargs
 pullrequest
 pval
 pyarrow
+pydantic
 pydata
 pyenv
 pygments
@@ -330,6 +337,7 @@ scipy
 SDIAG
 sdir
 segs
+setp
 sfile
 shutil
 Sixten
@@ -340,6 +348,8 @@ splinewarp
 stackax
 stackaxis
 stepsize
+subchannel
+subchannels
 subdir
 subdirs
 subfolders
@@ -401,6 +411,8 @@ xpos
 xratio
 xrng
 xscale
+xticklabels
+xticks
 xtrans
 Xuser
 xval
@@ -411,6 +423,8 @@ ylabel
 ypos
 yratio
 yscale
+yticklabels
+yticks
 ytrans
 zain
 Zenodo

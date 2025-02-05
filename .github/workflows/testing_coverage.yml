@@ -4,36 +4,39 @@ name: pytest and coverage report
 on:
   push:
     branches: [ main ]
-    paths-ignore:
-      pyproject.toml
   pull_request:
-    branches:
-      - main
+    branches: [ main ]
+
+env:
+  UV_SYSTEM_PYTHON: true
 
 jobs:
   pytest:
     runs-on: ubuntu-latest
     steps:
       # Check out repo and set up Python
-      - name: Check out the repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          lfs: true
+          fetch-depth: 0
 
-      # Use cached python and dependencies, install poetry
-      - name: "Setup Python, Poetry and Dependencies"
-        uses: packetcoders/action-setup-cache-python-poetry@main
+      # Setup python
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
         with:
-          python-version: 3.8
-          poetry-version: 1.2.2
+          python-version: "3.10"
 
-      - name: Install project dependencies
-        run: poetry install
+      - name: Install dependencies
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: Install package
+        run: |
+          uv pip install -e ".[dev]"
 
       # Run pytest with coverage report, saving to xml
-      - name: Run tests on python 3.8
+      - name: Run tests on python 3.10
         run: |
-          poetry run pytest --cov --cov-report xml:cobertura.xml --full-trace --show-capture=no -sv -n auto tests/
+          pytest --cov --cov-report xml:cobertura.xml --full-trace --show-capture=no -sv -n auto tests/
 
       # Take report and upload to coveralls
       - name: Coveralls

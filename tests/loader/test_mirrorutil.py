@@ -1,22 +1,23 @@
 """Module tests.loader.mirrorutil, tests for the sed.load.mirrorutil file
 """
+from __future__ import annotations
+
 import glob
 import io
 import os
 import shutil
 import tempfile
 from contextlib import redirect_stdout
-from importlib.util import find_spec
 
 import pytest
 
 from sed.loader.mirrorutil import CopyTool
 
 
-package_dir = os.path.dirname(find_spec("sed").origin)
-source_folder = package_dir + "/../"
-folder = package_dir + "/../tests/data/loader/mpes"
-file = package_dir + "/../tests/data/loader/mpes/Scan0030_2.h5"
+test_dir = os.path.join(os.path.dirname(__file__), "..")
+source_folder = test_dir + "/../"
+folder = test_dir + "/data/loader/mpes"
+file = test_dir + "/data/loader/mpes/Scan0030_2.h5"
 
 
 def test_copy_tool_folder() -> None:

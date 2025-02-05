@@ -1,11 +1,11 @@
 """Test cases for loaders used to load dataframes
 """
+from __future__ import annotations
+
 import os
 from copy import deepcopy
-from importlib.util import find_spec
 from pathlib import Path
 from typing import cast
-from typing import List
 
 import dask.dataframe as ddf
 import pytest
@@ -18,9 +18,8 @@ from sed.loader.loader_interface import get_loader
 from sed.loader.loader_interface import get_names_of_all_loaders
 from sed.loader.utils import gather_files
 
-package_dir = os.path.dirname(find_spec("sed").origin)
-
-test_data_dir = os.path.join(package_dir, "..", "tests", "data")
+test_dir = os.path.join(os.path.dirname(__file__), "..")
+test_data_dir = os.path.join(test_dir, "data")
 
 read_types = ["one_file", "files", "one_folder", "folders", "one_run", "runs"]
 runs = {"generic": None, "mpes": ["30", "50"], "flash": ["43878", "43878"], "sxp": ["0016", "0016"]}
@@ -45,6 +44,9 @@ def get_loader_name_from_loader_object(loader: BaseLoader) -> str:
                     loader_name,
                     "config.yaml",
                 ),
+                folder_config={},
+                user_config={},
+                system_config={},
             ),
         )
         if loader.__name__ is gotten_loader.__name__:
@@ -52,7 +54,7 @@ def get_loader_name_from_loader_object(loader: BaseLoader) -> str:
     return ""
 
 
-def get_all_loaders() -> List[ParameterSet]:
+def get_all_loaders() -> list[ParameterSet]:
     """Scans through the loader list and returns them for pytest parametrization"""
     loaders = []
 
@@ -66,6 +68,9 @@ def get_all_loaders() -> List[ParameterSet]:
                     loader_name,
                     "config.yaml",
                 ),
+                folder_config={},
+                user_config={},
+                system_config={},
             ),
         )
         for loader_name in get_names_of_all_loaders()
@@ -91,8 +96,9 @@ def test_has_correct_read_dataframe_func(loader: BaseLoader, read_type: str) -> 
     # Fix for race condition during parallel testing
     if loader.__name__ in {"flash", "sxp"}:
         config = deepcopy(loader._config)  # pylint: disable=protected-access
-        config["core"]["paths"]["data_parquet_dir"] = (
-            config["core"]["paths"]["data_parquet_dir"] + f"_{read_type}"
+        config["core"]["paths"]["processed"] = Path(
+            config["core"]["paths"]["processed"],
+            f"_{read_type}",
         )
         loader = get_loader(loader_name=loader.__name__, config=config)
 
@@ -163,9 +169,9 @@ def test_has_correct_read_dataframe_func(loader: BaseLoader, read_type: str) -> 
 
     if loader.__name__ in {"flash", "sxp"}:
         loader = cast(FlashLoader, loader)
-        _, parquet_data_dir = loader.initialize_paths()
-        for file in os.listdir(Path(parquet_data_dir, "buffer")):
-            os.remove(Path(parquet_data_dir, "buffer", file))
+        loader._initialize_dirs()
+        for file in os.listdir(Path(loader.processed_dir, "buffer")):
+            os.remove(Path(loader.processed_dir, "buffer", file))
 
 
 @pytest.mark.parametrize("loader", get_all_loaders())
@@ -179,8 +185,9 @@ def test_timed_dataframe(loader: BaseLoader) -> None:
     # Fix for race condition during parallel testing
     if loader.__name__ in {"flash", "sxp"}:
         config = deepcopy(loader._config)  # pylint: disable=protected-access
-        config["core"]["paths"]["data_parquet_dir"] = (
-            config["core"]["paths"]["data_parquet_dir"] + "_timed_dataframe"
+        config["core"]["paths"]["processed"] = Path(
+            config["core"]["paths"]["processed"],
+            "_timed_dataframe",
         )
         loader = get_loader(loader_name=loader.__name__, config=config)
 
@@ -196,9 +203,9 @@ def test_timed_dataframe(loader: BaseLoader) -> None:
             if loaded_timed_dataframe is None:
                 if loader.__name__ in {"flash", "sxp"}:
                     loader = cast(FlashLoader, loader)
-                    _, parquet_data_dir = loader.initialize_paths()
-                    for file in os.listdir(Path(parquet_data_dir, "buffer")):
-                        os.remove(Path(parquet_data_dir, "buffer", file))
+                    loader._initialize_dirs()
+                    for file in os.listdir(Path(loader.processed_dir, "buffer")):
+                        os.remove(Path(loader.processed_dir, "buffer", file))
                 pytest.skip("Not implemented")
             assert isinstance(loaded_timed_dataframe, ddf.DataFrame)
             assert set(loaded_timed_dataframe.columns).issubset(set(loaded_dataframe.columns))
@@ -206,9 +213,9 @@ def test_timed_dataframe(loader: BaseLoader) -> None:
 
     if loader.__name__ in {"flash", "sxp"}:
         loader = cast(FlashLoader, loader)
-        _, parquet_data_dir = loader.initialize_paths()
-        for file in os.listdir(Path(parquet_data_dir, "buffer")):
-            os.remove(Path(parquet_data_dir, "buffer", file))
+        loader._initialize_dirs()
+        for file in os.listdir(Path(loader.processed_dir, "buffer")):
+            os.remove(Path(loader.processed_dir, "buffer", file))
 
 
 @pytest.mark.parametrize("loader", get_all_loaders())
@@ -222,8 +229,9 @@ def test_get_count_rate(loader: BaseLoader) -> None:
     # Fix for race condition during parallel testing
     if loader.__name__ in {"flash", "sxp"}:
         config = deepcopy(loader._config)  # pylint: disable=protected-access
-        config["core"]["paths"]["data_parquet_dir"] = (
-            config["core"]["paths"]["data_parquet_dir"] + "_count_rate"
+        config["core"]["paths"]["processed"] = Path(
+            config["core"]["paths"]["processed"],
+            "_count_rate",
         )
         loader = get_loader(loader_name=loader.__name__, config=config)
 
@@ -240,20 +248,24 @@ def test_get_count_rate(loader: BaseLoader) -> None:
             if loaded_time is None and loaded_countrate is None:
                 if loader.__name__ in {"flash", "sxp"}:
                     loader = cast(FlashLoader, loader)
-                    _, parquet_data_dir = loader.initialize_paths()
-                    for file in os.listdir(Path(parquet_data_dir, "buffer")):
-                        os.remove(Path(parquet_data_dir, "buffer", file))
+                    loader._initialize_dirs()
+                    for file in os.listdir(Path(loader.processed_dir, "buffer")):
+                        os.remove(Path(loader.processed_dir, "buffer", file))
                 pytest.skip("Not implemented")
             assert len(loaded_time) == len(loaded_countrate)
             loaded_time2, loaded_countrate2 = loader.get_count_rate(fids=[0])
             assert len(loaded_time2) == len(loaded_countrate2)
             assert len(loaded_time2) < len(loaded_time)
 
+            # illegal keywords
+            with pytest.raises(TypeError):
+                loader.get_count_rate(illegal_kwd=True)
+
     if loader.__name__ in {"flash", "sxp"}:
         loader = cast(FlashLoader, loader)
-        _, parquet_data_dir = loader.initialize_paths()
-        for file in os.listdir(Path(parquet_data_dir, "buffer")):
-            os.remove(Path(parquet_data_dir, "buffer", file))
+        loader._initialize_dirs()
+        for file in os.listdir(Path(loader.processed_dir, "buffer")):
+            os.remove(Path(loader.processed_dir, "buffer", file))
 
 
 @pytest.mark.parametrize("loader", get_all_loaders())
@@ -267,8 +279,9 @@ def test_get_elapsed_time(loader: BaseLoader) -> None:
     # Fix for race condition during parallel testing
     if loader.__name__ in {"flash", "sxp"}:
         config = deepcopy(loader._config)  # pylint: disable=protected-access
-        config["core"]["paths"]["data_parquet_dir"] = (
-            config["core"]["paths"]["data_parquet_dir"] + "_elapsed_time"
+        config["core"]["paths"]["processed"] = Path(
+            config["core"]["paths"]["processed"],
+            "_elapsed_time",
         )
         loader = get_loader(loader_name=loader.__name__, config=config)
 
@@ -283,22 +296,26 @@ def test_get_elapsed_time(loader: BaseLoader) -> None:
             )
             elapsed_time = loader.get_elapsed_time()
             if elapsed_time is None:
-                if loader.__name__ in {"flash", "sxp"}:
+                if loader.__name__ in {"sxp"}:
                     loader = cast(FlashLoader, loader)
-                    _, parquet_data_dir = loader.initialize_paths()
-                    for file in os.listdir(Path(parquet_data_dir, "buffer")):
-                        os.remove(Path(parquet_data_dir, "buffer", file))
+                    loader._initialize_dirs()
+                    for file in os.listdir(Path(loader.processed_dir, "buffer")):
+                        os.remove(Path(loader.processed_dir, "buffer", file))
                 pytest.skip("Not implemented")
             assert elapsed_time > 0
             elapsed_time2 = loader.get_elapsed_time(fids=[0])
             assert elapsed_time2 > 0
             assert elapsed_time > elapsed_time2
 
+            # illegal keywords
+            with pytest.raises(TypeError):
+                loader.get_elapsed_time(illegal_kwd=True)
+
     if loader.__name__ in {"flash", "sxp"}:
         loader = cast(FlashLoader, loader)
-        _, parquet_data_dir = loader.initialize_paths()
-        for file in os.listdir(Path(parquet_data_dir, "buffer")):
-            os.remove(Path(parquet_data_dir, "buffer", file))
+        loader._initialize_dirs()
+        for file in os.listdir(Path(loader.processed_dir, "buffer")):
+            os.remove(Path(loader.processed_dir, "buffer", file))
 
 
 def test_mpes_timestamps() -> None:

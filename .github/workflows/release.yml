@@ -1,22 +1,10 @@
 name: Publish to PyPI
 
-# Workflow runs prerelease job on every push to main branch
-# and a release job on every tag push.
-# A publish job is executed on every successful prerelease or release job
-# And if publish is successful, the version is also updated in the pyproject.toml file and pushed to main branch
-  # Workflow does not trigger itself as it only changes pyproject.toml, which is not in paths for this workflow
+# Workflow runs a release job on every published tag.
 # The package is distributed as sed-processor
 on:
-  push:
-    branches:
-      - main
-    tags:
-      - v[0-9]+.[0-9]+.[0-9]+
-    paths:
-      - sed/**/*
-      - .github/workflows/release.yml
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
+  release:
+    types: [published]
 
 # Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
 # However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
@@ -24,149 +12,43 @@ concurrency:
   group: "release"
   cancel-in-progress: false
 
+env:
+  UV_SYSTEM_PYTHON: true
+
 jobs:
-  prerelease:
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          lfs: true
-          path: 'sed-processor'
-
-      - name: "Setup Python, Poetry and Dependencies"
-        uses: zain-sohail/action-setup-cache-python-poetry@main
-        with:
-          python-version: 3.8
-          poetry-version: 1.2.2
-          working-directory: sed-processor
-
-      - name: Change to distribution name in toml file
-        run: |
-          cd sed-processor
-          sed -i 's/name = "sed"/name = "sed-processor"/' pyproject.toml
-
-      - name: bump pre-release version
-        id: version
-        working-directory: sed-processor
-        run: |
-          VERSION=$(poetry version -s prerelease)
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          poetry build
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: dist
-          path: sed-processor/dist
-
-      - name: Upload pyproject.toml
-        uses: actions/upload-artifact@v4
-        with:
-          name: pyproject
-          path: sed-processor/pyproject.toml
-
   release:
-    if: startsWith(github.ref, 'refs/tags/')
+    name: Upload release to PyPI
     runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.version.outputs.version }}
+    environment:
+      name: pypi
+      url: https://pypi.org/p/sed-processor
+    permissions:
+      id-token: write
+
     steps:
       - uses: actions/checkout@v4
         with:
-          lfs: true
+          fetch-depth: 0
           path: 'sed-processor'
 
-      - name: "Setup Python, Poetry and Dependencies"
-        uses: zain-sohail/action-setup-cache-python-poetry@main
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          python-version: 3.8
-          poetry-version: 1.2.2
-          working-directory: sed-processor
+          python-version: "3.x"
 
-      - name: Change to distribution name in toml file
+      - name: Install dependencies
         run: |
-          cd sed-processor
-          sed -i 's/name = "sed"/name = "sed-processor"/' pyproject.toml
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          uv pip install build
 
-      - name: Bump release version and build
-        id: version
+      - name: Build package
         working-directory: sed-processor
         run: |
-          VERSION=$(echo ${GITHUB_REF#refs/tags/v} | sed 's/-.*//')
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          poetry version $VERSION
-          poetry build
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: dist
-          path: sed-processor/dist
-
-      - name: Upload pyproject.toml
-        uses: actions/upload-artifact@v4
-        with:
-          name: pyproject
-          path: sed-processor/pyproject.toml
-
-  publish:
-    needs: [prerelease, release]
-    if: always() && (needs.prerelease.result == 'success' || needs.release.result == 'success')
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ needs.prerelease.outputs.version || needs.release.outputs.version }}
-    environment:
-        name: pypi
-        url: https://pypi.org/p/sed-processor
-    permissions:
-        id-token: write
-
-    steps:
-      - name: Download a single artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: dist
+          git reset --hard HEAD
+          python -m build
 
       - name: Publish package distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          packages-dir: .
-
-  bump-version:
-    needs: publish
-    if: always() && (needs.publish.result == 'success')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Generate a token
-        id: generate_token
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ secrets.APP_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
-
-      - uses: actions/checkout@v4
-        with:
-          lfs: true
-          token: ${{ steps.generate_token.outputs.token }}
-
-      - name: Download pyproject.toml
-        uses: actions/download-artifact@v4
-        with:
-          name: pyproject
-
-      - name: Commit files
-        run: |
-          cd sed/
-          git config --local user.email "bump[bot]@users.noreply.github.com"
-          git config --local user.name "bump[bot]"
-          git add $GITHUB_WORKSPACE/pyproject.toml
-          git commit -m "bump version to ${{ needs.publish.outputs.version  }}"
-
-      - name: Push changes
-        uses: ad-m/github-push-action@master
-        with:
-          github_token:  ${{ steps.generate_token.outputs.token }}
-          branch: main
+          verbose: true
+          packages-dir: sed-processor/dist

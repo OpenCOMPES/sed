@@ -18,7 +18,7 @@ Finally, in contains several export routines, including export into the [NeXus](
 # Installation
 
 ## Prerequisites
-- Python 3.8+
+- Python 3.9+
 - pip
 
 ## Steps

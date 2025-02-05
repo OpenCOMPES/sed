@@ -1,5 +1,7 @@
 """Module tests.loader.test_utils, tests for the sed.load.utils file
 """
+from __future__ import annotations
+
 import dask.dataframe as dd
 import numpy as np
 import pandas as pd

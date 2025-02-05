@@ -1,9 +1,9 @@
 """Module tests.calibrator.delay, tests for the sed.calibrator.delay file
 """
+from __future__ import annotations
+
 import os
-from importlib.util import find_spec
 from typing import Any
-from typing import Dict
 
 import dask.dataframe
 import numpy as np
@@ -14,8 +14,8 @@ from sed.calibrator.delay import DelayCalibrator
 from sed.core.config import parse_config
 from sed.loader.loader_interface import get_loader
 
-package_dir = os.path.dirname(find_spec("sed").origin)
-file = package_dir + "/../tests/data/loader/mpes/Scan0030_2.h5"
+test_dir = os.path.join(os.path.dirname(__file__), "..")
+file = test_dir + "/data/loader/mpes/Scan0030_2.h5"
 
 
 def test_delay_parameters_from_file() -> None:
@@ -114,7 +114,7 @@ def test_delay_parameters_from_delay_range_mm() -> None:
         collect_metadata=False,
     )
     dc = DelayCalibrator(config=config)
-    calibration: Dict[str, Any] = {"delay_range_mm": (1, 15)}
+    calibration: dict[str, Any] = {"delay_range_mm": (1, 15)}
     with pytest.raises(NotImplementedError):
         dc.append_delay_axis(df, calibration=calibration)
     calibration["time0"] = 1
@@ -130,14 +130,13 @@ bam_vals = 1000 * (np.random.normal(size=100) + 5)
 delay_stage_vals = np.linspace(0, 99, 100)
 cfg = {
     "core": {"loader": "flash"},
-    "dataframe": {"delay_column": "delay"},
+    "dataframe": {"columns": {"delay": "delay"}},
     "delay": {
         "offsets": {
             "constant": 1,
             "flip_delay_axis": True,
-            "bam": {
-                "weight": 0.001,
-                "preserve_mean": False,
+            "columns": {
+                "bam": {"weight": 0.001, "preserve_mean": False},
             },
         },
     },
@@ -167,7 +166,7 @@ def test_add_offset_from_config(df=test_dataframe) -> None:
     dc = DelayCalibrator(config=config)
     df, _ = dc.add_offsets(df.copy())
     assert "delay" in df.columns
-    assert "bam" in dc.offsets.keys()
+    assert "bam" in dc.offsets["columns"].keys()
     np.testing.assert_allclose(expected, df["delay"])
 
 
@@ -189,7 +188,7 @@ def test_add_offset_from_args(df=test_dataframe) -> None:
         columns="bam",
     )
     assert "delay" in df.columns
-    assert "bam" in dc.offsets.keys()
+    assert "bam" in dc.offsets["columns"].keys()
     expected = -np.array(
         delay_stage_vals + bam_vals * 1 + 1,
     )
@@ -200,7 +199,7 @@ def test_add_offset_from_dict(df=test_dataframe) -> None:
     """test that the timing offset is corrected for correctly from config"""
     cfg_ = cfg.copy()
     offsets = cfg["delay"]["offsets"]  # type:ignore
-    offsets["bam"].pop("weight")
+    offsets["columns"]["bam"].pop("weight")
     offsets["flip_delay_axis"] = False
     cfg_.pop("delay")
     config = parse_config(
@@ -215,5 +214,5 @@ def test_add_offset_from_dict(df=test_dataframe) -> None:
     dc = DelayCalibrator(config=config)
     df, _ = dc.add_offsets(df.copy(), offsets=offsets)
     assert "delay" in df.columns
-    assert "bam" in dc.offsets.keys()
+    assert "bam" in dc.offsets["columns"].keys()
     np.testing.assert_allclose(expected, df["delay"])

@@ -1,10 +1,12 @@
-from pathlib import Path
+import os
+from importlib.util import find_spec
 
-import sed
 from sed import SedProcessor
 from sed.dataset import dataset
 
-config_file = Path(sed.__file__).parent / "config/flash_example_config.yaml"
+package_dir = os.path.dirname(find_spec("sed").origin)
+
+config_file = package_dir + "/config/flash_example_config.yaml"
 
 dataset.get("Gd_W110", root_dir="./tutorial")
 data_path = dataset.dir
@@ -13,8 +15,8 @@ data_path = dataset.dir
 config_override = {
     "core": {
         "paths": {
-            "data_raw_dir": data_path,
-            "data_parquet_dir": data_path + "/processed/",
+            "raw": data_path,
+            "processed": data_path + "/processed/",
         },
     },
 }
@@ -35,8 +37,8 @@ data_path = dataset.dir
 config_override = {
     "core": {
         "paths": {
-            "data_raw_dir": data_path,
-            "data_parquet_dir": data_path + "/processed/",
+            "raw": data_path,
+            "processed": data_path + "/processed/",
         },
     },
 }
