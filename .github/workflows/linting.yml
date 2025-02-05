@@ -3,8 +3,6 @@ name: linting
 # Triggers the workflow on push for all branches
 on:
   push:
-    paths-ignore:
-      pyproject.toml
 
 env:
   UV_SYSTEM_PYTHON: true

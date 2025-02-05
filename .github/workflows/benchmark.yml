@@ -4,9 +4,9 @@ name: benchmark
 on:
     workflow_dispatch:
     push:
-        branches: [ main, v1_feature_branch, create-pull-request/patch ]
-        paths-ignore:
-          pyproject.toml
+      branches: [ main]
+    pull_request:
+      branches: [ main ]
 
 env:
   UV_SYSTEM_PYTHON: true
