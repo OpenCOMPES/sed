@@ -98,6 +98,9 @@ dtype
 dtypes
 easimon
 ecalibdict
+elab
+elabapi
+elabid
 electronanalyser
 Elektronen
 endstation
@@ -105,6 +108,7 @@ energycal
 energycalfolder
 ENERGYDISPERSION
 ENOSPC
+entityid
 equiscale
 Eref
 errorbar
@@ -265,6 +269,7 @@ ontop
 OPCPA
 openmp
 OPTICALDELAY
+orcid
 otherax
 packetcoders
 Pandoc
@@ -339,6 +344,7 @@ sdir
 segs
 setp
 sfile
+sharelink
 shutil
 Sixten
 sohail
@@ -384,6 +390,7 @@ ufunc
 unbinned
 uncategorised
 undoc
+userid
 utime
 varnames
 venv
