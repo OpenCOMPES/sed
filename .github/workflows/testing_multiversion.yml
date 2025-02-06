@@ -6,9 +6,7 @@ on:
     - cron:  '0 1 * * 1'
   workflow_dispatch:
   push:
-    branches: [ main, v1_feature_branch ]
-    paths-ignore:
-      pyproject.toml
+    branches: [ main ]
 
 env:
   UV_SYSTEM_PYTHON: true
