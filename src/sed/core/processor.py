@@ -2355,48 +2355,35 @@ class SedProcessor:
 
         if isinstance(df_partitions, int):
             df_partitions = list(range(0, min(df_partitions, self._dataframe.npartitions)))
+
         if use_time_stamps or self._timed_dataframe is None:
             if df_partitions is not None:
-                self._normalization_histogram = normalization_histogram_from_timestamps(
-                    self._dataframe.partitions[df_partitions],
-                    axis,
-                    self._binned.coords[axis].values,
-                    self._config["dataframe"]["columns"]["timestamp"],
-                )
+                dataframe = self._dataframe.partitions[df_partitions]
             else:
-                self._normalization_histogram = normalization_histogram_from_timestamps(
-                    self._dataframe,
-                    axis,
-                    self._binned.coords[axis].values,
-                    self._config["dataframe"]["columns"]["timestamp"],
-                )
+                dataframe = self._dataframe
+            self._normalization_histogram = normalization_histogram_from_timestamps(
+                df=dataframe,
+                axis=axis,
+                bin_centers=self._binned.coords[axis].values,
+                time_stamp_column=self._config["dataframe"]["columns"]["timestamp"],
+            )
         else:
             if df_partitions is not None:
-                self._normalization_histogram = normalization_histogram_from_timed_dataframe(
-                    self._timed_dataframe.partitions[df_partitions],
-                    axis,
-                    self._binned.coords[axis].values,
-                    self._config["dataframe"]["timed_dataframe_unit_time"],
-                    hist_mode=self.config["binning"]["hist_mode"],
-                    mode=self.config["binning"]["mode"],
-                    pbar=self.config["binning"]["pbar"],
-                    n_cores=self.config["core"]["num_cores"],
-                    threads_per_worker=self.config["binning"]["threads_per_worker"],
-                    threadpool_api=self.config["binning"]["threadpool_API"],
-                )
+                timed_dataframe = self._timed_dataframe.partitions[df_partitions]
             else:
-                self._normalization_histogram = normalization_histogram_from_timed_dataframe(
-                    self._timed_dataframe,
-                    axis,
-                    self._binned.coords[axis].values,
-                    self._config["dataframe"]["timed_dataframe_unit_time"],
-                    hist_mode=self.config["binning"]["hist_mode"],
-                    mode=self.config["binning"]["mode"],
-                    pbar=self.config["binning"]["pbar"],
-                    n_cores=self.config["core"]["num_cores"],
-                    threads_per_worker=self.config["binning"]["threads_per_worker"],
-                    threadpool_api=self.config["binning"]["threadpool_API"],
-                )
+                timed_dataframe = self._timed_dataframe
+            self._normalization_histogram = normalization_histogram_from_timed_dataframe(
+                df=timed_dataframe,
+                axis=axis,
+                bin_centers=self._binned.coords[axis].values,
+                time_unit=self._config["dataframe"]["timed_dataframe_unit_time"],
+                hist_mode=self.config["binning"]["hist_mode"],
+                mode=self.config["binning"]["mode"],
+                pbar=self.config["binning"]["pbar"],
+                n_cores=self.config["core"]["num_cores"],
+                threads_per_worker=self.config["binning"]["threads_per_worker"],
+                threadpool_api=self.config["binning"]["threadpool_API"],
+            )
 
         return self._normalization_histogram
 
