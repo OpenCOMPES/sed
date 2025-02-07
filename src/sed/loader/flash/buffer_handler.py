@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 import time
+from pathlib import Path
 
 import dask.dataframe as dd
 import pyarrow.parquet as pq
@@ -111,7 +111,7 @@ class BufferHandler:
         self.n_cores: int = config["core"].get("num_cores", os.cpu_count() - 1)
         self.fp: BufferFilePaths = None
         self.df: dict[str, dd.DataFrame] = {typ: None for typ in DF_TYP}
-        fill_formats = self._config.get("fill_formats")
+        fill_formats = self._config.get("fill_formats", ["per_train", "per_pulse"])
         self.fill_channels: list[str] = get_channels(
             self._config,
             fill_formats,

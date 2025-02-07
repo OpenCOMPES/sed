@@ -94,7 +94,6 @@ class ColumnsModel(BaseModel):
     corrected_delay: Optional[str] = None
     sector_id: Optional[str] = None
     auxiliary: Optional[str] = None
-    pulse_id: Optional[str] = None
 
 
 class ChannelModel(BaseModel):

@@ -23,8 +23,8 @@ def get_channels(
         List[str]: A list of channels with the specified format(s).
     """
     channel_dict = config_dataframe.get("channels", {})
-    index_list = config_dataframe.get("index", None)
-    formats_list = config_dataframe.get("formats")
+    index_list = config_dataframe.get("index", ["trainId", "pulseId", "electronId"])
+    formats_list = config_dataframe.get("formats", ["per_train", "per_pulse", "per_electron"])
     aux_alias = channel_dict.get("auxiliary", "dldAux")
 
     # If 'formats' is a single string, convert it to a list for uniform processing.
