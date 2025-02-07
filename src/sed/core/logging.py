@@ -43,28 +43,32 @@ def setup_logging(
     # Create base logger
     base_logger = logging.getLogger("sed")
     base_logger.setLevel(logging.DEBUG)  # Set the minimum log level for the logger
-    if set_base_handler or not base_logger.hasHandlers():
-        if base_logger.hasHandlers():
+    if set_base_handler or len(base_logger.handlers) == 0:
+        if len(base_logger.handlers):
             base_logger.handlers.clear()
 
         # Determine log file path
         if user_log_path is None:
             user_log_path = DEFAULT_LOG_DIR
-        os.makedirs(user_log_path, exist_ok=True)
-        log_file = os.path.join(user_log_path, f"sed_{datetime.now().strftime('%Y-%m-%d')}.log")
+        try:
+            os.makedirs(user_log_path, exist_ok=True)
+            log_file = os.path.join(user_log_path, f"sed_{datetime.now().strftime('%Y-%m-%d')}.log")
 
-        # Create file handler and set level to debug
-        file_handler = logging.FileHandler(log_file)
-        file_handler.setLevel(FILE_VERBOSITY)
+            # Create file handler and set level to debug
+            file_handler = logging.FileHandler(log_file)
+            file_handler.setLevel(FILE_VERBOSITY)
 
-        # Create formatter for file
-        file_formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s in %(filename)s:%(lineno)d",
-        )
-        file_handler.setFormatter(file_formatter)
+            # Create formatter for file
+            file_formatter = logging.Formatter(
+                "%(asctime)s - %(name)s - %(levelname)s - %(message)s in %(filename)s:%(lineno)d",
+            )
+            file_handler.setFormatter(file_formatter)
 
-        # Add file handler to logger
-        base_logger.addHandler(file_handler)
+            # Add file handler to logger
+            base_logger.addHandler(file_handler)
+        except PermissionError:
+            logging.warning(f"Cannot create logfile in Folder {user_log_path}, disabling logfile.")
+            base_logger.addHandler(logging.NullHandler())
 
     # create named logger
     logger = base_logger.getChild(name)
