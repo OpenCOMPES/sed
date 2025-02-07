@@ -89,6 +89,9 @@ notebook = [
     "jupyterlab>=4.0",
     "jupyterlab-h5web>=8.0.0",
 ]
+all = [
+    "sed-processor[dev,docs,notebook]",
+]
 
 [tool.coverage.report]
 omit = [
