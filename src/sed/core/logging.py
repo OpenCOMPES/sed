@@ -11,6 +11,7 @@ import os
 import sys
 from datetime import datetime
 from functools import wraps
+from inspect import signature
 from typing import Callable
 
 # Default log directory
@@ -113,7 +114,11 @@ def call_logger(logger: logging.Logger):
         def new_func(*args, **kwargs):
             saved_args = locals()
             args_str = ""
-            for arg in saved_args["args"][1:]:
+            for arg in (
+                saved_args["args"][1:]
+                if "self" in signature(func).parameters
+                else saved_args["args"]
+            ):
                 args_str += f"{arg}, "
             for name, arg in saved_args["kwargs"].items():
                 args_str += f"{name}={arg}, "

@@ -85,3 +85,29 @@ def test_readonly_path(tmp_path, caplog):
     assert f"Cannot create logfile in Folder {tmp_path}, disabling logfile." in caplog.messages[0]
     log_file = os.path.join(tmp_path, f"sed_{datetime.now().strftime('%Y-%m-%d')}.log")
     assert not os.path.exists(log_file)
+
+
+def test_call_logger(logger_):
+    logger, log_capture_string = logger_
+
+    @call_logger(logger)
+    def test_function(test_param=None):  # noqa: ARG001
+        return
+
+    test_function(test_param=[1, 3, 5])
+    assert "test_function(test_param=[1, 3, 5])" in log_capture_string.getvalue()
+
+    test_function([1, 3, 5])
+    assert "test_function([1, 3, 5])" in log_capture_string.getvalue()
+
+    test_function()
+    assert "test_function()" in log_capture_string.getvalue()
+
+    class TestClass:
+        @call_logger(logger)
+        def test_method(self, test_param=None):  # noqa: ARG002
+            return
+
+    test_instance = TestClass()
+    test_instance.test_method(test_param=[1, 3, 5])
+    assert "test_method(test_param=[1, 3, 5])" in log_capture_string.getvalue()
