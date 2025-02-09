@@ -70,6 +70,7 @@ def setup_logging(
         except PermissionError:
             logging.warning(f"Cannot create logfile in Folder {user_log_path}, disabling logfile.")
             base_logger.addHandler(logging.NullHandler())
+            base_logger.propagate = False
 
     # create named logger
     logger = base_logger.getChild(name)
