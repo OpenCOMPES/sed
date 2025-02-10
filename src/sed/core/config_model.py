@@ -33,6 +33,7 @@ class CopyToolModel(BaseModel):
 
     source: DirectoryPath
     dest: DirectoryPath
+    use: Optional[bool] = None
     safety_margin: Optional[float] = None
     gid: Optional[int] = None
     scheduler: Optional[str] = None
