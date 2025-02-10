@@ -352,6 +352,22 @@ class MetadataRetriever:
             elif metadata["elabFTW"]["scan"]["probe_polarization"] == "p":
                 metadata["elabFTW"]["scan"]["probe_polarization"] = 0
 
+        # fix pump status
+        if "scan" in metadata["elabFTW"] and "pump_status" in metadata["elabFTW"]["scan"]:
+            try:
+                metadata["elabFTW"]["scan"]["pump_status"] = (
+                    "opened" if int(metadata["elabFTW"]["scan"]["pump_status"]) else "closed"
+                )
+            except ValueError:
+                pass
+        if "scan" in metadata["elabFTW"] and "pump2_status" in metadata["elabFTW"]["scan"]:
+            try:
+                metadata["elabFTW"]["scan"]["pump2_status"] = (
+                    "opened" if int(metadata["elabFTW"]["scan"]["pump2_status"]) else "closed"
+                )
+            except ValueError:
+                pass
+
         # remove pump information if pump not applied:
         if not metadata["elabFTW"]["scan"].get("pump_status", 0):
             if "pump_photon_energy" in metadata["elabFTW"].get("laser_status", {}):
