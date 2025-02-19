@@ -190,8 +190,7 @@ class BufferHandler:
             # Take all timed data rows without filtering
             df_timed = df[timed_channels]
 
-        # Take only first electron per event
-        return df_timed.loc[:, :, 0]
+        return df_timed
 
     def _save_buffer_file(self, paths: dict[str, Path]) -> None:
         """Creates the electron and timed buffer files from the raw H5 file."""
@@ -265,25 +264,26 @@ class BufferHandler:
         filling = {}
         for typ in DF_TYP:
             # Read the parquet files into a dask dataframe
-            df = dd.read_parquet(self.fp[typ], calculate_divisions=True)
+            df = dd.read_parquet(self.fp[typ])  # , calculate_divisions=True)
             # Get the metadata from the parquet files
             file_stats[typ] = get_parquet_metadata(self.fp[typ])
 
             # Forward fill the non-electron channels across files
             overlap = min(file["num_rows"] for file in file_stats[typ].values())
             iterations = self._config.get("forward_fill_iterations", 2)
-            df = forward_fill_lazy(
-                df=df,
-                columns=self.fill_channels,
-                before=overlap,
-                iterations=iterations,
-            )
-            # TODO: This dict should be returned by forward_fill_lazy
-            filling[typ] = {
-                "columns": self.fill_channels,
-                "overlap": overlap,
-                "iterations": iterations,
-            }
+            if iterations:
+                df = forward_fill_lazy(
+                    df=df,
+                    columns=self.fill_channels,
+                    before=overlap,
+                    iterations=iterations,
+                )
+                # TODO: This dict should be returned by forward_fill_lazy
+                filling[typ] = {
+                    "columns": self.fill_channels,
+                    "overlap": overlap,
+                    "iterations": iterations,
+                }
 
             self.df[typ] = df
         self.metadata.update({"file_statistics": file_stats, "filling": filling})
@@ -336,15 +336,15 @@ class BufferHandler:
                 get_channels(self._config, formats="all", index=True, extend_aux=True),
             )
             self._schema_check(self.fp["electron"], schema_set)
-            schema_set = set(
-                get_channels(
-                    self._config,
-                    formats=["per_pulse", "per_train"],
-                    index=True,
-                    extend_aux=True,
-                ),
-            ) - {"electronId"}
-            self._schema_check(self.fp["timed"], schema_set)
+            # schema_set = set(
+            #     get_channels(
+            #         self._config,
+            #         formats=["per_pulse", "per_train"],
+            #         index=True,
+            #         extend_aux=True,
+            #     ),
+            # ) - {"electronId"}
+            # self._schema_check(self.fp["timed"], schema_set)
 
         self._save_buffer_files(force_recreate, debug)
 

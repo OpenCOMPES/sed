@@ -8,9 +8,9 @@ core:
   # the beamline where experiment took place
   beamline: cfel
   # the ID number of the beamtime
-  beamtime_id: 11019101
+  beamtime_id: 11021732
   # the year of the beamtime
-  year: 2023
+  year: 2025
   # the instrument used
   instrument: hextof # hextof, wespe, etc
 
@@ -18,9 +18,9 @@ core:
   # provided, the loader will try to find the data based on year beamtimeID etc
   paths:
     # location of the raw data.
-    raw: ""
+    raw: "/asap3/fs-flash-o/gpfs/hextof/2025/data/11021732/raw/"
     # location of the intermediate parquet files.
-    processed: ""
+    processed: "."
 
   # The beamtime directories for different DAQ systems.
   # (Not to be changed by user)
@@ -32,7 +32,7 @@ core:
 dataframe:
   daq: fl1user3                                   # DAQ system name to resolve filenames/paths
   ubid_offset: 5                                  # Offset correction to the pulseId
-  forward_fill_iterations: 2                      # Number of iterations to fill the pulseId forward
+  forward_fill_iterations: 0                      # Number of iterations to fill the pulseId forward
   split_sector_id_from_dld_time: True             # Remove reserved bits for dldSectorID from dldTimeSteps column
   sector_id_reserved_bits: 3                      # Bits reserved for dldSectorID in the dldTimeSteps column
   sector_delays: [0., 0., 0., 0., 0., 0., 0., 0.] # Sector delays
@@ -42,7 +42,7 @@ dataframe:
   tof_binning: 8                                  # Binning parameter for time-of-flight data
 
   # Columns used for jitter correction
-  index: index
+  index: [countId]
   jitter_cols: [dldPosX, dldPosY, dldTimeSteps]
   formats: [per_file, per_train, per_electron]
   fill_formats: [per_train, per_file]            # Channels with this format will be forward filled
@@ -102,20 +102,20 @@ dataframe:
     #   format: per_file
     #   dataset_key: "/uncategorised/FLASH.DIAG/TIMINGINFO/TIME1.BUNCH_FIRST_INDEX.1/time"
     # event key
-    index:
+    countId:
       format: per_file
       dataset_key: /DLD/NumOfEvents
     # detector x position
     dldPosX:
       format: per_electron
       dataset_key: /DLD/DLD/xPos
-      dtype: uint32
+      # dtype: uint32
 
     # detector y position
     dldPosY:
       format: per_electron
       dataset_key: /DLD/DLD/yPos
-      dtype: uint32
+      # dtype: uint32
 
     # Detector time-of-flight channel
     # if split_sector_id_from_dld_time is set to True, This this will generate
@@ -123,7 +123,7 @@ dataframe:
     dldTimeSteps:
       format: per_electron
       dataset_key: /DLD/DLD/times
-      dtype: uint32
+      # dtype: uint32
 
     # The auxiliary channel has a special structure where the group further contains
     # a multidimensional structure so further aliases are defined below

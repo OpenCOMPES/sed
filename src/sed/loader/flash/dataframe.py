@@ -434,7 +434,8 @@ class CFELDataFrameCreator(BaseDataFrameCreator):
             dataset = self.get_dataset_array(channel)
             # Electron and pulse resolved MultiIndex is created. Since this is train data,
             # the electron and pulse index is always 0
-            index = np.cumsum([0, *self.get_dataset_array("index")[:-1]])
+            index_alias = self._config.get("index", ["countId"])[0]
+            index = np.cumsum([0, *self.get_dataset_array(index_alias)[:-1]])
             # Auxiliary dataset (which is stored in the same dataset as other DLD channels)
             # contains multiple channels inside. Even though they are resolved per train,
             # they come in pulse format, so the extra values are sliced and individual channels are
@@ -491,4 +492,5 @@ class CFELDataFrameCreator(BaseDataFrameCreator):
         # concat offers best performance, almost 3 times faster
         df = pd.concat((self.df_electron, self.df_train), axis=1)
         df[self.df_train.columns] = df[self.df_train.columns].ffill()
+        df.index.name = self._config.get("index", ["countId"])[0]
         return df
