@@ -1008,6 +1008,8 @@ def test_compute_with_normalization() -> None:
         processor.binned.data,
         (processor.normalized * processor.normalization_histogram).data,
     )
+    # check dtype
+    assert processor.normalized.dtype == processor.binned.dtype
     # bin only second dataframe partition
     result2 = processor.compute(
         bins=bins,
