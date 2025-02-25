@@ -19,6 +19,7 @@ installation
 ../tutorial/2_conversion_pipeline_for_example_time-resolved_ARPES_data
 ../tutorial/3_metadata_collection_and_export_to_NeXus
 config
+dataset
 ```
 
 ## Advanced Topics
