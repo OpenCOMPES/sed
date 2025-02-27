@@ -356,6 +356,8 @@ class MetadataRetriever:
         if not metadata["elabFTW"]["scan"].get("pump_status", 0):
             if "pump_photon_energy" in metadata["elabFTW"].get("laser_status", {}):
                 del metadata["elabFTW"]["laser_status"]["pump_photon_energy"]
+            if "pump_repetition_rate" in metadata["elabFTW"].get("laser_status", {}):
+                del metadata["elabFTW"]["laser_status"]["pump_repetition_rate"]
 
         return metadata
 
