@@ -118,7 +118,6 @@ class MetadataRetriever:
                 metadata["file"][f"{channel}"] = np.mean(vals)
 
             except IndexError:
-                metadata["file"][f"{channel}"] = np.nan
                 logger.info(
                     f"Data for channel {channel} doesn't exist for time {start}",
                 )
