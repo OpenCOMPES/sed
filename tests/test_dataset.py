@@ -1,4 +1,14 @@
-"""This code  performs several tests for the dataset module.
+"""This code performs several tests for the dataset module.
+
+The tests cover the following functionalities:
+- Checking available datasets
+- Checking dataset availability
+- Setting root directory for datasets
+- Getting file list from dataset directory
+- Downloading dataset
+- Extracting dataset
+- Rearranging dataset
+- Adding and removing datasets using DatasetsManager
 """
 from __future__ import annotations
 
@@ -20,6 +30,7 @@ json_path = os.path.join(package_dir, "config/datasets.json")
 
 @pytest.fixture
 def zip_buffer():
+    """Fixture to create an in-memory zip file buffer with test files."""
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED) as zip_file:
         zip_file.writestr("test_file.txt", "This is a test file inside the zip.")
@@ -29,19 +40,25 @@ def zip_buffer():
 
 
 @pytest.fixture
-def zip_file(fs, zip_buffer):
-    fs.create_dir("test/datasets/Test")
-    with open("test/datasets/Test/Test.zip", "wb") as f:
+def zip_filepath(fs, zip_buffer, tmp_path):
+    """Fixture to create a temporary directory and write the zip buffer to a file."""
+    test_dir = tmp_path / "datasets" / "Test"
+    fs.create_dir(test_dir)
+    with open(test_dir / "Test.zip", "wb") as f:
         f.write(zip_buffer.getvalue())
+    return test_dir
 
 
 def test_available_datasets():
+    """Checks the available datasets by comparing with the loaded datasets dictionary."""
     all_dsets = dm.load_datasets_dict()
     del all_dsets["Test"]
     assert ds.available == list(all_dsets.keys())
 
 
 def test_check_dataset_availability():
+    """Checks that all available datasets are loaded and tests if an error is raised for
+    unknown datasets."""
     datasets = dm.load_datasets_dict()
     # return dataset information if available
     for data_name in datasets.keys():
@@ -54,36 +71,39 @@ def test_check_dataset_availability():
         ds._check_dataset_availability()
 
 
-def test_set_root_dir():
+def test_set_root_dir(tmp_path):
+    """Checks if all cases of setting root datasets directory."""
     # test with existing data path
     ds.data_name = "Test"
-    ds._state["data_path"] = ["test/data"]
-    ds._set_data_dir(root_dir="test/data", use_existing=True)
-    assert os.path.abspath("test/data/") == ds._dir
+    ds._state["data_path"] = [str(tmp_path / "test" / "data")]
+    ds._set_data_dir(root_dir=str(tmp_path / "test" / "data"), use_existing=True)
+    assert ds._dir == str((tmp_path / "test" / "data").resolve())
 
     # test without existing data path
     ds._state["data_path"] = []
-    ds._set_data_dir(root_dir="test/data", use_existing=True)
-    assert os.path.abspath("test/data/datasets/Test") == ds._dir
+    ds._set_data_dir(root_dir=str(tmp_path / "test" / "data"), use_existing=True)
+    assert ds._dir == str((tmp_path / "test" / "data" / "datasets" / "Test").resolve())
 
     # test without data path and existing data path
     ds._set_data_dir(root_dir=None, use_existing=True)
-    assert os.path.abspath("./datasets/Test") == ds._dir
+    assert f"{os.getcwd()}/datasets/Test" == ds._dir
 
     # test with provided data path different from existing data path
-    ds._state["data_path"] = ["test/data1"]
-    ds._set_data_dir(root_dir="test/data", use_existing=True)
-    assert os.path.abspath("test/data1/") == ds._dir
-    ds._set_data_dir(root_dir="test/data", use_existing=False)
-    assert os.path.abspath("test/data/datasets/Test") == ds._dir
+    ds._state["data_path"] = [str(tmp_path / "test" / "data1")]
+    ds._set_data_dir(root_dir=str(tmp_path / "test" / "data"), use_existing=True)
+    assert ds._dir == str((tmp_path / "test" / "data1").resolve())
+    ds._set_data_dir(root_dir=str(tmp_path / "test" / "data"), use_existing=False)
+    assert ds._dir == str((tmp_path / "test" / "data" / "datasets" / "Test").resolve())
 
 
-def test_get_file_list(fs):
-    fs.create_file("test/data/file.txt")
-    fs.create_file("test/data/subdir/file.txt")
-    fs.create_file("test/data/subdir/file.zip")
-    fs.create_file("test/data/file.zip")
-    ds._dir = "test/data"
+def test_get_file_list(fs, tmp_path):
+    """Test to get the list of files in the dataset directory, including and excluding zip files."""
+    test_dir = tmp_path / "test" / "data"
+    fs.create_file(test_dir / "file.txt")
+    fs.create_file(test_dir / "subdir" / "file.txt")
+    fs.create_file(test_dir / "subdir" / "file.zip")
+    fs.create_file(test_dir / "file.zip")
+    ds._dir = str(test_dir)
     assert ["file.txt", "subdir/file.txt"] == ds._get_file_list()
 
     assert ["file.txt", "file.zip", "subdir/file.txt", "subdir/file.zip"] == ds._get_file_list(
@@ -91,44 +111,47 @@ def test_get_file_list(fs):
     )
 
 
-def test_download_data(fs, requests_mock, zip_buffer):
-    fs.create_dir("test")
+def test_download_data(fs, requests_mock, zip_buffer, tmp_path):
+    """Test to download a dataset from a URL and verify the downloaded zip file."""
+    test_dir = tmp_path / "test"
+    fs.create_dir(test_dir)
     data_url = "http://test.com/files/file.zip"
     requests_mock.get(data_url, content=zip_buffer.getvalue())
     ds._data_name = "Test"
     ds._state = {"data_path": []}
-    ds._set_data_dir(root_dir="test", use_existing=True)
+    ds._set_data_dir(root_dir=str(test_dir), use_existing=True)
     ds._download_data(data_url)
-    assert os.path.exists("test/datasets/Test/Test.zip")
-
-    # assert not ds._download_data("data", "test/data/", data_url)  # already exists
+    assert os.path.exists(test_dir / "datasets" / "Test" / "Test.zip")
 
 
-def test_extract_data(zip_file):  # noqa: ARG001
+def test_extract_data(zip_filepath):
+    """Test to extract files from the dataset zip file and verify the extracted files."""
     ds._data_name = "Test"
-    ds._dir = "test/datasets/Test/"
+    ds._dir = str(zip_filepath)
     ds._extract_data()
-    assert os.path.exists("test/datasets/Test/test_file.txt")
-    assert os.path.exists("test/datasets/Test/subdir/test_subdir.txt")
+    assert os.path.exists(zip_filepath / "test_file.txt")
+    assert os.path.exists(zip_filepath / "subdir" / "test_subdir.txt")
 
 
-def test_rearrange_data(zip_file):  # noqa: ARG001
+def test_rearrange_data(zip_filepath):
+    """Test to rearrange files in the dataset directory and verify the rearranged files."""
     ds._data_name = "Test"
-    ds._dir = "test/datasets/Test/"
+    ds._dir = str(zip_filepath)
     ds._subdirs = ["subdir"]
     ds._extract_data()
     ds._rearrange_data()
-    assert os.path.exists("test/datasets/Test/test_file.txt")
-    assert os.path.exists("test/datasets/Test/test_subdir.txt")
-    assert not os.path.exists("test/datasets/Test/subdir")
+    assert os.path.exists(zip_filepath / "test_file.txt")
+    assert os.path.exists(zip_filepath / "test_subdir.txt")
+    assert not os.path.exists(zip_filepath / "subdir")
 
     with pytest.raises(FileNotFoundError):
         ds._subdirs = ["non_existing_subdir"]
         ds._rearrange_data()
 
 
-def test_get_remove_dataset(requests_mock, zip_buffer):
-    json_path_user = USER_CONFIG_PATH.joinpath("datasets.json")
+def test_get_remove_dataset(requests_mock, zip_buffer, tmp_path):
+    """Test to get a dataset, verify its directory and files, and then remove the dataset."""
+    json_path_user = tmp_path / USER_CONFIG_PATH / "datasets.json"
     data_name = "Test"
     _ = dm.load_datasets_dict()  # to ensure datasets.json is in user dir
 
@@ -137,11 +160,11 @@ def test_get_remove_dataset(requests_mock, zip_buffer):
     data_url = "http://test.com/files/file.zip"
     requests_mock.get(data_url, content=zip_buffer.getvalue())
 
-    ds.get(data_name)
-    assert ds.dir == os.path.abspath(os.path.join("./datasets", data_name))
+    ds.get(data_name, root_dir=str(tmp_path))
+    assert ds.dir == str((tmp_path / "datasets" / data_name).resolve())
 
     # check if subdir is removed after rearranging
-    assert not os.path.exists("./datasets/Test/subdir")
+    assert not os.path.exists(tmp_path / "datasets" / "Test" / "subdir")
 
     # check datasets file to now have data_path listed
     datasets_json = json.load(open(json_path_user))
@@ -149,14 +172,16 @@ def test_get_remove_dataset(requests_mock, zip_buffer):
     assert datasets_json[data_name]["files"]
     ds.remove(data_name)
 
-    assert not os.path.exists(os.path.join("./datasets", data_name))
+    assert not os.path.exists(tmp_path / "datasets" / data_name)
 
-    ds.get(data_name)
-    ds.get(data_name)
+    ds.get(data_name, root_dir=str(tmp_path))
+    ds.get(data_name, root_dir=str(tmp_path))
     ds.remove(data_name, ds.existing_data_paths[0])
 
 
-def test_datasets_manager():
+def test_datasets_manager(tmp_path):  # noqa: ARG001
+    """Tests adds a dataset using DatasetsManager, verifies its addition,
+    removes it and checks for error raised."""
     dm.add(
         "Test_DM",
         {"url": "http://test.com/files/file.zip", "subdirs": ["subdir"]},
