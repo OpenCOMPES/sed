@@ -45,7 +45,7 @@ def test_buffer_file_paths(config: dict, h5_paths: list[Path]) -> None:
         the checks with modified file name parameters.
     """
     folder = create_parquet_dir(config, "get_files_to_read")
-    fp = BufferFilePaths(config, h5_paths, folder, suffix="", remove_invalid_files=False)
+    fp = BufferFilePaths(h5_paths, folder, suffix="")
 
     # check that all files are to be read
     assert len(fp.file_sets_to_process()) == len(h5_paths)
@@ -70,7 +70,7 @@ def test_buffer_file_paths(config: dict, h5_paths: list[Path]) -> None:
     bh._save_buffer_file(path)
 
     # check again for files to read and expect one less file
-    fp = BufferFilePaths(config, h5_paths, folder, suffix="", remove_invalid_files=False)
+    fp = BufferFilePaths(h5_paths, folder, suffix="")
     # check that only one file is to be read
     assert len(fp.file_sets_to_process()) == len(h5_paths) - 1
 
@@ -82,7 +82,7 @@ def test_buffer_file_paths(config: dict, h5_paths: list[Path]) -> None:
     Path(path["timed"]).unlink()
 
     # Test for adding a suffix
-    fp = BufferFilePaths(config, h5_paths, folder, "suffix", remove_invalid_files=False)
+    fp = BufferFilePaths(h5_paths, folder, "suffix")
 
     # expected buffer paths with prefix and suffix
     for typ in ["electron", "timed"]:
