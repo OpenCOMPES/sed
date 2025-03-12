@@ -21,6 +21,12 @@
             "calibration_data"
         ],
         "rearrange_files": true
+    "Photon_peak": {
+        "url": "https://zenodo.org/records/15011781/files/single_event_data.zip",
+        "subdirs": [
+            "analysis_data"
+        ],
+        "rearrange_files": true
     },
     "TaS2": {
         "url": "https://zenodo.org/records/10160182/files/TaS2.zip",
