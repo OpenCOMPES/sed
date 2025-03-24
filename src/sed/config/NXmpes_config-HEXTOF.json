@@ -48,7 +48,7 @@
       "value/@units": "@attrs:metadata/scientificMetadata/sample/sample_pressure/unit"
     }
   },
-  "/ENTRY[entry]/INSTRUMENT[instrument]/ELECTRONANALYSER[electronanalyser]": {
+  "/ENTRY[entry]/INSTRUMENT[instrument]/ELECTRONANALYZER[electronanalyzer]": {
     "description": "HEXTOF Momentum Microscope",
     "device_information": {
       "vendor": "None",
@@ -78,7 +78,7 @@
       "type": "estimated"
     }
   },
-  "/ENTRY[entry]/INSTRUMENT[instrument]/ELECTRONANALYSER[electronanalyser]/COLLECTIONCOLUMN[collectioncolumn]": {
+  "/ENTRY[entry]/INSTRUMENT[instrument]/ELECTRONANALYZER[electronanalyzer]/COLLECTIONCOLUMN[collectioncolumn]": {
     "projection": "@attrs:metadata/scientificMetadata/Collection/projection",
     "scheme": "momentum dispersive",
     "lens_mode": "@attrs:metadata/scientificMetadata/Collection/lens_mode",
@@ -107,14 +107,14 @@
       }
     }
   },
-  "/ENTRY[entry]/INSTRUMENT[instrument]/ELECTRONANALYSER[electronanalyser]/ENERGYDISPERSION[energydispersion]": {
+  "/ENTRY[entry]/INSTRUMENT[instrument]/ELECTRONANALYZER[electronanalyzer]/ENERGYDISPERSION[energydispersion]": {
     "pass_energy": "@attrs:metadata/scientificMetadata/Collection/tof_voltage",
     "pass_energy/@units": "V",
     "scheme": "tof",
     "tof_distance": 0.8,
     "tof_distance/@units": "m"
   },
-  "/ENTRY[entry]/INSTRUMENT[instrument]/ELECTRONANALYSER[electronanalyser]/DETECTOR[detector]": {
+  "/ENTRY[entry]/INSTRUMENT[instrument]/ELECTRONANALYZER[electronanalyzer]/DETECTOR[detector]": {
     "amplifier_type": "MCP",
     "detector_type": "DLD",
     "sensor_pixels": [2024, 2048]
