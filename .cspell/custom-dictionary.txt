@@ -102,7 +102,7 @@ ecalibdict
 elab
 elabapi
 elabid
-electronanalyser
+electronanalyzer
 Elektronen
 endstation
 energycal
@@ -379,6 +379,7 @@ toctree
 tofseg
 tqdm
 traceseg
+trarpes
 trseg
 Tsec
 txtsize
