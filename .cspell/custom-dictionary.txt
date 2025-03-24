@@ -53,6 +53,7 @@ coldist
 colgrid
 COLLECTIONCOLUMN
 colname
+colorbar
 colsize
 COMPES
 coordmat
