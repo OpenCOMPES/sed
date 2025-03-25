@@ -6,9 +6,7 @@
   "/ENTRY[entry]/experiment_institution": "Deutsches Elektronen-Synchrotron DESY",
   "/ENTRY[entry]/experiment_facility": "Free-Electron Laser FLASH",
   "/ENTRY[entry]/experiment_laboratory": "@attrs:metadata/creationLocation",
-  "/ENTRY/entry_identifier": {
-    "identifier":"@attrs:metadata/pid"
-  },
+  "/ENTRY/identifierNAME[entry_identifier]": "@attrs:metadata/pid",
   "/ENTRY[entry]/USER[user0]": {
     "name": "!@attrs:metadata/principalInvestigator",
     "role": "Principal investigator",
@@ -114,12 +112,11 @@
     "tof_distance": 0.8,
     "tof_distance/@units": "m"
   },
-  "/ENTRY[entry]/INSTRUMENT[instrument]/ELECTRONANALYZER[electronanalyzer]/DETECTOR[detector]": {
+  "/ENTRY[entry]/INSTRUMENT[instrument]/ELECTRONANALYZER[electronanalyzer]/ELECTRON_DETECTOR[detector]": {
     "amplifier_type": "MCP",
-    "detector_type": "DLD",
-    "sensor_pixels": [2024, 2048]
+    "detector_type": "DLD"
   },
-  "/ENTRY[entry]/INSTRUMENT[instrument]/sourceTYPE[source_probe]": {
+  "/ENTRY[entry]/INSTRUMENT[instrument]/source_probe": {
     "name": "@attrs:metadata/scientificMetadata/Source/name",
     "probe": "@attrs:metadata/scientificMetadata/Source/probe",
     "type": "@attrs:metadata/scientificMetadata/Source/type",
@@ -128,7 +125,7 @@
     "frequency/@units": "@attrs:metadata/scientificMetadata/Source/repetition_rate/unit",
     "associated_beam": "/entry/instrument/beam_probe"
   },
-  "/ENTRY[entry]/INSTRUMENT[instrument]/beamTYPE[beam_probe]": {
+  "/ENTRY[entry]/INSTRUMENT[instrument]/beam_probe": {
     "distance": 0.0,
     "distance/@units": "mm",
     "incident_energy": "@attrs:metadata/scientificMetadata/Source/photon_energy/value",
@@ -146,16 +143,16 @@
     "energy_dispersion": "@attrs:metadata/scientificMetadata/Source/dispersion/value",
     "energy_dispersion/@units": "@attrs:metadata/scientificMetadata/Source/dispersion/unit"
   },
-  "/ENTRY[entry]/INSTRUMENT[instrument]/sourceTYPE[source_pump]": {
+  "/ENTRY[entry]/INSTRUMENT[instrument]/source_pump": {
     "name": "PIGLET @ FLASH @ DESY",
     "probe": "visible light",
     "type": "Optical Laser",
     "mode": "Single Bunch",
-    "frequency": 1000,
+    "frequency": 1000.0,
     "frequency/@units": "kHz",
     "associated_beam": "/entry/instrument/beam_pump"
   },
-  "/ENTRY[entry]/INSTRUMENT[instrument]/beamTYPE[beam_pump]": {
+  "/ENTRY[entry]/INSTRUMENT[instrument]/beam_pump": {
     "distance": 0.0,
     "distance/@units": "mm",
     "incident_wavelength": "@attrs:metadata/scientificMetadata/Laser/wavelength/value",
@@ -195,7 +192,7 @@
     "gas_pressure_env": {
       "pressure_gauge": "@link:/entry/instrument/pressure_gauge"
     },
-    "bias": {
+    "bias_env": {
       "voltmeter": "@link:/entry/instrument/manipulator/sample_bias_voltmeter"
     }
   },
@@ -207,6 +204,6 @@
     "data/@units": "counts",
     "AXISNAME[*]": "@data:*.data",
     "AXISNAME[*]/@units": "@data:*.unit",
-    "energy/@type": "@attrs:metadata/energy_calibration/calibration/energy_scale"
+    "AXISNAME[energy]/@type": "@attrs:metadata/energy_calibration/calibration/energy_scale"
   }
 }
