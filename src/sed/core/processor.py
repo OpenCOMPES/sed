@@ -162,7 +162,9 @@ class SedProcessor:
             verbose=self._verbose,
         )
 
-        self.use_copy_tool = "copy_tool" in self._config["core"]
+        self.use_copy_tool = "copy_tool" in self._config["core"] and self._config["core"][
+            "copy_tool"
+        ].pop("use", True)
         if self.use_copy_tool:
             try:
                 self.ct = CopyTool(
