@@ -1081,10 +1081,18 @@ metadata["instrument"]["analyzer"]["momentum_resolution"] = 0.08
 metadata["instrument"]["beam"] = {}
 metadata["instrument"]["beam"]["probe"] = {}
 metadata["instrument"]["beam"]["probe"]["incident_energy"] = 21.7
+metadata["instrument"]["beam"]["probe"]["frequency"] = 500.0
+metadata["instrument"]["beam"]["probe"]["incident_energy_spread"] = 0.11
+metadata["instrument"]["beam"]["probe"]["pulse_duration"] = 20.0
+metadata["instrument"]["beam"]["probe"]["incident_polarization"] = [1, 1, 0, 0]
+metadata["instrument"]["beam"]["probe"]["extent"] = [80.0, 80.0]
 # sample
 metadata["sample"] = {}
 metadata["sample"]["preparation_date"] = "2019-01-13T10:00:00+00:00"
 metadata["sample"]["name"] = "Sample Name"
+
+metadata["file"] = {}
+metadata["file"]["KTOF:Lens:Extr:I"] = -0.12877
 
 
 def test_save(caplog) -> None:
@@ -1118,7 +1126,7 @@ def test_save(caplog) -> None:
     with pytest.raises(NameError):
         processor.save("output.tiff")
     axes = ["kx", "ky", "energy", "delay"]
-    bins = [100, 100, 200, 50]
+    bins = [10, 10, 20, 5]
     ranges = [(-2, 2), (-2, 2), (-4, 2), (-600, 1600)]
     processor.compute(bins=bins, axes=axes, ranges=ranges)
     with pytest.raises(NotImplementedError):

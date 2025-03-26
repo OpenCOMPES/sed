@@ -404,6 +404,15 @@ class MetadataRetriever:
                 del metadata["elabFTW"]["laser_status"]["pump_photon_energy"]
             if "pump_repetition_rate" in metadata["elabFTW"].get("laser_status", {}):
                 del metadata["elabFTW"]["laser_status"]["pump_repetition_rate"]
+        else:
+            # add pulse energy if applicable
+            try:
+                metadata["elabFTW"]["scan"]["pump_pulse_energy"] = (
+                    metadata["file"]["trARPES:Pump:Power.RBV"]
+                    / metadata["elabFTW"]["laser_status"]["pump_repetition_rate"]
+                )
+            except KeyError:
+                pass
 
         if metadata["elabFTW"]["scan"].get("pump2_status", "closed") == "closed":
             if "pump2_photon_energy" in metadata["elabFTW"].get("laser_status", {}):
