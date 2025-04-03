@@ -792,6 +792,14 @@ class MpesLoader(BaseLoader):
                     recursive=True,
                 ),
             )
+            # Compatibility for old scan format
+            if not run_files:
+                run_files = natsorted(
+                    glob.glob(
+                        folder + "/**/Scan" + str(run_id).zfill(3) + "_*." + extension,
+                        recursive=True,
+                    ),
+                )
             files.extend(run_files)
 
         # Check if any files are found
