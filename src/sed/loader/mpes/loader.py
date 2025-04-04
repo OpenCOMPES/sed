@@ -221,7 +221,6 @@ def hdf5_to_timed_dataframe(
 
     electron_channels = []
     column_names = []
-
     for name, channel in channels.items():
         if channel["format"] == "per_electron":
             if channel["dataset_key"] in test_proc:
@@ -465,16 +464,13 @@ def hdf5_to_timed_array(
     # Delayed array for loading an HDF5 file of reasonable size (e.g. < 1GB)
 
     h5file = load_h5_in_memory(h5filename)
-
     # Read out groups:
     data_list = []
     ms_marker = np.asarray(h5file[ms_markers_key])
     for channel in channels:
-        timed_dataset = np.zeros_like(ms_marker)
         if channel["format"] == "per_electron":
             g_dataset = np.asarray(h5file[channel["dataset_key"]])
-            for i, point in enumerate(ms_marker):
-                timed_dataset[i] = g_dataset[int(point) - 1]
+            timed_dataset = g_dataset[np.maximum(ms_marker - 1, 0)]
         else:
             raise ValueError(
                 f"Invalid 'format':{channel['format']} for channel {channel['dataset_key']}.",
