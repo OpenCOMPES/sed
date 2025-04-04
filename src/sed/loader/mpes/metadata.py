@@ -340,6 +340,13 @@ class MetadataRetriever:
                 metadata["elabFTW"]["scan"]["pump_polarization"] = 90
             elif metadata["elabFTW"]["scan"]["pump_polarization"] == "p":
                 metadata["elabFTW"]["scan"]["pump_polarization"] = 0
+            else:
+                try:
+                    metadata["elabFTW"]["scan"]["pump_polarization"] = float(
+                        metadata["elabFTW"]["scan"]["pump_polarization"],
+                    )
+                except ValueError:
+                    pass
 
         if (
             "scan" in metadata["elabFTW"]
@@ -350,9 +357,49 @@ class MetadataRetriever:
                 metadata["elabFTW"]["scan"]["probe_polarization"] = 90
             elif metadata["elabFTW"]["scan"]["probe_polarization"] == "p":
                 metadata["elabFTW"]["scan"]["probe_polarization"] = 0
+            else:
+                try:
+                    metadata["elabFTW"]["scan"]["probe_polarization"] = float(
+                        metadata["elabFTW"]["scan"]["probe_polarization"],
+                    )
+                except ValueError:
+                    pass
+
+        if (
+            "scan" in metadata["elabFTW"]
+            and "pump2_polarization" in metadata["elabFTW"]["scan"]
+            and isinstance(metadata["elabFTW"]["scan"]["pump2_polarization"], str)
+        ):
+            if metadata["elabFTW"]["scan"]["pump2_polarization"] == "s":
+                metadata["elabFTW"]["scan"]["pump2_polarization"] = 90
+            elif metadata["elabFTW"]["scan"]["pump2_polarization"] == "p":
+                metadata["elabFTW"]["scan"]["pump2_polarization"] = 0
+            else:
+                try:
+                    metadata["elabFTW"]["scan"]["pump2_polarization"] = float(
+                        metadata["elabFTW"]["scan"]["pump2_polarization"],
+                    )
+                except ValueError:
+                    pass
+
+        # fix pump status
+        if "scan" in metadata["elabFTW"] and "pump_status" in metadata["elabFTW"]["scan"]:
+            try:
+                metadata["elabFTW"]["scan"]["pump_status"] = (
+                    "open" if int(metadata["elabFTW"]["scan"]["pump_status"]) else "closed"
+                )
+            except ValueError:
+                pass
+        if "scan" in metadata["elabFTW"] and "pump2_status" in metadata["elabFTW"]["scan"]:
+            try:
+                metadata["elabFTW"]["scan"]["pump2_status"] = (
+                    "open" if int(metadata["elabFTW"]["scan"]["pump2_status"]) else "closed"
+                )
+            except ValueError:
+                pass
 
         # remove pump information if pump not applied:
-        if not metadata["elabFTW"]["scan"].get("pump_status", 0):
+        if metadata["elabFTW"]["scan"].get("pump_status", "closed") == "closed":
             if "pump_photon_energy" in metadata["elabFTW"].get("laser_status", {}):
                 del metadata["elabFTW"]["laser_status"]["pump_photon_energy"]
             if "pump_repetition_rate" in metadata["elabFTW"].get("laser_status", {}):
@@ -366,6 +413,10 @@ class MetadataRetriever:
                 )
             except KeyError:
                 pass
+
+        if metadata["elabFTW"]["scan"].get("pump2_status", "closed") == "closed":
+            if "pump2_photon_energy" in metadata["elabFTW"].get("laser_status", {}):
+                del metadata["elabFTW"]["laser_status"]["pump2_photon_energy"]
 
         return metadata
 
