@@ -141,6 +141,9 @@ class DataframeModel(BaseModel):
     sector_id_reserved_bits: Optional[int] = None
     sector_delays: Optional[Sequence[float]] = None
     daq: Optional[str] = None
+    index: Optional[Sequence[str]] = None
+    formats: Optional[Union[Sequence[str], str]] = None
+    fill_formats: Optional[Union[Sequence[str], str]] = None
     # SXP specific settings
     num_trains: Optional[PositiveInt] = None
     num_pulses: Optional[PositiveInt] = None
