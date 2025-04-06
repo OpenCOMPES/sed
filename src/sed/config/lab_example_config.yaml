@@ -37,6 +37,9 @@ dataframe:
   sector_id_reserved_bits: 3                      # Bits reserved for dldSectorID in the dldTimeSteps column
   sector_delays: [0., 0., 0., 0., 0., 0., 0., 0.] # Sector delays
 
+  first_event_time_stamp_key: startTime
+  ms_markers_key: exposureTime
+
   # Time and binning settings
   tof_binwidth: 2.0576131995767355E-11            # Base time-of-flight bin width in seconds
   tof_binning: 8                                  # Binning parameter for time-of-flight data
@@ -97,14 +100,16 @@ dataframe:
   #        dtype: the datatype of the data
 
   channels:
-    # The timestamp
-    # timeStamp:
-    #   format: per_file
-    #   dataset_key: "/uncategorised/FLASH.DIAG/TIMINGINFO/TIME1.BUNCH_FIRST_INDEX.1/time"
     # event key
     countId:
       format: per_file
       dataset_key: /DLD/NumOfEvents
+    exposureTime:
+      format: per_file
+      dataset_key: /SlowData/exposure_time
+    startTime:
+      format: per_file
+      dataset_key: /ScanParam/StartTime
     # detector x position
     dldPosX:
       format: per_electron

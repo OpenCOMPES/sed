@@ -391,8 +391,7 @@ class CFELDataFrameCreator(BaseDataFrameCreator):
             slice_ (bool): Applies slicing on the dataset. Default is True.
 
         Returns:
-            tuple[pd.Index, np.ndarray | h5py.Dataset]: A tuple containing the train ID
-            pd.Index and the channel's data.
+            h5py.Dataset: The channel's data as a h5py.Dataset object.
         """
         # Get the data from the necessary h5 file and channel
         dataset_key = self.get_dataset_key(channel)
@@ -430,16 +429,12 @@ class CFELDataFrameCreator(BaseDataFrameCreator):
         channels = get_channels(self._config, "per_train")
         # For each channel, a pd.Series is created and appended to the list
         for channel in channels:
-            # train_index and (sliced) data is returned
             dataset = self.get_dataset_array(channel)
-            # Electron and pulse resolved MultiIndex is created. Since this is train data,
-            # the electron and pulse index is always 0
             index_alias = self._config.get("index", ["countId"])[0]
+            # all values except the last as slow data starts from start of file
             index = np.cumsum([0, *self.get_dataset_array(index_alias)[:-1]])
-            # Auxiliary dataset (which is stored in the same dataset as other DLD channels)
-            # contains multiple channels inside. Even though they are resolved per train,
-            # they come in pulse format, so the extra values are sliced and individual channels are
-            # created and appended to the list
+
+            # auxiliary dataset (which is stored in the same dataset as other DLD channels)
             aux_alias = self._config.get("aux_alias", "dldAux")
             if channel == aux_alias:
                 try:
@@ -460,6 +455,23 @@ class CFELDataFrameCreator(BaseDataFrameCreator):
                 series.append(pd.Series(dataset, index, name=channel))
         # All the channels are concatenated to a single DataFrame
         return pd.concat(series, axis=1)
+
+    @property
+    def df_timestamp(self) -> pd.DataFrame:
+        """
+        Uses the first_event_time_stamp_key to get initial timestamp and the
+        ms_markers_key which is a dataset of exposure times same size as the index."""
+        # Get the relevant channel names
+        # index_alias = self._config.get("index", ["countId"])[0]
+        timestamp_alias = self._config.get("first_event_time_stamp_key", "startTime")
+        # actually in seconds but using milliseconds for consistency with mpes loader
+        exposure_time_alias = self._config.get("ms_markers_key", "exposureTime")
+        # index = self.get_dataset_array(index_alias)[:-1]
+        timestamp = self.get_dataset_array(timestamp_alias)[0]  # single value
+        exposure_time = self.get_dataset_array(exposure_time_alias)[()]
+        ts_start = pd.to_datetime(timestamp.decode())
+
+        [ts_start + pd.Timedelta(seconds=exposure) for exposure in exposure_time]
 
     def validate_channel_keys(self) -> None:
         """
