@@ -2,17 +2,13 @@
 
 core:
   # defines the loader
-  loader: flash
+  loader: cfel
   # Since this will run on maxwell most probably, we have a lot of cores at our disposal
   num_cores: 10
-  # the beamline where experiment took place
-  beamline: cfel
   # the ID number of the beamtime
   beamtime_id: 11021732
   # the year of the beamtime
   year: 2025
-  # the instrument used
-  instrument: hextof # hextof, wespe, etc
 
   # The paths to the raw and parquet data directories. If these are not
   # provided, the loader will try to find the data based on year beamtimeID etc
@@ -48,7 +44,7 @@ dataframe:
   index: [countId]
   jitter_cols: [dldPosX, dldPosY, dldTimeSteps]
   formats: [per_file, per_train, per_electron]
-  fill_formats: [per_train, per_file]            # Channels with this format will be forward filled
+  fill_formats: [per_train]            # Channels with this format will be forward filled
 
   # Column settings
   columns:

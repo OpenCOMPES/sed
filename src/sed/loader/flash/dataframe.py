@@ -6,8 +6,6 @@ join operations. This approach significantly enhances performance compared to ea
 """
 from __future__ import annotations
 
-from abc import ABC
-from abc import abstractmethod
 from pathlib import Path
 
 import h5py
@@ -21,36 +19,9 @@ from sed.loader.flash.utils import InvalidFileError
 logger = setup_logging("flash_dataframe_creator")
 
 
-class BaseDataFrameCreator(ABC):
-    def __init__(self, config_dataframe: dict, h5_path: Path) -> None:
-        """
-        Initializes the DataFrameCreator class.
-
-        Args:
-            config_dataframe (dict): The configuration dictionary with only the dataframe key.
-            h5_path (Path): Path to the h5 file.
-        """
-        pass
-
-    @property
-    @abstractmethod
-    def df(self) -> pd.DataFrame:
-        """DataFrame property that must be implemented by subclasses."""
-        pass
-
-    def validate_channel_keys(self) -> None:
-        """
-        Validates if the index and dataset keys for all channels in the config exist in the h5 file.
-
-        Raises:
-            InvalidFileError: If the index or dataset keys are missing in the h5 file.
-        """
-        pass
-
-
-class DataFrameCreator(BaseDataFrameCreator):
+class DataFrameCreator:
     """
-    A class for creating pandas DataFrames from an HDF5 file for FLASH data.
+    A class for creating pandas DataFrames from an HDF5 file.
 
     Attributes:
         h5_file (h5py.File): The HDF5 file object.
@@ -69,7 +40,7 @@ class DataFrameCreator(BaseDataFrameCreator):
         logger.debug(f"Initializing DataFrameCreator for file: {h5_path}")
         self.h5_file = h5py.File(h5_path, "r")
         self._config = config_dataframe
-        self.multi_index = get_channels(config_dataframe, index=True)
+        self.multi_index = get_channels(self._config, index=True)
 
     def get_index_dataset_key(self, channel: str) -> tuple[str, str]:
         """
@@ -332,177 +303,8 @@ class DataFrameCreator(BaseDataFrameCreator):
         df = pd.concat((self.df_electron, self.df_pulse, self.df_train), axis=1).sort_index()
         logger.debug(f"Created DataFrame with shape: {df.shape}")
 
-        # all the negative pulse values are dropped as they are invalid
+        # Filter negative pulse values
         df = df[df.index.get_level_values("pulseId") >= 0]
         logger.debug(f"Filtered DataFrame shape: {df.shape}")
 
-        return df
-
-
-class CFELDataFrameCreator(BaseDataFrameCreator):
-    """
-    A class for creating pandas DataFrames from an HDF5 file for HEXTOF lab data at CFEL.
-
-    Attributes:
-        h5_file (h5py.File): The HDF5 file object.
-        multi_index (pd.MultiIndex): The multi-index structure for the DataFrame.
-        _config (dict): The configuration dictionary for the DataFrame.
-    """
-
-    def __init__(self, config_dataframe: dict, h5_path: Path) -> None:
-        """
-        Initializes the DataFrameCreator class.
-
-        Args:
-            config_dataframe (dict): The configuration dictionary with only the dataframe key.
-            h5_path (Path): Path to the h5 file.
-        """
-        self.h5_file = h5py.File(h5_path, "r")
-        self._config = config_dataframe
-
-    def get_dataset_key(self, channel: str) -> str:
-        """
-        Checks if 'dataset_key' exists and returns that.
-
-        Args:
-            channel (str): The name of the channel.
-
-        Returns:
-            str: The 'dataset_key'.
-
-        Raises:
-            ValueError: If 'dataset_key' is not provided.
-        """
-        channel_config = self._config["channels"][channel]
-        if "dataset_key" in channel_config:
-            return channel_config["dataset_key"]
-        error = f"For channel: {channel}, provide 'dataset_key'."
-        raise ValueError(error)
-
-    def get_dataset_array(
-        self,
-        channel: str,
-    ) -> h5py.Dataset:
-        """
-        Returns a numpy array for a given channel name.
-
-        Args:
-            channel (str): The name of the channel.
-            slice_ (bool): Applies slicing on the dataset. Default is True.
-
-        Returns:
-            h5py.Dataset: The channel's data as a h5py.Dataset object.
-        """
-        # Get the data from the necessary h5 file and channel
-        dataset_key = self.get_dataset_key(channel)
-        dataset = self.h5_file[dataset_key]
-
-        return dataset
-
-    @property
-    def df_electron(self) -> pd.DataFrame:
-        """
-        Returns a pandas DataFrame for channel names of type [per electron].
-
-        Returns:
-            pd.DataFrame: The pandas DataFrame for the 'per_electron' channel's data.
-        """
-        # Get the relevant channels and their slice index
-        channels = get_channels(self._config, "per_electron")
-        if channels == []:
-            return pd.DataFrame()
-
-        series = {channel: pd.Series(self.get_dataset_array(channel)) for channel in channels}
-        dataframe = pd.concat(series, axis=1)
-        return dataframe.dropna()
-
-    @property
-    def df_train(self) -> pd.DataFrame:
-        """
-        Returns a pandas DataFrame for given channel names of type [per pulse].
-
-        Returns:
-            pd.DataFrame: The pandas DataFrame for the 'per_train' channel's data.
-        """
-        series = []
-        # Get the relevant channel names
-        channels = get_channels(self._config, "per_train")
-        # For each channel, a pd.Series is created and appended to the list
-        for channel in channels:
-            dataset = self.get_dataset_array(channel)
-            index_alias = self._config.get("index", ["countId"])[0]
-            # all values except the last as slow data starts from start of file
-            index = np.cumsum([0, *self.get_dataset_array(index_alias)[:-1]])
-
-            # auxiliary dataset (which is stored in the same dataset as other DLD channels)
-            aux_alias = self._config.get("aux_alias", "dldAux")
-            if channel == aux_alias:
-                try:
-                    sub_channels = self._config["channels"][aux_alias]["sub_channels"]
-                except KeyError:
-                    raise KeyError(
-                        f"Provide 'sub_channels' for auxiliary channel '{aux_alias}'.",
-                    )
-                for name, values in sub_channels.items():
-                    series.append(
-                        pd.Series(
-                            dataset[:, values["slice"]],
-                            index,
-                            name=name,
-                        ),
-                    )
-            else:
-                series.append(pd.Series(dataset, index, name=channel))
-        # All the channels are concatenated to a single DataFrame
-        return pd.concat(series, axis=1)
-
-    @property
-    def df_timestamp(self) -> pd.DataFrame:
-        """
-        Uses the first_event_time_stamp_key to get initial timestamp and the
-        ms_markers_key which is a dataset of exposure times same size as the index."""
-        # Get the relevant channel names
-        # index_alias = self._config.get("index", ["countId"])[0]
-        timestamp_alias = self._config.get("first_event_time_stamp_key", "startTime")
-        # actually in seconds but using milliseconds for consistency with mpes loader
-        exposure_time_alias = self._config.get("ms_markers_key", "exposureTime")
-        # index = self.get_dataset_array(index_alias)[:-1]
-        timestamp = self.get_dataset_array(timestamp_alias)[0]  # single value
-        exposure_time = self.get_dataset_array(exposure_time_alias)[()]
-        ts_start = pd.to_datetime(timestamp.decode())
-
-        [ts_start + pd.Timedelta(seconds=exposure) for exposure in exposure_time]
-
-    def validate_channel_keys(self) -> None:
-        """
-        Validates if the index and dataset keys for all channels in the config exist in the h5 file.
-
-        Raises:
-            InvalidFileError: If the index or dataset keys are missing in the h5 file.
-        """
-        invalid_channels = []
-        for channel in self._config["channels"]:
-            dataset_key = self.get_dataset_key(channel)
-            if dataset_key not in self.h5_file:
-                invalid_channels.append(channel)
-
-        if invalid_channels:
-            raise InvalidFileError(invalid_channels)
-
-    @property
-    def df(self) -> pd.DataFrame:
-        """
-        Joins the 'per_electron', 'per_pulse', and 'per_train' using concat operation,
-        returning a single dataframe.
-
-        Returns:
-            pd.DataFrame: The combined pandas DataFrame.
-        """
-
-        self.validate_channel_keys()
-        # been tested with merge, join and concat
-        # concat offers best performance, almost 3 times faster
-        df = pd.concat((self.df_electron, self.df_train), axis=1)
-        df[self.df_train.columns] = df[self.df_train.columns].ffill()
-        df.index.name = self._config.get("index", ["countId"])[0]
         return df

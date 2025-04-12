@@ -1,6 +1,5 @@
 """
 This module implements the flash data loader.
-This loader currently supports hextof, wespe and instruments with similar structure.
 The raw hdf5 data is combined and saved into buffer files and loaded as a dask dataframe.
 The dataframe is an amalgamation of all h5 files for a combination of runs, where the NaNs are
 automatically forward-filled across different files.
@@ -21,7 +20,6 @@ from sed.core.logging import set_verbosity
 from sed.core.logging import setup_logging
 from sed.loader.base.loader import BaseLoader
 from sed.loader.flash.buffer_handler import BufferHandler
-from sed.loader.flash.instruments import wespe_convert
 from sed.loader.flash.metadata import MetadataRetriever
 
 # Configure logging
@@ -175,7 +173,7 @@ class FlashLoader(BaseLoader):
             FileNotFoundError: If no files are found for the given run in the directory.
         """
         # Define the stream name prefixes based on the data acquisition identifier
-        stream_name_prefixes = self._config["core"].get("stream_name_prefixes")
+        stream_name_prefixes = self._config["core"]["stream_name_prefixes"]
 
         if folders is None:
             folders = self._config["core"]["base_folder"]
@@ -186,10 +184,7 @@ class FlashLoader(BaseLoader):
         daq = self._config["dataframe"]["daq"]
 
         # Generate the file patterns to search for in the directory
-        if stream_name_prefixes:
-            file_pattern = f"{stream_name_prefixes[daq]}_run{run_id}_*." + extension
-        else:
-            file_pattern = f"*{run_id}*." + extension
+        file_pattern = f"{stream_name_prefixes[daq]}_run{run_id}_*." + extension
 
         files: list[Path] = []
         # Use pathlib to search for matching files in each directory
@@ -403,9 +398,6 @@ class FlashLoader(BaseLoader):
             remove_invalid_files=remove_invalid_files,
             filter_timed_by_electron=filter_timed_by_electron,
         )
-
-        if self.instrument == "wespe":
-            df, df_timed = wespe_convert(df, df_timed)
 
         self.metadata.update(self.parse_metadata(token) if collect_metadata else {})
         self.metadata.update(bh.metadata)

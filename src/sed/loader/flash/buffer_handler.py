@@ -12,8 +12,6 @@ from pandas import MultiIndex
 
 from sed.core.dfops import forward_fill_lazy
 from sed.core.logging import setup_logging
-from sed.loader.flash.dataframe import BaseDataFrameCreator
-from sed.loader.flash.dataframe import CFELDataFrameCreator
 from sed.loader.flash.dataframe import DataFrameCreator
 from sed.loader.flash.utils import get_channels
 from sed.loader.flash.utils import get_dtypes
@@ -120,20 +118,11 @@ class BufferHandler:
         self.metadata: dict = {}
         self.filter_timed_by_electron: bool = None
 
-        core_beamline = config["core"].get("beamline")
-        self.DataFrameCreator: type[BaseDataFrameCreator] = None
-        if core_beamline == "pg2":
-            self.DataFrameCreator = DataFrameCreator
-        elif core_beamline == "cfel":
-            self.DataFrameCreator = CFELDataFrameCreator
-        else:
-            raise ValueError(f"Unsupported core beamline: {core_beamline}")
-
     def _validate_h5_files(self, config, h5_paths: list[Path]) -> list[Path]:
         valid_h5_paths = []
         for h5_path in h5_paths:
             try:
-                dfc = self.DataFrameCreator(config_dataframe=config, h5_path=h5_path)
+                dfc = DataFrameCreator(config_dataframe=config, h5_path=h5_path)
                 dfc.validate_channel_keys()
                 valid_h5_paths.append(h5_path)
             except InvalidFileError as e:
@@ -197,7 +186,7 @@ class BufferHandler:
         logger.debug(f"Processing file: {paths['raw'].stem}")
         start_time = time.time()
         # Create DataFrameCreator and get get dataframe
-        df = self.DataFrameCreator(config_dataframe=self._config, h5_path=paths["raw"]).df
+        df = DataFrameCreator(config_dataframe=self._config, h5_path=paths["raw"]).df
 
         # Forward fill non-electron channels
         logger.debug(f"Forward filling {len(self.fill_channels)} channels")
@@ -336,15 +325,15 @@ class BufferHandler:
                 get_channels(self._config, formats="all", index=True, extend_aux=True),
             )
             self._schema_check(self.fp["electron"], schema_set)
-            # schema_set = set(
-            #     get_channels(
-            #         self._config,
-            #         formats=["per_pulse", "per_train"],
-            #         index=True,
-            #         extend_aux=True,
-            #     ),
-            # ) - {"electronId"}
-            # self._schema_check(self.fp["timed"], schema_set)
+            schema_set = set(
+                get_channels(
+                    self._config,
+                    formats=["per_pulse", "per_train"],
+                    index=True,
+                    extend_aux=True,
+                ),
+            ) - {"electronId"}
+            self._schema_check(self.fp["timed"], schema_set)
 
         self._save_buffer_files(force_recreate, debug)
 

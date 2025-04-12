@@ -57,7 +57,6 @@ class CoreModel(BaseModel):
     num_cores: Optional[PositiveInt] = None
     year: Optional[int] = None
     beamtime_id: Optional[Union[int, str]] = None
-    instrument: Optional[str] = None
     beamline: Optional[str] = None
     copy_tool: Optional[CopyToolModel] = None
     stream_name_prefixes: Optional[dict] = None
