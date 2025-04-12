@@ -22,7 +22,13 @@ test_dir = os.path.join(os.path.dirname(__file__), "..")
 test_data_dir = os.path.join(test_dir, "data")
 
 read_types = ["one_file", "files", "one_folder", "folders", "one_run", "runs"]
-runs = {"generic": None, "mpes": ["30", "50"], "flash": ["43878", "43878"], "sxp": ["0016", "0016"]}
+runs = {
+    "generic": None,
+    "mpes": ["30", "50"],
+    "flash": ["43878", "43878"],
+    "sxp": ["0016", "0016"],
+    "cfel": ["123"],
+}
 
 
 def get_loader_name_from_loader_object(loader: BaseLoader) -> str:
@@ -94,7 +100,7 @@ def test_has_correct_read_dataframe_func(loader: BaseLoader, read_type: str) -> 
     assert callable(loader.read_dataframe)
 
     # Fix for race condition during parallel testing
-    if loader.__name__ in {"flash", "sxp"}:
+    if loader.__name__ in {"flash", "sxp", "cfel"}:
         config = deepcopy(loader._config)  # pylint: disable=protected-access
         config["core"]["paths"]["processed"] = Path(
             config["core"]["paths"]["processed"],
@@ -167,7 +173,7 @@ def test_has_correct_read_dataframe_func(loader: BaseLoader, read_type: str) -> 
             assert loaded_dataframe.npartitions == expected_size
             assert isinstance(loaded_metadata, dict)
 
-    if loader.__name__ in {"flash", "sxp"}:
+    if loader.__name__ in {"flash", "sxp", "cfel"}:
         loader = cast(FlashLoader, loader)
         loader._initialize_dirs()
         for file in os.listdir(Path(loader.processed_dir, "buffer")):
@@ -183,7 +189,7 @@ def test_timed_dataframe(loader: BaseLoader) -> None:
     """
 
     # Fix for race condition during parallel testing
-    if loader.__name__ in {"flash", "sxp"}:
+    if loader.__name__ in {"flash", "sxp", "cfel"}:
         config = deepcopy(loader._config)  # pylint: disable=protected-access
         config["core"]["paths"]["processed"] = Path(
             config["core"]["paths"]["processed"],
@@ -201,7 +207,7 @@ def test_timed_dataframe(loader: BaseLoader) -> None:
                 collect_metadata=False,
             )
             if loaded_timed_dataframe is None:
-                if loader.__name__ in {"flash", "sxp"}:
+                if loader.__name__ in {"flash", "sxp", "cfel"}:
                     loader = cast(FlashLoader, loader)
                     loader._initialize_dirs()
                     for file in os.listdir(Path(loader.processed_dir, "buffer")):
@@ -211,7 +217,7 @@ def test_timed_dataframe(loader: BaseLoader) -> None:
             assert set(loaded_timed_dataframe.columns).issubset(set(loaded_dataframe.columns))
             assert loaded_timed_dataframe.npartitions == loaded_dataframe.npartitions
 
-    if loader.__name__ in {"flash", "sxp"}:
+    if loader.__name__ in {"flash", "sxp", "cfel"}:
         loader = cast(FlashLoader, loader)
         loader._initialize_dirs()
         for file in os.listdir(Path(loader.processed_dir, "buffer")):
@@ -227,7 +233,7 @@ def test_get_count_rate(loader: BaseLoader) -> None:
     """
 
     # Fix for race condition during parallel testing
-    if loader.__name__ in {"flash", "sxp"}:
+    if loader.__name__ in {"flash", "sxp", "cfel"}:
         config = deepcopy(loader._config)  # pylint: disable=protected-access
         config["core"]["paths"]["processed"] = Path(
             config["core"]["paths"]["processed"],
@@ -246,7 +252,7 @@ def test_get_count_rate(loader: BaseLoader) -> None:
             )
             loaded_time, loaded_countrate = loader.get_count_rate()
             if loaded_time is None and loaded_countrate is None:
-                if loader.__name__ in {"flash", "sxp"}:
+                if loader.__name__ in {"flash", "sxp", "cfel"}:
                     loader = cast(FlashLoader, loader)
                     loader._initialize_dirs()
                     for file in os.listdir(Path(loader.processed_dir, "buffer")):
@@ -261,7 +267,7 @@ def test_get_count_rate(loader: BaseLoader) -> None:
             with pytest.raises(TypeError):
                 loader.get_count_rate(illegal_kwd=True)
 
-    if loader.__name__ in {"flash", "sxp"}:
+    if loader.__name__ in {"flash", "sxp", "cfel"}:
         loader = cast(FlashLoader, loader)
         loader._initialize_dirs()
         for file in os.listdir(Path(loader.processed_dir, "buffer")):
@@ -277,7 +283,7 @@ def test_get_elapsed_time(loader: BaseLoader) -> None:
     """
 
     # Fix for race condition during parallel testing
-    if loader.__name__ in {"flash", "sxp"}:
+    if loader.__name__ in {"flash", "sxp", "cfel"}:
         config = deepcopy(loader._config)  # pylint: disable=protected-access
         config["core"]["paths"]["processed"] = Path(
             config["core"]["paths"]["processed"],
@@ -311,7 +317,7 @@ def test_get_elapsed_time(loader: BaseLoader) -> None:
             with pytest.raises(TypeError):
                 loader.get_elapsed_time(illegal_kwd=True)
 
-    if loader.__name__ in {"flash", "sxp"}:
+    if loader.__name__ in {"flash", "sxp", "cfel"}:
         loader = cast(FlashLoader, loader)
         loader._initialize_dirs()
         for file in os.listdir(Path(loader.processed_dir, "buffer")):

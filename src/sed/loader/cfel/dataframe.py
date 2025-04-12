@@ -144,10 +144,10 @@ class DataFrameCreator:
         Uses the first_event_time_stamp_key to get initial timestamp and the
         ms_markers_key which is a dataset of exposure times same size as the index."""
 
-        first_tstamp = self.h5_file[self._config.get("first_event_time_stamp_key")][
+        first_timestamp = self.h5_file[self._config.get("first_event_time_stamp_key")][
             0
         ]  # single value
-        ts_start = pd.to_datetime(first_tstamp.decode())
+        ts_start = pd.to_datetime(first_timestamp.decode())
         # actually in seconds but using milliseconds for consistency with mpes loader
         exposure_time = self.h5_file[self._config.get("ms_markers_key")][()]
 
