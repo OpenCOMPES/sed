@@ -157,7 +157,8 @@ class DataFrameCreator:
         # add initial timestamp to the start of the list
         timestamps.insert(0, ts_start)
         # Create a DataFrame with the timestamps
-        df = pd.DataFrame({"timestamp": timestamps}, index=self.index)
+        ts_alias = self._config["columns"].get("timestamp")
+        df = pd.DataFrame({ts_alias: timestamps}, index=self.index)
 
         return df
 
@@ -210,4 +211,5 @@ class DataFrameCreator:
         df_train = self.df_train
         df_timestamp = self.df_timestamp
         df = pd.concat((self.df_electron, df_train, df_timestamp), axis=1, join="inner")
+        df.index.name = self._config.get("index", ["countId"])[0]
         return df

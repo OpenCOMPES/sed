@@ -92,10 +92,12 @@ class BufferHandler(BaseBufferHandler):
 
         if not force_recreate:
             schema_set = set(
-                get_channels(self._config, formats="all", index=True, extend_aux=True),
+                get_channels(self._config, formats="all", index=True, extend_aux=True)
+                + [self._config["columns"].get("timestamp")],
             )
-            self._schema_check(self.fp["electron"], schema_set)
             self._schema_check(self.fp["timed"], schema_set)
+
+            self._schema_check(self.fp["electron"], schema_set)
 
         self._save_buffer_files(force_recreate, debug)
 
