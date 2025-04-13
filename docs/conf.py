@@ -13,7 +13,7 @@ import sys
 
 import tomlkit
 
-from sed import __version__
+from sed import __version__  # type: ignore[attr-defined]
 
 sys.path.insert(0, os.path.abspath(".."))
 
@@ -104,6 +104,9 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "**.ipynb_checkpoints"]
 # a list of builtin themes.
 #
 html_theme = "pydata_sphinx_theme"
+
+html_logo = "_static/logo.png"
+html_favicon = "_static/favicon.ico"
 
 html_theme_options = {
     "github_url": "https://github.com/OpenCOMPES/sed",
