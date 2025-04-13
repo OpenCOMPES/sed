@@ -21,6 +21,7 @@
             "calibration_data"
         ],
         "rearrange_files": true
+    },
     "Photon_peak": {
         "url": "https://zenodo.org/records/15011781/files/single_event_data.zip",
         "subdirs": [

@@ -5,7 +5,7 @@
         "*.toml",
         "Makefile",
         "*.bat",
-        "*.egg-info",
+        "*.egg-info"
     ],
     "dictionaryDefinitions": [
         {
@@ -14,9 +14,14 @@
             "addWords": true
         }
     ],
-    "dictionaries": [  "custom-dictionary"
+    "dictionaries": [
+        "custom-dictionary"
     ],
-    "words": [],
+    "words": [
+        "FLACPUPGLASER",
+        "incoupl",
+        "PULSEENERGY"
+    ],
     "ignoreWords": [],
     "import": [],
     "language": "en-GB, en-US"
