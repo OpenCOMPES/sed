@@ -127,6 +127,7 @@ figsize
 figsz
 filenotfound
 fixedvertex
+FLACPUPGLASER
 flatidx
 fluence
 fontsize
@@ -158,6 +159,7 @@ imkwds
 imread
 imshow
 imwrite
+incoupl
 incrementation
 inequivalent
 interp
@@ -300,6 +302,7 @@ printfuncs
 psutil
 ptargs
 pullrequest
+PULSEENERGY
 pval
 pyarrow
 pydantic
