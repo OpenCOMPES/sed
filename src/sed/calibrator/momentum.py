@@ -2004,9 +2004,9 @@ class MomentumCorrector:
         metadata["calibration"] = calibration
         # create empty calibrated axis entries, if they are not present.
         if "kx_axis" not in metadata["calibration"]:
-            metadata["calibration"]["kx_axis"] = 0
+            metadata["calibration"]["kx_axis"] = 0.0
         if "ky_axis" not in metadata["calibration"]:
-            metadata["calibration"]["ky_axis"] = 0
+            metadata["calibration"]["ky_axis"] = 0.0
 
         return metadata
 
