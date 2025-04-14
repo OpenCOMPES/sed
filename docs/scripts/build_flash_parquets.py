@@ -53,6 +53,9 @@ for run in runs:
         collect_metadata=False,
     )
 
+dataset.get("Photon_peak", root_dir="./tutorial")
+data_path = dataset.dir
+
 config_override = {
     "core": {
         "paths": {
