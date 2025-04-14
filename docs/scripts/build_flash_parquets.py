@@ -88,29 +88,17 @@ config_override = {
                 "dataset_key": "/zraw/FLASH.FEL/HEXTOF.DAQ/DLD1/dGroup/value",
             },
             "bam": {
-                "index_key": (
-                    "/zraw/FLASH.SDIAG/BAM.DAQ/4DBC3.HIGH_CHARGE_ARRIVAL_TIME/dGroup/index",
-                ),
-                "dataset_key": (
-                    "/zraw/FLASH.SDIAG/BAM.DAQ/4DBC3.HIGH_CHARGE_ARRIVAL_TIME/dGroup/value",
-                ),
+                "index_key": "/zraw/FLASH.SDIAG/BAM.DAQ/4DBC3.HIGH_CHARGE_ARRIVAL_TIME/dGroup/index",
+                "dataset_key": "/zraw/FLASH.SDIAG/BAM.DAQ/4DBC3.HIGH_CHARGE_ARRIVAL_TIME/dGroup/value",
             },
             "delayStage": {
-                "index_key": (
-                    "/zraw/FLASH.SYNC/LASER.LOCK.EXP/FLASH1.MOD1.PG.OSC/FMC0.MD22.1.ENCODER_POSITION.RD/dGroup/index",
-                ),
-                "dataset_key": (
-                    "/zraw/FLASH.SYNC/LASER.LOCK.EXP/FLASH1.MOD1.PG.OSC/FMC0.MD22.1.ENCODER_POSITION.RD/dGroup/value",
-                ),
+                "index_key": "/zraw/FLASH.SYNC/LASER.LOCK.EXP/FLASH1.MOD1.PG.OSC/FMC0.MD22.1.ENCODER_POSITION.RD/dGroup/index",
+                "dataset_key": "/zraw/FLASH.SYNC/LASER.LOCK.EXP/FLASH1.MOD1.PG.OSC/FMC0.MD22.1.ENCODER_POSITION.RD/dGroup/value",
             },
             "opticalDiode": {
                 "format": "per_train",
-                "index_key": (
-                    "/uncategorised/FLASH.LASER/FLACPUPGLASER1.PULSEENERGY/PG2_incoupl/PULSEENERGY.MEAN/index",
-                ),
-                "dataset_key": (
-                    "/uncategorised/FLASH.LASER/FLACPUPGLASER1.PULSEENERGY/PG2_incoupl/PULSEENERGY.MEAN/value",
-                ),
+                "index_key": "/uncategorised/FLASH.LASER/FLACPUPGLASER1.PULSEENERGY/PG2_incoupl/PULSEENERGY.MEAN/index",
+                "dataset_key": "/uncategorised/FLASH.LASER/FLACPUPGLASER1.PULSEENERGY/PG2_incoupl/PULSEENERGY.MEAN/value",
             },
             "gmdBda": {},
             "pulserSignAdc": {},
