@@ -103,8 +103,12 @@ config_override = {
                 "index_key": "/uncategorised/FLASH.LASER/FLACPUPGLASER1.PULSEENERGY/PG2_incoupl/PULSEENERGY.MEAN/index",
                 "dataset_key": "/uncategorised/FLASH.LASER/FLACPUPGLASER1.PULSEENERGY/PG2_incoupl/PULSEENERGY.MEAN/value",
             },
-            "gmdBda": {},
-            "pulserSignAdc": {},
+            # overwrite because it is broken in these files
+            "pulserSignAdc": {
+                "format": "per_train",
+                "index_key": "/uncategorised/FLASH.LASER/FLACPUPGLASER1.PULSEENERGY/PG2_incoupl/PULSEENERGY.MEAN/index",
+                "dataset_key": "/uncategorised/FLASH.LASER/FLACPUPGLASER1.PULSEENERGY/PG2_incoupl/PULSEENERGY.MEAN/value",
+            },
         },
     },
 }
