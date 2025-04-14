@@ -64,5 +64,6 @@ jobs:
           commit-message: Update benchmark targets
           title: "Update benchmark targets"
           branch: "update_benchmark_targets"
+          base: ${{ github.head_ref }}
           body: |
             Generated new benchmark targets.
