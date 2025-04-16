@@ -177,10 +177,11 @@ dataframe:
           slice: 15
 
     # ADC containing the pulser sign (1: value approx. 35000, 0: 33000)
-    pulserSignAdc:
-      format: per_pulse
-      index_key: "/FL1/Experiment/PG/SIS8300 100MHz ADC/CH6/TD/index"
-      dataset_key: "/FL1/Experiment/PG/SIS8300 100MHz ADC/CH6/TD/value"
+    # enable if needed
+    # pulserSignAdc:
+    #   format: per_pulse
+    #   index_key: "/FL1/Experiment/PG/SIS8300 100MHz ADC/CH6/TD/index"
+    #   dataset_key: "/FL1/Experiment/PG/SIS8300 100MHz ADC/CH6/TD/value"
 
     # the energy of the monochromatized beam. This is a quasi-static value.
     # there is a better channel which still needs implementation.
