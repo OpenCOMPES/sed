@@ -15,6 +15,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 import dask.dataframe as dd
+import numpy as np
 from natsort import natsorted
 
 from sed.core.logging import set_verbosity
@@ -78,6 +79,21 @@ class FlashLoader(BaseLoader):
         """
         self._verbose = verbose
         set_verbosity(logger, self._verbose)
+
+    def __len__(self) -> int:
+        """
+        Returns the total number of rows in the electron resolved dataframe.
+
+        Returns:
+            int: Total number of rows.
+        """
+        try:
+            file_statistics = self.metadata["file_statistics"]["electron"]
+        except KeyError as exc:
+            raise KeyError("File statistics missing. Use 'read_dataframe' first.") from exc
+
+        total_rows = sum(stats["num_rows"] for stats in file_statistics.values())
+        return total_rows
 
     def _initialize_dirs(self) -> None:
         """
@@ -223,12 +239,58 @@ class FlashLoader(BaseLoader):
 
         return metadata
 
-    def get_count_rate(
-        self,
-        fids: Sequence[int] = None,  # noqa: ARG002
-        **kwds,  # noqa: ARG002
-    ):
-        return None, None
+    def get_count_rate(self, fids=None, **kwds) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Calculates the count rate using the number of rows and elapsed time for each file.
+        Hence the resolution is not very high, but this method is very fast.
+
+        Args:
+            fids (Sequence[int]): A sequence of file IDs. Defaults to all files.
+
+        Keyword Args:
+            runs: A sequence of run IDs.
+
+        Returns:
+            tuple[np.ndarray, np.ndarray]: The count rate and elapsed time in seconds.
+
+        Raises:
+            KeyError: If the file statistics are missing.
+        """
+
+        def counts_per_file(fid):
+            try:
+                file_statistics = self.metadata["file_statistics"]["electron"]
+            except KeyError as exc:
+                raise KeyError("File statistics missing. Use 'read_dataframe' first.") from exc
+
+            counts = file_statistics[str(fid)]["num_rows"]
+            return counts
+
+        runs = kwds.pop("runs", None)
+        if len(kwds) > 0:
+            raise TypeError(f"get_elapsed_time() got unexpected keyword arguments {kwds.keys()}.")
+
+        all_counts = []
+        elapsed_times = []
+        if runs is not None:
+            fids = []
+            for run_id in runs:
+                if self.raw_dir is None:
+                    self._initialize_dirs()
+                files = self.get_files_from_run_id(run_id=run_id, folders=self.raw_dir)
+                for file in files:
+                    fids.append(self.files.index(file))
+        else:
+            if fids is None:
+                fids = range(len(self.files))
+
+        for fid in fids:
+            all_counts.append(counts_per_file(fid))
+            elapsed_times.append(self.get_elapsed_time(fids=[fid]))
+
+        count_rate = np.array(all_counts) / np.array(elapsed_times)
+        seconds = np.cumsum(elapsed_times)
+        return count_rate, seconds
 
     def get_elapsed_time(self, fids: Sequence[int] = None, **kwds) -> float | list[float]:  # type: ignore[override]
         """
@@ -254,7 +316,7 @@ class FlashLoader(BaseLoader):
             raise KeyError(
                 "File statistics missing. Use 'read_dataframe' first.",
             ) from exc
-        time_stamp_alias = self._config["dataframe"].get("time_stamp_alias", "timeStamp")
+        time_stamp_alias = self._config["dataframe"]["columns"].get("timestamp", "timeStamp")
 
         def get_elapsed_time_from_fid(fid):
             try:
@@ -407,7 +469,7 @@ class FlashLoader(BaseLoader):
         self.metadata.update(self.parse_metadata(token) if collect_metadata else {})
         self.metadata.update(bh.metadata)
 
-        print(f"loading complete in {time.time() - t0: .2f} s")
+        logger.info(f"Loading complete in {time.time() - t0: .2f} s")
 
         return df, df_timed, self.metadata
 
