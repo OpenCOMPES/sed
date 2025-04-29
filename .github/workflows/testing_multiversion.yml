@@ -17,7 +17,7 @@ jobs:
     # Using matrix strategy
     strategy:
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
 
     steps:
       # Check out repo and set up Python
