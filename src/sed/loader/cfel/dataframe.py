@@ -156,11 +156,10 @@ class DataFrameCreator:
         timestamps = [ts_start + pd.Timedelta(seconds=cum_exp) for cum_exp in cumulative_exposure]
         # add initial timestamp to the start of the list
         timestamps.insert(0, ts_start)
-
-        timestamps = [(ts - pd.Timestamp("1970-01-01")) // pd.Timedelta("1s") for ts in timestamps]
         # Create a DataFrame with the timestamps
         ts_alias = self._config["columns"].get("timestamp")
         df = pd.DataFrame({ts_alias: timestamps}, index=self.index)
+
         return df
 
     def validate_channel_keys(self) -> None:
