@@ -58,7 +58,6 @@ class CoreModel(BaseModel):
     num_cores: Optional[PositiveInt] = None
     year: Optional[int] = None
     beamtime_id: Optional[Union[int, str]] = None
-    instrument: Optional[str] = None
     beamline: Optional[str] = None
     copy_tool: Optional[CopyToolModel] = None
     stream_name_prefixes: Optional[dict] = None
@@ -141,6 +140,9 @@ class DataframeModel(BaseModel):
     sector_id_reserved_bits: Optional[int] = None
     sector_delays: Optional[Sequence[float]] = None
     daq: Optional[str] = None
+    index: Optional[Sequence[str]] = None
+    formats: Optional[Union[Sequence[str], str]] = None
+    fill_formats: Optional[Union[Sequence[str], str]] = None
     # SXP specific settings
     num_trains: Optional[PositiveInt] = None
     num_pulses: Optional[PositiveInt] = None

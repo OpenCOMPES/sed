@@ -1,5 +1,6 @@
 """
 This module implements the flash data loader.
+This loader currently supports hextof, wespe and instruments with similar structure.
 The raw hdf5 data is combined and saved into buffer files and loaded as a dask dataframe.
 The dataframe is an amalgamation of all h5 files for a combination of runs, where the NaNs are
 automatically forward-filled across different files.
@@ -19,14 +20,14 @@ from natsort import natsorted
 from sed.core.logging import set_verbosity
 from sed.core.logging import setup_logging
 from sed.loader.base.loader import BaseLoader
-from sed.loader.flash.buffer_handler import BufferHandler
+from sed.loader.cfel.buffer_handler import BufferHandler
 from sed.loader.flash.metadata import MetadataRetriever
 
 # Configure logging
 logger = setup_logging("flash_loader")
 
 
-class FlashLoader(BaseLoader):
+class CFELLoader(BaseLoader):
     """
     The class generates multiindexed multidimensional pandas dataframes from the new FLASH
     dataformat resolved by both macro and microbunches alongside electrons.
@@ -38,7 +39,7 @@ class FlashLoader(BaseLoader):
             Defaults to True.
     """
 
-    __name__ = "flash"
+    __name__ = "cfel"
 
     supported_file_types = ["h5"]
 
@@ -173,7 +174,7 @@ class FlashLoader(BaseLoader):
             FileNotFoundError: If no files are found for the given run in the directory.
         """
         # Define the stream name prefixes based on the data acquisition identifier
-        stream_name_prefixes = self._config["core"]["stream_name_prefixes"]
+        stream_name_prefixes = self._config["core"].get("stream_name_prefixes")
 
         if folders is None:
             folders = self._config["core"]["base_folder"]
@@ -184,7 +185,10 @@ class FlashLoader(BaseLoader):
         daq = self._config["dataframe"]["daq"]
 
         # Generate the file patterns to search for in the directory
-        file_pattern = f"{stream_name_prefixes[daq]}_run{run_id}_*." + extension
+        if stream_name_prefixes:
+            file_pattern = f"{stream_name_prefixes[daq]}_run{run_id}_*." + extension
+        else:
+            file_pattern = f"*{run_id}*." + extension
 
         files: list[Path] = []
         # Use pathlib to search for matching files in each directory
@@ -407,4 +411,4 @@ class FlashLoader(BaseLoader):
         return df, df_timed, self.metadata
 
 
-LOADER = FlashLoader
+LOADER = CFELLoader
