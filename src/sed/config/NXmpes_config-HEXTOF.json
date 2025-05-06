@@ -6,7 +6,7 @@
   "/ENTRY[entry]/experiment_institution": "Deutsches Elektronen-Synchrotron DESY",
   "/ENTRY[entry]/experiment_facility": "Free-Electron Laser FLASH",
   "/ENTRY[entry]/experiment_laboratory": "@attrs:metadata/creationLocation",
-  "/ENTRY/identifierNAME[entry_identifier]": "@attrs:metadata/pid",
+  "/ENTRY/identifierNAME[identifier_entry]": "@attrs:metadata/pid",
   "/ENTRY[entry]/USER[user0]": {
     "name": "!@attrs:metadata/principalInvestigator",
     "role": "Principal investigator",
@@ -139,7 +139,7 @@
     "incident_polarization_stokes/@units": "V^2/mm^2",
     "associated_source": "/entry/instrument/source_probe"
   },
-  "/ENTRY[entry]/INSTRUMENT[instrument]/monochromator[MONOCHROMATOR]": {
+  "/ENTRY[entry]/INSTRUMENT[instrument]/MONOCHROMATOR[monochromator]": {
     "energy_dispersion": "@attrs:metadata/scientificMetadata/Source/dispersion/value",
     "energy_dispersion/@units": "@attrs:metadata/scientificMetadata/Source/dispersion/unit"
   },
@@ -196,12 +196,12 @@
       "voltmeter": "@link:/entry/instrument/manipulator/sample_bias_voltmeter"
     }
   },
-  "/ENTRY[entry]/data": {
+  "/ENTRY[entry]/DATA[data]": {
     "@axes": "@data:dims",
     "AXISNAME_indices[@*_indices]": "@data:*.index",
     "@signal": "data",
-    "data": "@data:data",
-    "data/@units": "counts",
+    "DATA[data]": "@data:data",
+    "DATA[data]/@units": "counts",
     "AXISNAME[*]": "@data:*.data",
     "AXISNAME[*]/@units": "@data:*.unit",
     "AXISNAME[energy]/@type": "@attrs:metadata/energy_calibration/calibration/energy_scale"

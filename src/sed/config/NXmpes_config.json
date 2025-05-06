@@ -6,7 +6,7 @@
   "/ENTRY/experiment_institution": "Fritz Haber Institute - Max Planck Society",
   "/ENTRY/experiment_facility": "Time Resolved ARPES",
   "/ENTRY/experiment_laboratory": "Clean Room 4",
-  "/ENTRY/identifierNAME[entry_identifier]": "@attrs:metadata/entry_identifier",
+  "/ENTRY/identifierNAME[identifier_entry]": "@attrs:metadata/entry_identifier",
   "/ENTRY/end_time": "@attrs:metadata/timing/acquisition_stop",
   "/ENTRY/duration": "@attrs:metadata/timing/acquisition_duration",
   "/ENTRY/duration/@units": "s",
@@ -24,22 +24,17 @@
     "name/@short_name": "TR-ARPES @ FHI",
     "energy_resolution": {
       "resolution": "!['@eln:/ENTRY/Instrument/Analyzer/energy_resolution', '@attrs:metadata/instrument/energy_resolution', '@attrs:metadata/elabFTW/trarpes_metis/energy_resolution']",
-      "resolution/@units": "meV",
+      "resolution/@units": "['@eln:/ENTRY/Instrument/energy_resolution/@units', 'meV']",
       "physical_quantity": "energy",
       "type": "estimated"
     },
     "RESOLUTION[temporal_resolution]": {
-      "resolution": "!['@attrs:metadata/elabFTW/laser_status/temporal_resolution', '35.0']",
-      "resolution/@units": "fs",
+      "resolution": "!['@eln:/ENTRY/Instrument/temporal_resolution', '@attrs:metadata/instrument/temporal_resolution', '@attrs:metadata/elabFTW/laser_status/temporal_resolution']",
+      "resolution/@units": "['@eln:/ENTRY/Instrument/temporal_resolution/@units', 'fs']",
       "physical_quantity": "time",
       "type": "estimated"
     },
-    "RESOLUTION[momentum_resolution]": {
-      "resolution": "@link:/entry/instrument/electronanalyzer/momentum_resolution",
-      "resolution/@units": "1/angstrom",
-      "physical_quantity": "momentum",
-      "type": "estimated"
-    },
+    "RESOLUTION[momentum_resolution]": "@link:/entry/instrument/electronanalyzer/momentum_resolution",
     "pressure_gauge": {
       "name": "sample_chamber_pressure",
       "measurement": "pressure",
@@ -323,41 +318,41 @@
   },
   "/ENTRY/CALIBRATION[energy_calibration]":{
     "applied": "!@attrs:metadata/energy_calibration/applied",
-    "fit_formula_inputs/TERM[coefficients]": "@attrs:metadata/energy_calibration/calibration/coefficients",
-    "fit_formula_inputs/TERM[coefficients]/@units": "",
-    "fit_formula_description": "@attrs:metadata/energy_calibration/calibration/fit_function",
-    "original_axis": "@attrs:metadata/energy_calibration/tof",
+    "fit_formula_inputs/PARAMETER[coefficients]": "['@attrs:metadata/energy_calibration/calibration/coefficients', '@attrs:metadata/energy_correction/calibration/coefficients']",
+    "fit_formula_inputs/PARAMETER[coefficients]/@units": "",
+    "fit_formula_description": "['@attrs:metadata/energy_calibration/calibration/fit_function', '@attrs:metadata/energy_correction/calibration/fit_function']",
+    "original_axis": "['@attrs:metadata/energy_calibration/tof', '@attrs:metadata/energy_correction/tof']",
     "original_axis/@units": "",
-    "calibrated_axis": "@attrs:metadata/energy_calibration/calibration/axis",
+    "calibrated_axis": "['@attrs:metadata/energy_calibration/calibration/axis', '@attrs:metadata/energy_correction/calibration/axis']",
     "calibrated_axis/@units": "eV",
     "physical_quantity": "energy"
   },
   "/ENTRY/CALIBRATION[kx_calibration]": {
     "applied": "!@attrs:metadata/momentum_calibration/applied",
-    "scaling_factor": "@attrs:metadata/momentum_calibration/calibration/kx_scale",
-    "scaling_factor/@units": "",
-    "offset": "@attrs:metadata/momentum_calibration/calibration/x_center",
-    "offset/@units": "",
-    "calibrated_axis": "@attrs:metadata/momentum_calibration/calibration/kx_axis",
+    "calibration_parameters/scaling_factor": "['@attrs:metadata/momentum_calibration/calibration/kx_scale', '@attrs:metadata/momentum_correction/calibration/scale_kx']",
+    "calibration_parameters/scaling_factor/@units": "",
+    "calibration_parameters/offset": "['@attrs:metadata/momentum_calibration/calibration/x_center', '@attrs:metadata/momentum_correction/offset_kx']",
+    "calibration_parameters/offset/@units": "",
+    "calibrated_axis": "['@attrs:metadata/momentum_calibration/calibration/kx_axis', '@attrs:metadata/momentum_correction/calibration/axis_kx']",
     "calibrated_axis/@units": "1/angstrom",
     "physical_quantity": "momentum"
   },
   "/ENTRY/CALIBRATION[ky_calibration]": {
     "applied": "!@attrs:metadata/momentum_calibration/applied",
-    "scaling_factor": "@attrs:metadata/momentum_calibration/calibration/ky_scale",
-    "scaling_factor/@units": "",
-    "offset": "@attrs:metadata/momentum_calibration/calibration/y_center",
-    "offset/@units": "",
-    "calibrated_axis": "@attrs:metadata/momentum_calibration/calibration/ky_axis",
+    "calibration_parameters/scaling_factor": "['@attrs:metadata/momentum_calibration/calibration/ky_scale', '@attrs:metadata/momentum_correction/calibration/scale_ky']",
+    "calibration_parameters/scaling_factor/@units": "",
+    "calibration_parameters/offset": "['@attrs:metadata/momentum_calibration/calibration/y_center', '@attrs:metadata/momentum_correction/offset_ky']",
+    "calibration_parameters/offset/@units": "",
+    "calibrated_axis": "['@attrs:metadata/momentum_calibration/calibration/ky_axis', '@attrs:metadata/momentum_correction/calibration/axis_ky']",
     "calibrated_axis/@units": "1/angstrom",
     "physical_quantity": "momentum"
   },
-  "/ENTRY/data": {
+  "/ENTRY/DATA[data]": {
     "@axes": "@data:dims",
-    "AXISNAME_indices[@*_indices]": "@data:*.index",
+    "@AXISNAME_indices[@*_indices]": "@data:*.index",
     "@signal": "data",
-    "data": "@data:data",
-    "data/@units": "counts",
+    "DATA[data]": "@data:data",
+    "DATA[data]/@units": "counts",
     "AXISNAME[*]": "@data:*.data",
     "AXISNAME[*]/@units": "@data:*.unit",
     "AXISNAME[energy]/@type": "['@attrs:metadata/energy_calibration/calibration/energy_scale', 'kinetic']"
