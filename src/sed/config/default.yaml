@@ -110,4 +110,4 @@ histogram:
   # Axes names starting with "@" refer to keys in the "dataframe" section
   axes: ["@x", "@y", "@tof"]
   # default ranges to use for histogram visualization (in unbinned detector coordinates)
-  ranges: [[0, 1800], [0, 1800], [0, 300000], [0, 32000]]
+  ranges: [[0, 1800], [0, 1800], [0, 300000]]
