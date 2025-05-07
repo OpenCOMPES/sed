@@ -874,6 +874,10 @@ class MomentumCorrector:
             stackaxis=0,
         ).astype("float64")
 
+        # reset image
+        if self.slice_corrected is not None:
+            self.slice_corrected = self.slice
+
         self.rdeform_field = coordmat[1, ...]
         self.cdeform_field = coordmat[0, ...]
 

@@ -762,6 +762,7 @@ class SedProcessor:
 
         if not use_correction:
             self.mc.reset_deformation()
+            reset = False
 
         if self.mc.cdeform_field is None or self.mc.rdeform_field is None:
             # Generate distortion correction from config values

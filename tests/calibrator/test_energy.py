@@ -455,7 +455,12 @@ def test_adjust_energy_correction_raises(correction_type: str) -> None:
     Args:
         correction_type (str): type of correction to test
     """
-    config = parse_config(config={}, folder_config={}, user_config={}, system_config={})
+    config = parse_config(
+        config={"dataframe": {"tof_binning": 2}},
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
     ec = EnergyCalibrator(
         config=config,
         loader=get_loader("mpes", config=config),
@@ -499,7 +504,12 @@ def test_energy_correction_from_dict_kwds(correction_type: str, correction_kwd: 
         correction_type (str): type of correction to test
         correction_kwd (dict): parameters to pass to the function
     """
-    config = parse_config(config={}, folder_config={}, user_config={}, system_config={})
+    config = parse_config(
+        config={"dataframe": {"tof_binning": 2}},
+        folder_config={},
+        user_config={},
+        system_config={},
+    )
     sample_df = pd.DataFrame(sample, columns=columns)
     ec = EnergyCalibrator(
         config=config,

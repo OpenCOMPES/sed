@@ -287,7 +287,7 @@ adjust_params: dict[str, Any] = {
 )
 def test_momentum_correction_workflow(features: np.ndarray) -> None:
     """Test for the momentum correction workflow"""
-    config = {"core": {"loader": "mpes"}}
+    config = {"core": {"loader": "mpes"}, "dataframe": {"tof_binning": 2}}
     processor = SedProcessor(
         folder=df_folder,
         config=config,
@@ -296,7 +296,7 @@ def test_momentum_correction_workflow(features: np.ndarray) -> None:
         system_config={},
         verbose=True,
     )
-    processor.bin_and_load_momentum_calibration(apply=True)
+    processor.bin_and_load_momentum_calibration(plane=200, width=20, apply=True)
     assert processor.mc.slice is not None
     assert processor.mc.pouter is None
     if len(features) == 5 or len(features) == 7:
@@ -339,7 +339,7 @@ def test_momentum_correction_workflow(features: np.ndarray) -> None:
 
 def test_pose_adjustment() -> None:
     """Test for the pose correction and application of momentum correction workflow"""
-    config = {"core": {"loader": "mpes"}}
+    config = {"core": {"loader": "mpes"}, "dataframe": {"tof_binning": 2}}
     processor = SedProcessor(
         folder=df_folder,
         config=config,
@@ -351,7 +351,7 @@ def test_pose_adjustment() -> None:
     # pose adjustment w/o loaded image
     processor.pose_adjustment(**adjust_params, use_correction=False, apply=True)
 
-    processor.bin_and_load_momentum_calibration(apply=True)
+    processor.bin_and_load_momentum_calibration(plane=200, width=20, apply=True)
     # test pose adjustment
     processor.pose_adjustment(**adjust_params, use_correction=False, apply=True)
 
@@ -365,7 +365,7 @@ def test_pose_adjustment() -> None:
     )
     with pytest.raises(ValueError):
         processor.apply_momentum_correction()
-    processor.bin_and_load_momentum_calibration(apply=True)
+    processor.bin_and_load_momentum_calibration(plane=200, width=20, apply=True)
     processor.define_features(
         features=feature7,
         rotation_symmetry=6,
@@ -383,10 +383,72 @@ def test_pose_adjustment() -> None:
         processor.pose_adjustment(**adjust_params, apply=True, illegal_kwd=True)
 
 
+def test_pose_adjustment_use_correction() -> None:
+    """Test for the use of momentum correction in the pose adjustment workflow"""
+    config = {"core": {"loader": "mpes"}, "dataframe": {"tof_binning": 2}}
+    processor = SedProcessor(
+        folder=df_folder,
+        config=config,
+        folder_config={},
+        user_config={},
+        system_config={},
+        verbose=True,
+    )
+    processor.bin_and_load_momentum_calibration(plane=200, width=20, apply=True)
+    # uncorrected reference
+    processor.pose_adjustment(**adjust_params, use_correction=False, apply=True)
+    uncorrected_slice = processor.mc.slice_transformed.copy()
+    uncorrected_cdeform_field = processor.mc.cdeform_field.copy()
+    uncorrected_rdeform_field = processor.mc.rdeform_field.copy()
+    # apply correction, and use pose adjustment without correction
+    processor.define_features(
+        features=feature7,
+        rotation_symmetry=6,
+        include_center=True,
+        apply=True,
+    )
+    processor.generate_splinewarp(use_center=True)
+    processor.save_splinewarp(filename="sed_config_pose_adjustments_use_corrections.yaml")
+    processor.pose_adjustment(**adjust_params, use_correction=False, apply=True)
+    np.testing.assert_allclose(processor.mc.slice_transformed, uncorrected_slice)
+    np.testing.assert_allclose(processor.mc.cdeform_field, uncorrected_cdeform_field)
+    np.testing.assert_allclose(processor.mc.rdeform_field, uncorrected_rdeform_field)
+    # apply correction, and use pose adjustment with correction
+    processor.pose_adjustment(**adjust_params, use_correction=True, apply=True)
+    assert not np.array_equal(processor.mc.slice_transformed, uncorrected_slice)
+    assert not np.array_equal(processor.mc.cdeform_field, uncorrected_cdeform_field)
+    assert not np.array_equal(processor.mc.rdeform_field, uncorrected_rdeform_field)
+    corrected_cdeform_field = processor.mc.cdeform_field.copy()
+    corrected_rdeform_field = processor.mc.rdeform_field.copy()
+
+    processor = SedProcessor(
+        folder=df_folder,
+        config=config,
+        folder_config="sed_config_pose_adjustments_use_corrections.yaml",
+        user_config={},
+        system_config={},
+        verbose=True,
+    )
+    # apply pose correction without loaded image
+    # uncorrected reference
+    processor.pose_adjustment(**adjust_params, use_correction=False, apply=True)
+    np.testing.assert_allclose(processor.mc.cdeform_field, uncorrected_cdeform_field)
+    np.testing.assert_allclose(processor.mc.rdeform_field, uncorrected_rdeform_field)
+    # apply correction, and use pose adjustment with correction
+    processor.generate_splinewarp(use_center=True)
+    processor.pose_adjustment(**adjust_params, use_correction=True, apply=True)
+    np.testing.assert_allclose(processor.mc.cdeform_field, corrected_cdeform_field)
+    np.testing.assert_allclose(processor.mc.rdeform_field, corrected_rdeform_field)
+    # apply correction, and use pose adjustment without correction
+    processor.pose_adjustment(**adjust_params, use_correction=False, apply=True)
+    np.testing.assert_allclose(processor.mc.cdeform_field, uncorrected_cdeform_field)
+    np.testing.assert_allclose(processor.mc.rdeform_field, uncorrected_rdeform_field)
+
+
 def test_pose_adjustment_save_load() -> None:
     """Test for the saving and loading of pose correction and application of momentum correction
     workflow"""
-    config = {"core": {"loader": "mpes"}}
+    config = {"core": {"loader": "mpes"}, "dataframe": {"tof_binning": 2}}
     # pose adjustment w/ loaded image
     processor = SedProcessor(
         folder=df_folder,
@@ -396,7 +458,7 @@ def test_pose_adjustment_save_load() -> None:
         system_config={},
         verbose=True,
     )
-    processor.bin_and_load_momentum_calibration(apply=True)
+    processor.bin_and_load_momentum_calibration(plane=200, width=20, apply=True)
     processor.define_features(
         features=feature7,
         rotation_symmetry=6,
@@ -458,7 +520,7 @@ k_coord_a = [k_distance * 0.3, k_distance * 0.8]
 
 def test_momentum_calibration_workflow() -> None:
     """Test the calibration of the momentum axes"""
-    config = {"core": {"loader": "mpes"}}
+    config = {"core": {"loader": "mpes"}, "dataframe": {"tof_binning": 2}}
     processor = SedProcessor(
         folder=df_folder,
         config=config,
@@ -471,7 +533,7 @@ def test_momentum_calibration_workflow() -> None:
         processor.apply_momentum_calibration()
     with pytest.raises(ValueError):
         processor.calibrate_momentum_axes(apply=True)
-    processor.bin_and_load_momentum_calibration(apply=True)
+    processor.bin_and_load_momentum_calibration(plane=200, width=20, apply=True)
     with pytest.raises(AssertionError):
         processor.calibrate_momentum_axes(point_a=point_a, apply=True)
     processor.calibrate_momentum_axes(point_a=point_a, k_distance=k_distance, apply=True)
@@ -508,7 +570,7 @@ def test_momentum_calibration_workflow() -> None:
 
 def test_energy_correction() -> None:
     """Test energy correction workflow."""
-    config = {"core": {"loader": "mpes"}}
+    config = {"core": {"loader": "mpes"}, "dataframe": {"tof_binning": 2}}
     processor = SedProcessor(
         folder=df_folder,
         config=config,

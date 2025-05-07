@@ -37,7 +37,7 @@ energy:
   # Number of bins to use for energy calibration traces
   bins: 1000
   # Bin ranges to use for energy calibration curves (for tof_binning=1)
-  ranges: [100000, 150000]
+  ranges: [256000, 276000]
   # Option to normalize energy calibration traces
   normalize: True
   # Pixel range for smoothing
@@ -54,7 +54,7 @@ energy:
   energy_scale: "kinetic"
   # Approximate position of the high-energy-cutoff in tof_column bins,
   # used for displaying a graph to choose the energy correction function parameters.
-  tof_fermi: 132250
+  tof_fermi: 264500
   # TOF range to visualize for the correction tool around tof_fermi
   tof_width: [-600, 1000]
   # x-integration range for the correction tool around the center pixel
@@ -72,7 +72,7 @@ momentum:
   # Bin numbers used for the respective axes
   bins: [512, 512, 300]
   # bin ranges to use (in unbinned detector coordinates)
-  ranges: [[-256, 1792], [-256, 1792], [132000, 138000]]
+  ranges: [[-256, 1792], [-256, 1792], [252000, 280000]]
   # The x/y pixel ranges of the detector
   detector_ranges: [[0, 2048], [0, 2048]]
   # The center pixel of the detector in the binned x/y coordinates
@@ -110,4 +110,4 @@ histogram:
   # Axes names starting with "@" refer to keys in the "dataframe" section
   axes: ["@x", "@y", "@tof"]
   # default ranges to use for histogram visualization (in unbinned detector coordinates)
-  ranges: [[0, 1800], [0, 1800], [0, 150000]]
+  ranges: [[0, 1800], [0, 1800], [0, 300000]]
