@@ -319,6 +319,17 @@ class MetadataRetriever:
                 float(metadata["elabFTW"]["laser_status"]["probe_profile_y"]),
             ]
 
+        # calculate temporal resolution
+        if (
+            "laser_status" in metadata["elabFTW"]
+            and "pump_pulse_duration" in metadata["elabFTW"]["laser_status"]
+            and "probe_pulse_duration" in metadata["elabFTW"]["laser_status"]
+        ):
+            metadata["elabFTW"]["laser_status"]["temporal_resolution"] = np.sqrt(
+                metadata["elabFTW"]["laser_status"]["pump_pulse_duration"] ** 2
+                + metadata["elabFTW"]["laser_status"]["probe_pulse_duration"] ** 2,
+            )
+
         # fix preparation date
         if "sample" in metadata["elabFTW"] and "preparation_date" in metadata["elabFTW"]["sample"]:
             metadata["elabFTW"]["sample"]["preparation_date"] = (
