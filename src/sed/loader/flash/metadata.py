@@ -5,6 +5,8 @@ from a Scicat Instance based on beamtime and run IDs.
 from __future__ import annotations
 
 import requests
+import json
+import yaml
 
 from sed.core.config import read_env_var
 from sed.core.config import save_env_var
@@ -144,3 +146,93 @@ class MetadataRetriever:
     def _reformat_pid(self, pid: str) -> str:
         """SciCat adds a pid-prefix + "/"  but at DESY prefix = "" """
         return (pid).replace("/", "%2F")
+
+    def get_local_metadata(
+            self,
+            beamtime_id: str,
+            beamtime_dir: str,
+            meta_dir: str,
+            runs: list,
+            metadata: dict = None,
+    ) -> dict:
+        """
+        Retrieves metadata for a given beamtime ID and list of runs from local meta folder and yaml file.
+
+        Args:
+            beamtime_id (str): The ID of the beamtime.
+            runs (list): A list of run IDs.
+            metadata (dict, optional): The existing metadata dictionary.
+            Defaults to None.
+
+        Returns:
+            Dict: The updated metadata dictionary.
+
+        Raises:
+            Exception: If the request to retrieve metadata fails.
+        """
+        if metadata is None:
+            metadata = {}
+
+        beamtime_metadata = self._get_beamtime_metadata(beamtime_dir,beamtime_id)
+        metadata.update(beamtime_metadata)
+        for run in runs:
+            logger.debug(f"Retrieving metadata for PID: {run}")
+            local_metadata_per_run = self._get_local_metadata_per_run(meta_dir,run)
+            local_metadata_per_run.update(local_metadata_per_run)  # TODO: Not correct for multiple runs
+
+        metadata.update({'scientificMetadata': local_metadata_per_run['_data']})
+
+        logger.debug(f"Retrieved metadata with {len(metadata)} entries")
+        return metadata
+
+    def _get_beamtime_metadata(
+            self,
+            beamtime_dir: str,
+            beamtime_id: str,
+    ) -> dict:
+        """
+        Retrieves general metadata for a given beamtime ID from beamtime-metadata-{beamtime_id}.json file
+
+        Args:
+            beamtime_id (str): The ID of the beamtime.
+            meta_dir(str): The existing local metadata folder.
+
+        Returns:
+            Dict: The retrieved metadata dictionary.
+
+        Raises:
+            Exception: If the request to retrieve metadata fails.
+        """     
+        try:
+            f = open(f'{beamtime_dir}/beamtime-metadata-{beamtime_id}.json', "r")
+            beamtime_metadata = json.loads(f.read())
+            return beamtime_metadata
+
+        except Exception as exception:
+            logger.warning(f"Failed to retrieve metadata for beamtime ID {beamtime_id}: {str(exception)}")
+            return {}  # Return an empty dictionary for this beamtime ID
+
+
+    def _get_local_metadata_per_run(self, meta_dir: str, run: str) -> dict:
+        """
+        Retrieves metadata for a specific run based on the PID from yaml file in the local beamtime folder.
+
+            Args:
+                pid (str): The PID of the run.
+
+            Returns:
+                dict: The retrieved metadata.
+
+            Raises:
+                Exception: If the request to retrieve metadata fails.
+        """
+        try:
+            run = str(run)
+            with open(f"{meta_dir}/{run}_1.yaml", 'r') as stream:
+                print("Getting metadata from local folder")
+                run_metadata = yaml.safe_load(stream)
+            return run_metadata
+
+        except Exception as exception:
+            logger.warning(f"Failed to retrieve metadata for PID {run}: {str(exception)}")
+            return {"_data":{}}  # Return an empty dictionary for this run

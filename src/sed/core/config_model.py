@@ -26,6 +26,7 @@ class PathsModel(BaseModel):
 
     raw: DirectoryPath
     processed: Optional[Union[DirectoryPath, NewPath]] = None
+    meta: Optional[Union[DirectoryPath, NewPath]] = None
 
 
 class CopyToolModel(BaseModel):
