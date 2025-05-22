@@ -130,16 +130,16 @@ class MetadataRetriever:
             return {}  # Return an empty dictionary for this run
 
     def _create_old_dataset_url(self, pid: str) -> str:
-        return "{burl}/{url}/%2F{npid}".format(
+        return "{burl}{url}/%2F{npid}".format(
             burl=self.url,
-            url="Datasets",
+            url="datasets",#"Datasets",
             npid=self._reformat_pid(pid),
         )
 
     def _create_new_dataset_url(self, pid: str) -> str:
-        return "{burl}/{url}/{npid}".format(
+        return "{burl}{url}/{npid}".format(
             burl=self.url,
-            url="Datasets",
+            url="datasets",#"Datasets",
             npid=self._reformat_pid(pid),
         )
 
