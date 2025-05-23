@@ -289,6 +289,8 @@ class CFELLoader(BaseLoader):
             try:
                 fid = str(fid)  # Ensure the key is a string
                 time_stamps = file_statistics[fid]["columns"][time_stamp_alias]
+                print(f"Time stamp max: {time_stamps['max']}")
+                print(f"Time stamp min: {time_stamps['min']}")
                 elapsed_time = time_stamps["max"] - time_stamps["min"]
             except KeyError as exc:
                 raise KeyError(

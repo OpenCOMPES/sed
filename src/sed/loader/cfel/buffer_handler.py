@@ -9,6 +9,7 @@ from sed.core.logging import setup_logging
 from sed.loader.cfel.dataframe import DataFrameCreator
 from sed.loader.flash.buffer_handler import BufferFilePaths
 from sed.loader.flash.buffer_handler import BufferHandler as BaseBufferHandler
+from sed.loader.flash.utils import InvalidFileError
 from sed.loader.flash.utils import get_channels
 from sed.loader.flash.utils import get_dtypes
 
@@ -31,6 +32,18 @@ class BufferHandler(BaseBufferHandler):
             config (dict): The configuration dictionary.
         """
         super().__init__(config)
+
+    def _validate_h5_files(self, config, h5_paths: list[Path]) -> list[Path]:
+        valid_h5_paths = []
+        for h5_path in h5_paths:
+            try:
+                dfc = DataFrameCreator(config_dataframe=config, h5_path=h5_path)
+                dfc.validate_channel_keys()
+                valid_h5_paths.append(h5_path)
+            except InvalidFileError as e:
+                logger.info(f"Skipping invalid file: {h5_path.stem}\n{e}")
+
+        return valid_h5_paths    
 
     def _save_buffer_file(self, paths: dict[str, Path]) -> None:
         """Creates the electron and timed buffer files from the raw H5 file."""

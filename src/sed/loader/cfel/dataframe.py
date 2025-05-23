@@ -165,10 +165,10 @@ class DataFrameCreator:
 
     def validate_channel_keys(self) -> None:
         """
-        Validates if the index and dataset keys for all channels in the config exist in the h5 file.
+        Validates if the dataset keys for all channels in the config exist in the h5 file.
 
         Raises:
-            InvalidFileError: If the index or dataset keys are missing in the h5 file.
+            InvalidFileError: If the dataset keys are missing in the h5 file.
         """
         invalid_channels = []
         for channel in self._config["channels"]:
@@ -182,7 +182,7 @@ class DataFrameCreator:
     @property
     def df(self) -> pd.DataFrame:
         """
-        Joins the 'per_electron', 'per_pulse', and 'per_train' using concat operation,
+        Joins the 'per_electron', 'per_pulse' using concat operation,
         returning a single dataframe.
 
         Returns:
@@ -201,7 +201,7 @@ class DataFrameCreator:
     @property
     def df_timed(self) -> pd.DataFrame:
         """
-        Joins the 'per_electron', 'per_pulse', and 'per_train' using concat operation,
+        Joins the 'per_electron', 'per_pulse' using concat operation,
         returning a single dataframe.
 
         Returns:
