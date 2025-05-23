@@ -1,5 +1,6 @@
 """
 This module implements the flash data loader.
+This loader currently supports hextof, wespe and instruments with similar structure.
 The raw hdf5 data is combined and saved into buffer files and loaded as a dask dataframe.
 The dataframe is an amalgamation of all h5 files for a combination of runs, where the NaNs are
 automatically forward-filled across different files.
@@ -19,14 +20,14 @@ from natsort import natsorted
 from sed.core.logging import set_verbosity
 from sed.core.logging import setup_logging
 from sed.loader.base.loader import BaseLoader
-from sed.loader.flash.buffer_handler import BufferHandler
+from sed.loader.cfel.buffer_handler import BufferHandler
 from sed.loader.flash.metadata import MetadataRetriever
 
 # Configure logging
 logger = setup_logging("flash_loader")
 
 
-class FlashLoader(BaseLoader):
+class CFELLoader(BaseLoader):
     """
     The class generates multiindexed multidimensional pandas dataframes from the new FLASH
     dataformat resolved by both macro and microbunches alongside electrons.
@@ -38,7 +39,7 @@ class FlashLoader(BaseLoader):
             Defaults to True.
     """
 
-    __name__ = "flash"
+    __name__ = "cfel"
 
     supported_file_types = ["h5"]
 
@@ -55,8 +56,10 @@ class FlashLoader(BaseLoader):
         set_verbosity(logger, self._verbose)
 
         self.instrument: str = self._config["core"].get("instrument", "hextof")  # default is hextof
+        self.beamtime_dir: str = None
         self.raw_dir: str = None
         self.processed_dir: str = None
+        self.meta_dir: str = None
 
     @property
     def verbose(self) -> bool:
@@ -93,9 +96,14 @@ class FlashLoader(BaseLoader):
         # Only raw_dir is necessary, processed_dir can be based on raw_dir, if not provided
         if "paths" in self._config["core"]:
             raw_dir = Path(self._config["core"]["paths"].get("raw", ""))
+            print(raw_dir)
             processed_dir = Path(
                 self._config["core"]["paths"].get("processed", raw_dir.joinpath("processed")),
             )
+            meta_dir = Path(
+                self._config["core"]["paths"].get("meta", raw_dir.joinpath("meta")),
+            )
+            beamtime_dir = Path(raw_dir).parent
 
         else:
             try:
@@ -129,11 +137,14 @@ class FlashLoader(BaseLoader):
             raw_dir = raw_paths[0].resolve()
 
             processed_dir = beamtime_dir.joinpath("processed")
+            meta_dir = beamtime_dir.joinpath("meta/fabtrack/")
 
         processed_dir.mkdir(parents=True, exist_ok=True)
 
+        self.beamtime_dir = str(beamtime_dir)
         self.raw_dir = str(raw_dir)
         self.processed_dir = str(processed_dir)
+        self.meta_dir = str(meta_dir)
 
     @property
     def available_runs(self) -> list[int]:
@@ -173,7 +184,7 @@ class FlashLoader(BaseLoader):
             FileNotFoundError: If no files are found for the given run in the directory.
         """
         # Define the stream name prefixes based on the data acquisition identifier
-        stream_name_prefixes = self._config["core"]["stream_name_prefixes"]
+        stream_name_prefixes = self._config["core"].get("stream_name_prefixes")
 
         if folders is None:
             folders = self._config["core"]["base_folder"]
@@ -184,7 +195,10 @@ class FlashLoader(BaseLoader):
         daq = self._config["dataframe"]["daq"]
 
         # Generate the file patterns to search for in the directory
-        file_pattern = f"{stream_name_prefixes[daq]}_run{run_id}_*." + extension
+        if stream_name_prefixes:
+            file_pattern = f"{stream_name_prefixes[daq]}_run{run_id}_*." + extension
+        else:
+            file_pattern = f"*{run_id}*." + extension
 
         files: list[Path] = []
         # Use pathlib to search for matching files in each directory
@@ -205,7 +219,7 @@ class FlashLoader(BaseLoader):
         # Return the list of found files
         return [str(file.resolve()) for file in files]
 
-    def parse_metadata(self, token: str = None) -> dict:
+    def parse_scicat_metadata(self, token: str = None) -> dict:
         """Uses the MetadataRetriever class to fetch metadata from scicat for each run.
 
         Returns:
@@ -215,6 +229,23 @@ class FlashLoader(BaseLoader):
         metadata_retriever = MetadataRetriever(self._config["metadata"], token)
         metadata = metadata_retriever.get_metadata(
             beamtime_id=self._config["core"]["beamtime_id"],
+            runs=self.runs,
+            metadata=self.metadata,
+        )
+
+        return metadata
+
+    def parse_local_metadata(self) -> dict:
+        """Uses the MetadataRetriever class to fetch metadata from local folder for each run.
+
+        Returns:
+            dict: Metadata dictionary
+        """
+        metadata_retriever = MetadataRetriever(self._config["metadata"])
+        metadata = metadata_retriever.get_local_metadata(
+            beamtime_id=self._config["core"]["beamtime_id"],
+            beamtime_dir=self.beamtime_dir,
+            meta_dir=self.meta_dir,
             runs=self.runs,
             metadata=self.metadata,
         )
@@ -258,6 +289,8 @@ class FlashLoader(BaseLoader):
             try:
                 fid = str(fid)  # Ensure the key is a string
                 time_stamps = file_statistics[fid]["columns"][time_stamp_alias]
+                print(f"Time stamp max: {time_stamps['max']}")
+                print(f"Time stamp min: {time_stamps['min']}")
                 elapsed_time = time_stamps["max"] - time_stamps["min"]
             except KeyError as exc:
                 raise KeyError(
@@ -399,7 +432,12 @@ class FlashLoader(BaseLoader):
             filter_timed_by_electron=filter_timed_by_electron,
         )
 
-        self.metadata.update(self.parse_metadata(token) if collect_metadata else {})
+        if len(self.parse_scicat_metadata(token)) == 0:
+            print("No SciCat metadata available, checking local folder")
+            self.metadata.update(self.parse_local_metadata())
+        else:
+            print("Metadata taken from SciCat")
+            self.metadata.update(self.parse_scicat_metadata(token) if collect_metadata else {})
         self.metadata.update(bh.metadata)
 
         print(f"loading complete in {time.time() - t0: .2f} s")
@@ -407,4 +445,4 @@ class FlashLoader(BaseLoader):
         return df, df_timed, self.metadata
 
 
-LOADER = FlashLoader
+LOADER = CFELLoader
