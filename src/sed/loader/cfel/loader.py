@@ -15,6 +15,9 @@ from collections.abc import Sequence
 from pathlib import Path
 
 import dask.dataframe as dd
+import h5py
+import numpy as np
+import scipy.interpolate as sint
 from natsort import natsorted
 
 from sed.core.logging import set_verbosity
@@ -25,6 +28,30 @@ from sed.loader.flash.metadata import MetadataRetriever
 
 # Configure logging
 logger = setup_logging("flash_loader")
+
+
+def get_count_rate(
+    h5file: h5py.File,
+    ms_markers_key: str = "msMarkers",
+) -> tuple[np.ndarray, np.ndarray]:
+    """Create count rate in the file from the msMarker column.
+
+    Args:
+        h5file (h5py.File): The h5file from which to get the count rate.
+        ms_markers_key (str, optional): The hdf5 path where the millisecond markers
+            are stored. Defaults to "msMarkers".
+
+    Returns:
+        tuple[np.ndarray, np.ndarray]: The count rate in Hz and the seconds into the
+        scan.
+    """
+    ms_markers = np.asarray(h5file[ms_markers_key])
+    secs = np.arange(0, len(ms_markers)) / 1000
+    msmarker_spline = sint.InterpolatedUnivariateSpline(secs, ms_markers, k=1)
+    rate_spline = msmarker_spline.derivative()
+    count_rate = rate_spline(secs)
+
+    return (count_rate, secs)
 
 
 class CFELLoader(BaseLoader):
@@ -137,7 +164,7 @@ class CFELLoader(BaseLoader):
             raw_dir = raw_paths[0].resolve()
 
             processed_dir = beamtime_dir.joinpath("processed")
-            meta_dir = beamtime_dir.joinpath("meta/fabtrack/")
+            meta_dir = beamtime_dir.joinpath("meta/fabtrack/")  # cspell:ignore fabtrack
 
         processed_dir.mkdir(parents=True, exist_ok=True)
 
@@ -254,10 +281,61 @@ class CFELLoader(BaseLoader):
 
     def get_count_rate(
         self,
-        fids: Sequence[int] = None,  # noqa: ARG002
-        **kwds,  # noqa: ARG002
-    ):
-        return None, None
+        fids: Sequence[int] = None,
+        **kwds,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Create count rate from the msMarker column for the files specified in
+        ``fids``.
+
+        Args:
+            fids (Sequence[int], optional): fids (Sequence[int]): the file ids to
+                include. Defaults to list of all file ids.
+            kwds: Keyword arguments:
+
+                - **ms_markers_key**: HDF5 path of the ms-markers
+
+        Returns:
+            tuple[np.ndarray, np.ndarray]: Arrays containing countrate and seconds
+            into the scan.
+        """
+        if fids is None:
+            fids = range(0, len(self.files))
+
+        ms_markers_key = kwds.pop(
+            "ms_markers_key",
+            self._config.get("dataframe", {}).get(
+                "ms_markers_key",
+                "msMarkers",
+            ),
+        )
+
+        if len(kwds) > 0:
+            raise TypeError(f"get_count_rate() got unexpected keyword arguments {kwds.keys()}.")
+
+        secs_list = []
+        count_rate_list = []
+        accumulated_time = 0
+        for fid in fids:
+            try:
+                count_rate_, secs_ = get_count_rate(
+                    h5py.File(self.files[fid]),
+                    ms_markers_key=ms_markers_key,
+                )
+                secs_list.append((accumulated_time + secs_).T)
+                count_rate_list.append(count_rate_.T)
+                accumulated_time += secs_[-1]
+            except OSError as exc:
+                if "Unable to synchronously open file" in str(exc):
+                    logger.warning(
+                        f"Unable to open file {fid}: {str(exc)}. "
+                        "Most likely the file is incomplete.",
+                    )
+                    pass
+
+        count_rate = np.concatenate(count_rate_list)
+        secs = np.concatenate(secs_list)
+
+        return count_rate, secs
 
     def get_elapsed_time(self, fids: Sequence[int] = None, **kwds) -> float | list[float]:  # type: ignore[override]
         """
