@@ -18,9 +18,6 @@ from sed.dataset import DatasetsManager as dm
 package_dir = os.path.dirname(find_spec("sed").origin)
 json_path = os.path.join(package_dir, "config/datasets.json")
 
-# cspell:ignore pytestmark xdist
-pytestmark = pytest.mark.xdist_group(name="dataset_tests")
-
 
 @pytest.fixture
 def zip_buffer():
