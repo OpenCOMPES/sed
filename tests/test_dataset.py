@@ -113,9 +113,6 @@ def test_set_root_dir(mock_dataset_paths, sample_dataset_config):
         assert os.path.abspath(expected_dir) == ds._dir
 
         # Additional tests using temporary paths
-        ds._state["data_path"] = []
-        ds._set_data_dir(root_dir=None, use_existing=True)
-        # This should use the mocked _dir path, not real "./datasets/Test"
         with patch("os.getcwd", return_value=str(tmp_path)):
             ds._set_data_dir(root_dir=None, use_existing=True)
             expected_mock_dir = str(tmp_path / "datasets" / "Test")
