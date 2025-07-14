@@ -1236,7 +1236,7 @@ def test_save(caplog) -> None:
         )
         assert (
             caplog.messages[0]
-            == "ERROR: The data entry corresponding to /ENTRY[entry]/SAMPLE[sample]/name is "
+            == "WARNING: The data entry corresponding to /ENTRY[entry]/SAMPLE[sample]/name is "
             "required and hasn't been supplied by the reader."
         )
         assert (
