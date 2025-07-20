@@ -93,8 +93,8 @@ dataframe:
     timeStamp: 's'
     energy: 'eV'
     E: 'eV'
-    kx: '1/A'
-    ky: '1/A'
+    kx: '1/angstrom'
+    ky: '1/angstrom'
 
   # The channels to load from the raw data. The channels have the following structure:
   # channels have the following structure:

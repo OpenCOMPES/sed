@@ -56,8 +56,8 @@ dataframe:
     timeStamp: 's'
     energy: 'eV'
     E: 'eV'
-    kx: '1/A'
-    ky: '1/A'
+    kx: '1/angstrom'
+    ky: '1/angstrom'
 
   # dataframe channels and group names to read from the h5 files
   channels:
