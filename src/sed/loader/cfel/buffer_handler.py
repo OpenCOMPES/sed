@@ -4,6 +4,8 @@ import time
 from pathlib import Path
 
 import dask.dataframe as dd
+from joblib import delayed
+from joblib import Parallel
 
 from sed.core.logging import setup_logging
 from sed.loader.cfel.dataframe import DataFrameCreator
@@ -45,14 +47,88 @@ class BufferHandler(BaseBufferHandler):
 
         return valid_h5_paths    
 
-    def _save_buffer_file(self, paths: dict[str, Path]) -> None:
-        """Creates the electron and timed buffer files from the raw H5 file."""
-        logger.debug(f"Processing file: {paths['raw'].stem}")
-        start_time = time.time()
+    def _save_buffer_files(self, force_recreate: bool, debug: bool) -> None:
+        """
+        Creates the buffer files that are missing, handling multi-file runs properly.
 
-        # Create DataFrameCreator and get get dataframe
-        dfc = DataFrameCreator(config_dataframe=self._config, h5_path=paths["raw"])
+        Args:
+            force_recreate (bool): Flag to force recreation of buffer files.
+            debug (bool): Flag to enable debug mode, which serializes the creation.
+        """
+        file_sets = self.fp.file_sets_to_process(force_recreate)
+        logger.info(f"Reading files: {len(file_sets)} new files of {len(self.fp)} total.")
+        
+        if len(file_sets) == 0:
+            return
+            
+        # Sort file sets by filename to ensure proper order
+        file_sets = sorted(file_sets, key=lambda x: x['raw'].name)
+        
+        # Get base timestamp from the first file if we have multiple files
+        base_timestamp = None
+        if len(file_sets) > 1:
+            try:
+                # Find the first file (ends with _0000)
+                first_file_set = None
+                for file_set in file_sets:
+                    if file_set['raw'].stem.endswith('_0000'):
+                        first_file_set = file_set
+                        break
+                
+                if first_file_set:
+                    # Create a temporary DataFrameCreator to extract base timestamp
+                    first_dfc = DataFrameCreator(
+                        config_dataframe=self._config, 
+                        h5_path=first_file_set['raw'],
+                        is_first_file=True
+                    )
+                    base_timestamp = first_dfc.get_base_timestamp()
+                    first_dfc.h5_file.close()  # Clean up
+                    logger.info(f"Multi-file run detected. Base timestamp: {base_timestamp}")
+            except Exception as e:
+                logger.warning(f"Could not extract base timestamp: {e}. Processing files independently.")
+                base_timestamp = None
+        
+        n_cores = min(len(file_sets), self.n_cores)
+        if n_cores > 0:
+            if debug:
+                for file_set in file_sets:
+                    is_first_file = file_set['raw'].stem.endswith('_0000')
+                    self._save_buffer_file(file_set, is_first_file, base_timestamp)
+            else:
+                # For parallel processing, we need to be careful about the order
+                # Process all files in parallel with the correct parameters
+                from joblib import delayed, Parallel
+                
+                Parallel(n_jobs=n_cores, verbose=10)(
+                    delayed(self._save_buffer_file)(
+                        file_set, 
+                        file_set['raw'].stem.endswith('_0000'),
+                        base_timestamp
+                    ) 
+                    for file_set in file_sets
+                )
+
+    def _save_buffer_file(self, file_set, is_first_file=True, base_timestamp=None):
+        """
+        Saves an HDF5 file to a Parquet file using the DataFrameCreator class.
+        
+        Args:
+            file_set: Dictionary containing file paths
+            is_first_file: Whether this is the first file in a multi-file run
+            base_timestamp: Base timestamp from the first file (for subsequent files)
+        """
+        start_time = time.time()  # Add this line
+        paths = file_set
+        
+        dfc = DataFrameCreator(
+            config_dataframe=self._config, 
+            h5_path=paths["raw"],
+            is_first_file=is_first_file,
+            base_timestamp=base_timestamp
+        )
         df = dfc.df
+        df_timed = dfc.df_timed
 
         # Save electron resolved dataframe
         electron_channels = get_channels(self._config, "per_electron")
@@ -62,7 +138,6 @@ class BufferHandler(BaseBufferHandler):
         electron_df.to_parquet(paths["electron"])
 
         # Create and save timed dataframe
-        df_timed = dfc.df_timed
         dtypes = get_dtypes(self._config, df_timed.columns.values)
         timed_df = df_timed.astype(dtypes)
         logger.debug(f"Saving timed buffer with shape: {timed_df.shape}")

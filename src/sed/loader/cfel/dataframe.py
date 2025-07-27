@@ -29,16 +29,21 @@ class DataFrameCreator:
         _config (dict): The configuration dictionary for the DataFrame.
     """
 
-    def __init__(self, config_dataframe: dict, h5_path: Path) -> None:
+    def __init__(self, config_dataframe: dict, h5_path: Path, 
+                 is_first_file: bool = True, base_timestamp: pd.Timestamp = None) -> None:
         """
         Initializes the DataFrameCreator class.
 
         Args:
             config_dataframe (dict): The configuration dictionary with only the dataframe key.
             h5_path (Path): Path to the h5 file.
+            is_first_file (bool): Whether this is the first file in a multi-file run.
+            base_timestamp (pd.Timestamp): Base timestamp from the first file (for subsequent files).
         """
         self.h5_file = h5py.File(h5_path, "r")
         self._config = config_dataframe
+        self.is_first_file = is_first_file
+        self.base_timestamp = base_timestamp
 
         index_alias = self._config.get("index", ["countId"])[0]
         # all values except the last as slow data starts from start of file
@@ -82,6 +87,19 @@ class DataFrameCreator:
         dataset = self.h5_file[dataset_key]
 
         return dataset
+
+    def get_base_timestamp(self) -> pd.Timestamp:
+        """
+        Extracts the base timestamp from the first file to be used for subsequent files.
+        
+        Returns:
+            pd.Timestamp: The base timestamp from the first file.
+        """
+        if not self.is_first_file:
+            raise ValueError("get_base_timestamp() should only be called on the first file")
+        
+        first_timestamp = self.h5_file[self._config.get("first_event_time_stamp_key")][0]
+        return pd.to_datetime(first_timestamp.decode())
 
     @property
     def df_electron(self) -> pd.DataFrame:
@@ -141,14 +159,72 @@ class DataFrameCreator:
     @property
     def df_timestamp(self) -> pd.DataFrame:
         """
-        Uses the first_event_time_stamp_key to get initial timestamp and the
-        ms_markers_key which is a dataset of exposure times same size as the index."""
+        For files with first_event_time_stamp_key: Uses that as initial timestamp.
+        For files with only millis_counter_key: Uses that as absolute timestamp.
+        Both use ms_markers_key for exposure times within the file.
+        """
 
-        first_timestamp = self.h5_file[self._config.get("first_event_time_stamp_key")][
-            0
-        ]  # single value
-        ts_start = pd.to_datetime(first_timestamp.decode())
-        # actually in seconds but using milliseconds for consistency with mpes loader
+        # Try to determine which timestamp approach to use based on available data
+        first_timestamp_key = self._config.get("first_event_time_stamp_key")
+        millis_counter_key = self._config.get("millis_counter_key", "/DLD/millisecCounter")
+        
+        has_first_timestamp = (first_timestamp_key is not None and 
+                             first_timestamp_key in self.h5_file and 
+                             len(self.h5_file[first_timestamp_key]) > 0)
+        
+        has_millis_counter = (millis_counter_key in self.h5_file and 
+                            len(self.h5_file[millis_counter_key]) > 0)
+
+        # Log millisecond counter values for ALL files
+        if has_millis_counter:
+            millis_counter_values = self.h5_file[millis_counter_key][()]
+
+        if self.is_first_file and has_first_timestamp:
+            logger.warning("DEBUG: Taking first file with scan start timestamp path")
+            # First file with scan start timestamp
+            first_timestamp = self.h5_file[first_timestamp_key][0]
+            base_ts = pd.to_datetime(first_timestamp.decode())
+            
+            # Also log millisecond counter values for first file if available
+            if has_millis_counter:
+                millis_counter_values = self.h5_file[millis_counter_key][()]
+                millis_min = millis_counter_values[0]   # First value
+                millis_max = millis_counter_values[-1]  # Last value
+
+                # Add the first millisecond counter value to the base timestamp
+                ts_start = base_ts + pd.Timedelta(milliseconds=millis_min)   
+
+                # Calculate what these would be as timestamps
+                ts_min_from_millis = base_ts + pd.Timedelta(milliseconds=millis_min)
+                ts_max_from_millis = base_ts + pd.Timedelta(milliseconds=millis_max)
+            else:
+                # Fallback if no millisecond counter
+                ts_start = base_ts
+        elif not self.is_first_file and self.base_timestamp is not None and has_millis_counter:
+            # Subsequent files: use base timestamp + millisecond counter offset
+            millis_counter_values = self.h5_file[millis_counter_key][()]  # Get all values
+            
+            # Get min (first) and max (last) millisecond values
+            millis_min = millis_counter_values[0]   # First value
+            millis_max = millis_counter_values[-1]  # Last value
+            
+            # Calculate timestamps for min and max
+            ts_min = self.base_timestamp + pd.Timedelta(milliseconds=millis_min)
+            ts_max = self.base_timestamp + pd.Timedelta(milliseconds=millis_max)
+            
+            logger.warning(f"DEBUG: Timestamp for min: {ts_min}")
+            logger.warning(f"DEBUG: Timestamp for max: {ts_max}")
+            
+            # Use the first value (start time) for calculating offset
+            millis_counter = millis_counter_values[0]  # First element is the start time
+            offset = pd.Timedelta(milliseconds=millis_counter)
+            ts_start = self.base_timestamp + offset
+        else:
+            logger.warning("DEBUG: Falling through to undefined ts_start - THIS IS THE PROBLEM!")
+            logger.warning(f"DEBUG: Condition 1: is_first_file={self.is_first_file} AND has_first_timestamp={has_first_timestamp} = {self.is_first_file and has_first_timestamp}")
+            logger.warning(f"DEBUG: Condition 2: not is_first_file={not self.is_first_file} AND base_timestamp is not None={self.base_timestamp is not None} AND has_millis_counter={has_millis_counter} = {not self.is_first_file and self.base_timestamp is not None and has_millis_counter}")
+
+        # Get exposure times (in seconds) for this file
         exposure_time = self.h5_file[self._config.get("ms_markers_key")][()]
 
         # Calculate cumulative exposure times

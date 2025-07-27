@@ -35,6 +35,7 @@ dataframe:
 
   first_event_time_stamp_key: /ScanParam/StartTime
   ms_markers_key: /SlowData/exposure_time
+  millis_counter_key: /DLD/millisecCounter
 
   # Time and binning settings
   tof_binwidth: 2.0576131995767355E-11            # Base time-of-flight bin width in seconds

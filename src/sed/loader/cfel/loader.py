@@ -30,30 +30,6 @@ from sed.loader.flash.metadata import MetadataRetriever
 logger = setup_logging("flash_loader")
 
 
-def get_count_rate(
-    h5file: h5py.File,
-    ms_markers_key: str = "msMarkers",
-) -> tuple[np.ndarray, np.ndarray]:
-    """Create count rate in the file from the msMarker column.
-
-    Args:
-        h5file (h5py.File): The h5file from which to get the count rate.
-        ms_markers_key (str, optional): The hdf5 path where the millisecond markers
-            are stored. Defaults to "msMarkers".
-
-    Returns:
-        tuple[np.ndarray, np.ndarray]: The count rate in Hz and the seconds into the
-        scan.
-    """
-    ms_markers = np.asarray(h5file[ms_markers_key])
-    secs = np.arange(0, len(ms_markers)) / 1000
-    msmarker_spline = sint.InterpolatedUnivariateSpline(secs, ms_markers, k=1)
-    rate_spline = msmarker_spline.derivative()
-    count_rate = rate_spline(secs)
-
-    return (count_rate, secs)
-
-
 class CFELLoader(BaseLoader):
     """
     The class generates multiindexed multidimensional pandas dataframes from the new FLASH
@@ -106,6 +82,22 @@ class CFELLoader(BaseLoader):
         """
         self._verbose = verbose
         set_verbosity(logger, self._verbose)
+
+    def __len__(self) -> int:
+        """
+        Returns the total number of rows in the electron resolved dataframe.
+
+        Returns:
+            int: Total number of rows.
+        """
+        try:
+            file_statistics = self.metadata["file_statistics"]["electron"]
+        except KeyError as exc:
+            raise KeyError("File statistics missing. Use 'read_dataframe' first.") from exc
+
+        total_rows = sum(stats["num_rows"] for stats in file_statistics.values())
+        return total_rows
+
 
     def _initialize_dirs(self) -> None:
         """
@@ -279,63 +271,152 @@ class CFELLoader(BaseLoader):
 
         return metadata
 
-    def get_count_rate(
-        self,
-        fids: Sequence[int] = None,
-        **kwds,
-    ) -> tuple[np.ndarray, np.ndarray]:
-        """Create count rate from the msMarker column for the files specified in
-        ``fids``.
+    def get_count_rate(self, fids=None, **kwds) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Calculates the count rate using the number of rows and elapsed time for each file.
+        Hence the resolution is not very high, but this method is very fast.
 
         Args:
-            fids (Sequence[int], optional): fids (Sequence[int]): the file ids to
-                include. Defaults to list of all file ids.
-            kwds: Keyword arguments:
+            fids (Sequence[int]): A sequence of file IDs. Defaults to all files.
 
-                - **ms_markers_key**: HDF5 path of the ms-markers
+        Keyword Args:
+            runs: A sequence of run IDs.
 
         Returns:
-            tuple[np.ndarray, np.ndarray]: Arrays containing countrate and seconds
-            into the scan.
+            tuple[np.ndarray, np.ndarray]: The count rate and elapsed time in seconds.
+
+        Raises:
+            KeyError: If the file statistics are missing.
         """
-        if fids is None:
-            fids = range(0, len(self.files))
 
-        ms_markers_key = kwds.pop(
-            "ms_markers_key",
-            self._config.get("dataframe", {}).get(
-                "ms_markers_key",
-                "msMarkers",
-            ),
-        )
-
-        if len(kwds) > 0:
-            raise TypeError(f"get_count_rate() got unexpected keyword arguments {kwds.keys()}.")
-
-        secs_list = []
-        count_rate_list = []
-        accumulated_time = 0
-        for fid in fids:
+        def counts_per_file(fid):
             try:
-                count_rate_, secs_ = get_count_rate(
-                    h5py.File(self.files[fid]),
-                    ms_markers_key=ms_markers_key,
+                file_statistics = self.metadata["file_statistics"]["electron"]
+            except KeyError as exc:
+                raise KeyError("File statistics missing. Use 'read_dataframe' first.") from exc
+
+            counts = file_statistics[str(fid)]["num_rows"]
+            return counts
+
+        runs = kwds.pop("runs", None)
+        if len(kwds) > 0:
+            raise TypeError(f"get_elapsed_time() got unexpected keyword arguments {kwds.keys()}.")
+
+        all_counts = []
+        elapsed_times = []
+        if runs is not None:
+            fids = []
+            for run_id in runs:
+                if self.raw_dir is None:
+                    self._initialize_dirs()
+                files = self.get_files_from_run_id(run_id=run_id, folders=self.raw_dir)
+                for file in files:
+                    fids.append(self.files.index(file))
+        else:
+            if fids is None:
+                fids = range(len(self.files))
+
+        for fid in fids:
+            all_counts.append(counts_per_file(fid))
+            elapsed_times.append(self.get_elapsed_time(fids=[fid]))
+
+        count_rate = np.array(all_counts) / np.array(elapsed_times)
+        seconds = np.cumsum(elapsed_times)
+        return count_rate, seconds
+
+    def get_count_rate_time_resolved(self, fids=None, time_bin_size=1.0, **kwds) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Calculates the count rate over time within each file using timestamp binning.
+        
+        Args:
+            fids (Sequence[int]): A sequence of file IDs. Defaults to all files.
+            time_bin_size (float): Time bin size in seconds for rate calculation. Defaults to 1.0.
+            
+        Keyword Args:
+            runs: A sequence of run IDs.
+            
+        Returns:
+            tuple[np.ndarray, np.ndarray]: The count rate array and time array in seconds.
+            
+        Raises:
+            KeyError: If the file statistics are missing.
+        """
+        runs = kwds.pop("runs", None)
+        if len(kwds) > 0:
+            raise TypeError(f"get_count_rate_time_resolved() got unexpected keyword arguments {kwds.keys()}.")
+        
+        if runs is not None:
+            fids = []
+            for run_id in runs:
+                if self.raw_dir is None:
+                    self._initialize_dirs()
+                files = self.get_files_from_run_id(run_id=run_id, folders=self.raw_dir)
+                for file in files:
+                    fids.append(self.files.index(file))
+        else:
+            if fids is None:
+                fids = range(len(self.files))
+        
+        all_rates = []
+        all_times = []
+        cumulative_time = 0.0
+        
+        for fid in fids:
+
+            try:
+                file_statistics = self.metadata["file_statistics"]["timed"]
+                time_stamp_alias = self._config["dataframe"]["columns"].get("timestamp", "timeStamp")
+                time_stamps = file_statistics[str(fid)]["columns"][time_stamp_alias]
+                
+                # Print filename and its timestamps
+                filename = Path(self.files[fid]).name if fid < len(self.files) else f"file_{fid}"
+                t_min = time_stamps["min"]
+                t_max = time_stamps["max"]
+                print(f"File: {filename}")
+                print(f"  Min timestamp: {t_min}")
+                print(f"  Max timestamp: {t_max}")
+                
+                if hasattr(t_min, 'total_seconds'):
+                    t_min = t_min.total_seconds()
+                    t_max = t_max.total_seconds()
+                elif hasattr(t_min, 'seconds'):
+                    t_min = float(t_min.seconds)
+                    t_max = float(t_max.seconds)
+                else:
+                    t_min = float(t_min)
+                    t_max = float(t_max)
+                
+                electron_stats = self.metadata["file_statistics"]["electron"]
+                total_counts = electron_stats[str(fid)]["num_rows"]
+                
+                file_duration = t_max - t_min
+                
+
+                n_bins = int(file_duration / time_bin_size)
+                if n_bins == 0:
+                    n_bins = 1
+                
+                counts_per_bin = total_counts / n_bins
+                rate_per_bin = counts_per_bin / time_bin_size
+                
+
+                bin_centers = np.linspace(
+                    cumulative_time + time_bin_size/2, 
+                    cumulative_time + file_duration - time_bin_size/2, 
+                    n_bins
                 )
-                secs_list.append((accumulated_time + secs_).T)
-                count_rate_list.append(count_rate_.T)
-                accumulated_time += secs_[-1]
-            except OSError as exc:
-                if "Unable to synchronously open file" in str(exc):
-                    logger.warning(
-                        f"Unable to open file {fid}: {str(exc)}. "
-                        "Most likely the file is incomplete.",
-                    )
-                    pass
-
-        count_rate = np.concatenate(count_rate_list)
-        secs = np.concatenate(secs_list)
-
-        return count_rate, secs
+                
+                rates = np.full(n_bins, rate_per_bin)
+                
+                all_rates.extend(rates)
+                all_times.extend(bin_centers)
+                
+                cumulative_time += file_duration
+                
+            except KeyError as exc:
+                raise KeyError(f"Statistics missing for file {fid}. Use 'read_dataframe' first.") from exc
+    
+        return np.array(all_rates), np.array(all_times)    
 
     def get_elapsed_time(self, fids: Sequence[int] = None, **kwds) -> float | list[float]:  # type: ignore[override]
         """
@@ -361,18 +442,29 @@ class CFELLoader(BaseLoader):
             raise KeyError(
                 "File statistics missing. Use 'read_dataframe' first.",
             ) from exc
-        time_stamp_alias = self._config["dataframe"].get("time_stamp_alias", "timeStamp")
+        time_stamp_alias = self._config["dataframe"]["columns"].get("timestamp", "timeStamp")
 
         def get_elapsed_time_from_fid(fid):
             try:
-                fid = str(fid)  # Ensure the key is a string
-                time_stamps = file_statistics[fid]["columns"][time_stamp_alias]
-                print(f"Time stamp max: {time_stamps['max']}")
-                print(f"Time stamp min: {time_stamps['min']}")
+                fid_str = str(fid)  # Ensure the key is a string
+                filename = Path(self.files[fid]).name if fid < len(self.files) else f"file_{fid}"
+                time_stamps = file_statistics[fid_str]["columns"][time_stamp_alias]
+                print(f"File {filename} - Time stamp max: {time_stamps['max']}")
+                print(f"File {filename} - Time stamp min: {time_stamps['min']}")
                 elapsed_time = time_stamps["max"] - time_stamps["min"]
+                
+                # Convert to seconds if it's a Timedelta object
+                if hasattr(elapsed_time, 'total_seconds'):
+                    elapsed_time = elapsed_time.total_seconds()
+                elif hasattr(elapsed_time, 'seconds'):
+                    elapsed_time = float(elapsed_time.seconds)
+                else:
+                    elapsed_time = float(elapsed_time)
+                    
             except KeyError as exc:
+                filename = Path(self.files[fid]).name if fid < len(self.files) else f"file_{fid}"
                 raise KeyError(
-                    f"Timestamp metadata missing in file {fid}. "
+                    f"Timestamp metadata missing in file {filename} (fid: {fid_str}). "
                     "Add timestamp column and alias to config before loading.",
                 ) from exc
 
@@ -521,6 +613,8 @@ class CFELLoader(BaseLoader):
         print(f"loading complete in {time.time() - t0: .2f} s")
 
         return df, df_timed, self.metadata
+
+
 
 
 LOADER = CFELLoader

@@ -133,6 +133,8 @@ class DataframeModel(BaseModel):
     # mpes specific settings
     first_event_time_stamp_key: Optional[str] = None
     ms_markers_key: Optional[str] = None
+    # cfel specific settings
+    millis_counter_key: Optional[str] = None
     # flash specific settings
     forward_fill_iterations: Optional[int] = None
     ubid_offset: Optional[int] = None
