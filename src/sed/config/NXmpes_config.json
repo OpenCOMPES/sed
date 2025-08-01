@@ -90,7 +90,7 @@
         "extractor_current/@units": "µA",
         "working_distance": 4.0,
         "working_distance/@units": "mm",
-        "LENS_EM[lens_*{A,B,C,D,E,F,G,H,I,UCA,UFA,Foc}]": {
+        "ELECTROMAGNETIC_LENS[lens_*{A,B,C,D,E,F,G,H,I,UCA,UFA,Foc}]": {
           "name": "*",
           "voltage": "@attrs:metadata/file/KTOF:Lens:*:V",
           "voltage/@units": "V"
