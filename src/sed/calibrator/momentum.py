@@ -874,6 +874,10 @@ class MomentumCorrector:
             stackaxis=0,
         ).astype("float64")
 
+        # reset image
+        if self.slice_corrected is not None:
+            self.slice_corrected = self.slice
+
         self.rdeform_field = coordmat[1, ...]
         self.cdeform_field = coordmat[0, ...]
 
@@ -2004,9 +2008,9 @@ class MomentumCorrector:
         metadata["calibration"] = calibration
         # create empty calibrated axis entries, if they are not present.
         if "kx_axis" not in metadata["calibration"]:
-            metadata["calibration"]["kx_axis"] = 0
+            metadata["calibration"]["kx_axis"] = 0.0
         if "ky_axis" not in metadata["calibration"]:
-            metadata["calibration"]["ky_axis"] = 0
+            metadata["calibration"]["ky_axis"] = 0.0
 
         return metadata
 

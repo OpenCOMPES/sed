@@ -34,6 +34,7 @@ class CopyToolModel(BaseModel):
 
     source: DirectoryPath
     dest: DirectoryPath
+    use: Optional[bool] = None
     safety_margin: Optional[float] = None
     gid: Optional[int] = None
     scheduler: Optional[str] = None
@@ -326,6 +327,7 @@ class DelayModel(BaseModel):
 class MetadataModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    elab_url: Optional[HttpUrl] = None
     archiver_url: Optional[HttpUrl] = None
     epics_pvs: Optional[Sequence[str]] = None
     fa_in_channel: Optional[str] = None
