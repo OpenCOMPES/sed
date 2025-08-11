@@ -449,8 +449,6 @@ class CFELLoader(BaseLoader):
                 fid_str = str(fid)  # Ensure the key is a string
                 filename = Path(self.files[fid]).name if fid < len(self.files) else f"file_{fid}"
                 time_stamps = file_statistics[fid_str]["columns"][time_stamp_alias]
-                print(f"File {filename} - Time stamp max: {time_stamps['max']}")
-                print(f"File {filename} - Time stamp min: {time_stamps['min']}")
                 elapsed_time = time_stamps["max"] - time_stamps["min"]
                 
                 # Convert to seconds if it's a Timedelta object

@@ -179,7 +179,7 @@ class DataFrameCreator:
         if has_millis_counter:
             millis_counter_values = self.h5_file[millis_counter_key][()]
 
-        if self.is_first_file and has_first_timestamp:
+        if  has_first_timestamp:
             logger.warning("DEBUG: Taking first file with scan start timestamp path")
             # First file with scan start timestamp
             first_timestamp = self.h5_file[first_timestamp_key][0]
@@ -194,12 +194,6 @@ class DataFrameCreator:
                 # Add the first millisecond counter value to the base timestamp
                 ts_start = base_ts + pd.Timedelta(milliseconds=millis_min)   
 
-                # Calculate what these would be as timestamps
-                ts_min_from_millis = base_ts + pd.Timedelta(milliseconds=millis_min)
-                ts_max_from_millis = base_ts + pd.Timedelta(milliseconds=millis_max)
-            else:
-                # Fallback if no millisecond counter
-                ts_start = base_ts
         elif not self.is_first_file and self.base_timestamp is not None and has_millis_counter:
             # Subsequent files: use base timestamp + millisecond counter offset
             millis_counter_values = self.h5_file[millis_counter_key][()]  # Get all values
