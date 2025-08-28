@@ -38,8 +38,8 @@ from sed.io import to_nexus
 from sed.io import to_tiff
 from sed.loader import CopyTool
 from sed.loader import get_loader
-from sed.loader.mpes.loader import get_archiver_data
 from sed.loader.mpes.loader import MpesLoader
+from sed.loader.mpes.metadata import get_archiver_data
 
 N_CPU = psutil.cpu_count()
 
@@ -162,7 +162,9 @@ class SedProcessor:
             verbose=self._verbose,
         )
 
-        self.use_copy_tool = "copy_tool" in self._config["core"]
+        self.use_copy_tool = "copy_tool" in self._config["core"] and self._config["core"][
+            "copy_tool"
+        ].pop("use", True)
         if self.use_copy_tool:
             try:
                 self.ct = CopyTool(
@@ -760,6 +762,7 @@ class SedProcessor:
 
         if not use_correction:
             self.mc.reset_deformation()
+            reset = False
 
         if self.mc.cdeform_field is None or self.mc.rdeform_field is None:
             # Generate distortion correction from config values

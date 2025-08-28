@@ -67,7 +67,7 @@ def setup_logging(
 
             # Add file handler to logger
             base_logger.addHandler(file_handler)
-        except PermissionError:
+        except (OSError, PermissionError):
             logging.warning(f"Cannot create logfile in Folder {user_log_path}, disabling logfile.")
             base_logger.addHandler(logging.NullHandler())
             base_logger.propagate = False

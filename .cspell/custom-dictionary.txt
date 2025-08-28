@@ -53,6 +53,7 @@ coldist
 colgrid
 COLLECTIONCOLUMN
 colname
+colorbar
 colsize
 COMPES
 coordmat
@@ -99,13 +100,17 @@ dtype
 dtypes
 easimon
 ecalibdict
-electronanalyser
+elab
+elabapi
+elabid
+electronanalyzer
 Elektronen
 endstation
 energycal
 energycalfolder
 ENERGYDISPERSION
 ENOSPC
+entityid
 equiscale
 Eref
 errorbar
@@ -123,6 +128,7 @@ figsize
 figsz
 filenotfound
 fixedvertex
+FLACPUPGLASER
 flatidx
 fluence
 fontsize
@@ -154,6 +160,7 @@ imkwds
 imread
 imshow
 imwrite
+incoupl
 incrementation
 inequivalent
 interp
@@ -266,6 +273,7 @@ ontop
 OPCPA
 openmp
 OPTICALDELAY
+orcid
 otherax
 packetcoders
 Pandoc
@@ -295,6 +303,7 @@ printfuncs
 psutil
 ptargs
 pullrequest
+PULSEENERGY
 pval
 pyarrow
 pydantic
@@ -340,6 +349,7 @@ sdir
 segs
 setp
 sfile
+sharelink
 shutil
 Sixten
 sohail
@@ -373,6 +383,7 @@ toctree
 tofseg
 tqdm
 traceseg
+trarpes
 trseg
 Tsec
 txtsize
@@ -385,6 +396,7 @@ ufunc
 unbinned
 uncategorised
 undoc
+userid
 utime
 varnames
 venv

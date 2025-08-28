@@ -51,7 +51,7 @@ dataframe:
   forward_fill_iterations: 2                      # Number of iterations to fill the pulseId forward
   split_sector_id_from_dld_time: True             # Remove reserved bits for dldSectorID from dldTimeSteps column
   sector_id_reserved_bits: 3                      # Bits reserved for dldSectorID in the dldTimeSteps column
-  sector_delays: [0., 0., 0., 0., 0., 0., 0., 0.] # Sector delays
+  sector_delays: [0., 0., 0., 0., 0., 0., 0., 0.] # Sector delays in 'step' units applied to dldTimeSteps column
 
   # Time and binning settings
   tof_binwidth: 2.0576131995767355E-11            # Base time-of-flight bin width in seconds
@@ -93,8 +93,8 @@ dataframe:
     timeStamp: 's'
     energy: 'eV'
     E: 'eV'
-    kx: '1/A'
-    ky: '1/A'
+    kx: '1/angstrom'
+    ky: '1/angstrom'
 
   # The channels to load from the raw data. The channels have the following structure:
   # channels have the following structure:
@@ -177,10 +177,11 @@ dataframe:
           slice: 15
 
     # ADC containing the pulser sign (1: value approx. 35000, 0: 33000)
-    pulserSignAdc:
-      format: per_pulse
-      index_key: "/FL1/Experiment/PG/SIS8300 100MHz ADC/CH6/TD/index"
-      dataset_key: "/FL1/Experiment/PG/SIS8300 100MHz ADC/CH6/TD/value"
+    # enable if needed
+    # pulserSignAdc:
+    #   format: per_pulse
+    #   index_key: "/FL1/Experiment/PG/SIS8300 100MHz ADC/CH6/TD/index"
+    #   dataset_key: "/FL1/Experiment/PG/SIS8300 100MHz ADC/CH6/TD/value"
 
     # the energy of the monochromatized beam. This is a quasi-static value.
     # there is a better channel which still needs implementation.
