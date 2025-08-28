@@ -12,9 +12,9 @@ import h5py
 import numpy as np
 import pandas as pd
 
+from sed.core.logging import setup_logging
 from sed.loader.flash.utils import get_channels
 from sed.loader.flash.utils import InvalidFileError
-from sed.core.logging import setup_logging
 
 logger = setup_logging("flash_dataframe_creator")
 
@@ -39,8 +39,8 @@ class DataFrameCreator:
         """
         logger.debug(f"Initializing DataFrameCreator for file: {h5_path}")
         self.h5_file = h5py.File(h5_path, "r")
-        self.multi_index = get_channels(index=True)
         self._config = config_dataframe
+        self.multi_index = get_channels(self._config, index=True)
 
     def get_index_dataset_key(self, channel: str) -> tuple[str, str]:
         """

@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 import time
+from pathlib import Path
 
 import dask.dataframe as dd
 import pyarrow.parquet as pq
 from joblib import delayed
 from joblib import Parallel
+from pandas import MultiIndex
 
 from sed.core.dfops import forward_fill_lazy
 from sed.core.logging import setup_logging
@@ -40,11 +41,9 @@ class BufferFilePaths:
 
     def __init__(
         self,
-        config: dict,
         h5_paths: list[Path],
         folder: Path,
         suffix: str,
-        remove_invalid_files: bool,
     ) -> None:
         """Initializes the BufferFilePaths.
 
@@ -56,9 +55,6 @@ class BufferFilePaths:
         suffix = f"_{suffix}" if suffix else ""
         folder = folder / "buffer"
         folder.mkdir(parents=True, exist_ok=True)
-
-        if remove_invalid_files:
-            h5_paths = self.remove_invalid_files(config, h5_paths)
 
         self._file_paths = self._create_file_paths(h5_paths, folder, suffix)
 
@@ -93,18 +89,6 @@ class BufferFilePaths:
             return self._file_paths
         return [file_set for file_set in self if any(not file_set[key].exists() for key in DF_TYP)]
 
-    def remove_invalid_files(self, config, h5_paths: list[Path]) -> list[Path]:
-        valid_h5_paths = []
-        for h5_path in h5_paths:
-            try:
-                dfc = DataFrameCreator(config_dataframe=config, h5_path=h5_path)
-                dfc.validate_channel_keys()
-                valid_h5_paths.append(h5_path)
-            except InvalidFileError as e:
-                logger.info(f"Skipping invalid file: {h5_path.stem}\n{e}")
-
-        return valid_h5_paths
-
 
 class BufferHandler:
     """
@@ -125,13 +109,26 @@ class BufferHandler:
         self.n_cores: int = config["core"].get("num_cores", os.cpu_count() - 1)
         self.fp: BufferFilePaths = None
         self.df: dict[str, dd.DataFrame] = {typ: None for typ in DF_TYP}
+        fill_formats = self._config.get("fill_formats", ["per_train", "per_pulse"])
         self.fill_channels: list[str] = get_channels(
             self._config,
-            ["per_pulse", "per_train"],
+            fill_formats,
             extend_aux=True,
         )
         self.metadata: dict = {}
         self.filter_timed_by_electron: bool = None
+
+    def _validate_h5_files(self, config, h5_paths: list[Path]) -> list[Path]:
+        valid_h5_paths = []
+        for h5_path in h5_paths:
+            try:
+                dfc = DataFrameCreator(config_dataframe=config, h5_path=h5_path)
+                dfc.validate_channel_keys()
+                valid_h5_paths.append(h5_path)
+            except InvalidFileError as e:
+                logger.info(f"Skipping invalid file: {h5_path.stem}\n{e}")
+
+        return valid_h5_paths
 
     def _schema_check(self, files: list[Path], expected_schema_set: set) -> None:
         """
@@ -182,8 +179,7 @@ class BufferHandler:
             # Take all timed data rows without filtering
             df_timed = df[timed_channels]
 
-        # Take only first electron per event
-        return df_timed.loc[:, :, 0]
+        return df_timed
 
     def _save_buffer_file(self, paths: dict[str, Path]) -> None:
         """Creates the electron and timed buffer files from the raw H5 file."""
@@ -205,6 +201,12 @@ class BufferHandler:
 
         # Create and save timed dataframe
         df_timed = self._create_timed_dataframe(df)
+        # timed dataframe
+        if isinstance(df.index, MultiIndex):
+            # drop the electron channels and only take rows with the first electronId
+            df_timed = df[self.fill_channels].loc[:, :, 0]
+        else:
+            df_timed = df[self.fill_channels]
         dtypes = get_dtypes(self._config, df_timed.columns.values)
         timed_df = df_timed.astype(dtypes).reset_index()
         logger.debug(f"Saving timed buffer with shape: {timed_df.shape}")
@@ -251,25 +253,26 @@ class BufferHandler:
         filling = {}
         for typ in DF_TYP:
             # Read the parquet files into a dask dataframe
-            df = dd.read_parquet(self.fp[typ], calculate_divisions=True)
+            df = dd.read_parquet(self.fp[typ])  # , calculate_divisions=True)
             # Get the metadata from the parquet files
             file_stats[typ] = get_parquet_metadata(self.fp[typ])
 
             # Forward fill the non-electron channels across files
             overlap = min(file["num_rows"] for file in file_stats[typ].values())
             iterations = self._config.get("forward_fill_iterations", 2)
-            df = forward_fill_lazy(
-                df=df,
-                columns=self.fill_channels,
-                before=overlap,
-                iterations=iterations,
-            )
-            # TODO: This dict should be returned by forward_fill_lazy
-            filling[typ] = {
-                "columns": self.fill_channels,
-                "overlap": overlap,
-                "iterations": iterations,
-            }
+            if iterations:
+                df = forward_fill_lazy(
+                    df=df,
+                    columns=self.fill_channels,
+                    before=overlap,
+                    iterations=iterations,
+                )
+                # TODO: This dict should be returned by forward_fill_lazy
+                filling[typ] = {
+                    "columns": self.fill_channels,
+                    "overlap": overlap,
+                    "iterations": iterations,
+                }
 
             self.df[typ] = df
         self.metadata.update({"file_statistics": file_stats, "filling": filling})
@@ -311,8 +314,11 @@ class BufferHandler:
         Returns:
             Tuple[dd.DataFrame, dd.DataFrame]: The electron and timed dataframes.
         """
-        self.fp = BufferFilePaths(self._config, h5_paths, folder, suffix, remove_invalid_files)
         self.filter_timed_by_electron = filter_timed_by_electron
+        if remove_invalid_files:
+            h5_paths = self._validate_h5_files(self._config, h5_paths)
+
+        self.fp = BufferFilePaths(h5_paths, folder, suffix)
 
         if not force_recreate:
             schema_set = set(

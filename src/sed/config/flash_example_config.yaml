@@ -10,8 +10,6 @@ core:
   beamtime_id: 11019101
   # the year of the beamtime
   year: 2023
-  # the instrument used
-  instrument: hextof # hextof, wespe, etc
   # The paths to the raw and parquet data directories. If these are not
   # provided, the loader will try to find the data based on year beamtimeID etc
   # paths:
@@ -32,6 +30,7 @@ core:
   # (Not to be changed by user)
   beamtime_dir:
     pg2: "/asap3/flash/gpfs/pg2/"
+    cfel: "/asap3/fs-flash-o/gpfs/hextof/"
 
 binning:
   # Histogram computation mode to use.
@@ -59,6 +58,11 @@ dataframe:
 
   # Columns used for jitter correction
   jitter_cols: [dldPosX, dldPosY, dldTimeSteps]
+
+  # The index and formats of the data
+  index: [trainId, pulseId, electronId]
+  formats: [per_train, per_pulse, per_electron]
+  fill_formats: [per_train, per_pulse]            # Channels with this format will be forward filled
 
   # Column settings
   columns:
@@ -212,8 +216,7 @@ dataframe:
 
 # metadata collection from scicat
 # metadata:
-#   scicat_url: <URL>
-#   scicat_token: <TOKEN>
+#   archiver_url: <URL>
 
 # The nexus collection routine shall be finalized soon for both instruments
 nexus:

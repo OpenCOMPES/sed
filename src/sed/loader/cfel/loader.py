@@ -1,5 +1,6 @@
 """
 This module implements the flash data loader.
+This loader currently supports hextof, wespe and instruments with similar structure.
 The raw hdf5 data is combined and saved into buffer files and loaded as a dask dataframe.
 The dataframe is an amalgamation of all h5 files for a combination of runs, where the NaNs are
 automatically forward-filled across different files.
@@ -14,20 +15,22 @@ from collections.abc import Sequence
 from pathlib import Path
 
 import dask.dataframe as dd
+import h5py
 import numpy as np
+import scipy.interpolate as sint
 from natsort import natsorted
 
 from sed.core.logging import set_verbosity
 from sed.core.logging import setup_logging
 from sed.loader.base.loader import BaseLoader
-from sed.loader.flash.buffer_handler import BufferHandler
+from sed.loader.cfel.buffer_handler import BufferHandler
 from sed.loader.flash.metadata import MetadataRetriever
 
 # Configure logging
 logger = setup_logging("flash_loader")
 
 
-class FlashLoader(BaseLoader):
+class CFELLoader(BaseLoader):
     """
     The class generates multiindexed multidimensional pandas dataframes from the new FLASH
     dataformat resolved by both macro and microbunches alongside electrons.
@@ -39,7 +42,7 @@ class FlashLoader(BaseLoader):
             Defaults to True.
     """
 
-    __name__ = "flash"
+    __name__ = "cfel"
 
     supported_file_types = ["h5"]
 
@@ -56,8 +59,10 @@ class FlashLoader(BaseLoader):
         set_verbosity(logger, self._verbose)
 
         self.instrument: str = self._config["core"].get("instrument", "hextof")  # default is hextof
+        self.beamtime_dir: str = None
         self.raw_dir: str = None
         self.processed_dir: str = None
+        self.meta_dir: str = None
 
     @property
     def verbose(self) -> bool:
@@ -93,6 +98,7 @@ class FlashLoader(BaseLoader):
         total_rows = sum(stats["num_rows"] for stats in file_statistics.values())
         return total_rows
 
+
     def _initialize_dirs(self) -> None:
         """
         Initializes the directories on Maxwell based on configuration. If paths is provided in
@@ -109,9 +115,14 @@ class FlashLoader(BaseLoader):
         # Only raw_dir is necessary, processed_dir can be based on raw_dir, if not provided
         if "paths" in self._config["core"]:
             raw_dir = Path(self._config["core"]["paths"].get("raw", ""))
+            print(raw_dir)
             processed_dir = Path(
                 self._config["core"]["paths"].get("processed", raw_dir.joinpath("processed")),
             )
+            meta_dir = Path(
+                self._config["core"]["paths"].get("meta", raw_dir.joinpath("meta")),
+            )
+            beamtime_dir = Path(raw_dir).parent
 
         else:
             try:
@@ -145,11 +156,14 @@ class FlashLoader(BaseLoader):
             raw_dir = raw_paths[0].resolve()
 
             processed_dir = beamtime_dir.joinpath("processed")
+            meta_dir = beamtime_dir.joinpath("meta/fabtrack/")  # cspell:ignore fabtrack
 
         processed_dir.mkdir(parents=True, exist_ok=True)
 
+        self.beamtime_dir = str(beamtime_dir)
         self.raw_dir = str(raw_dir)
         self.processed_dir = str(processed_dir)
+        self.meta_dir = str(meta_dir)
 
     @property
     def available_runs(self) -> list[int]:
@@ -189,7 +203,7 @@ class FlashLoader(BaseLoader):
             FileNotFoundError: If no files are found for the given run in the directory.
         """
         # Define the stream name prefixes based on the data acquisition identifier
-        stream_name_prefixes = self._config["core"]["stream_name_prefixes"]
+        stream_name_prefixes = self._config["core"].get("stream_name_prefixes")
 
         if folders is None:
             folders = self._config["core"]["base_folder"]
@@ -200,7 +214,10 @@ class FlashLoader(BaseLoader):
         daq = self._config["dataframe"]["daq"]
 
         # Generate the file patterns to search for in the directory
-        file_pattern = f"{stream_name_prefixes[daq]}_run{run_id}_*." + extension
+        if stream_name_prefixes:
+            file_pattern = f"{stream_name_prefixes[daq]}_run{run_id}_*." + extension
+        else:
+            file_pattern = f"*{run_id}*." + extension
 
         files: list[Path] = []
         # Use pathlib to search for matching files in each directory
@@ -221,16 +238,39 @@ class FlashLoader(BaseLoader):
         # Return the list of found files
         return [str(file.resolve()) for file in files]
 
-    def parse_metadata(self, token: str = None) -> dict:
+    def parse_scicat_metadata(self, token: str = None) -> dict:
         """Uses the MetadataRetriever class to fetch metadata from scicat for each run.
 
         Returns:
             dict: Metadata dictionary
             token (str, optional):: The scicat token to use for fetching metadata
         """
+        if "metadata" not in self._config:
+            return {}
+            
         metadata_retriever = MetadataRetriever(self._config["metadata"], token)
         metadata = metadata_retriever.get_metadata(
             beamtime_id=self._config["core"]["beamtime_id"],
+            runs=self.runs,
+            metadata=self.metadata,
+        )
+
+        return metadata
+
+    def parse_local_metadata(self) -> dict:
+        """Uses the MetadataRetriever class to fetch metadata from local folder for each run.
+
+        Returns:
+            dict: Metadata dictionary
+        """
+        if "metadata" not in self._config:
+            return {}
+            
+        metadata_retriever = MetadataRetriever(self._config["metadata"])
+        metadata = metadata_retriever.get_local_metadata(
+            beamtime_id=self._config["core"]["beamtime_id"],
+            beamtime_dir=self.beamtime_dir,
+            meta_dir=self.meta_dir,
             runs=self.runs,
             metadata=self.metadata,
         )
@@ -266,7 +306,8 @@ class FlashLoader(BaseLoader):
 
         runs = kwds.pop("runs", None)
         if len(kwds) > 0:
-            raise TypeError(f"get_count_rate() got unexpected keyword arguments {kwds.keys()}.")
+            raise TypeError(f"get_elapsed_time() got unexpected keyword arguments {kwds.keys()}.")
+
         all_counts = []
         elapsed_times = []
         if runs is not None:
@@ -288,6 +329,100 @@ class FlashLoader(BaseLoader):
         count_rate = np.array(all_counts) / np.array(elapsed_times)
         seconds = np.cumsum(elapsed_times)
         return count_rate, seconds
+
+    def get_count_rate_time_resolved(self, fids=None, time_bin_size=1.0, **kwds) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Calculates the count rate over time within each file using timestamp binning.
+        
+        Args:
+            fids (Sequence[int]): A sequence of file IDs. Defaults to all files.
+            time_bin_size (float): Time bin size in seconds for rate calculation. Defaults to 1.0.
+            
+        Keyword Args:
+            runs: A sequence of run IDs.
+            
+        Returns:
+            tuple[np.ndarray, np.ndarray]: The count rate array and time array in seconds.
+            
+        Raises:
+            KeyError: If the file statistics are missing.
+        """
+        runs = kwds.pop("runs", None)
+        if len(kwds) > 0:
+            raise TypeError(f"get_count_rate_time_resolved() got unexpected keyword arguments {kwds.keys()}.")
+        
+        if runs is not None:
+            fids = []
+            for run_id in runs:
+                if self.raw_dir is None:
+                    self._initialize_dirs()
+                files = self.get_files_from_run_id(run_id=run_id, folders=self.raw_dir)
+                for file in files:
+                    fids.append(self.files.index(file))
+        else:
+            if fids is None:
+                fids = range(len(self.files))
+        
+        all_rates = []
+        all_times = []
+        cumulative_time = 0.0
+        
+        for fid in fids:
+
+            try:
+                file_statistics = self.metadata["file_statistics"]["timed"]
+                time_stamp_alias = self._config["dataframe"]["columns"].get("timestamp", "timeStamp")
+                time_stamps = file_statistics[str(fid)]["columns"][time_stamp_alias]
+                
+                # Print filename and its timestamps
+                filename = Path(self.files[fid]).name if fid < len(self.files) else f"file_{fid}"
+                t_min = time_stamps["min"]
+                t_max = time_stamps["max"]
+                print(f"File: {filename}")
+                print(f"  Min timestamp: {t_min}")
+                print(f"  Max timestamp: {t_max}")
+                
+                if hasattr(t_min, 'total_seconds'):
+                    t_min = t_min.total_seconds()
+                    t_max = t_max.total_seconds()
+                elif hasattr(t_min, 'seconds'):
+                    t_min = float(t_min.seconds)
+                    t_max = float(t_max.seconds)
+                else:
+                    t_min = float(t_min)
+                    t_max = float(t_max)
+                
+                electron_stats = self.metadata["file_statistics"]["electron"]
+                total_counts = electron_stats[str(fid)]["num_rows"]
+                
+                file_duration = t_max - t_min
+                
+
+                n_bins = int(file_duration / time_bin_size)
+                if n_bins == 0:
+                    n_bins = 1
+                
+                counts_per_bin = total_counts / n_bins
+                rate_per_bin = counts_per_bin / time_bin_size
+                
+
+                bin_centers = np.linspace(
+                    cumulative_time + time_bin_size/2, 
+                    cumulative_time + file_duration - time_bin_size/2, 
+                    n_bins
+                )
+                
+                rates = np.full(n_bins, rate_per_bin)
+                
+                all_rates.extend(rates)
+                all_times.extend(bin_centers)
+                
+                cumulative_time += file_duration
+                
+            except KeyError as exc:
+                raise KeyError(f"Statistics missing for file {fid}. Use 'read_dataframe' first.") from exc
+    
+        return np.array(all_rates), np.array(all_times)    
 
     def get_elapsed_time(self, fids: Sequence[int] = None, **kwds) -> float | list[float]:  # type: ignore[override]
         """
@@ -317,12 +452,23 @@ class FlashLoader(BaseLoader):
 
         def get_elapsed_time_from_fid(fid):
             try:
-                fid = str(fid)  # Ensure the key is a string
-                time_stamps = file_statistics[fid]["columns"][time_stamp_alias]
+                fid_str = str(fid)  # Ensure the key is a string
+                filename = Path(self.files[fid]).name if fid < len(self.files) else f"file_{fid}"
+                time_stamps = file_statistics[fid_str]["columns"][time_stamp_alias]
                 elapsed_time = time_stamps["max"] - time_stamps["min"]
+                
+                # Convert to seconds if it's a Timedelta object
+                if hasattr(elapsed_time, 'total_seconds'):
+                    elapsed_time = elapsed_time.total_seconds()
+                elif hasattr(elapsed_time, 'seconds'):
+                    elapsed_time = float(elapsed_time.seconds)
+                else:
+                    elapsed_time = float(elapsed_time)
+                    
             except KeyError as exc:
+                filename = Path(self.files[fid]).name if fid < len(self.files) else f"file_{fid}"
                 raise KeyError(
-                    f"Timestamp metadata missing in file {fid}. "
+                    f"Timestamp metadata missing in file {filename} (fid: {fid_str}). "
                     "Add timestamp column and alias to config before loading.",
                 ) from exc
 
@@ -460,12 +606,19 @@ class FlashLoader(BaseLoader):
             filter_timed_by_electron=filter_timed_by_electron,
         )
 
-        self.metadata.update(self.parse_metadata(token) if collect_metadata else {})
+        if len(self.parse_scicat_metadata(token)) == 0:
+            print("No SciCat metadata available, checking local folder")
+            self.metadata.update(self.parse_local_metadata())
+        else:
+            print("Metadata taken from SciCat")
+            self.metadata.update(self.parse_scicat_metadata(token) if collect_metadata else {})
         self.metadata.update(bh.metadata)
 
-        logger.info(f"Loading complete in {time.time() - t0: .2f} s")
+        print(f"loading complete in {time.time() - t0: .2f} s")
 
         return df, df_timed, self.metadata
 
 
-LOADER = FlashLoader
+
+
+LOADER = CFELLoader
