@@ -64,6 +64,7 @@ cryo
 cstart
 cstep
 csvfile
+cumsum
 custom-dictionary
 cval
 cvdist
