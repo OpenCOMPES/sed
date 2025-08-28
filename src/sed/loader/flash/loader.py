@@ -268,8 +268,7 @@ class FlashLoader(BaseLoader):
 
         runs = kwds.pop("runs", None)
         if len(kwds) > 0:
-            raise TypeError(f"get_elapsed_time() got unexpected keyword arguments {kwds.keys()}.")
-
+            raise TypeError(f"get_count_rate() got unexpected keyword arguments {kwds.keys()}.")
         all_counts = []
         elapsed_times = []
         if runs is not None:
