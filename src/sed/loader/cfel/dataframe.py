@@ -179,13 +179,13 @@ class DataFrameCreator:
         if has_millis_counter:
             millis_counter_values = self.h5_file[millis_counter_key][()]
 
-        if  has_first_timestamp:
+        if has_first_timestamp:
             logger.warning("DEBUG: Taking first file with scan start timestamp path")
             # First file with scan start timestamp
             first_timestamp = self.h5_file[first_timestamp_key][0]
             base_ts = pd.to_datetime(first_timestamp.decode())
             
-            # Also log millisecond counter values for first file if available
+            # Check if we also have millisecond counter for more precise timing
             if has_millis_counter:
                 millis_counter_values = self.h5_file[millis_counter_key][()]
                 millis_min = millis_counter_values[0]   # First value
@@ -193,6 +193,9 @@ class DataFrameCreator:
 
                 # Add the first millisecond counter value to the base timestamp
                 ts_start = base_ts + pd.Timedelta(milliseconds=millis_min)   
+            else:
+                # Use base timestamp directly if no millisecond counter
+                ts_start = base_ts   
 
         elif not self.is_first_file and self.base_timestamp is not None and has_millis_counter:
             # Subsequent files: use base timestamp + millisecond counter offset
@@ -214,9 +217,18 @@ class DataFrameCreator:
             offset = pd.Timedelta(milliseconds=millis_counter)
             ts_start = self.base_timestamp + offset
         else:
-            logger.warning("DEBUG: Falling through to undefined ts_start - THIS IS THE PROBLEM!")
-            logger.warning(f"DEBUG: Condition 1: is_first_file={self.is_first_file} AND has_first_timestamp={has_first_timestamp} = {self.is_first_file and has_first_timestamp}")
-            logger.warning(f"DEBUG: Condition 2: not is_first_file={not self.is_first_file} AND base_timestamp is not None={self.base_timestamp is not None} AND has_millis_counter={has_millis_counter} = {not self.is_first_file and self.base_timestamp is not None and has_millis_counter}")
+            try:
+                start_time_key = "/ScanParam/StartTime"  
+                if start_time_key in self.h5_file:
+                    start_time = self.h5_file[start_time_key][0]
+                    ts_start = pd.to_datetime(start_time.decode())
+                    logger.warning(f"DEBUG: Using fallback startTime: {ts_start}")
+                else:
+                    raise KeyError(f"startTime key '{start_time_key}' not found in file")
+            except (KeyError, IndexError, AttributeError) as e:
+                raise ValueError(
+                    f"Cannot determine timestamp: no valid timestamp source found. Error: {e}"
+                ) from e
 
         # Get exposure times (in seconds) for this file
         exposure_time = self.h5_file[self._config.get("ms_markers_key")][()]

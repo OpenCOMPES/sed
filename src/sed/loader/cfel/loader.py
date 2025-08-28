@@ -245,6 +245,9 @@ class CFELLoader(BaseLoader):
             dict: Metadata dictionary
             token (str, optional):: The scicat token to use for fetching metadata
         """
+        if "metadata" not in self._config:
+            return {}
+            
         metadata_retriever = MetadataRetriever(self._config["metadata"], token)
         metadata = metadata_retriever.get_metadata(
             beamtime_id=self._config["core"]["beamtime_id"],
@@ -260,6 +263,9 @@ class CFELLoader(BaseLoader):
         Returns:
             dict: Metadata dictionary
         """
+        if "metadata" not in self._config:
+            return {}
+            
         metadata_retriever = MetadataRetriever(self._config["metadata"])
         metadata = metadata_retriever.get_local_metadata(
             beamtime_id=self._config["core"]["beamtime_id"],
