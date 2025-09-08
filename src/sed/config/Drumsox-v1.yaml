@@ -1,25 +1,15 @@
-# This file contains the default configuration for the flash loader.
 core:
-  # defines the loader
   loader: flash
-  # Since this will run on maxwell most probably, we have a lot of cores at our disposal
-  num_cores: 100
-  # the beamline where experiment took place
-  beamline: pg2
-  # the ID number of the beamtime
-  beamtime_id: 11019101
-  # the year of the beamtime
+  beamtime_id: 11017721
   year: 2023
-  # the instrument used
-  instrument: hextof # hextof, wespe, etc
-  # The paths to the raw and parquet data directories. If these are not
-  # provided, the loader will try to find the data based on year beamtimeID etc
+  beamline: pg2
+  instrument: hextof
   # paths:
-  # # location of the raw data.
-  #  raw: ""
-  # # location of the intermediate parquet files.
-  #  processed: ""
+  #   data_raw_dir: "/asap3/flash/gpfs/pg2/2023/data/11017721/raw/hdf/online-0/fl1user3"
+  #   data_parquet_dir: "/asap3/flash/gpfs/pg2/2023/data/11017721/processed/parquet"
+  
   # The prefixes of the stream names for different DAQ systems for parsing filenames
+  # (Not to be changed by user)
   stream_name_prefixes:
     pbd: "GMD_DATA_gmd_data"
     pbd2: "FL2PhotDiag_pbd2_gmd_data"
@@ -28,13 +18,19 @@ core:
     fl1user3: "FLASH1_USER3_stream_2"
     fl2user1: "FLASH2_USER1_stream_2"
     fl2user2: "FLASH2_USER2_stream_2"
+
   # The beamtime directories for different DAQ systems.
   # (Not to be changed by user)
   beamtime_dir:
     pg2: "/asap3/flash/gpfs/pg2/"
+    hextof: "/asap3/fs-flash-o/gpfs/hextof/"
+    wespe: "/asap3/fs-flash-o/gpfs/wespe/"
+
 
 binning:
-  # Histogram computation mode to use.
+  # Since this will run on maxwell most probably, we have a lot of cores at our disposal
+  #num_cores: 100
+  # Histogram computation mode to use. #was numpy before v1 change
   hist_mode: "numba"
   # Mode for histogram recombination to use
   mode: fast
@@ -47,11 +43,11 @@ binning:
 
 dataframe:
   daq: fl1user3                                   # DAQ system name to resolve filenames/paths
-  ubid_offset: 5                                  # Offset correction to the pulseId
+  ubid_offset: 0                                  # Offset correction to the pulseId
   forward_fill_iterations: 2                      # Number of iterations to fill the pulseId forward
   split_sector_id_from_dld_time: True             # Remove reserved bits for dldSectorID from dldTimeSteps column
   sector_id_reserved_bits: 3                      # Bits reserved for dldSectorID in the dldTimeSteps column
-  sector_delays: [0., 0., 0., 0., 0., 0., 0., 0.] # Sector delays in 'step' units applied to dldTimeSteps column
+  sector_delays: [0., 0., 0., 0., 0., 0., 0., 0.] # Sector delays
 
   # Time and binning settings
   tof_binwidth: 2.0576131995767355E-11            # Base time-of-flight bin width in seconds
@@ -96,19 +92,12 @@ dataframe:
     kx: '1/A'
     ky: '1/A'
 
-  # The channels to load from the raw data. The channels have the following structure:
+  # The channels to load.
   # channels have the following structure:
-  # <channelAlias>:
+  # channelAlias:
   #   format: per_pulse/per_electron/per_train
-  #   index_key: the hdf5 index key
-  #   dataset_key: the hdf5 dataset key
-  #   slice: int to slice a multidimensional data along axis=1. If not defined, there is no slicing
-  #   dtype: the datatype of the data
-  #   subChannels: further aliases for if the data is multidimensional and needs to be split in different cols
-  #                used currently for the auxiliary channel
-  #      <subChannelAlias>:
-  #        slice: int to slice a multidimensional data along axis=1. Must be defined
-  #        dtype: the datatype of the data
+  #   group_name: the hdf5 group path
+  #   slice: if the group contains multidim data, where to slice
 
   channels:
     # The timestamp
@@ -151,8 +140,8 @@ dataframe:
       slice: 3
       dtype: uint32
 
-    # The auxiliary channel has a special structure where the group further contains
-    # a multidimensional structure so further aliases are defined below
+    # The auxillary channel has a special structure where the group further contains
+    # a multidim structure so further aliases are defined below
     dldAux:
       format: per_train
       index_key: "/uncategorised/FLASH.EXP/HEXTOF.DAQ/DLD1/index"
@@ -176,12 +165,6 @@ dataframe:
         dldTimeBinSize:
           slice: 15
 
-    # ADC containing the pulser sign (1: value approx. 35000, 0: 33000)
-    # enable if needed
-    # pulserSignAdc:
-    #   format: per_pulse
-    #   index_key: "/FL1/Experiment/PG/SIS8300 100MHz ADC/CH6/TD/index"
-    #   dataset_key: "/FL1/Experiment/PG/SIS8300 100MHz ADC/CH6/TD/value"
 
     # the energy of the monochromatized beam. This is a quasi-static value.
     # there is a better channel which still needs implementation.
@@ -190,19 +173,16 @@ dataframe:
       index_key: "/FL1/Beamlines/PG/Monochromator/monochromator photon energy/index"
       dataset_key: "/FL1/Beamlines/PG/Monochromator/monochromator photon energy/value"
 
-    # The GMDs can not be read yet...
+
     gmdBda:
       format: per_train
       index_key: "/FL1/Photon Diagnostic/GMD/Average energy/energy BDA/index"
       dataset_key: "/FL1/Photon Diagnostic/GMD/Average energy/energy BDA/value"
 
-    # Beam Arrival Monitor, vital for pump-probe experiments as it can compensate sase
-    # timing fluctuations.
-    # Here we use the DBC2 BAM as the "normal" one is broken.
     bam:
-        format: per_pulse
-        index_key: "/uncategorised/FLASH.SDIAG/BAM.DAQ/FL0.DBC2.ARRIVAL_TIME.ABSOLUTE.SA1.COMP/index"
-        dataset_key: "/uncategorised/FLASH.SDIAG/BAM.DAQ/FL0.DBC2.ARRIVAL_TIME.ABSOLUTE.SA1.COMP/value"
+      format: per_pulse
+      index_key: "/uncategorised/FLASH.SDIAG/BAM.DAQ/FL1.SFELC.ARRIVAL_TIME.ABSOLUTE.SA1.COMP/index"
+      dataset_key: "/uncategorised/FLASH.SDIAG/BAM.DAQ/FL1.SFELC.ARRIVAL_TIME.ABSOLUTE.SA1.COMP/value"
 
     # The delay Stage position, encoding the pump-probe delay
     delayStage:
@@ -210,13 +190,89 @@ dataframe:
       index_key: "/zraw/FLASH.SYNC/LASER.LOCK.EXP/F1.PG.OSC/FMC0.MD22.1.ENCODER_POSITION.RD/dGroup/index"
       dataset_key: "/zraw/FLASH.SYNC/LASER.LOCK.EXP/F1.PG.OSC/FMC0.MD22.1.ENCODER_POSITION.RD/dGroup/value"
 
-# metadata collection from scicat
-# metadata:
-#   scicat_url: <URL>
-#   scicat_token: <TOKEN>
+    opticalDiode:
+      format: per_pulse
+      index_key: "/uncategorised/FLASH.LASER/FLACPUPGLASER1.PULSEENERGY/PG2_incoupl/index"
+      dataset_key: "/uncategorised/FLASH.LASER/FLACPUPGLASER1.PULSEENERGY/PG2_incoupl/value"
+      # group_name: "/zraw/FLASH.LASER/FLACPUPGLASER1.PULSEENERGY/PG2_incoupl/dGroup/"
 
-# The nexus collection routine shall be finalized soon for both instruments
-# nexus:
-#   reader: "mpes"
-#   definition: "NXmpes"
-#   input_files: ["../src/sed/config/NXmpes_config-HEXTOF.json"]
+
+    # # ADC containing the pulser sign (1: value approx. 35000, 0: 33000)
+    # pulserSignAdc:
+    #   format: per_pulse
+    #   group_name: "/FL1/Experiment/PG/SIS8300 100MHz ADC/CH6/TD/"
+    # gmdTunnel:
+    #   format: per_pulse
+    #   group_name: "/FL1/Photon Diagnostic/GMD/Pulse resolved energy/energy tunnel/"
+    # Beam Arrival Monitor, vital for pump-probe experiments as it can compensate sase
+    # timing fluctuations.
+    # Here we use the DBC2 BAM as the "normal" one is broken.
+    # gmdBdaPulse:
+    #   format: per_pulse
+      # group_name: "/FL1/Photon Diagnostic/GMD/Pulse resolved energy/energy BDA/"
+
+metadata:
+  archiver_url: "https://scicat-flash-test1.desy.de/api/v3"
+#   scicat_token: should be defined directly in the notebook as token = scicat_token inside of sed.SedProcessor()
+
+nexus:
+  reader: "mpes"
+  definition: "NXmpes"
+  input_files: ["/home/kutnyakd/sed_v1/sed/src/sed/config/NXmpes_config-HEXTOF.json"]
+
+energy:
+  calibration:
+    E0: -98.14006814957106
+    creation_date: '2025-08-08T10:55:10.664586'
+    d: 3.5806196353495867
+    energy_scale: kinetic
+    t0: 8.465034518597659e-07
+  offsets:
+    columns:
+      monochromatorPhotonEnergy:
+        preserve_mean: true
+        reduction: null
+        weight: -1
+      tofVoltage:
+        preserve_mean: true
+        reduction: null
+        weight: -1
+    constant: 45.1
+    creation_date: '2025-08-08T10:55:44.692391'
+
+
+momentum:
+  # binning axes to use for momentum correction/calibration.
+  # Axes names starting with "@" refer to keys in the "dataframe" section
+  axes: ["@x", "@y", "@tof"]
+  # Bin numbers used for the respective axes
+  bins: [512, 512, 300]
+  # bin ranges to use (in unbinned detector coordinates)
+  ranges: [[0, 1100], [0, 820], [90000, 120000]]
+  # The x/y pixel ranges of the detector
+  detector_ranges: [[0, 2048], [0, 2048]]
+  # The center pixel of the detector in the binned x/y coordinates
+  center_pixel: [256, 256]
+  # Sigma parameter for feature selection (intensity above background)
+  sigma: 5
+  # FWHM parameter for feature selection (width of features to extract)
+  fwhm: 8
+  # Sigma_radius parameter for feature selection (variation of radius size)
+  sigma_radius: 1
+
+delay:
+  offsets:
+    flip_delay_axis: True
+    constant: -3545.3
+#     bam:
+#       weight: -0.001
+#       preserve_mean: False
+
+# Panel configuration for beamtime dashboard
+panel:
+  enabled: True   # Set to True to enable beamtime dashboard
+  dashboard:
+    window: 100   # Window size for rolling average of BAM and GMD
+    plot: True    # Whether to show plots automatically
+    pbar: False   # Whether to show progress bars
+      

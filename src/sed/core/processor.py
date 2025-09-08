@@ -41,6 +41,13 @@ from sed.loader import get_loader
 from sed.loader.mpes.loader import MpesLoader
 from sed.loader.mpes.metadata import get_archiver_data
 
+try:
+    from sed.core.beamtime_utilities import plot_dashboard
+    BEAMTIME_UTILITIES_AVAILABLE = True
+except ImportError:
+    BEAMTIME_UTILITIES_AVAILABLE = False
+    plot_dashboard = None
+
 N_CPU = psutil.cpu_count()
 
 # Configure logging
@@ -81,6 +88,7 @@ class SedProcessor:
         runs: Sequence[str] = None,
         collect_metadata: bool = False,
         verbose: bool = None,
+        panel: bool = False,
         **kwds,
     ):
         """Processor class of sed. Contains wrapper functions defining a work flow
@@ -179,6 +187,16 @@ class SedProcessor:
             except KeyError:
                 self.use_copy_tool = False
 
+        # Initialize panel dashboard if enabled
+        self._panel_enabled = panel or self._config.get("panel", {}).get("enabled", False)
+        if self._panel_enabled and BEAMTIME_UTILITIES_AVAILABLE:
+            logger.info("Panel dashboard is enabled")
+        elif self._panel_enabled and not BEAMTIME_UTILITIES_AVAILABLE:
+            logger.warning("Panel dashboard requested but beamtime_utilities not available")
+        
+        # Filter out panel parameter from kwds before passing to load
+        load_kwds = {k: v for k, v in kwds.items() if k != 'panel'}
+        
         # Load data if provided:
         if dataframe is not None or files is not None or folder is not None or runs is not None:
             self.load(
@@ -188,8 +206,8 @@ class SedProcessor:
                 folder=folder,
                 runs=runs,
                 collect_metadata=collect_metadata,
-                **kwds,
-            )
+                **load_kwds,
+            )    
 
     def __repr__(self):
         if self._dataframe is None:
@@ -2571,3 +2589,53 @@ class SedProcessor:
             raise NotImplementedError(
                 f"Unrecognized file format: {extension}.",
             )
+
+    @call_logger(logger)
+    def show_beamtime_dashboard(self, **kwds) -> tuple:
+        """Display the beamtime diagnostic dashboard.
+        
+        This method creates comprehensive diagnostic plots showing:
+        - Pulse vs train statistics
+        - Beam monitor data (GMD, BAM)
+        - Delay stage positions
+        - Detector hit patterns
+        - Optical diode readings
+        
+        Args:
+            **kwds: Additional keyword arguments passed to plot_dashboard.
+                - window (int): Window size for rolling average. Defaults to config or 100.
+                - plot (bool): Whether to show plots. Defaults to config or True.
+                - pbar (bool): Whether to show progress bars. Defaults to config or False.
+        
+        Returns:
+            tuple: Tuple of bokeh plot figures (pulse_plots, train_plots, dld_plots, laser_plots)
+            
+        Raises:
+            ImportError: If beamtime_utilities is not available.
+            ValueError: If no dataframe is loaded.
+        """
+        if not BEAMTIME_UTILITIES_AVAILABLE:
+            raise ImportError(
+                "beamtime_utilities module is not available. Cannot create dashboard."
+            )
+        
+        if self._dataframe is None:
+            raise ValueError("No dataframe loaded. Load data first.")
+        
+        # Get panel configuration
+        panel_config = self._config.get("panel", {}).get("dashboard", {})
+        
+        # Set default values from config or defaults
+        window = kwds.pop("window", panel_config.get("window", 100))
+        plot = kwds.pop("plot", panel_config.get("plot", True))
+        pbar = kwds.pop("pbar", panel_config.get("pbar", False))
+        
+        logger.info(f"Creating beamtime dashboard with window={window}, plot={plot}, pbar={pbar}")
+        
+        return plot_dashboard(
+            prc=self,
+            window=window,
+            plot=plot,
+            pbar=pbar,
+            **kwds
+        )
