@@ -456,6 +456,9 @@ class SedProcessor:
         Raises:
             ValueError: Raised if no valid input is provided.
         """
+        # Filter out panel parameter from kwds as it's not needed for loading
+        kwds.pop('panel', None)
+        
         if metadata is None:
             metadata = {}
         if dataframe is not None:

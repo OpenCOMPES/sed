@@ -128,13 +128,13 @@ def bamPlot(prc,ax):
     res = prc.compute(bins=bins, axes=axes)
     res.plot.imshow(ax=ax,robust=True)
     
-
+"""
 def optiPlot(prc,ax):
     axes = ['opticalDiode','pulseId']
     bins = [defBins(0,3.4,0.01),defBins(0,500,1)]
     res = prc.compute(bins=bins, axes=axes)
     res.plot.imshow(ax=ax,robust=True)
-
+"""
 
 def debugPlots(prc):
     fig,ax = plt.subplots(2,2,figsize=(6,4),layout='constrained')
@@ -186,7 +186,9 @@ def plot_dashboard(prc, window=100, plot=True, pbar=False):
         # with dask.diagnostics.ProgressBar():
         df = prc.dataframe[['electronId','trainId']].copy()
         train_id = df.groupby('trainId').count()
-        cols = ['trainId','pulseId','gmdBda','delayStage','bam','opticalDiode']
+#        cols = ['trainId','pulseId','gmdBda','delayStage','bam','opticalDiode']
+        cols = ['trainId','pulseId','gmdBda','delayStage','bam']
+
         df = prc.dataframe[cols].copy()
         tail = df.tail(1)
         for c in cols:
