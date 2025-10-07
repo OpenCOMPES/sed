@@ -40,13 +40,8 @@ from sed.loader import CopyTool
 from sed.loader import get_loader
 from sed.loader.mpes.loader import MpesLoader
 from sed.loader.mpes.metadata import get_archiver_data
+from sed.core.beamtime_utilities import plot_dashboard
 
-try:
-    from sed.core.beamtime_utilities import plot_dashboard
-    BEAMTIME_UTILITIES_AVAILABLE = True
-except ImportError:
-    BEAMTIME_UTILITIES_AVAILABLE = False
-    plot_dashboard = None
 
 N_CPU = psutil.cpu_count()
 
@@ -189,11 +184,8 @@ class SedProcessor:
 
         # Initialize panel dashboard if enabled
         self._panel_enabled = panel or self._config.get("panel", {}).get("enabled", False)
-        if self._panel_enabled and BEAMTIME_UTILITIES_AVAILABLE:
+        if self._panel_enabled:
             logger.info("Panel dashboard is enabled")
-        elif self._panel_enabled and not BEAMTIME_UTILITIES_AVAILABLE:
-            logger.warning("Panel dashboard requested but beamtime_utilities not available")
-        
         # Filter out panel parameter from kwds before passing to load
         load_kwds = {k: v for k, v in kwds.items() if k != 'panel'}
         
@@ -207,7 +199,15 @@ class SedProcessor:
                 runs=runs,
                 collect_metadata=collect_metadata,
                 **load_kwds,
-            )    
+            )
+            
+            # Automatically show beamtime dashboard if panel is enabled and data was loaded
+            if self._panel_enabled and self._dataframe is not None:
+                try:
+                    self.show_beamtime_dashboard()
+                    logger.info("Beamtime dashboard automatically displayed")
+                except Exception as e:
+                    logger.warning(f"Could not automatically display beamtime dashboard: {e}")    
 
     def __repr__(self):
         if self._dataframe is None:
@@ -2614,13 +2614,8 @@ class SedProcessor:
             tuple: Tuple of bokeh plot figures (pulse_plots, train_plots, dld_plots, laser_plots)
             
         Raises:
-            ImportError: If beamtime_utilities is not available.
             ValueError: If no dataframe is loaded.
         """
-        if not BEAMTIME_UTILITIES_AVAILABLE:
-            raise ImportError(
-                "beamtime_utilities module is not available. Cannot create dashboard."
-            )
         
         if self._dataframe is None:
             raise ValueError("No dataframe loaded. Load data first.")
