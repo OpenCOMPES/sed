@@ -178,7 +178,7 @@ def bin_partition(
             ranges=ranges,
         )
     elif hist_mode == "numpy":
-        hist_partition, edges = np.histogramdd(
+        hist_partition, edges = np.histogramdd(  # type: ignore
             vals,
             bins=bins,
             range=ranges,
