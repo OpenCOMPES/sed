@@ -195,7 +195,7 @@ def numba_histogramdd(
         num_rows, num_cols = sample.shape  # pylint: disable=unused-variable
 
     if isinstance(bins, (int, np.int_)):  # bins provided as a single number
-        bins = num_cols * [bins]
+        bins = cast(int, num_cols) * [bins]
     num_bins = len(bins)  # Number of dimensions in bins
 
     if num_bins != num_cols:  # check number of dimensions
