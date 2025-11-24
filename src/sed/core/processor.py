@@ -2609,6 +2609,8 @@ class SedProcessor:
                 - window (int): Window size for rolling average. Defaults to config or 100.
                 - plot (bool): Whether to show plots. Defaults to config or True.
                 - pbar (bool): Whether to show progress bars. Defaults to config or False.
+                - channels (list): List of channel names to include. Defaults to config or all available.
+                - filters (dict): Dictionary of data filters {column: [min, max]}. Defaults to config.
         
         Returns:
             tuple: Tuple of bokeh plot figures (pulse_plots, train_plots, dld_plots, laser_plots)
@@ -2628,12 +2630,24 @@ class SedProcessor:
         plot = kwds.pop("plot", panel_config.get("plot", True))
         pbar = kwds.pop("pbar", panel_config.get("pbar", False))
         
+        # Get channel configuration (if not provided as kwarg)
+        channels = kwds.pop("channels", panel_config.get("channels", None))
+        
+        # Get filter configuration (if not provided as kwarg)
+        filters = kwds.pop("filters", panel_config.get("filters", None))
+        
         logger.info(f"Creating beamtime dashboard with window={window}, plot={plot}, pbar={pbar}")
+        if channels:
+            logger.info(f"Using channels: {channels}")
+        if filters:
+            logger.info(f"Applying filters: {filters}")
         
         return plot_dashboard(
             prc=self,
             window=window,
             plot=plot,
             pbar=pbar,
+            channels=channels,
+            filters=filters,
             **kwds
         )

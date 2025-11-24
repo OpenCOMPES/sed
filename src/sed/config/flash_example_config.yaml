@@ -220,3 +220,16 @@ dataframe:
 #   reader: "mpes"
 #   definition: "NXmpes"
 #   input_files: ["../src/sed/config/NXmpes_config-HEXTOF.json"]
+
+# Panel dashboard configuration
+panel:
+  dashboard:
+    # Channels to display in the dashboard
+    # Required: trainId, pulseId
+    # Optional: gmdBda, bam, delayStage, opticalDiode
+    channels: [trainId, pulseId, gmdBda, delayStage, bam]
+    # Filters for data ranges
+    filters:
+      pulseId: [0, 500]
+      dldPosX: [0, 1100]
+      dldPosY: [0, 820]

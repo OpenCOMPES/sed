@@ -342,6 +342,18 @@ class NexusModel(BaseModel):
     input_files: Sequence[FilePath]
 
 
+class PanelModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    class DashboardModel(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+
+        channels: Optional[Sequence[str]] = None
+        filters: Optional[dict[str, tuple[float, float]]] = None
+
+    dashboard: Optional[DashboardModel] = None
+
+
 class ConfigModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -354,3 +366,4 @@ class ConfigModel(BaseModel):
     histogram: HistogramModel
     metadata: Optional[MetadataModel] = None
     nexus: Optional[NexusModel] = None
+    panel: Optional[PanelModel] = None

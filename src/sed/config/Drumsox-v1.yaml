@@ -275,4 +275,21 @@ panel:
     window: 100   # Window size for rolling average of BAM and GMD
     plot: True    # Whether to show plots automatically
     pbar: False   # Whether to show progress bars
+    
+    # Channels to include in dashboard plots
+    # Only channels that exist in the dataframe will be plotted
+    # Available channels: trainId, pulseId, gmdBda, delayStage, bam, opticalDiode
+    channels:
+      - trainId       # Required: train ID (always needed)
+      - pulseId       # Required: pulse ID (always needed)
+      - gmdBda        # Optional: Gas Monitor Detector (FEL-specific)
+      - delayStage    # Optional: Delay stage position (pump-probe experiments)
+      - bam           # Optional: Beam Arrival Monitor (FEL-specific)
+      - opticalDiode  # Optional: Optical diode readings
+    
+    # Data filtering ranges (set to null to disable filtering)
+    filters:
+      pulseId: [0, 500]      # Valid pulse ID range
+      dldPosX: [0, 1100]     # Valid DLD X position range
+      dldPosY: [0, 820]      # Valid DLD Y position range
       
