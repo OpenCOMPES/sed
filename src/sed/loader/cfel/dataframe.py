@@ -178,6 +178,7 @@ class DataFrameCreator:
         # Log millisecond counter values for ALL files
         if has_millis_counter:
             millis_counter_values = self.h5_file[millis_counter_key][()]
+            # print(f"millis_counter_values: {millis_counter_values}")
 
         if has_first_timestamp:
             logger.warning("DEBUG: Taking first file with scan start timestamp path")
@@ -192,10 +193,12 @@ class DataFrameCreator:
                 millis_max = millis_counter_values[-1]  # Last value
 
                 # Add the first millisecond counter value to the base timestamp
-                ts_start = base_ts + pd.Timedelta(milliseconds=millis_min)   
+                ts_start = base_ts + pd.Timedelta(milliseconds=millis_min)
+                logger.warning(f"DEBUG: ts_start with millis_min {pd.Timedelta(milliseconds=millis_min)}: {ts_start}")
             else:
                 # Use base timestamp directly if no millisecond counter
-                ts_start = base_ts   
+                ts_start = base_ts
+                logger.warning(f"DEBUG: ts_start with base_ts: {ts_start}")
 
         elif not self.is_first_file and self.base_timestamp is not None and has_millis_counter:
             # Subsequent files: use base timestamp + millisecond counter offset
@@ -215,6 +218,7 @@ class DataFrameCreator:
             # Use the first value (start time) for calculating offset
             millis_counter = millis_counter_values[0]  # First element is the start time
             offset = pd.Timedelta(milliseconds=millis_counter)
+            logger.warning(f"DEBUG: Offset used: {offset}")
             ts_start = self.base_timestamp + offset
         else:
             try:
@@ -239,7 +243,8 @@ class DataFrameCreator:
         # add initial timestamp to the start of the list
         timestamps.insert(0, ts_start)
 
-        timestamps = [(ts - pd.Timestamp("1970-01-01")) // pd.Timedelta("1s") for ts in timestamps]
+        # timestamps = [(ts - pd.Timestamp("1970-01-01")) // pd.Timedelta("1s") for ts in timestamps]
+        timestamps = [(ts - pd.Timestamp("1970-01-01")) / pd.Timedelta("1s") for ts in timestamps]
         # Create a DataFrame with the timestamps
         ts_alias = self._config["columns"].get("timestamp")
         df = pd.DataFrame({ts_alias: timestamps}, index=self.index)
