@@ -598,7 +598,7 @@ class CFELLoader(BaseLoader):
         folders: str | Sequence[str] = None,
         runs: str | int | Sequence[str | int] = None,
         ftype: str = "h5",
-        metadata: dict = {},
+        metadata: dict | None = None,
         collect_metadata: bool = False,
         **kwds,
     ) -> tuple[dd.DataFrame, dd.DataFrame, dict]:
@@ -642,6 +642,9 @@ class CFELLoader(BaseLoader):
             FileNotFoundError: If the conversion fails for some files or no data is available.
             ValueError: If collect_metadata is True and no token is available.
         """
+        if metadata is None:
+            metadata = {}
+        
         detector = kwds.pop("detector", "")
         force_recreate = kwds.pop("force_recreate", False)
         processed_dir = kwds.pop("processed_dir", None)
