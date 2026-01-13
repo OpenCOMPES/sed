@@ -212,6 +212,8 @@ mdist
 meshgrid
 microbunch
 microbunches
+millis
+millisec
 mirrorutil
 mnpos
 modindex
