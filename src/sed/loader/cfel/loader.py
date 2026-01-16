@@ -1,5 +1,5 @@
 """
-This module implements the flash data loader.
+This module implements the cfel data loader (for hextof's lab data).
 This loader currently supports hextof, wespe and instruments with similar structure.
 The raw hdf5 data is combined and saved into buffer files and loaded as a dask dataframe.
 The dataframe is an amalgamation of all h5 files for a combination of runs, where the NaNs are
@@ -333,7 +333,7 @@ class CFELLoader(BaseLoader):
     ) -> tuple[np.ndarray, np.ndarray]:
         """
         Count-rate calculation using millisecCounter and NumOfEvents.
-
+    
         Parameters
         ----------
         fids : Sequence[int] or None
@@ -343,7 +343,7 @@ class CFELLoader(BaseLoader):
             - "file" : one average rate per file
         first_files : int or None
             If given, only the first N files are used.
-
+    
         Returns
         -------
         rates : np.ndarray
@@ -353,108 +353,175 @@ class CFELLoader(BaseLoader):
         """
         millis_key = self._config.get("millis_counter_key", "/DLD/millisecCounter")
         counts_key = self._config.get("num_events_key", "/DLD/NumOfEvents")
-
+    
         fids_resolved = self._resolve_fids(fids=fids, first_files=first_files)
-
+    
         # -------------------------------
-        # 1) Load and concatenate
+        # 1) Load and concatenate (for point-mode)
         # -------------------------------
         ms_all = []
         counts_all = []
-        file_sizes = []
-
+        file_ms_min_max = []  # store min/max per file for file-mode
+        file_counts_total = []
+    
         for fid in fids_resolved:
             with h5py.File(self.files[fid], "r") as h5:
                 ms = np.asarray(h5[millis_key], dtype=np.float64)
                 c = np.asarray(h5[counts_key], dtype=np.float64) if counts_key in h5 else np.ones_like(ms)
-
+    
                 if len(ms) != len(c):
                     raise ValueError(f"Length mismatch in file {self.files[fid]}")
-
+    
                 ms_all.append(ms)
                 counts_all.append(c)
-                file_sizes.append(len(ms))
-
-        ms = np.concatenate(ms_all)
-        counts = np.concatenate(counts_all)
-
+                file_ms_min_max.append((ms[0], ms[-1]))
+                file_counts_total.append(c.sum())
+    
+                logger.debug(f"[get_count_rate_ms] File {fid}: ms_min={ms[0]}, ms_max={ms[-1]}, counts={c.sum()}")
+    
+        # Flatten arrays for point-mode
+        ms_concat = np.concatenate(ms_all)
+        counts_concat = np.concatenate(counts_all)
+    
+        # Ensure global time order
+        order = np.argsort(ms_concat)
+        ms_concat = ms_concat[order]
+        counts_concat = counts_concat[order]
+    
         # -------------------------------
-        # 2) Ensure global time order
+        # 2) Compute point-resolved rates
         # -------------------------------
-        order = np.argsort(ms)
-        ms = ms[order]
-        counts = counts[order]
-
-        # -------------------------------
-        # 3) Compute point-resolved rates
-        # -------------------------------
-        dt = np.diff(ms) * 1e-3
-        if np.any(dt <= 0):
-            raise ValueError("Non-positive time step detected in millisecCounter")
-
-        rates_point = counts[1:] / dt
-        times_point = ms[1:] * 1e-3
-
         if mode == "point":
+            dt = np.diff(ms_concat) * 1e-3
+            if np.any(dt <= 0):
+                raise ValueError("Non-positive time step detected in millisecCounter")
+            rates_point = counts_concat[1:] / dt
+            times_point = ms_concat[1:] * 1e-3
             return rates_point, times_point
-
+    
         # -------------------------------
-        # 4) Compute file-resolved rates
+        # 3) Compute file-resolved rates (correcting gaps)
         # -------------------------------
         rates_file = []
         times_file = []
-
-        idx = 0
-        for n in file_sizes:
-            if n < 2:
-                idx += n
-                continue
-            ms_f = ms[idx:idx + n]
-            c_f = counts[idx:idx + n]
-
-            dt_f = np.diff(ms_f) * 1e-3
-            rate = c_f[1:].sum() / dt_f.sum()
-            time = ms_f[-1] * 1e-3
-
+        prev_ms_max = 0.0  # global start
+    
+        for idx, (ms_min, ms_max) in enumerate(file_ms_min_max):
+            # Duration = internal file window + gap since previous file
+            file_duration = (ms_max - ms_min) + (ms_min - prev_ms_max)
+            if file_duration <= 0:
+                raise ValueError(f"Non-positive duration for file {fids_resolved[idx]}")
+    
+            print(f"Total counts: {file_counts_total[idx]}")
+            print(f"File duration: {file_duration}")
+            rate = file_counts_total[idx] / (file_duration * 1e-3)
             rates_file.append(rate)
-            times_file.append(time)
-            idx += n
+            # times_file.append(ms_max * 1e-3)  # last time in file
+            times_file.append((ms_min + ms_max) / 2 * 1e-3)  # midpoint of the file
 
-        return np.asarray(rates_file), np.asarray(times_file)
+    
+            logger.debug(
+                f"[get_count_rate_ms][file] File {fids_resolved[idx]}: ms_min={ms_min}, ms_max={ms_max}, "
+                f"counts={file_counts_total[idx]}, duration={file_duration} ms, rate={rate:.2f} Hz"
+            )
+    
+            prev_ms_max = ms_max
+    
+        return np.array(rates_file), np.array(times_file)
+           
 
     # -------------------------------
     # File-based count rate
     # -------------------------------
+    # def get_count_rate(
+    #     self,
+    #     fids: Sequence[int] | None = None,
+    #     runs: Sequence[int] | None = None,
+    # ) -> tuple[np.ndarray, np.ndarray]:
+    #     """
+    #     Returns count rate per file using the total number of events and elapsed time.
+    #     Calculates the count rate using the number of rows and elapsed time for each file.
+    #     Hence the resolution is not very high, but this method is very fast.
+
+    #     Args:
+    #         fids (Sequence[int]): A sequence of file IDs. Defaults to all files.
+
+    #     Keyword Args:
+    #         runs: A sequence of run IDs.
+
+    #     Returns:
+    #         tuple[np.ndarray, np.ndarray]: The count rate and elapsed time in seconds.
+
+    #     Raises:
+    #         KeyError: If the file statistics are missing.
+    #     """
+    #     fids_resolved = self._resolve_fids(fids=fids, runs=runs)
+
+    #     all_counts = [self.metadata["file_statistics"]["electron"][str(fid)]["num_rows"] for fid in fids_resolved]
+    #     elapsed_times = [self.get_elapsed_time(fids=[fid]) for fid in fids_resolved]
+    #     print(elapsed_times,all_counts)
+
+    #     # count_rate = np.array(all_counts) / np.array(elapsed_times)
+    #     count_rate = np.array(all_counts) / np.array(elapsed_times).flatten()
+    #     print(f"Count rates: {count_rate}")
+    #     times = np.cumsum(elapsed_times)
+    #     return count_rate, times
     def get_count_rate(
         self,
         fids: Sequence[int] | None = None,
         runs: Sequence[int] | None = None,
     ) -> tuple[np.ndarray, np.ndarray]:
         """
-        Returns count rate per file using the total number of events and elapsed time.
-        Calculates the count rate using the number of rows and elapsed time for each file.
-        Hence the resolution is not very high, but this method is very fast.
-
+        Returns the count rate per file using the total number of detected events
+        and the file acquisition duration.
+        
+        This method computes:
+        - one count-rate value per file (Hz)
+        - one global time value per file, given by the midpoint of the file
+          acquisition window, measured in seconds since the scan start
+        
+        The calculation is based on metadata produced by `read_dataframe`
+        and therefore does not require loading raw event data.
+        This makes the method fast but limited to file-level resolution.
+        
         Args:
-            fids (Sequence[int]): A sequence of file IDs. Defaults to all files.
-
-        Keyword Args:
-            runs: A sequence of run IDs.
-
+            fids (Sequence[int], optional):
+                File IDs to include. Defaults to all files.
+            runs (Sequence[int], optional):
+                Run IDs to include. If provided, overrides `fids`.
+        
         Returns:
-            tuple[np.ndarray, np.ndarray]: The count rate and elapsed time in seconds.
-
+            tuple[np.ndarray, np.ndarray]:
+                - count_rate : array of count rates in Hz (one per file)
+                - time       : array of global times in seconds since scan start
+                               (file midpoint)
+        
         Raises:
-            KeyError: If the file statistics are missing.
+            KeyError:
+                If required file statistics are missing. Call `read_dataframe` first.
         """
+
         fids_resolved = self._resolve_fids(fids=fids, runs=runs)
-
-        all_counts = [self.metadata["file_statistics"]["electron"][str(fid)]["num_rows"] for fid in fids_resolved]
-        elapsed_times = [self.get_elapsed_time(fids=[fid]) for fid in fids_resolved]
-
-        count_rate = np.array(all_counts) / np.array(elapsed_times)
-        times = np.cumsum(elapsed_times)
-        return count_rate, times
+    
+        ts_alias = self._config["dataframe"]["columns"].get("timestamp", "timeStamp")
+        t0 = self.metadata["file_statistics"]["timed"]["0"]["columns"][ts_alias]["min"]
+    
+        rates = []
+        times = []
+    
+        for fid in fids_resolved:
+            counts = self.metadata["file_statistics"]["electron"][str(fid)]["num_rows"]
+            ts = self.metadata["file_statistics"]["timed"][str(fid)]["columns"][ts_alias]
+    
+            dt = ts["max"] - ts["min"]
+            print(f"File duration: {dt} seconds")
+            if dt <= 0:
+                raise ValueError(f"Non-positive elapsed time for file {fid}")
+    
+            rates.append(counts / dt)
+            times.append(0.5 * (ts["min"] + ts["max"]) - t0)
+    
+        return np.asarray(rates), np.asarray(times)
 
     # -------------------------------
     # Time-resolved count rate (binned)
@@ -497,6 +564,7 @@ class CFELLoader(BaseLoader):
             t_max = float(getattr(time_stamps["max"], "total_seconds", lambda: time_stamps["max"])())
             total_counts = self.metadata["file_statistics"]["electron"][str(fid)]["num_rows"]
             file_duration = t_max - t_min
+            print(f"File duration: {file_duration}")
 
             n_bins = max(int(file_duration / time_bin_size), 1)
             counts_per_bin = total_counts / n_bins
@@ -514,83 +582,100 @@ class CFELLoader(BaseLoader):
 
             cumulative_time += file_duration
 
+        print(all_rates, all_times)
         return np.array(all_rates), np.array(all_times)
 
-    def get_elapsed_time(self, fids: Sequence[int] = None, **kwds) -> float | list[float]:  # type: ignore[override]
+    def get_elapsed_time(
+        self,
+        fids: Sequence[int] | None = None,
+        *,
+        runs: Sequence[int] | None = None,
+        first_files: int | None = None,
+        aggregate: bool = False,
+    ) -> float | list[float]:
         """
-        Calculates the elapsed time.
-
-        Args:
-            fids (Sequence[int]): A sequence of file IDs. Defaults to all files.
-
-        Keyword Args:
-            runs: A sequence of run IDs. Takes precedence over fids.
-            aggregate: Whether to return the sum of the elapsed times across
-                    the specified files or the elapsed time for each file. Defaults to True.
-
-        Returns:
-            float | list[float]: The elapsed time(s) in seconds.
-
-        Raises:
-            KeyError: If a file ID in fids or a run ID in 'runs' does not exist in the metadata.
+        Calculates the elapsed acquisition time.
+    
+        Uses global timestamp / millisecCounter logic established in
+        read_dataframe() and df_timestamp.
+    
+        Parameters
+        ----------
+        fids : Sequence[int] | None
+            File IDs to include.
+        runs : Sequence[int] | None
+            Run IDs to include.
+        first_files : int | None
+            Limit to first N resolved files.
+        aggregate : bool
+            If True, return total elapsed time (s),
+            otherwise return per-file elapsed times.
+    
+        Returns
+        -------
+        float | list[float]
+            Elapsed time(s) in seconds.
         """
+    
         try:
             file_statistics = self.metadata["file_statistics"]["timed"]
         except Exception as exc:
             raise KeyError(
-                "File statistics missing. Use 'read_dataframe' first.",
+                "File statistics missing. Use 'read_dataframe' first."
             ) from exc
-        time_stamp_alias = self._config["dataframe"]["columns"].get("timestamp", "timeStamp")
-
-        def get_elapsed_time_from_fid(fid):
+    
+        ts_alias = self._config["dataframe"]["columns"].get(
+            "timestamp",
+            "timeStamp",
+        )
+    
+        # ----------------------------
+        # Resolve files consistently
+        # ----------------------------
+        fids_resolved = self._resolve_fids(
+            fids=fids,
+            runs=runs,
+            first_files=first_files,
+        )
+    
+        elapsed_per_file: list[float] = []
+    
+        for fid in fids_resolved:
             try:
-                fid_str = str(fid)  # Ensure the key is a string
-                filename = Path(self.files[fid]).name if fid < len(self.files) else f"file_{fid}"
-                time_stamps = file_statistics[fid_str]["columns"][time_stamp_alias]
-                elapsed_time = time_stamps["max"] - time_stamps["min"]
-                
-                # Convert to seconds if it's a Timedelta object
-                if hasattr(elapsed_time, 'total_seconds'):
-                    elapsed_time = elapsed_time.total_seconds()
-                elif hasattr(elapsed_time, 'seconds'):
-                    elapsed_time = float(elapsed_time.seconds)
+                ts_info = file_statistics[str(fid)]["columns"][ts_alias]
+                print(f"ts_info: {ts_info}")
+                dt = ts_info["max"] - ts_info["min"]
+    
+                # normalize to seconds
+                if hasattr(dt, "total_seconds"):
+                    dt_s = dt.total_seconds()
                 else:
-                    elapsed_time = float(elapsed_time)
-                    
+                    dt_s = float(dt)
+    
+                if dt_s < 0:
+                    raise ValueError(
+                        f"Negative elapsed time in file {fid}: {dt_s}"
+                    )
+    
             except KeyError as exc:
-                filename = Path(self.files[fid]).name if fid < len(self.files) else f"file_{fid}"
+                filename = (
+                    Path(self.files[fid]).name
+                    if fid < len(self.files)
+                    else f"file_{fid}"
+                )
                 raise KeyError(
-                    f"Timestamp metadata missing in file {filename} (fid: {fid_str}). "
-                    "Add timestamp column and alias to config before loading.",
+                    f"Timestamp metadata missing in file {filename} (fid={fid}). "
+                    "Add timestamp column and alias to config before loading."
                 ) from exc
-
-            return elapsed_time
-
-        def get_elapsed_time_from_run(run_id):
-            if self.raw_dir is None:
-                self._initialize_dirs()
-            files = self.get_files_from_run_id(run_id=run_id, folders=self.raw_dir)
-            fids = [self.files.index(file) for file in files]
-            return sum(get_elapsed_time_from_fid(fid) for fid in fids)
-
-        elapsed_times = []
-        runs = kwds.pop("runs", None)
-        aggregate = kwds.pop("aggregate", True)
-
-        if len(kwds) > 0:
-            raise TypeError(f"get_elapsed_time() got unexpected keyword arguments {kwds.keys()}.")
-
-        if runs is not None:
-            elapsed_times = [get_elapsed_time_from_run(run) for run in runs]
-        else:
-            if fids is None:
-                fids = range(len(self.files))
-            elapsed_times = [get_elapsed_time_from_fid(fid) for fid in fids]
-
+    
+            elapsed_per_file.append(dt_s)
+    
         if aggregate:
-            elapsed_times = sum(elapsed_times)
+            print("aggregate is True")
+            return sum(elapsed_per_file)
 
-        return elapsed_times
+        print(f"Elapsed time: {elapsed_per_file}")
+        return elapsed_per_file
 
     def read_dataframe(
         self,
