@@ -19,6 +19,7 @@ import h5py
 import numpy as np
 import scipy.interpolate as sint
 from natsort import natsorted
+from typing import Sequence
 
 from sed.core.logging import set_verbosity
 from sed.core.logging import setup_logging
@@ -167,6 +168,19 @@ class CFELLoader(BaseLoader):
         self.processed_dir = str(processed_dir)
         self.meta_dir = str(meta_dir)
 
+    def _file_index(path: Path) -> int:
+        """
+        Extract file index from filename.
+        Returns 0 for single-file runs.
+        """
+        stem = path.stem  # no extension
+        parts = stem.rsplit("_", 1)
+    
+        if len(parts) == 2 and parts[1].isdigit():
+            return int(parts[1])
+    
+        return 0
+
     @property
     def available_runs(self) -> list[int]:
         # Get all files in raw_dir with "run" in their names
@@ -182,64 +196,109 @@ class CFELLoader(BaseLoader):
         # Return run IDs in sorted order
         return sorted(list(run_ids))
 
+    # def get_files_from_run_id(  # type: ignore[override]
+    #     self,
+    #     run_id: str | int,
+    #     folders: str | Sequence[str] = None,
+    #     extension: str = "h5",
+    # ) -> list[str]:
+    #     """
+    #     Returns a list of filenames for a given run located in the specified directory
+    #     for the specified data acquisition (daq).
+
+    #     Args:
+    #         run_id (str | int): The run identifier to locate.
+    #         folders (str | Sequence[str], optional): The directory(ies) where the raw
+    #             data is located. Defaults to config["core"]["base_folder"].
+    #         extension (str, optional): The file extension. Defaults to "h5".
+
+    #     Returns:
+    #         list[str]: A list of path strings representing the collected file names.
+
+    #     Raises:
+    #         FileNotFoundError: If no files are found for the given run in the directory.
+    #     """
+    #     # Define the stream name prefixes based on the data acquisition identifier
+    #     stream_name_prefixes = self._config["core"].get("stream_name_prefixes")
+
+    #     if folders is None:
+    #         folders = self._config["core"]["base_folder"]
+
+    #     if isinstance(folders, str):
+    #         folders = [folders]
+
+    #     daq = self._config["dataframe"]["daq"]
+
+    #     # Generate the file patterns to search for in the directory
+    #     if stream_name_prefixes:
+    #         file_pattern = f"{stream_name_prefixes[daq]}_run{run_id}_*." + extension
+    #     else:
+    #         file_pattern = f"*{run_id}*." + extension
+
+    #     files: list[Path] = []
+    #     # Use pathlib to search for matching files in each directory
+    #     for folder in folders:
+    #         files.extend(
+    #             natsorted(
+    #                 Path(folder).glob(file_pattern),
+    #                 key=lambda filename: str(filename).rsplit("_", maxsplit=1)[-1],
+    #             ),
+    #         )
+
+    #     # Check if any files are found
+    #     if not files:
+    #         raise FileNotFoundError(
+    #             f"No files found for run {run_id} in directory {str(folders)}",
+    #         )
+
+    #     # Return the list of found files
+    #     return [str(file.resolve()) for file in files]
+
     def get_files_from_run_id(  # type: ignore[override]
         self,
         run_id: str | int,
         folders: str | Sequence[str] = None,
         extension: str = "h5",
     ) -> list[str]:
-        """
-        Returns a list of filenames for a given run located in the specified directory
-        for the specified data acquisition (daq).
-
-        Args:
-            run_id (str | int): The run identifier to locate.
-            folders (str | Sequence[str], optional): The directory(ies) where the raw
-                data is located. Defaults to config["core"]["base_folder"].
-            extension (str, optional): The file extension. Defaults to "h5".
-
-        Returns:
-            list[str]: A list of path strings representing the collected file names.
-
-        Raises:
-            FileNotFoundError: If no files are found for the given run in the directory.
-        """
-        # Define the stream name prefixes based on the data acquisition identifier
+    
         stream_name_prefixes = self._config["core"].get("stream_name_prefixes")
-
+    
         if folders is None:
             folders = self._config["core"]["base_folder"]
-
+    
         if isinstance(folders, str):
             folders = [folders]
-
+    
         daq = self._config["dataframe"]["daq"]
-
-        # Generate the file patterns to search for in the directory
+    
         if stream_name_prefixes:
-            file_pattern = f"{stream_name_prefixes[daq]}_run{run_id}_*." + extension
+            file_pattern = f"{stream_name_prefixes[daq]}_run{run_id}*.{extension}"
         else:
-            file_pattern = f"*{run_id}*." + extension
-
+            file_pattern = f"*{run_id}*.{extension}"
+    
+        def file_index(path: Path) -> int:
+            stem = path.stem
+            parts = stem.rsplit("_", 1)
+            if len(parts) == 2 and parts[1].isdigit():
+                return int(parts[1])
+            return 0  # single-file run
+    
         files: list[Path] = []
-        # Use pathlib to search for matching files in each directory
         for folder in folders:
             files.extend(
                 natsorted(
                     Path(folder).glob(file_pattern),
-                    key=lambda filename: str(filename).rsplit("_", maxsplit=1)[-1],
-                ),
+                    key=file_index,
+                )
             )
-
-        # Check if any files are found
+    
         if not files:
             raise FileNotFoundError(
-                f"No files found for run {run_id} in directory {str(folders)}",
+                f"No files found for run {run_id} in directory {folders}",
             )
-
-        # Return the list of found files
-        return [str(file.resolve()) for file in files]
-
+    
+        return [str(file.resolve()) for file in files]    
+    
     def _resolve_fids(
         self,
         fids: Sequence[int] | None = None,

@@ -47,9 +47,70 @@ class BufferHandler(BaseBufferHandler):
 
         return valid_h5_paths    
 
+    # def _save_buffer_files(self, force_recreate: bool, debug: bool) -> None:
+    #     """
+    #     Creates the buffer files that are missing, handling multi-file runs properly.
+
+    #     Args:
+    #         force_recreate (bool): Flag to force recreation of buffer files.
+    #         debug (bool): Flag to enable debug mode, which serializes the creation.
+    #     """
+    #     file_sets = self.fp.file_sets_to_process(force_recreate)
+    #     logger.info(f"Reading files: {len(file_sets)} new files of {len(self.fp)} total.")
+        
+    #     if len(file_sets) == 0:
+    #         return
+            
+    #     # Sort file sets by filename to ensure proper order
+    #     file_sets = sorted(file_sets, key=lambda x: x['raw'].name)
+        
+    #     # Get base timestamp from the first file if we have multiple files
+    #     base_timestamp = None
+    #     if len(file_sets) > 1:
+    #         try:
+    #             # Find the first file (ends with _0000)
+    #             first_file_set = None
+    #             for file_set in file_sets:
+    #                 if file_set['raw'].stem.endswith('_0000'):
+    #                     first_file_set = file_set
+    #                     break
+                
+    #             if first_file_set:
+    #                 # Create a temporary DataFrameCreator to extract base timestamp
+    #                 first_dfc = DataFrameCreator(
+    #                     config_dataframe=self._config, 
+    #                     h5_path=first_file_set['raw'],
+    #                     is_first_file=True
+    #                 )
+    #                 base_timestamp = first_dfc.get_base_timestamp()
+    #                 first_dfc.h5_file.close()  # Clean up
+    #                 logger.info(f"Multi-file run detected. Base timestamp: {base_timestamp}")
+    #         except Exception as e:
+    #             logger.warning(f"Could not extract base timestamp: {e}. Processing files independently.")
+    #             base_timestamp = None
+        
+    #     n_cores = min(len(file_sets), self.n_cores)
+    #     if n_cores > 0:
+    #         if debug:
+    #             for file_set in file_sets:
+    #                 is_first_file = file_set['raw'].stem.endswith('_0000')
+    #                 self._save_buffer_file(file_set, is_first_file, base_timestamp)
+    #         else:
+    #             # For parallel processing, we need to be careful about the order
+    #             # Process all files in parallel with the correct parameters
+    #             from joblib import delayed, Parallel
+                
+    #             Parallel(n_jobs=n_cores, verbose=10)(
+    #                 delayed(self._save_buffer_file)(
+    #                     file_set, 
+    #                     file_set['raw'].stem.endswith('_0000'),
+    #                     base_timestamp
+    #                 ) 
+    #                 for file_set in file_sets
+    #             )
     def _save_buffer_files(self, force_recreate: bool, debug: bool) -> None:
         """
-        Creates the buffer files that are missing, handling multi-file runs properly.
+        Creates the buffer files that are missing, handling multi-file and single-file runs properly.
 
         Args:
             force_recreate (bool): Flag to force recreation of buffer files.
@@ -57,57 +118,89 @@ class BufferHandler(BaseBufferHandler):
         """
         file_sets = self.fp.file_sets_to_process(force_recreate)
         logger.info(f"Reading files: {len(file_sets)} new files of {len(self.fp)} total.")
-        
-        if len(file_sets) == 0:
+    
+        if not file_sets:
             return
-            
-        # Sort file sets by filename to ensure proper order
-        file_sets = sorted(file_sets, key=lambda x: x['raw'].name)
+    
+        # Sort file sets by filename to ensure deterministic order
+        file_sets = sorted(file_sets, key=lambda x: x["raw"].name)
         
-        # Get base timestamp from the first file if we have multiple files
         base_timestamp = None
-        if len(file_sets) > 1:
-            try:
-                # Find the first file (ends with _0000)
-                first_file_set = None
-                for file_set in file_sets:
-                    if file_set['raw'].stem.endswith('_0000'):
-                        first_file_set = file_set
-                        break
-                
-                if first_file_set:
-                    # Create a temporary DataFrameCreator to extract base timestamp
-                    first_dfc = DataFrameCreator(
-                        config_dataframe=self._config, 
-                        h5_path=first_file_set['raw'],
-                        is_first_file=True
-                    )
-                    base_timestamp = first_dfc.get_base_timestamp()
-                    first_dfc.h5_file.close()  # Clean up
-                    logger.info(f"Multi-file run detected. Base timestamp: {base_timestamp}")
-            except Exception as e:
-                logger.warning(f"Could not extract base timestamp: {e}. Processing files independently.")
-                base_timestamp = None
         
-        n_cores = min(len(file_sets), self.n_cores)
-        if n_cores > 0:
-            if debug:
-                for file_set in file_sets:
-                    is_first_file = file_set['raw'].stem.endswith('_0000')
-                    self._save_buffer_file(file_set, is_first_file, base_timestamp)
-            else:
-                # For parallel processing, we need to be careful about the order
-                # Process all files in parallel with the correct parameters
-                from joblib import delayed, Parallel
-                
-                Parallel(n_jobs=n_cores, verbose=10)(
-                    delayed(self._save_buffer_file)(
-                        file_set, 
-                        file_set['raw'].stem.endswith('_0000'),
-                        base_timestamp
-                    ) 
-                    for file_set in file_sets
+        try:
+            if len(file_sets) == 1:
+                # Single-file run → that file IS the first file
+                first_file_set = file_sets[0]
+                logger.info(
+                    f"Single-file run detected: {first_file_set['raw'].name}. "
+                    "Extracting base timestamp from this file."
                 )
+        
+            else:
+                # Multi-file run → look for _0000
+                first_file_set = next(
+                    fs for fs in file_sets
+                    if fs["raw"].stem.endswith("_0000")
+                )
+                logger.info(
+                    f"Multi-file run detected. "
+                    f"Extracting base timestamp from {first_file_set['raw'].name}"
+                )
+                
+            # Create a temporary DataFrameCreator to extract base timestamp
+            first_dfc = DataFrameCreator(
+                config_dataframe=self._config,
+                h5_path=first_file_set["raw"],
+                is_first_file=True,
+            )
+            base_timestamp = first_dfc.get_base_timestamp()
+            first_dfc.h5_file.close()
+        
+            logger.info(f"Base timestamp extracted: {base_timestamp}")
+        
+        except StopIteration:
+            logger.warning(
+                "Multi-file run detected but no '_0000' file found. "
+                "Base timestamp will not be extracted."
+            )
+        except Exception as e:
+            logger.warning(
+                f"Could not extract base timestamp: {e}. "
+                "Processing files independently."
+            )
+            
+        # -------------------------------------------------------
+    
+        n_cores = min(len(file_sets), self.n_cores)
+        if n_cores <= 0:
+            return
+    
+        def is_first_file(file_set) -> bool:
+            return (
+                len(file_sets) == 1
+                or file_set["raw"].stem.endswith("_0000")
+            )
+    
+        if debug:
+            for file_set in file_sets:
+                self._save_buffer_file(
+                    file_set,
+                    is_first_file(file_set),
+                    base_timestamp,
+                )
+        else:
+            # For parallel processing, we need to be careful about the order
+            # Process all files in parallel with the correct parameters
+            from joblib import Parallel, delayed
+    
+            Parallel(n_jobs=n_cores, verbose=10)(
+                delayed(self._save_buffer_file)(
+                    file_set,
+                    is_first_file(file_set),
+                    base_timestamp,
+                )
+                for file_set in file_sets
+            )
 
     def _save_buffer_file(self, file_set, is_first_file=True, base_timestamp=None):
         """

@@ -186,7 +186,7 @@ class DataFrameCreator:
         # ------------------------------------------------------------
         # 1) Establish global StartTime (absolute origin)
         # ------------------------------------------------------------
-        start_time_key = "/ScanParam/StartTime"
+        start_time_key = self._config.get("first_event_time_stamp_key")#"/ScanParam/StartTime"
     
         if self.is_first_file:
             if start_time_key not in self.h5_file:
