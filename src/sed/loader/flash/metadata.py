@@ -7,6 +7,9 @@ from __future__ import annotations
 import requests
 import json
 import yaml
+from pathlib import Path
+# import os
+# import re
 
 from sed.core.config import read_env_var
 from sed.core.config import save_env_var
@@ -212,27 +215,96 @@ class MetadataRetriever:
             logger.warning(f"Failed to retrieve metadata for beamtime ID {beamtime_id}: {str(exception)}")
             return {}  # Return an empty dictionary for this beamtime ID
 
-
     def _get_local_metadata_per_run(self, meta_dir: str, run: str) -> dict:
-        """
-        Retrieves metadata for a specific run based on the PID from yaml file in the local beamtime folder.
-
-            Args:
-                pid (str): The PID of the run.
-
-            Returns:
-                dict: The retrieved metadata.
-
-            Raises:
-                Exception: If the request to retrieve metadata fails.
-        """
         try:
             run = str(run)
-            with open(f"{meta_dir}/{run}_1.yaml", 'r') as stream:
-                print("Getting metadata from local folder")
-                run_metadata = yaml.safe_load(stream)
-            return run_metadata
+            meta_dir = Path(meta_dir)
+    
+            candidates = []
+            for path in meta_dir.glob(f"{run}_*.yaml"):
+                try:
+                    version = int(path.stem.split("_")[-1])
+                    candidates.append((version, path))
+                except ValueError:
+                    continue
+    
+            if not candidates:
+                raise FileNotFoundError(f"No metadata files found for run {run}")
+    
+            _, latest_path = max(candidates, key=lambda x: x[0])
+    
+            logger.warning(f"Loading local metadata from {latest_path.name}")
+    
+            run_metadata = yaml.safe_load(latest_path.read_text())
+            return run_metadata or {"_data": {}}
+    
+        except Exception as exc:
+            logger.warning(f"Failed to retrieve local metadata for run {run}: {exc}")
+            return {"_data": {}}
+    # def _get_local_metadata_per_run(self, meta_dir: str, run: str) -> dict:
+    #     """
+    #     Retrieves metadata for a specific run from the latest versioned YAML file
+    #     (run_N.yaml, where N is the highest available integer).
+    
+    #     Args:
+    #         meta_dir (str): Directory containing metadata files
+    #         run (str): Run ID
+    
+    #     Returns:
+    #         dict: The retrieved metadata or {"_data": {}} if not found
+    #     """
+    #     try:
+    #         run = str(run)
+    
+    #         # Regex to match files like: <run>_<number>.yaml
+    #         pattern = re.compile(rf"^{re.escape(run)}_(\d+)\.yaml$")
+    
+    #         candidates = []
+    #         for fname in os.listdir(meta_dir):
+    #             match = pattern.match(fname)
+    #             if match:
+    #                 version = int(match.group(1))
+    #                 candidates.append((version, fname))
+    
+    #         if not candidates:
+    #             raise FileNotFoundError(f"No metadata files found for run {run}")
+    
+    #         # Pick file with highest version number
+    #         latest_version, latest_file = max(candidates, key=lambda x: x[0])
+    #         filepath = os.path.join(meta_dir, latest_file)
+    
+    #         logger.warning(f"Loading local metadata for run {run} from {latest_file}")
+    
+    #         with open(filepath, "r") as stream:
+    #             run_metadata = yaml.safe_load(stream)
+    
+    #         return run_metadata or {"_data": {}}
+    
+    #     except Exception as exception:
+    #         logger.warning(
+    #             f"Failed to retrieve local metadata for run {run}: {str(exception)}"
+    #         )
+    #         return {"_data": {}}
+    # def _get_local_metadata_per_run(self, meta_dir: str, run: str) -> dict:
+    #     """
+    #     Retrieves metadata for a specific run based on the PID from yaml file in the local beamtime folder.
 
-        except Exception as exception:
-            logger.warning(f"Failed to retrieve metadata for PID {run}: {str(exception)}")
-            return {"_data":{}}  # Return an empty dictionary for this run
+    #         Args:
+    #             pid (str): The PID of the run.
+
+    #         Returns:
+    #             dict: The retrieved metadata.
+
+    #         Raises:
+    #             Exception: If the request to retrieve metadata fails.
+    #     """
+    #     try:
+    #         run = str(run)
+    #         with open(f"{meta_dir}/{run}_1.yaml", 'r') as stream:
+    #             print("Getting metadata from local folder")
+    #             run_metadata = yaml.safe_load(stream)
+    #         return run_metadata
+
+    #     except Exception as exception:
+    #         logger.warning(f"Failed to retrieve metadata for PID {run}: {str(exception)}")
+    #         return {"_data":{}}  # Return an empty dictionary for this run
