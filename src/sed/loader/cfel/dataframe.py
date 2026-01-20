@@ -47,10 +47,12 @@ class DataFrameCreator:
 
         index_alias = self._config.get("index", ["countId"])[0]
         # # all values except the last as slow data starts from start of file
+        # somehow written something else as this line is doing
         # self.index = np.cumsum([0, *self.get_dataset_array(index_alias)])
         # get cumulative counts, but drop last because slow data only covers N-1 intervals
         self.index = np.cumsum([0, *self.get_dataset_array(index_alias)])[:-1]
         # cumulative sum starting from the first acquisition count, No artificial 0 at the start
+        # makes identical len of TimeStamp and index, but cuts last TimeStamp
         # self.index = np.cumsum(self.get_dataset_array(index_alias))
         print(f"len of self.index: {len(self.index)}")
 
@@ -126,7 +128,7 @@ class DataFrameCreator:
     @property
     def df_train(self) -> pd.DataFrame:
         """
-        Returns a pandas DataFrame for given channel names of type [per pulse].
+        Returns a pandas DataFrame for given channel names of type [per train].
 
         Returns:
             pd.DataFrame: The pandas DataFrame for the 'per_train' channel's data.
@@ -152,113 +154,19 @@ class DataFrameCreator:
                     series.append(
                         pd.Series(
                             dataset[:, values["slice"]],
-                            self.index,# changed together with __init__ line 52 [:-1],
+                            self.index,# changed together with __init__ line 52
+                            # works together with  __init__ line 50, but has different len of TimeStamps and Index
+                            # self.index[:-1],
                             name=name,
                         ),
                     )
             else:
-                series.append(pd.Series(dataset, self.index, name=channel))# changed together with __init__ line 52 [:-1]
+                series.append(pd.Series(dataset, self.index, name=channel))# changed together with __init__ line 52
+                # works together with  __init__ line 50, but has different len of TimeStamps and Index
+                # series.append(pd.Series(dataset, self.index[:-1], name=channel))
         # All the channels are concatenated to a single DataFrame
         return pd.concat(series, axis=1)
 
-    # @property
-    # def df_timestamp(self) -> pd.DataFrame:
-    #     """
-    #     For files with first_event_time_stamp_key: Uses that as initial timestamp.
-    #     For files with only millis_counter_key: Uses that as absolute timestamp.
-    #     Both use ms_markers_key for exposure times within the file.
-    #     """
-
-    #     # Try to determine which timestamp approach to use based on available data
-    #     first_timestamp_key = self._config.get("first_event_time_stamp_key")
-    #     millis_counter_key = self._config.get("millis_counter_key", "/DLD/millisecCounter")
-        
-    #     has_first_timestamp = (first_timestamp_key is not None and 
-    #                          first_timestamp_key in self.h5_file and 
-    #                          len(self.h5_file[first_timestamp_key]) > 0)
-        
-    #     has_millis_counter = (millis_counter_key in self.h5_file and 
-    #                         len(self.h5_file[millis_counter_key]) > 0)
-
-    #     # Log millisecond counter values for ALL files
-    #     if has_millis_counter:
-    #         millis_counter_values = self.h5_file[millis_counter_key][()]
-    #         # print(f"millis_counter_values: {millis_counter_values}")
-
-    #     if has_first_timestamp:
-    #         logger.warning("DEBUG: Taking first file with scan start timestamp path")
-    #         # First file with scan start timestamp
-    #         first_timestamp = self.h5_file[first_timestamp_key][0]
-    #         base_ts = pd.to_datetime(first_timestamp.decode())
-            
-    #         # Check if we also have millisecond counter for more precise timing
-    #         if has_millis_counter:
-    #             millis_counter_values = self.h5_file[millis_counter_key][()]
-    #             millis_min = millis_counter_values[0]   # First value
-    #             millis_max = millis_counter_values[-1]  # Last value
-
-    #             # Add the first millisecond counter value to the base timestamp
-    #             ts_start = base_ts + pd.Timedelta(milliseconds=millis_min)
-    #             logger.warning(f"DEBUG: ts_start with millis_min {pd.Timedelta(milliseconds=millis_min)}: {ts_start}")
-    #         else:
-    #             # Use base timestamp directly if no millisecond counter
-    #             ts_start = base_ts
-    #             logger.warning(f"DEBUG: ts_start with base_ts: {ts_start}")
-
-    #     elif not self.is_first_file and self.base_timestamp is not None and has_millis_counter:
-    #         # Subsequent files: use base timestamp + millisecond counter offset
-    #         millis_counter_values = self.h5_file[millis_counter_key][()]  # Get all values
-            
-    #         # Get min (first) and max (last) millisecond values
-    #         millis_min = millis_counter_values[0]   # First value
-    #         millis_max = millis_counter_values[-1]  # Last value
-            
-    #         # Calculate timestamps for min and max
-    #         ts_min = self.base_timestamp + pd.Timedelta(milliseconds=millis_min)
-    #         ts_max = self.base_timestamp + pd.Timedelta(milliseconds=millis_max)
-            
-    #         logger.warning(f"DEBUG: Timestamp for min: {ts_min}")
-    #         logger.warning(f"DEBUG: Timestamp for max: {ts_max}")
-            
-    #         # Use the first value (start time) for calculating offset
-    #         millis_counter = millis_counter_values[0]  # First element is the start time
-    #         offset = pd.Timedelta(milliseconds=millis_counter)
-    #         logger.warning(f"DEBUG: Offset used: {offset}")
-    #         ts_start = self.base_timestamp + offset
-    #     else:
-    #         try:
-    #             start_time_key = "/ScanParam/StartTime"  
-    #             if start_time_key in self.h5_file:
-    #                 start_time = self.h5_file[start_time_key][0]
-    #                 ts_start = pd.to_datetime(start_time.decode())
-    #                 logger.warning(f"DEBUG: Using fallback startTime: {ts_start}")
-    #             else:
-    #                 raise KeyError(f"startTime key '{start_time_key}' not found in file")
-    #         except (KeyError, IndexError, AttributeError) as e:
-    #             raise ValueError(
-    #                 f"Cannot determine timestamp: no valid timestamp source found. Error: {e}"
-    #             ) from e
-
-    #     # Get exposure times (in seconds) for this file
-    #     exposure_time = self.h5_file[self._config.get("ms_markers_key")][()]
-
-    #     # Calculate cumulative exposure times
-    #     cumulative_exposure = np.cumsum(exposure_time)
-    #     print(f"Cumulative exposure: {cumulative_exposure}")
-    #     print(f"ts_start: {ts_start}")
-    #     timestamps = [ts_start + pd.Timedelta(seconds=cum_exp) for cum_exp in cumulative_exposure]
-    #     print(f"Time stamps 1: {timestamps}")
-    #     # add initial timestamp to the start of the list
-    #     timestamps.insert(0, ts_start)
-    #     print(f"Time stamps 2: {timestamps}")
-
-    #     # timestamps = [(ts - pd.Timestamp("1970-01-01")) // pd.Timedelta("1s") for ts in timestamps]
-    #     timestamps = [(ts - pd.Timestamp("1970-01-01")) / pd.Timedelta("1s") for ts in timestamps]
-    #     print(f"Time stamps 3: {timestamps}")
-    #     # Create a DataFrame with the timestamps
-    #     ts_alias = self._config["columns"].get("timestamp")
-    #     df = pd.DataFrame({ts_alias: timestamps}, index=self.index)
-    #     return df
     @property
     def df_timestamp(self) -> pd.DataFrame:
         """

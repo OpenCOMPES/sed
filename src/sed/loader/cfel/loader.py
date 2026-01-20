@@ -582,7 +582,6 @@ class CFELLoader(BaseLoader):
 
             cumulative_time += file_duration
 
-        print(all_rates, all_times)
         return np.array(all_rates), np.array(all_times)
 
     def get_elapsed_time(
