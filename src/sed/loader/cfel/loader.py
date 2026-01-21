@@ -844,12 +844,17 @@ class CFELLoader(BaseLoader):
             filter_timed_by_electron=filter_timed_by_electron,
         )
 
-        if len(self.parse_scicat_metadata(token)) == 0:
+        scicat_metadata = self.parse_scicat_metadata(token)
+        scicat_runs = scicat_metadata.get("scientificMetadata", {})
+        
+        if not any(scicat_runs.values()):
             logger.warning("No SciCat metadata available, checking local folder")
             self.metadata.update(self.parse_local_metadata())
         else:
             logger.warning("Metadata taken from SciCat")
-            self.metadata.update(self.parse_scicat_metadata(token) if collect_metadata else {})
+            if collect_metadata:
+                self.metadata.update(scicat_metadata)
+        
         self.metadata.update(bh.metadata)
 
         print(f"loading complete in {time.time() - t0: .2f} s")
