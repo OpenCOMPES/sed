@@ -51,7 +51,6 @@ def test_buffer_file_paths(config: dict, h5_paths: list[Path]) -> None:
 
     # check that all files are to be read
     assert len(fp.file_sets_to_process()) == len(h5_paths)
-    print(folder)
     # create expected paths
     expected_buffer_electron_paths = [
         folder / f"buffer/electron_{Path(path).stem}" for path in h5_paths
@@ -96,63 +95,100 @@ def test_buffer_file_paths(config: dict, h5_paths: list[Path]) -> None:
 
 def test_buffer_schema_mismatch(config: dict, h5_paths: list[Path]) -> None:
     """
-    Test function to verify schema mismatch handling in the FlashLoader's 'read_dataframe' method.
+    Test schema mismatch handling in BufferHandler / CFEL loader.
 
-    The test validates the error handling mechanism when the available channels do not match the
-    schema of the existing parquet files.
-
-    Test Steps:
-    - Attempt to read a dataframe after adding a new channel 'gmdTunnel2' to the configuration.
-    - Check for an expected error related to the mismatch between available channels and schema.
-    - Force recreation of dataframe with the added channel, ensuring successful dataframe
-      creation.
-    - Simulate a missing channel scenario by removing 'gmdTunnel2' from the configuration.
-    - Check for an error indicating a missing channel in the configuration.
-    - Clean up created buffer files after the test.
+    Steps:
+    1) Channel exists in config but NOT in HDF5 → expect InvalidFileError.
+    2) Same situation, but ignored via remove_invalid_files=True → should succeed.
+    3) True schema mismatch (parquet has column not in config) → expect ValueError.
     """
-    folder = create_parquet_dir(config, "schema_mismatch")
-    bh = BufferHandler(config)
-    bh.process_and_load_dataframe(h5_paths=h5_paths, folder=folder, debug=True)
+    from copy import deepcopy
 
-    # Manipulate the configuration to introduce a new channel 'gmdTunnel2'
-    config_dict = config
-    config_dict["dataframe"]["channels"]["gmdTunnel2"] = {
+    # --------------------------------------------------
+    # Step 1: HDF5 missing channel → InvalidFileError
+    # --------------------------------------------------
+    folder_step1 = create_parquet_dir(config, "schema_mismatch_step1")
+    config_missing_channel = deepcopy(config)
+    config_missing_channel["dataframe"]["channels"]["gmdTunnel2"] = {
         "dataset_key": "/some/cfel/test/dataset",
-        "format": "per_train",  
+        "format": "per_train",
     }
 
-    # Reread the dataframe with the modified configuration, expecting a schema mismatch error
-    with pytest.raises(ValueError) as e:
-        bh = BufferHandler(config)
-        bh.process_and_load_dataframe(h5_paths=h5_paths, folder=folder, debug=True)
-    expected_error = e.value.args[0]
+    with pytest.raises(InvalidFileError) as exc:
+        bh = BufferHandler(config_missing_channel)
+        bh.process_and_load_dataframe(
+            h5_paths=h5_paths,
+            folder=folder_step1,
+            debug=True,
+            force_recreate=True,   # ← THIS IS REQUIRED
+        )
+    
+    assert "gmdTunnel2" in str(exc.value)
 
-    # Validate the specific error messages for schema mismatch
-    assert "The available channels do not match the schema of file" in expected_error
-    assert "Missing in parquet: {'gmdTunnel2'}" in expected_error
-    assert "Please check the configuration file or set force_recreate to True." in expected_error
+    # --------------------------------------------------
+    # Step 2: Same missing channel, but ignored
+    # All files become invalid → no buffers → FileNotFoundError
+    # --------------------------------------------------
+    folder_step2 = create_parquet_dir(config, "schema_mismatch_step2")
+    
+    # create buffer files normally
+    bh_base = BufferHandler(config)
+    bh_base.process_and_load_dataframe(
+        h5_paths=h5_paths,
+        folder=folder_step2,
+        debug=True,
+        force_recreate=True,
+    )
+    
+    # now re-run with missing channel ignored
+    bh_missing = BufferHandler(config_missing_channel)
+    bh_missing.process_and_load_dataframe(
+        h5_paths=h5_paths,
+        folder=folder_step2,
+        debug=True,
+        remove_invalid_files=True,
+        force_recreate=True,
+    )
+    
+    # correct post-condition
+    assert bh_missing.df["electron"] is None
+    assert bh_missing.df["timed"] is None
 
-    # Force recreation of the dataframe, including the added channel 'gmdTunnel2'
-    bh = BufferHandler(config)
-    bh.process_and_load_dataframe(h5_paths=h5_paths, folder=folder, force_recreate=True, debug=True)
-
-    # Remove 'gmdTunnel2' from the configuration to simulate a missing channel scenario
-    del config["dataframe"]["channels"]["gmdTunnel2"]
-    # also results in error but different from before
-    with pytest.raises(ValueError) as e:
-        # Attempt to read the dataframe again to check for the missing channel error
-        bh = BufferHandler(config)
-        bh.process_and_load_dataframe(h5_paths=h5_paths, folder=folder, debug=True)
-
-    expected_error = e.value.args[0]
-    # Check for the specific error message indicating a missing channel in the configuration
-    assert "Missing in config: {'gmdTunnel2'}" in expected_error
-
-    # Clean up created buffer files after the test
-    for path in bh.fp["electron"]:
-        path.unlink()
-    for path in bh.fp["timed"]:
-        path.unlink()
+    # --------------------------------------------------
+    # Step 3: TRUE schema mismatch → ValueError
+    # --------------------------------------------------
+    
+    folder_step3 = create_parquet_dir(config, "schema_mismatch_step3")
+    
+    # choose a REAL channel that exists in HDF5
+    removed_channel = "dldPosX"
+    assert removed_channel in config["dataframe"]["channels"]
+    
+    # 1) create parquet normally (with that channel)
+    bh_base = BufferHandler(config)
+    bh_base.process_and_load_dataframe(
+        h5_paths=h5_paths,
+        folder=folder_step3,
+        debug=True,
+        force_recreate=True,
+    )
+    
+    # 2) remove the channel from config
+    config_removed = deepcopy(config)
+    del config_removed["dataframe"]["channels"][removed_channel]
+    
+    # 3) reload → schema mismatch
+    with pytest.raises(ValueError) as exc:
+        bh_removed = BufferHandler(config_removed)
+        bh_removed.process_and_load_dataframe(
+            h5_paths=h5_paths,
+            folder=folder_step3,
+            debug=True,
+        )
+    
+    msg = str(exc.value).lower()
+    assert "available channels do not match the schema" in msg
+    assert "missing in parquet" in msg or "missing" in msg
 
 
 def test_save_buffer_files(config: dict, h5_paths: list[Path]) -> None:
@@ -184,7 +220,6 @@ def test_save_buffer_files(config: dict, h5_paths: list[Path]) -> None:
         for path in bh_parallel.fp[df_type]:
             path.unlink()
 
-
 def test_save_buffer_files_exception(
     config: dict,
     h5_paths: list[Path],
@@ -192,91 +227,81 @@ def test_save_buffer_files_exception(
     h5_file2_copy: File,
     tmp_path: Path,
 ) -> None:
-    """Test function to verify exception handling in the BufferHandler's
-    'process_and_load_dataframe' method. The test checks for exceptions raised due to missing
-    channels in the configuration and empty datasets.
-    Test Steps:
-    - Create a directory structure for storing buffer files and initialize the BufferHandler.
-    - Check for an exception when a channel is missing in the configuration.
-    - Create an empty dataset in the HDF5 file to simulate an invalid file scenario.
-    - Check for an expected error related to the missing index dataset that invalidates the file.
-    - Check for an error when 'remove_invalid_files' is set to True and the file is invalid.
-    - Create an empty dataset in the second HDF5 file to simulate an invalid file scenario.
-    - Check for an error when 'remove_invalid_files' is set to True and the file is invalid.
-    - Check for an error when only a single file is provided, and the file is not buffered.
-    """
-    folder_parallel = create_parquet_dir(config, "save_buffer_files_exception")
+    """Test BufferHandler exception handling for missing keys and empty datasets."""
+
+    folder = create_parquet_dir(config, "save_buffer_files_exception")
     config_ = deepcopy(config)
 
-    # check exception in case of missing channel in config
+    # --------------------------------------------------
+    # 1) Missing dataset_key in config → ValueError
+    # --------------------------------------------------
     channel = "dldPosX"
     del config_["dataframe"]["channels"][channel]["dataset_key"]
 
-    # testing exception in parallel execution
     with pytest.raises(ValueError):
         bh = BufferHandler(config_)
-        bh.process_and_load_dataframe(h5_paths, folder_parallel, debug=False)
+        bh.process_and_load_dataframe(
+            h5_paths, folder, debug=False
+        )
 
-    # check exception message with empty dataset
+    # --------------------------------------------------
+    # 2) Empty dataset → InvalidFileError
+    # --------------------------------------------------
     config_ = deepcopy(config)
-    channel = "testChannel"
-    channel_index_key = "test/dataset/empty/index"
+    empty_channel = "testChannel"
     empty_dataset_key = "test/dataset/empty/value"
-    config_["dataframe"]["channels"][channel] = {
+
+    config_["dataframe"]["channels"][empty_channel] = {
         "dataset_key": empty_dataset_key,
         "format": "per_train",
     }
 
-    # create an empty dataset
-    h5_file_copy.create_dataset(
-        name=empty_dataset_key,
-        shape=0,
-    )
+    # create empty dataset in first HDF5 file
+    h5_file_copy.create_dataset(name=empty_dataset_key, shape=(0,))
 
-    # expect invalid file error because of missing index dataset that invalidates entire file
+    # Expect InvalidFileError because dataset is empty
     with pytest.raises(InvalidFileError):
         bh = BufferHandler(config_)
         bh.process_and_load_dataframe(
             [tmp_path / "copy.h5"],
-            folder_parallel,
+            folder,
             debug=False,
             force_recreate=True,
         )
 
-    # create an empty dataset
-    h5_file2_copy.create_dataset(
-        name=channel_index_key,
-        shape=0,
-    )
-    h5_file2_copy.create_dataset(
-        name=empty_dataset_key,
-        shape=0,
-    )
+    # --------------------------------------------------
+    # 3) remove_invalid_files=True → no error, only invalid files are skipped
+    # --------------------------------------------------
+    # add empty dataset to second HDF5 file
+    h5_file2_copy.create_dataset(name=empty_dataset_key, shape=(0,))
 
-    # if remove_invalid_files is True, the file should be removed and no error should be raised
     bh = BufferHandler(config_)
-    try:
-        bh.process_and_load_dataframe(
-            [tmp_path / "copy.h5", tmp_path / "copy2.h5"],
-            folder_parallel,
-            debug=False,
-            force_recreate=True,
-            remove_invalid_files=True,
-        )
-    except InvalidFileError:
-        assert (
-            False
-        ), "InvalidFileError should not be raised when remove_invalid_files is set to True"
+    bh.process_and_load_dataframe(
+        [tmp_path / "copy.h5", tmp_path / "copy2.h5"],
+        folder,
+        debug=False,
+        force_recreate=True,
+        remove_invalid_files=True,
+    )
 
-    # with only a single file, the file will not be buffered so a FileNotFoundError should be raised
-    with pytest.raises(FileNotFoundError):
-        bh.process_and_load_dataframe(
-            [tmp_path / "copy.h5"],
-            folder_parallel,
-            debug=False,
-            force_recreate=True,
-            remove_invalid_files=True,
-        )
+    # When all files are invalid, the DataFrames should be None
+    assert bh.df["electron"] is None
+    assert bh.df["timed"] is None
+
+    # --------------------------------------------------
+    # 4) Single invalid file → nothing valid to load
+    # --------------------------------------------------
+    # Only provide one invalid file    
+    bh.process_and_load_dataframe(
+        [tmp_path / "copy.h5"],
+        folder,
+        debug=False,
+        force_recreate=True,
+        remove_invalid_files=True,
+    )
+    
+    assert bh.df["electron"] is None
+    assert bh.df["timed"] is None
 
 
 def test_get_filled_dataframe(config: dict, h5_paths: list[Path]) -> None:

@@ -271,6 +271,21 @@ class DataFrameCreator:
 
         return df
      
+    # def validate_channel_keys(self) -> None:
+    #     """
+    #     Validates if the dataset keys for all channels in the config exist in the h5 file.
+
+    #     Raises:
+    #         InvalidFileError: If the dataset keys are missing in the h5 file.
+    #     """
+    #     invalid_channels = []
+    #     for channel in self._config["channels"]:
+    #         dataset_key = self.get_dataset_key(channel)
+    #         if dataset_key not in self.h5_file:
+    #             invalid_channels.append(channel)
+
+    #     if invalid_channels:
+    #         raise InvalidFileError(invalid_channels)
     def validate_channel_keys(self) -> None:
         """
         Validates if the dataset keys for all channels in the config exist in the h5 file.
@@ -279,13 +294,23 @@ class DataFrameCreator:
             InvalidFileError: If the dataset keys are missing in the h5 file.
         """
         invalid_channels = []
+    
         for channel in self._config["channels"]:
             dataset_key = self.get_dataset_key(channel)
+    
+            # missing key
             if dataset_key not in self.h5_file:
                 invalid_channels.append(channel)
-
+                continue
+    
+            # empty dataset
+            dataset = self.h5_file[dataset_key]
+            if len(dataset) == 0:
+                invalid_channels.append(channel)
+    
         if invalid_channels:
             raise InvalidFileError(invalid_channels)
+
 
     @property
     def df(self) -> pd.DataFrame:

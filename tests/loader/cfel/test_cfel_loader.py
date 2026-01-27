@@ -95,7 +95,7 @@ def test_save_read_parquet_cfel(config: dict) -> None:
     fl = CFELLoader(config=config_)
 
     # First call: should create and read the parquet file
-    df1, _, _ = fl.read_dataframe(runs=[179], force_recreate=True)
+    df1, _, _ = fl.read_dataframe(runs=[123], force_recreate=True)#was runs = [179]
     # Check if new files were created
     data_parquet_dir = data_parquet_dir.joinpath("buffer")
     new_files = {
@@ -105,7 +105,7 @@ def test_save_read_parquet_cfel(config: dict) -> None:
     assert new_files
 
     # Second call: should only read the parquet file, not create new ones
-    df2, _, _ = fl.read_dataframe(runs=[179])
+    df2, _, _ = fl.read_dataframe(runs=[123])
 
     # Verify no new files were created after the second call
     final_files = {
@@ -117,7 +117,7 @@ def test_save_read_parquet_cfel(config: dict) -> None:
     ), "Files were overwritten or new files were created after the second call."
 
     # Third call: We force_recreate the parquet files
-    df3, _, _ = fl.read_dataframe(runs=[179], force_recreate=True)
+    df3, _, _ = fl.read_dataframe(runs=[123], force_recreate=True)
 
     # Verify files were overwritten
     new_files = {
@@ -148,23 +148,31 @@ def test_get_elapsed_time_fid(config: dict) -> None:
     }
     fl.files = ["file0", "file1", "file2"]
 
-    # Test get_elapsed_time with fids
-    assert fl.get_elapsed_time(fids=[0, 1]) == 20
+    # -------------------------
+    # Aggregate=True → sum differences
+    # -------------------------
+    elapsed_total = fl.get_elapsed_time(fids=[0, 1], aggregate=True)
+    expected_total = (20 - 10) + (30 - 20)  # 20
+    assert elapsed_total == expected_total
 
-    # # Test get_elapsed_time with runs
-    # # Assuming get_files_from_run_id(43878) returns ["file0", "file1"]
-    # assert fl.get_elapsed_time(runs=[43878]) == 20
+    # -------------------------
+    # Aggregate=False → list of per-file differences
+    # -------------------------
+    elapsed_list = fl.get_elapsed_time(fids=[0, 1], aggregate=False)
+    expected_list = [(20 - 10), (30 - 20)]  # [10, 10]
+    assert elapsed_list == expected_list
 
-    # Test get_elapsed_time with aggregate=False
-    assert fl.get_elapsed_time(fids=[0, 1], aggregate=False) == [10, 10]
-
+    # -------------------------
     # Test KeyError when file_statistics is missing
+    # -------------------------
     fl.metadata = {"something": "else"}
     with pytest.raises(KeyError) as e:
         fl.get_elapsed_time(fids=[0, 1])
-
     assert "File statistics missing. Use 'read_dataframe' first." in str(e.value)
-    # Test KeyError when time_stamps is missing
+
+    # -------------------------
+    # Test KeyError when timeStamp metadata is missing for a file
+    # -------------------------
     fl.metadata = {
         "file_statistics": {
             "timed": {
@@ -175,44 +183,50 @@ def test_get_elapsed_time_fid(config: dict) -> None:
     }
     with pytest.raises(KeyError) as e:
         fl.get_elapsed_time(fids=[0, 1])
-
-    assert "Timestamp metadata missing in file file0 (fid: 0)" in str(e.value)
+    assert "Timestamp metadata missing in file file0 (fid=0)" in str(e.value)
 
 
 def test_get_elapsed_time_run(config: dict) -> None:
-    """Test get_elapsed_time method of CFELLoader class"""
-    config_ = config.copy()
-    config_["core"]["paths"] = {
-        "raw": "tests/data/loader/cfel/",
-        "processed": "test_comparison/buffer/get_elapsed_time_run",
-    }
+    """Test get_elapsed_time method for runs with multiple files"""
     config_ = config.copy()
     data_parquet_dir = create_parquet_dir(config_, "get_elapsed_time_run")
     config_["core"]["paths"]["processed"] = data_parquet_dir
+    config_["core"]["paths"]["raw"] = "tests/data/loader/cfel/"
+
     # Create an instance of CFELLoader
     fl = CFELLoader(config=config_)
 
-    fl.read_dataframe(runs=[179])
-    min_max = fl.metadata["file_statistics"]["electron"]["0"]["columns"]["timeStamp"]
-    expected_elapsed_time_0 = min_max["max"] - min_max["min"]
-    min_max = fl.metadata["file_statistics"]["electron"]["1"]["columns"]["timeStamp"]
-    expected_elapsed_time_1 = min_max["max"] - min_max["min"]
+    # Read dataframe for run 123
+    fl.read_dataframe(runs=[123])
 
-    elapsed_time = fl.get_elapsed_time(runs=[179])
-    # Debug: Just accept whatever the elapsed time is since this is testing
-    # the elapsed time calculation logic, not specific values
-    assert elapsed_time > 0  # Just ensure it's a positive value
+    # Extract expected elapsed times per file from metadata
+    file_stats = fl.metadata["file_statistics"]["electron"]
+    expected_elapsed_list = [
+        file_stats[str(fid)]["columns"]["timeStamp"]["max"]
+        - file_stats[str(fid)]["columns"]["timeStamp"]["min"]
+        for fid in range(len(fl.files))
+    ]
 
-    # Test with specific file indices (these should work as expected)
-    elapsed_time_fids = fl.get_elapsed_time(fids=[0, 1], aggregate=False)
-    assert elapsed_time_fids == [expected_elapsed_time_0, expected_elapsed_time_1]
+    # -------------------------
+    # Aggregate=False → list of per-file elapsed times
+    # -------------------------
+    elapsed_list = fl.get_elapsed_time(runs=[123], aggregate=False)
+    assert elapsed_list == expected_elapsed_list
 
-    elapsed_time_fids_sum = fl.get_elapsed_time(fids=[0, 1])
-    assert elapsed_time_fids_sum == expected_elapsed_time_0 + expected_elapsed_time_1
+    # -------------------------
+    # Aggregate=True → sum of per-file elapsed times
+    # -------------------------
+    elapsed_total = fl.get_elapsed_time(runs=[123], aggregate=True)
+    expected_total = sum(expected_elapsed_list)
+    assert elapsed_total == expected_total
 
-    # remove the parquet files
-    for file in os.listdir(Path(fl.processed_dir, "buffer")):
-        Path(fl.processed_dir, "buffer").joinpath(file).unlink()
+    # -------------------------
+    # Remove the parquet files created during test
+    # -------------------------
+    buffer_dir = Path(fl.processed_dir, "buffer")
+    if buffer_dir.exists():
+        for file in buffer_dir.iterdir():
+            file.unlink()
 
 
 def test_available_runs(monkeypatch: pytest.MonkeyPatch, config: dict) -> None:

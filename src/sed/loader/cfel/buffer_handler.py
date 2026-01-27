@@ -282,6 +282,11 @@ class BufferHandler(BaseBufferHandler):
 
         self._save_buffer_files(force_recreate, debug)
 
+        # NEW: all files were invalid and skipped
+        if remove_invalid_files and not self.fp:
+            self.df = {"electron": None, "timed": None}
+            return
+
         self._get_dataframes()
 
         return self.df["electron"], self.df["timed"]
