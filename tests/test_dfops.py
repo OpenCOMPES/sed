@@ -160,7 +160,7 @@ def test_map_columns_2d() -> None:
 def test_forward_fill_lazy_sparse_nans() -> None:
     """test that a lazy forward fill works as expected with sparse nans"""
     t_df = df.copy()
-    t_df["energy"][::2] = np.nan
+    t_df.iloc[::2, 2] = np.nan
     t_dask_df = ddf.from_pandas(t_df, npartitions=N_PARTITIONS)
     t_dask_df = forward_fill_lazy(t_dask_df, "energy", before="max")
     t_df = t_df.ffill()
@@ -170,7 +170,7 @@ def test_forward_fill_lazy_sparse_nans() -> None:
 def test_forward_fill_lazy_full_partition_nans() -> None:
     """test that a lazy forward fill works as expected with a full partition of nans"""
     t_df = df.copy()
-    t_df["energy"][5:25] = np.nan
+    t_df.iloc[5:25, 2] = np.nan
     t_dask_df = ddf.from_pandas(t_df, npartitions=N_PARTITIONS)
     t_dask_df = forward_fill_lazy(t_dask_df, "energy", before="max")
     t_df = t_df.ffill()
@@ -182,7 +182,7 @@ def test_forward_fill_lazy_consecutive_full_partition_nans() -> None:
     full of nans
     """
     t_df = df.copy()
-    t_df["energy"][5:35] = np.nan
+    t_df.iloc[5:35, 2] = np.nan
     t_dask_df = ddf.from_pandas(t_df, npartitions=N_PARTITIONS)
     t_dask_df = forward_fill_lazy(t_dask_df, "energy", before="max")
     t_df = t_df.ffill()
@@ -192,7 +192,7 @@ def test_forward_fill_lazy_consecutive_full_partition_nans() -> None:
 def test_forward_fill_lazy_wrong_parameters() -> None:
     """test that a lazy forward fill fails as expected on wrong parameters"""
     t_df = df.copy()
-    t_df["energy"][5:35] = np.nan
+    t_df.iloc[5:35, 2] = np.nan
     t_dask_df = ddf.from_pandas(t_df, npartitions=N_PARTITIONS)
     with pytest.raises(TypeError):
         t_dask_df = forward_fill_lazy(t_dask_df, "energy", before="wrong parameter")
@@ -201,7 +201,7 @@ def test_forward_fill_lazy_wrong_parameters() -> None:
 def test_forward_fill_lazy_compute() -> None:
     """test that a lazy forward fill works as expected with compute=True"""
     t_df = df.copy()
-    t_df["energy"][5:35] = np.nan
+    t_df.iloc[5:35, 2] = np.nan
     t_dask_df = ddf.from_pandas(t_df, npartitions=N_PARTITIONS)
     t_dask_df_comp = forward_fill_lazy(t_dask_df, "energy", before="max", compute_lengths=True)
     t_dask_df_nocomp = forward_fill_lazy(t_dask_df, "energy", before="max", compute_lengths=False)
@@ -212,7 +212,7 @@ def test_forward_fill_lazy_keep_head_nans() -> None:
     """test that a lazy forward fill works as expected with missing values at the
     beginning of the dataframe"""
     t_df = df.copy()
-    t_df["energy"][:5] = np.nan
+    t_df.iloc[:5, 2] = np.nan
     t_dask_df = ddf.from_pandas(t_df, npartitions=N_PARTITIONS)
     t_df = forward_fill_lazy(t_dask_df, "energy", before="max").compute()
     assert np.all(np.isnan(t_df["energy"][:5]))
@@ -238,7 +238,7 @@ def test_forward_fill_lazy_wrong_channels() -> None:
 def test_forward_fill_lazy_multiple_iterations() -> None:
     """test that a lazy forward fill works as expected with multiple iterations"""
     t_df = df.copy()
-    t_df["energy"][5:35] = np.nan
+    t_df.loc[5:35, "energy"] = np.nan
     t_dask_df = ddf.from_pandas(t_df, npartitions=N_PARTITIONS)
     t_dask_df = forward_fill_lazy(t_dask_df, "energy", before="max", iterations=5)
     t_df = t_df.ffill()
