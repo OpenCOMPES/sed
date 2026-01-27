@@ -239,44 +239,44 @@ transformations_list = [
 ]
 depends_on_list = [
     {
-        "root": "/entry/process/registration/transformations/trans_x",
+        "root": "/entry/registration/transformations/trans_x",
         "axes": {"trans_x": "."},
     },
     {
-        "root": "/entry/process/registration/transformations/trans_y",
+        "root": "/entry/registration/transformations/trans_y",
         "axes": {"trans_y": "."},
     },
     {
-        "root": "/entry/process/registration/transformations/rot_z",
+        "root": "/entry/registration/transformations/rot_z",
         "axes": {"rot_z": "."},
     },
     {
-        "root": "/entry/process/registration/transformations/trans_y",
+        "root": "/entry/registration/transformations/trans_y",
         "axes": {
             "trans_x": ".",
-            "trans_y": "/entry/process/registration/transformations/trans_x",
+            "trans_y": "/entry/registration/transformations/trans_x",
         },
     },
     {
-        "root": "/entry/process/registration/transformations/rot_z",
+        "root": "/entry/registration/transformations/rot_z",
         "axes": {
             "trans_x": ".",
-            "rot_z": "/entry/process/registration/transformations/trans_x",
+            "rot_z": "/entry/registration/transformations/trans_x",
         },
     },
     {
-        "root": "/entry/process/registration/transformations/rot_z",
+        "root": "/entry/registration/transformations/rot_z",
         "axes": {
             "trans_y": ".",
-            "rot_z": "/entry/process/registration/transformations/trans_y",
+            "rot_z": "/entry/registration/transformations/trans_y",
         },
     },
     {
-        "root": "/entry/process/registration/transformations/rot_z",
+        "root": "/entry/registration/transformations/rot_z",
         "axes": {
             "trans_x": ".",
-            "trans_y": "/entry/process/registration/transformations/trans_x",
-            "rot_z": "/entry/process/registration/transformations/trans_y",
+            "trans_y": "/entry/registration/transformations/trans_x",
+            "rot_z": "/entry/registration/transformations/trans_y",
         },
     },
 ]

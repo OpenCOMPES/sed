@@ -1832,11 +1832,11 @@ class MomentumCorrector:
             metadata["registration"]["creation_date"] = datetime.now()
             metadata["registration"]["applied"] = True
             metadata["registration"]["depends_on"] = (
-                "/entry/process/registration/transformations/rot_z"
+                "/entry/registration/transformations/rot_z"
                 if "angle" in metadata["registration"] and metadata["registration"]["angle"]
-                else "/entry/process/registration/transformations/trans_y"
+                else "/entry/registration/transformations/trans_y"
                 if "xtrans" in metadata["registration"] and metadata["registration"]["xtrans"]
-                else "/entry/process/registration/transformations/trans_x"
+                else "/entry/registration/transformations/trans_x"
                 if "ytrans" in metadata["registration"] and metadata["registration"]["ytrans"]
                 else "."
             )
@@ -1860,7 +1860,7 @@ class MomentumCorrector:
                     [0.0, 1.0, 0.0],
                 )
                 metadata["registration"]["trans_y"]["depends_on"] = (
-                    "/entry/process/registration/transformations/trans_x"
+                    "/entry/registration/transformations/trans_x"
                     if "ytrans" in metadata["registration"] and metadata["registration"]["ytrans"]
                     else "."
                 )
@@ -1875,10 +1875,11 @@ class MomentumCorrector:
                 metadata["registration"]["rot_z"]["offset"] = np.concatenate(
                     (metadata["registration"]["center"], [0.0]),
                 )
+                metadata["registration"]["rot_z"]["offset_units"] = "pixel"
                 metadata["registration"]["rot_z"]["depends_on"] = (
-                    "/entry/process/registration/transformations/trans_y"
+                    "/entry/registration/transformations/trans_y"
                     if "xtrans" in metadata["registration"] and metadata["registration"]["xtrans"]
-                    else "/entry/process/registration/transformations/trans_x"
+                    else "/entry/registration/transformations/trans_x"
                     if "ytrans" in metadata["registration"] and metadata["registration"]["ytrans"]
                     else "."
                 )
