@@ -3,6 +3,8 @@ from __future__ import annotations
 import time
 from pathlib import Path
 
+import h5py
+import numpy as np
 import dask.dataframe as dd
 from joblib import delayed
 from joblib import Parallel
@@ -168,7 +170,48 @@ class BufferHandler(BaseBufferHandler):
                 f"Could not extract base timestamp: {e}. "
                 "Processing files independently."
             )
+
+        # -------------------------------------------------------
+        # Calculate index offsets
+        # We need to read the 'index' channel (usually countId/NumOfEvents) to know the count.
+        # This requires a quick scan of files.
+        # -------------------------------------------------------
+        index_offsets = {}
+        current_offset = 0
+        
+        index_alias = self._config.get("index", ["countId"])[0]
+        try:
+            channel_config = self._config["channels"][index_alias]
+            dataset_key = channel_config["dataset_key"]
             
+            # Prefer serial scan for safety and simplicity, though could be parallelized
+            # For 200 files it might take a few seconds.
+            logger.info("Calculating index offsets...")
+            for file_set in file_sets:
+                try:
+                    with h5py.File(file_set["raw"], "r") as h5_file:
+                        if dataset_key in h5_file:
+                            
+                            dset = h5_file[dataset_key]
+                            # sum of all events in this file
+                            # Use simple read if small enough
+                            n_events = np.sum(dset)
+                            
+                            index_offsets[file_set["raw"].name] = int(current_offset)
+                            current_offset += int(n_events)
+                        else:
+                             index_offsets[file_set["raw"].name] = int(current_offset)
+                except Exception as e:
+                    logger.warning(f"Failed to read index offset from {file_set['raw'].name}: {e}")
+                    index_offsets[file_set["raw"].name] = int(current_offset)
+            
+            logger.debug(f"Total events calculated: {current_offset}")
+
+        except Exception as e:
+            logger.warning(f"Failed to calculate index offsets: {e}. Indices may reset.")
+            for fs in file_sets:
+                index_offsets[fs["raw"].name] = 0
+
         # -------------------------------------------------------
     
         n_cores = min(len(file_sets), self.n_cores)
@@ -187,6 +230,7 @@ class BufferHandler(BaseBufferHandler):
                     file_set,
                     is_first_file(file_set),
                     base_timestamp,
+                    index_offset=index_offsets.get(file_set["raw"].name, 0),
                 )
         else:
             # For parallel processing, we need to be careful about the order
@@ -198,11 +242,12 @@ class BufferHandler(BaseBufferHandler):
                     file_set,
                     is_first_file(file_set),
                     base_timestamp,
+                    index_offset=index_offsets.get(file_set["raw"].name, 0),
                 )
                 for file_set in file_sets
             )
 
-    def _save_buffer_file(self, file_set, is_first_file=True, base_timestamp=None):
+    def _save_buffer_file(self, file_set, is_first_file=True, base_timestamp=None, index_offset=0):
         """
         Saves an HDF5 file to a Parquet file using the DataFrameCreator class.
         
@@ -210,6 +255,7 @@ class BufferHandler(BaseBufferHandler):
             file_set: Dictionary containing file paths
             is_first_file: Whether this is the first file in a multi-file run
             base_timestamp: Base timestamp from the first file (for subsequent files)
+            index_offset: Offset to apply to the index
         """
         start_time = time.time()  # Add this line
         paths = file_set
@@ -218,9 +264,11 @@ class BufferHandler(BaseBufferHandler):
             config_dataframe=self._config, 
             h5_path=paths["raw"],
             is_first_file=is_first_file,
-            base_timestamp=base_timestamp
+            base_timestamp=base_timestamp,
+            index_offset=index_offset
         )
         df = dfc.df
+
         df_timed = dfc.df_timed
 
         # Save electron resolved dataframe

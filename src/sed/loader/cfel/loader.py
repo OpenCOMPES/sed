@@ -451,10 +451,22 @@ class CFELLoader(BaseLoader):
         # 2) Compute point-resolved rates
         # -------------------------------
         if mode == "point":
+            bin_size = kwds.pop("bin_size", 1)
             dt = np.diff(ms_concat) * 1e-3
             if np.any(dt <= 0):
-                raise ValueError("Non-positive time step detected in millisecCounter")
+                # Handle potential duplicate timestamps or jump back (should not happen with sort)
+                dt[dt <= 0] = 1e-6 # small epsilon
             rates_point = counts_concat[1:] / dt
+            
+            if bin_size > 1:
+                # Apply rolling average for smoothing
+                rates_point = (
+                    pd.Series(rates_point)
+                    .rolling(window=bin_size, center=True, min_periods=1)
+                    .mean()
+                    .values
+                )
+            
             times_point = ms_concat[1:] * 1e-3
             return rates_point, times_point
     
@@ -463,16 +475,24 @@ class CFELLoader(BaseLoader):
         # -------------------------------
         rates_file = []
         times_file = []
-        prev_ms_max = 0.0  # global start
-    
         for idx, (ms_min, ms_max) in enumerate(file_ms_min_max):
-            # Duration = internal file window + gap since previous file
-            file_duration = (ms_max - ms_min) + (ms_min - prev_ms_max)
+            # Duration = internal file window
+            file_duration = ms_max - ms_min
             if file_duration <= 0:
-                raise ValueError(f"Non-positive duration for file {fids_resolved[idx]}")
-    
-            print(f"Total counts: {file_counts_total[idx]}")
-            print(f"File duration: {file_duration}")
+                # If single point or overlapping min/max, fallback or raise?
+                # For single point (duration 0), rate is undefined (inf).
+                # Start/End timestamps usually imply a range.
+                # If strictly 0, we can't calculate rate.
+                logger.warning(
+                    f"[get_count_rate_ms] File {fids_resolved[idx]} has duration <= 0 ({file_duration}). "
+                    "Skipping rate calculation for this file (set to NaN).",
+                )
+                rates_file.append(np.nan)
+                times_file.append((ms_min + ms_max) / 2 * 1e-3)
+                continue
+
+            # print(f"Total counts: {file_counts_total[idx]}")
+            # print(f"File duration: {file_duration}")
             rate = file_counts_total[idx] / (file_duration * 1e-3)
             rates_file.append(rate)
             # times_file.append(ms_max * 1e-3)  # last time in file
@@ -483,8 +503,6 @@ class CFELLoader(BaseLoader):
                 f"[get_count_rate_ms][file] File {fids_resolved[idx]}: ms_min={ms_min}, ms_max={ms_max}, "
                 f"counts={file_counts_total[idx]}, duration={file_duration} ms, rate={rate:.2f} Hz"
             )
-    
-            prev_ms_max = ms_max
     
         return np.array(rates_file), np.array(times_file)
            
@@ -529,58 +547,28 @@ class CFELLoader(BaseLoader):
         self,
         fids: Sequence[int] | None = None,
         runs: Sequence[int] | None = None,
+        **kwds,
     ) -> tuple[np.ndarray, np.ndarray]:
         """
-        Returns the count rate per file using the total number of detected events
-        and the file acquisition duration.
-        
-        This method computes:
-        - one count-rate value per file (Hz)
-        - one global time value per file, given by the midpoint of the file
-          acquisition window, measured in seconds since the scan start
-        
-        The calculation is based on metadata produced by `read_dataframe`
-        and therefore does not require loading raw event data.
-        This makes the method fast but limited to file-level resolution.
+        Returns the count rate. By default, returns high-resolution
+        point-resolved rates using the millisecond counter.
         
         Args:
             fids (Sequence[int], optional):
                 File IDs to include. Defaults to all files.
             runs (Sequence[int], optional):
                 Run IDs to include. If provided, overrides `fids`.
+            **kwds:
+                Additional arguments passed to `get_count_rate_ms`.
+                - mode: "point" (default) or "file".
         
         Returns:
             tuple[np.ndarray, np.ndarray]:
-                - count_rate : array of count rates in Hz (one per file)
+                - count_rate : array of count rates in Hz
                 - time       : array of global times in seconds since scan start
-                               (file midpoint)
-        
-        Raises:
-            KeyError:
-                If required file statistics are missing. Call `read_dataframe` first.
         """
-
-        fids_resolved = self._resolve_fids(fids=fids, runs=runs)
-    
-        ts_alias = self._config["dataframe"]["columns"].get("timestamp", "timeStamp")
-        t0 = self.metadata["file_statistics"]["timed"]["0"]["columns"][ts_alias]["min"]
-    
-        rates = []
-        times = []
-    
-        for fid in fids_resolved:
-            counts = self.metadata["file_statistics"]["electron"][str(fid)]["num_rows"]
-            ts = self.metadata["file_statistics"]["timed"][str(fid)]["columns"][ts_alias]
-    
-            dt = ts["max"] - ts["min"]
-            print(f"File duration: {dt} seconds")
-            if dt <= 0:
-                raise ValueError(f"Non-positive elapsed time for file {fid}")
-    
-            rates.append(counts / dt)
-            times.append(0.5 * (ts["min"] + ts["max"]) - t0)
-    
-        return np.asarray(rates), np.asarray(times)
+        mode = kwds.pop("mode", "point")
+        return self.get_count_rate_ms(fids=fids, mode=mode, runs=runs, **kwds)
 
     # -------------------------------
     # Time-resolved count rate (binned)

@@ -223,10 +223,85 @@ class FlashLoader(BaseLoader):
 
     def get_count_rate(
         self,
-        fids: Sequence[int] = None,  # noqa: ARG002
-        **kwds,  # noqa: ARG002
-    ):
-        return None, None
+        fids: Sequence[int] = None,
+        **kwds,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Calculates the count rate for the specified files.
+        Returns high-resolution (per-train) rates by counting electrons per trainId.
+        
+        Args:
+            fids (Sequence[int]): A sequence of file IDs. Defaults to all files.
+            **kwds: Keyword arguments.
+        
+        Returns:
+            tuple[np.ndarray, np.ndarray]: The count rate array (Hz) and time array (seconds).
+        """
+        import h5py
+        import numpy as np
+        import pandas as pd
+        
+        if fids is None:
+            fids = range(len(self.files))
+        
+        # Get the electron channel configuration
+        per_electron_channels = get_channels(self._config["dataframe"], "per_electron")
+        if not per_electron_channels:
+             return None, None
+        
+        # We need the 'index_key' (trainId) for an electron channel
+        first_channel = per_electron_channels[0]
+        channel_config = self._config["dataframe"]["channels"][first_channel]
+        index_key = channel_config["index_key"]
+        
+        all_counts = []
+        all_times = []
+        
+        # FLASH repetition rate is usually 10Hz. 
+        # We try to use timestamps if available, otherwise fallback to trainId gaps.
+        time_stamp_alias = self._config["dataframe"].get("time_stamp_alias", "timeStamp")
+        
+        # We need a reference time (t0) from the first selected file
+        with h5py.File(self.files[fids[0]], "r") as h5:
+             # Try to find a global start time if any, otherwise use relative
+             t0 = 0
+             if time_stamp_alias in h5:
+                  # This depends on how timestamps are stored in FLASH files
+                  # For now, we use a simple relative time if not easily found.
+                  pass
+
+        for fid in fids:
+            with h5py.File(self.files[fid], "r") as h5:
+                # Read trainIds of all electron events
+                train_ids = np.asarray(h5[index_key])
+                
+                if len(train_ids) == 0:
+                    continue
+                
+                # Count electrons per train
+                df_counts = pd.Series(train_ids).value_counts().sort_index()
+                counts = df_counts.values
+                u_train_ids = df_counts.index.values
+                
+                # Convert trainIds to relative seconds (assuming 10Hz)
+                # Note: This is an approximation. A better way would be to 
+                # use the actual timestamps of the trains.
+                if fid == fids[0]:
+                    t_start_id = u_train_ids[0]
+                
+                times = (u_train_ids - t_start_id) * 0.1
+                
+                # Rate per trainId interval (usually 0.1s)
+                # If we assume exactly 10Hz, duration is 0.1s
+                rates = counts / 0.1 
+                
+                all_counts.append(rates)
+                all_times.append(times)
+        
+        if not all_counts:
+             return None, None
+             
+        return np.concatenate(all_counts), np.concatenate(all_times)
 
     def get_elapsed_time(self, fids: Sequence[int] = None, **kwds) -> float | list[float]:  # type: ignore[override]
         """

@@ -30,7 +30,8 @@ class DataFrameCreator:
     """
 
     def __init__(self, config_dataframe: dict, h5_path: Path, 
-                 is_first_file: bool = True, base_timestamp: pd.Timestamp = None) -> None:
+                 is_first_file: bool = True, base_timestamp: pd.Timestamp = None,
+                 index_offset: int = 0) -> None:
         """
         Initializes the DataFrameCreator class.
 
@@ -39,22 +40,20 @@ class DataFrameCreator:
             h5_path (Path): Path to the h5 file.
             is_first_file (bool): Whether this is the first file in a multi-file run.
             base_timestamp (pd.Timestamp): Base timestamp from the first file (for subsequent files).
+            index_offset (int): Offset to apply to the index (countId) for multi-file runs.
         """
         self.h5_file = h5py.File(h5_path, "r")
         self._config = config_dataframe
         self.is_first_file = is_first_file
         self.base_timestamp = base_timestamp
+        self.index_offset = index_offset
 
         index_alias = self._config.get("index", ["countId"])[0]
-        # # all values except the last as slow data starts from start of file
-        # somehow written something else as this line is doing
-        # self.index = np.cumsum([0, *self.get_dataset_array(index_alias)])
+        
         # get cumulative counts, but drop last because slow data only covers N-1 intervals
-        self.index = np.cumsum([0, *self.get_dataset_array(index_alias)])[:-1]
-        # cumulative sum starting from the first acquisition count, No artificial 0 at the start
-        # makes identical len of TimeStamp and index, but cuts last TimeStamp
-        # self.index = np.cumsum(self.get_dataset_array(index_alias))
-        print(f"len of self.index: {len(self.index)}")
+        # Add index_offset
+        self.index = np.cumsum([0, *self.get_dataset_array(index_alias)])[:-1] + index_offset
+
 
     def get_dataset_key(self, channel: str) -> str:
         """
@@ -121,7 +120,16 @@ class DataFrameCreator:
         if channels == []:
             return pd.DataFrame()
 
-        series = {channel: pd.Series(self.get_dataset_array(channel)) for channel in channels}
+        series = {
+            channel: pd.Series(
+                self.get_dataset_array(channel),
+                index=pd.RangeIndex(
+                    self.index_offset,
+                    self.index_offset + len(self.get_dataset_array(channel)),
+                ),
+            )
+            for channel in channels
+        }
         dataframe = pd.concat(series, axis=1)
         return dataframe.dropna()
 
@@ -241,9 +249,6 @@ class DataFrameCreator:
         # ------------------------------------------------------------
         ts_alias = self._config["columns"].get("timestamp", "timeStamp")
         df = pd.DataFrame({ts_alias: unix_seconds}, index=self.index)
-        print(f"Len of TimeStamps: {len(unix_seconds)}, len of Index: {len(self.index)}")
-        pd.set_option("display.float_format", "{:.6f}".format)
-        print(df)
 
         # # # Suppose df is your timestamp DataFrame
         # print("DEBUG of df")
