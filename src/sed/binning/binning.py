@@ -121,11 +121,14 @@ def bin_partition(
 
     # convert bin centers to bin edges:
     if all(isinstance(x, np.ndarray) for x in bins):
-        bins = cast(list[np.ndarray], bins)
+        # create a copy to avoid modifying input data
+        bins = list(bins)
         for i, bin_centers in enumerate(bins):
             bins[i] = bin_centers_to_bin_edges(bin_centers)
     else:
         bins = cast(list[int], bins)
+        # create a copy to avoid modifying input data
+        ranges = list(ranges)
         # shift ranges by half a bin size to align the bin centers to the given ranges,
         # as the histogram functions interpret the ranges as limits for the edges.
         for i, nbins in enumerate(bins):
