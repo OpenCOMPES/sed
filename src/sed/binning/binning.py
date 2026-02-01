@@ -122,7 +122,7 @@ def bin_partition(
     # convert bin centers to bin edges:
     if all(isinstance(x, np.ndarray) for x in bins):
         # create a copy to avoid modifying input data
-        bins = list(bins)
+        bins = list(cast(list[np.ndarray], bins))
         for i, bin_centers in enumerate(bins):
             bins[i] = bin_centers_to_bin_edges(bin_centers)
     else:
