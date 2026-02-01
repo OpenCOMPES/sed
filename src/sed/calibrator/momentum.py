@@ -21,6 +21,7 @@ import scipy.ndimage as ndi
 import xarray as xr
 from bokeh.colors import RGB
 from bokeh.io import output_notebook
+from bokeh.models import Range1d
 from bokeh.palettes import Category10 as ColorCycle
 from IPython.display import display
 from joblib import delayed
@@ -1408,10 +1409,10 @@ class MomentumCorrector:
             fig = pbk.figure(
                 width=figsize[0] * 100,
                 height=figsize[1] * 100,
-                tooltips=ttp,
-                x_range=(0, num_rows),
-                y_range=(0, num_cols),
+                x_range=Range1d(0, num_rows),
+                y_range=Range1d(0, num_cols),
             )
+            fig.hover.tooltips = ttp
             fig.image(
                 image=[image.T],
                 x=0,

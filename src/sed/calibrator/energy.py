@@ -734,8 +734,8 @@ class EnergyCalibrator:
                 title=ttl,
                 width=figsize[0] * 100,
                 height=figsize[1] * 100,
-                tooltips=ttp,
             )
+            fig.hover.tooltips = ttp
             # Plotting the main traces
             for itr, color in zip(range(len(traces)), colors):
                 trace = traces[itr, :]
@@ -790,7 +790,7 @@ class EnergyCalibrator:
             if show_legend:
                 fig.legend.location = kwds.pop("legend_location", "top_right")
                 fig.legend.spacing = 0
-                fig.legend.padding = 2
+                fig.legend.padding = 2  # type: ignore
 
             pbk.show(fig)
 
