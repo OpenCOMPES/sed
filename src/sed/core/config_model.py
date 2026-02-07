@@ -345,9 +345,14 @@ class NexusModel(BaseModel):
 class PanelModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    enabled: Optional[bool] = None  # Enable/disable panel dashboard
+
     class DashboardModel(BaseModel):
         model_config = ConfigDict(extra="forbid")
 
+        window: Optional[int] = None  # Window size for rolling averages
+        plot: Optional[bool] = None   # Whether to show plots automatically
+        pbar: Optional[bool] = None   # Whether to show progress bars
         channels: Optional[Sequence[str]] = None
         filters: Optional[dict[str, tuple[float, float]]] = None
 
