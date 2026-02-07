@@ -568,7 +568,9 @@ class CFELLoader(BaseLoader):
                 - time       : array of global times in seconds since scan start
         """
         mode = kwds.pop("mode", "point")
-        return self.get_count_rate_ms(fids=fids, mode=mode, runs=runs, **kwds)
+        # Resolve runs to fids before calling get_count_rate_ms
+        fids_resolved = self._resolve_fids(fids=fids, runs=runs)
+        return self.get_count_rate_ms(fids=fids_resolved, mode=mode, **kwds)
 
     # -------------------------------
     # Time-resolved count rate (binned)
@@ -685,18 +687,33 @@ class CFELLoader(BaseLoader):
         )
     
         elapsed_per_file: list[float] = []
+        prev_max_ts_s = None  # Track previous file's max timestamp in seconds
     
-        for fid in fids_resolved:
+        for i, fid in enumerate(fids_resolved):
             try:
                 ts_info = file_statistics[str(fid)]["columns"][ts_alias]
-                print(f"ts_info: {ts_info}")
-                dt = ts_info["max"] - ts_info["min"]
-    
-                # normalize to seconds
-                if hasattr(dt, "total_seconds"):
-                    dt_s = dt.total_seconds()
+                
+                max_ts = ts_info["max"]
+                min_ts = ts_info["min"]
+                
+                # Normalize to float seconds
+                if hasattr(max_ts, "total_seconds"):
+                    max_ts_s = max_ts.total_seconds()
                 else:
-                    dt_s = float(dt)
+                    max_ts_s = float(max_ts)
+                    
+                if hasattr(min_ts, "total_seconds"):
+                    min_ts_s = min_ts.total_seconds()
+                else:
+                    min_ts_s = float(min_ts)
+                
+                # Calculate elapsed time correctly for multi-file runs
+                if i == 0:
+                    dt_s = max_ts_s - min_ts_s
+                else:
+                    dt_s = max_ts_s - prev_max_ts_s
+                
+                prev_max_ts_s = max_ts_s
     
                 if dt_s < 0:
                     raise ValueError(
@@ -717,10 +734,8 @@ class CFELLoader(BaseLoader):
             elapsed_per_file.append(dt_s)
     
         if aggregate:
-            print("aggregate is True")
             return sum(elapsed_per_file)
 
-        print(f"Elapsed time: {elapsed_per_file}")
         return elapsed_per_file
 
     def read_dataframe(

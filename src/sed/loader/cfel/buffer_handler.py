@@ -274,7 +274,8 @@ class BufferHandler(BaseBufferHandler):
         # Save electron resolved dataframe
         electron_channels = get_channels(self._config, "per_electron")
         dtypes = get_dtypes(self._config, df.columns.values)
-        electron_df = df.dropna(subset=electron_channels).astype(dtypes).reset_index()
+        # This maintains cumulative event counts across multiple files
+        electron_df = df.dropna(subset=electron_channels).astype(dtypes)
         logger.debug(f"Saving electron buffer with shape: {electron_df.shape}")
         electron_df.to_parquet(paths["electron"])
 

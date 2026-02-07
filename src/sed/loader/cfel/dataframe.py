@@ -136,7 +136,7 @@ class DataFrameCreator:
     @property
     def df_train(self) -> pd.DataFrame:
         """
-        Returns a pandas DataFrame for given channel names of type [per train].
+        Returns a pandas DataFrame for given channel names of type [per_train].
 
         Returns:
             pd.DataFrame: The pandas DataFrame for the 'per_train' channel's data.
