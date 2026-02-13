@@ -389,6 +389,7 @@ class CFELLoader(BaseLoader):
         *,
         mode: str = "file",       # "file" or "point"
         first_files: int | None = None,
+        **kwds,
     ) -> tuple[np.ndarray, np.ndarray]:
         """
         Count-rate calculation using millisecCounter and NumOfEvents.
@@ -510,39 +511,35 @@ class CFELLoader(BaseLoader):
     # -------------------------------
     # File-based count rate
     # -------------------------------
-    # def get_count_rate(
-    #     self,
-    #     fids: Sequence[int] | None = None,
-    #     runs: Sequence[int] | None = None,
-    # ) -> tuple[np.ndarray, np.ndarray]:
-    #     """
-    #     Returns count rate per file using the total number of events and elapsed time.
-    #     Calculates the count rate using the number of rows and elapsed time for each file.
-    #     Hence the resolution is not very high, but this method is very fast.
+    def get_count_rate_simple(
+        self,
+        fids: Sequence[int] | None = None,
+        runs: Sequence[int] | None = None,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Returns count rate per file using file statistics (coarse, fast method).
+        Calculates the count rate using the number of rows and elapsed time for each file.
+        This is a simple, fast method for coarse count rate evaluation.
 
-    #     Args:
-    #         fids (Sequence[int]): A sequence of file IDs. Defaults to all files.
+        Args:
+            fids (Sequence[int]): A sequence of file IDs. Defaults to all files.
 
-    #     Keyword Args:
-    #         runs: A sequence of run IDs.
+        Keyword Args:
+            runs: A sequence of run IDs.
 
-    #     Returns:
-    #         tuple[np.ndarray, np.ndarray]: The count rate and elapsed time in seconds.
+        Returns:
+            tuple[np.ndarray, np.ndarray]: The count rate and elapsed time in seconds.
 
-    #     Raises:
-    #         KeyError: If the file statistics are missing.
-    #     """
-    #     fids_resolved = self._resolve_fids(fids=fids, runs=runs)
+        Raises:
+            KeyError: If the file statistics are missing.
+        """
+        fids_resolved = self._resolve_fids(fids=fids, runs=runs)
 
-    #     all_counts = [self.metadata["file_statistics"]["electron"][str(fid)]["num_rows"] for fid in fids_resolved]
-    #     elapsed_times = [self.get_elapsed_time(fids=[fid]) for fid in fids_resolved]
-    #     print(elapsed_times,all_counts)
-
-    #     # count_rate = np.array(all_counts) / np.array(elapsed_times)
-    #     count_rate = np.array(all_counts) / np.array(elapsed_times).flatten()
-    #     print(f"Count rates: {count_rate}")
-    #     times = np.cumsum(elapsed_times)
-    #     return count_rate, times
+        all_counts = [self.metadata["file_statistics"]["electron"][str(fid)]["num_rows"] for fid in fids_resolved]
+        elapsed_times = self.get_elapsed_time(fids=fids_resolved)
+        count_rate = np.array(all_counts) / np.array(elapsed_times)
+        times = np.cumsum(elapsed_times)
+        return count_rate, times
     def get_count_rate(
         self,
         fids: Sequence[int] | None = None,
@@ -642,10 +639,9 @@ class CFELLoader(BaseLoader):
         aggregate: bool = False,
     ) -> float | list[float]:
         """
-        Calculates the elapsed acquisition time.
+        Calculates the elapsed acquisition time using millisecCounter.
     
-        Uses global timestamp / millisecCounter logic established in
-        read_dataframe() and df_timestamp.
+        Uses millisecCounter directly from H5 files for accurate duration calculation.
     
         Parameters
         ----------
@@ -665,17 +661,7 @@ class CFELLoader(BaseLoader):
             Elapsed time(s) in seconds.
         """
     
-        try:
-            file_statistics = self.metadata["file_statistics"]["timed"]
-        except Exception as exc:
-            raise KeyError(
-                "File statistics missing. Use 'read_dataframe' first."
-            ) from exc
-    
-        ts_alias = self._config["dataframe"]["columns"].get(
-            "timestamp",
-            "timeStamp",
-        )
+        millis_key = self._config.get("millis_counter_key", "/DLD/millisecCounter")
     
         # ----------------------------
         # Resolve files consistently
@@ -687,39 +673,34 @@ class CFELLoader(BaseLoader):
         )
     
         elapsed_per_file: list[float] = []
-        prev_max_ts_s = None  # Track previous file's max timestamp in seconds
     
-        for i, fid in enumerate(fids_resolved):
+        for fid in fids_resolved:
             try:
-                ts_info = file_statistics[str(fid)]["columns"][ts_alias]
-                
-                max_ts = ts_info["max"]
-                min_ts = ts_info["min"]
-                
-                # Normalize to float seconds
-                if hasattr(max_ts, "total_seconds"):
-                    max_ts_s = max_ts.total_seconds()
-                else:
-                    max_ts_s = float(max_ts)
+                with h5py.File(self.files[fid], "r") as h5:
+                    if millis_key not in h5:
+                        raise KeyError(f"millisecCounter not found in file {self.files[fid]}")
                     
-                if hasattr(min_ts, "total_seconds"):
-                    min_ts_s = min_ts.total_seconds()
-                else:
-                    min_ts_s = float(min_ts)
-                
-                # Calculate elapsed time correctly for multi-file runs
-                if i == 0:
-                    dt_s = max_ts_s - min_ts_s
-                else:
-                    dt_s = max_ts_s - prev_max_ts_s
-                
-                prev_max_ts_s = max_ts_s
-    
-                if dt_s < 0:
-                    raise ValueError(
-                        f"Negative elapsed time in file {fid}: {dt_s}"
+                    ms = np.asarray(h5[millis_key], dtype=np.float64)
+                    
+                    if len(ms) == 0:
+                        raise ValueError(f"Empty millisecCounter in file {self.files[fid]}")
+                    
+                    # Duration is simply last - first millisecond value
+                    dt_ms = ms[-1] - ms[0]
+                    dt_s = dt_ms / 1000.0  # Convert to seconds
+                    
+                    if dt_s < 0:
+                        raise ValueError(
+                            f"Negative elapsed time in file {fid}: {dt_s}s"
+                        )
+                    
+                    elapsed_per_file.append(dt_s)
+                    
+                    logger.debug(
+                        f"[get_elapsed_time] File {fid}: ms_min={ms[0]}, ms_max={ms[-1]}, "
+                        f"duration={dt_s:.2f}s"
                     )
-    
+                    
             except KeyError as exc:
                 filename = (
                     Path(self.files[fid]).name
@@ -727,16 +708,15 @@ class CFELLoader(BaseLoader):
                     else f"file_{fid}"
                 )
                 raise KeyError(
-                    f"Timestamp metadata missing in file {filename} (fid={fid}). "
-                    "Add timestamp column and alias to config before loading."
+                    f"millisecCounter missing in file {filename} (fid={fid}). "
+                    "Ensure millisecCounter is available in the H5 file."
                 ) from exc
-    
-            elapsed_per_file.append(dt_s)
     
         if aggregate:
             return sum(elapsed_per_file)
 
         return elapsed_per_file
+
 
     def read_dataframe(
         self,

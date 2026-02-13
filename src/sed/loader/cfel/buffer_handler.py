@@ -277,13 +277,18 @@ class BufferHandler(BaseBufferHandler):
         # This maintains cumulative event counts across multiple files
         electron_df = df.dropna(subset=electron_channels).astype(dtypes)
         logger.debug(f"Saving electron buffer with shape: {electron_df.shape}")
-        electron_df.to_parquet(paths["electron"])
+        # Reset index to column to avoid parquet index issues
+        electron_df = electron_df.reset_index()
+        electron_df.to_parquet(paths["electron"], index=False)
 
         # Create and save timed dataframe
         dtypes = get_dtypes(self._config, df_timed.columns.values)
         timed_df = df_timed.astype(dtypes)
         logger.debug(f"Saving timed buffer with shape: {timed_df.shape}")
-        timed_df.to_parquet(paths["timed"])
+        # Reset index to column to avoid parquet index issues
+        timed_df = timed_df.reset_index()
+        timed_df.to_parquet(paths["timed"], index=False)
+
 
         logger.debug(f"Processed {paths['raw'].stem} in {time.time() - start_time:.2f}s")
 
