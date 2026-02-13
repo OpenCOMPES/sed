@@ -131,6 +131,10 @@ class DataframeModel(BaseModel):
     jitter_cols: Sequence[str]
     jitter_amps: Union[float, Sequence[float]]
     timed_dataframe_unit_time: float
+    # Index and format settings
+    index: Optional[Sequence[str]] = None
+    formats: Optional[Sequence[str]] = None
+    fill_formats: Optional[Sequence[str]] = None
     # mpes specific settings
     first_event_time_stamp_key: Optional[str] = None
     ms_markers_key: Optional[str] = None
