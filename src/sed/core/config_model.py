@@ -340,10 +340,11 @@ class NexusModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     # Currently only mpes reader is supported
-    reader: Literal["mpes"]
+    reader: Optional[Literal["mpes"]] = None
     # Currently only NXmpes definition is supported
-    definition: Literal["NXmpes"]
-    input_files: Sequence[FilePath]
+    definition: Optional[Literal["NXmpes"]] = None
+    # Input files can be relative or absolute paths (not validated)
+    input_files: Optional[Sequence[str]] = None
 
 
 class PanelModel(BaseModel):
