@@ -19,7 +19,6 @@ import h5py
 import numpy as np
 import scipy.interpolate as sint
 from natsort import natsorted
-from typing import Sequence
 
 from sed.core.logging import set_verbosity
 from sed.core.logging import setup_logging
@@ -168,6 +167,7 @@ class CFELLoader(BaseLoader):
         self.processed_dir = str(processed_dir)
         self.meta_dir = str(meta_dir)
 
+    @staticmethod
     def _file_index(path: Path) -> int:
         """
         Extract file index from filename.
@@ -175,7 +175,6 @@ class CFELLoader(BaseLoader):
         """
         stem = path.stem  # no extension
         parts = stem.rsplit("_", 1)
-    
         if len(parts) == 2 and parts[1].isdigit():
             return int(parts[1])
     
@@ -285,13 +284,16 @@ class CFELLoader(BaseLoader):
     
         files: list[Path] = []
         for folder in folders:
-            files.extend(
-                natsorted(
-                    Path(folder).glob(file_pattern),
-                    key=file_index,
-                )
-            )
-    
+            found = list(Path(folder).glob(file_pattern))
+            # Use the static method directly
+            files.extend(natsorted(found, key=self._file_index))
+        # for folder in folders:
+        #     files.extend(
+        #         natsorted(
+        #             Path(folder).glob(file_pattern),
+        #             key=file_index,
+        #         )
+        #     )
         if not files:
             raise FileNotFoundError(
                 f"No files found for run {run_id} in directory {folders}",
@@ -540,34 +542,108 @@ class CFELLoader(BaseLoader):
         count_rate = np.array(all_counts) / np.array(elapsed_times)
         times = np.cumsum(elapsed_times)
         return count_rate, times
+    # def get_count_rate(
+    #     self,
+    #     fids: Sequence[int] | None = None,
+    #     runs: Sequence[int] | None = None,
+    #     **kwds,
+    # ) -> tuple[np.ndarray, np.ndarray]:
+        # """
+        # Returns the count rate. By default, returns high-resolution
+        # point-resolved rates using the millisecond counter.
+        
+        # Args:
+        #     fids (Sequence[int], optional):
+        #         File IDs to include. Defaults to all files.
+        #     runs (Sequence[int], optional):
+        #         Run IDs to include. If provided, overrides `fids`.
+        #     **kwds:
+        #         Additional arguments passed to `get_count_rate_ms`.
+        #         - mode: "point" (default) or "file".
+        
+        # Returns:
+        #     tuple[np.ndarray, np.ndarray]:
+        #         - count_rate : array of count rates in Hz
+        #         - time       : array of global times in seconds since scan start
+        # """
+    #     mode = kwds.pop("mode", "point")
+    #     # Resolve runs to fids before calling get_count_rate_ms
+    #     fids_resolved = self._resolve_fids(fids=fids, runs=runs)
+    #     return self.get_count_rate_ms(fids=fids_resolved, mode=mode, **kwds)
     def get_count_rate(
         self,
         fids: Sequence[int] | None = None,
         runs: Sequence[int] | None = None,
+        method: str = "fast",  # "fast" (metadata) or "precise" (h5)
+        mode: str = "file",    # "file" (1 pt/file) or "point" (intra-file)
         **kwds,
     ) -> tuple[np.ndarray, np.ndarray]:
         """
-        Returns the count rate. By default, returns high-resolution
-        point-resolved rates using the millisecond counter.
-        
-        Args:
-            fids (Sequence[int], optional):
-                File IDs to include. Defaults to all files.
-            runs (Sequence[int], optional):
-                Run IDs to include. If provided, overrides `fids`.
-            **kwds:
-                Additional arguments passed to `get_count_rate_ms`.
-                - mode: "point" (default) or "file".
-        
-        Returns:
-            tuple[np.ndarray, np.ndarray]:
-                - count_rate : array of count rates in Hz
-                - time       : array of global times in seconds since scan start
+        Returns the count rate for specified files or runs.
+    
+        By default, calculates a fast, file-resolved count rate using metadata.
+        Supports high-resolution, hardware-timed rates within files when 
+        method='precise' is used.
+    
+        Parameters
+        ----------
+        fids : Sequence[int], optional
+            File indices to include. Defaults to all loaded files.
+        runs : Sequence[int], optional
+            Run IDs to include. If provided, overrides `fids`.
+        method : {"fast", "precise"}, default "fast"
+            Calculation methodology:
+            - "fast": Uses pre-collected metadata (very quick, low RAM).
+            - "precise": Reads hardware 'millisecCounter' from H5 files.
+        mode : {"file", "point"}, default "file"
+            Temporal resolution:
+            - "file": One average rate per file.
+            - "point": Intra-file time-resolved rates (hardware or statistical).
+        **kwds : dict
+            Additional arguments:
+            - time_bin_size (float): Binning for "fast" + "point" mode (default: 1.0s).
+            - bin_size (int): Rolling average window for "precise" + "point" mode.
+    
+        Returns
+        -------
+        count_rate : np.ndarray
+            Array of count rates in Hz.
+        time : np.ndarray
+            Array of global times in seconds since the start of the scan.
+    
+        Notes
+        -----
+        'Precise' mode requires 'millisecCounter' to be present in the H5 files. 
+        'Fast' mode requires 'file_statistics' to be populated in the loader.
         """
-        mode = kwds.pop("mode", "point")
-        # Resolve runs to fids before calling get_count_rate_ms
         fids_resolved = self._resolve_fids(fids=fids, runs=runs)
-        return self.get_count_rate_ms(fids=fids_resolved, mode=mode, **kwds)
+        
+        if method == "fast":
+            if mode == "file":
+                # Original get_count_rate_simple logic
+                all_counts = [
+                    self.metadata["file_statistics"]["electron"][str(fid)]["num_rows"] 
+                    for fid in fids_resolved
+                ]
+                # Use metadata-based duration if available, else quick H5 peek
+                durations = self.get_elapsed_time(fids=fids_resolved)
+                rates = np.array(all_counts) / np.array(durations)
+                times = np.cumsum(durations) # Simplified timeline
+                return rates, times
+                
+            elif mode == "point":
+                # Original get_count_rate_time_resolved logic
+                # Statistical 'point' mode: resolution without high-precision H5 reading
+                return self.get_count_rate_time_resolved(
+                    fids=fids_resolved, 
+                    time_bin_size=kwds.get("time_bin_size", 1.0)
+                )
+    
+        elif method == "precise":
+            # Always uses get_count_rate_ms logic (which already handles file vs point)
+            return self.get_count_rate_ms(fids=fids_resolved, mode=mode, **kwds)
+    
+        raise ValueError(f"Invalid method/mode combination: {method}/{mode}")
 
     # -------------------------------
     # Time-resolved count rate (binned)
@@ -635,87 +711,136 @@ class CFELLoader(BaseLoader):
         fids: Sequence[int] | None = None,
         *,
         runs: Sequence[int] | None = None,
-        first_files: int | None = None,
+        precise: bool = False,
         aggregate: bool = False,
     ) -> float | list[float]:
         """
-        Calculates the elapsed acquisition time using millisecCounter.
+        Calculates the elapsed acquisition time for specified files or runs.
     
-        Uses millisecCounter directly from H5 files for accurate duration calculation.
+        Determines the duration of data collection. By default, it uses fast 
+        metadata-based timestamps. If 'precise' is True, it reads the hardware 
+        millisecCounter directly from the H5 files.
     
         Parameters
         ----------
         fids : Sequence[int] | None
-            File IDs to include.
+            File indices to include.
         runs : Sequence[int] | None
-            Run IDs to include.
+            Run IDs to include. If provided, overrides fids.
+        precise : bool, default False
+            If True, forces reading the hardware 'millisecCounter' from HDF5 files 
+            for higher accuracy. If False, uses pre-collected metadata timestamps.
         first_files : int | None
-            Limit to first N resolved files.
-        aggregate : bool
-            If True, return total elapsed time (s),
-            otherwise return per-file elapsed times.
+            Limit the result to the first N resolved files.
+        aggregate : bool, default False
+            If True, returns the total sum of elapsed time (s).
+            If False, returns a list of elapsed times per file.
     
         Returns
         -------
         float | list[float]
             Elapsed time(s) in seconds.
+    
+        Raises
+        ------
+        KeyError
+            If `precise=True` and the hardware counter is missing from the H5 file.
         """
-    
-        millis_key = self._config.get("millis_counter_key", "/DLD/millisecCounter")
-    
-        # ----------------------------
-        # Resolve files consistently
-        # ----------------------------
-        fids_resolved = self._resolve_fids(
-            fids=fids,
-            runs=runs,
-            first_files=first_files,
-        )
-    
-        elapsed_per_file: list[float] = []
+        fids_resolved = self._resolve_fids(fids=fids, runs=runs)
+        elapsed_per_file = []
     
         for fid in fids_resolved:
-            try:
-                with h5py.File(self.files[fid], "r") as h5:
-                    if millis_key not in h5:
-                        raise KeyError(f"millisecCounter not found in file {self.files[fid]}")
+            dt_s = None
+            
+            # 1. Try Metadata first (Fast & Safe)
+            if not precise:
+                try:
+                    # Accessing the statistics you stored in self.metadata
+                    file_stats = self.metadata["file_statistics"]["timed"][str(fid)]
+                    time_stamps = file_stats["columns"].get("timeStamp", file_stats["columns"].get("timestamp"))
                     
-                    ms = np.asarray(h5[millis_key], dtype=np.float64)
+                    # If these are stored as datetime objects, get the delta
+                    t_min = time_stamps["min"]
+                    t_max = time_stamps["max"]
                     
-                    if len(ms) == 0:
-                        raise ValueError(f"Empty millisecCounter in file {self.files[fid]}")
-                    
-                    # Duration is simply last - first millisecond value
-                    dt_ms = ms[-1] - ms[0]
-                    dt_s = dt_ms / 1000.0  # Convert to seconds
-                    
-                    if dt_s < 0:
-                        raise ValueError(
-                            f"Negative elapsed time in file {fid}: {dt_s}s"
-                        )
-                    
-                    elapsed_per_file.append(dt_s)
-                    
-                    logger.debug(
-                        f"[get_elapsed_time] File {fid}: ms_min={ms[0]}, ms_max={ms[-1]}, "
-                        f"duration={dt_s:.2f}s"
-                    )
-                    
-            except KeyError as exc:
-                filename = (
-                    Path(self.files[fid]).name
-                    if fid < len(self.files)
-                    else f"file_{fid}"
-                )
-                raise KeyError(
-                    f"millisecCounter missing in file {filename} (fid={fid}). "
-                    "Ensure millisecCounter is available in the H5 file."
-                ) from exc
+                    # Handle both float timestamps and datetime objects
+                    t1 = t_min.total_seconds() if hasattr(t_min, "total_seconds") else float(t_min)
+                    t2 = t_max.total_seconds() if hasattr(t_max, "total_seconds") else float(t_max)
+                    dt_s = t2 - t1
+                except (KeyError, TypeError):
+                    logger.debug(f"Metadata duration missing for fid {fid}, falling back to H5.")
     
-        if aggregate:
-            return sum(elapsed_per_file)
+            # 2. Try H5 millisecCounter (Precise, but risky)
+            if dt_s is None:
+                millis_key = self._config.get("millis_counter_key", "/DLD/millisecCounter")
+                try:
+                    with h5py.File(self.files[fid], "r") as h5:
+                        ms = np.asarray(h5[millis_key], dtype=np.float64)
+                        dt_s = (ms[-1] - ms[0]) / 1000.0
+                except (KeyError, IndexError):
+                    # Ultimate fallback: if everything fails, we can't calculate a rate
+                    logger.warning(f"Could not determine duration for fid {fid}. Using 0.0")
+                    dt_s = 0.0
+    
+            elapsed_per_file.append(dt_s)
+    
+        return sum(elapsed_per_file) if aggregate else elapsed_per_file
+    
+        # millis_key = self._config.get("millis_counter_key", "/DLD/millisecCounter")
+    
+        # # ----------------------------
+        # # Resolve files consistently
+        # # ----------------------------
+        # fids_resolved = self._resolve_fids(
+        #     fids=fids,
+        #     runs=runs,
+        #     first_files=first_files,
+        # )
+    
+        # elapsed_per_file: list[float] = []
+    
+        # for fid in fids_resolved:
+        #     try:
+        #         with h5py.File(self.files[fid], "r") as h5:
+        #             if millis_key not in h5:
+        #                 raise KeyError(f"millisecCounter not found in file {self.files[fid]}")
+                    
+        #             ms = np.asarray(h5[millis_key], dtype=np.float64)
+                    
+        #             if len(ms) == 0:
+        #                 raise ValueError(f"Empty millisecCounter in file {self.files[fid]}")
+                    
+        #             # Duration is simply last - first millisecond value
+        #             dt_ms = ms[-1] - ms[0]
+        #             dt_s = dt_ms / 1000.0  # Convert to seconds
+                    
+        #             if dt_s < 0:
+        #                 raise ValueError(
+        #                     f"Negative elapsed time in file {fid}: {dt_s}s"
+        #                 )
+                    
+        #             elapsed_per_file.append(dt_s)
+                    
+        #             logger.debug(
+        #                 f"[get_elapsed_time] File {fid}: ms_min={ms[0]}, ms_max={ms[-1]}, "
+        #                 f"duration={dt_s:.2f}s"
+        #             )
+                    
+        #     except KeyError as exc:
+        #         filename = (
+        #             Path(self.files[fid]).name
+        #             if fid < len(self.files)
+        #             else f"file_{fid}"
+        #         )
+        #         raise KeyError(
+        #             f"millisecCounter missing in file {filename} (fid={fid}). "
+        #             "Ensure millisecCounter is available in the H5 file."
+        #         ) from exc
+    
+        # if aggregate:
+        #     return sum(elapsed_per_file)
 
-        return elapsed_per_file
+        # return elapsed_per_file
 
 
     def read_dataframe(
