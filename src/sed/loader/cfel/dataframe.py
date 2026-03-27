@@ -29,9 +29,14 @@ class DataFrameCreator:
         _config (dict): The configuration dictionary for the DataFrame.
     """
 
-    def __init__(self, config_dataframe: dict, h5_path: Path, 
-                 is_first_file: bool = True, base_timestamp: pd.Timestamp = None,
-                 index_offset: int = 0) -> None:
+    def __init__(
+        self,
+        config_dataframe: dict,
+        h5_path: Path,
+        is_first_file: bool = True,
+        base_timestamp: pd.Timestamp = None,
+        index_offset: int = 0,
+    ) -> None:
         """
         Initializes the DataFrameCreator class.
 
@@ -39,7 +44,7 @@ class DataFrameCreator:
             config_dataframe (dict): The configuration dictionary with only the dataframe key.
             h5_path (Path): Path to the h5 file.
             is_first_file (bool): Whether this is the first file in a multi-file run.
-            base_timestamp (pd.Timestamp): Base timestamp from the first file (for subsequent files).
+            base_timestamp (pd.Timestamp): Base timestamp from the first file (for subsequent files)
             index_offset (int): Offset to apply to the index (countId) for multi-file runs.
         """
         self.h5_file = h5py.File(h5_path, "r")
@@ -49,11 +54,10 @@ class DataFrameCreator:
         self.index_offset = index_offset
 
         index_alias = self._config.get("index", ["countId"])[0]
-        
+
         # get cumulative counts, but drop last because slow data only covers N-1 intervals
         # Add index_offset
         self.index = np.cumsum([0, *self.get_dataset_array(index_alias)])[:-1] + index_offset
-
 
     def get_dataset_key(self, channel: str) -> str:
         """
@@ -97,13 +101,13 @@ class DataFrameCreator:
     def get_base_timestamp(self) -> pd.Timestamp:
         """
         Extracts the base timestamp from the first file to be used for subsequent files.
-        
+
         Returns:
             pd.Timestamp: The base timestamp from the first file.
         """
         if not self.is_first_file:
             raise ValueError("get_base_timestamp() should only be called on the first file")
-        
+
         first_timestamp = self.h5_file[self._config.get("first_event_time_stamp_key")][0]
         return pd.to_datetime(first_timestamp.decode())
 
@@ -162,15 +166,19 @@ class DataFrameCreator:
                     series.append(
                         pd.Series(
                             dataset[:, values["slice"]],
-                            self.index,# changed together with __init__ line 52
-                            # works together with  __init__ line 50, but has different len of TimeStamps and Index
+                            self.index,  # changed together with __init__ line 52
+                            # works together with  __init__ line 50,
+                            # but has different len of TimeStamps and Index
                             # self.index[:-1],
                             name=name,
                         ),
                     )
             else:
-                series.append(pd.Series(dataset, self.index, name=channel))# changed together with __init__ line 52
-                # works together with  __init__ line 50, but has different len of TimeStamps and Index
+                series.append(
+                    pd.Series(dataset, self.index, name=channel),
+                )  # changed together with __init__ line 52
+                # works together with  __init__ line 50,
+                # but has different len of TimeStamps and Index
                 # series.append(pd.Series(dataset, self.index[:-1], name=channel))
         # All the channels are concatenated to a single DataFrame
         return pd.concat(series, axis=1)
@@ -179,13 +187,13 @@ class DataFrameCreator:
     def df_timestamp(self) -> pd.DataFrame:
         """
         Generates a DataFrame of timestamps for each acquisition point.
-    
+
         - Uses `first_event_time_stamp_key` from the first file as the global StartTime.
         - Uses `millisecCounter` (if available) as a monotonic global time across all files.
-        - If `millisecCounter` is not available, uses cumulative exposure times from `ms_markers_key` 
-          to approximate acquisition times.
+        - If `millisecCounter` is not available,
+          uses cumulative exposure times from `ms_markers_key` to approximate acquisition times.
         - Returns timestamps as seconds since the UNIX epoch (1970-01-01).
-    
+
         Returns
         -------
         pd.DataFrame
@@ -194,29 +202,31 @@ class DataFrameCreator:
         # ------------------------------------------------------------
         # 1) Establish global StartTime (absolute origin)
         # ------------------------------------------------------------
-        start_time_key = self._config.get("first_event_time_stamp_key")#"/ScanParam/StartTime"
-    
+        start_time_key = self._config.get("first_event_time_stamp_key")  # "/ScanParam/StartTime"
+
         if self.is_first_file:
             if start_time_key not in self.h5_file:
                 raise KeyError("StartTime not found in first file")
-    
+
             start_time_raw = self.h5_file[start_time_key][0]
             base_timestamp = pd.to_datetime(start_time_raw.decode())
-            logger.warning(f"DEBUG: Taking first file with ScanStart as a timestamp: {base_timestamp}")
-    
+            logger.warning(
+                f"DEBUG: Taking first file with ScanStart as a timestamp: {base_timestamp}",
+            )
+
             # Persist base timestamp for subsequent files
             self.base_timestamp = base_timestamp
         else:
             if self.base_timestamp is None:
                 raise RuntimeError("base_timestamp not initialized (first file missing?)")
             base_timestamp = self.base_timestamp
-    
+
         # ------------------------------------------------------------
         # 2) Determine timing offsets
         # ------------------------------------------------------------
         millis_key = self._config.get("millis_counter_key", "/DLD/millisecCounter")
         exposure_key = self._config.get("ms_markers_key")
-    
+
         if millis_key in self.h5_file and len(self.h5_file[millis_key]) > 0:
             # Preferred: global millisecond counter
             offsets = pd.to_timedelta(
@@ -224,26 +234,26 @@ class DataFrameCreator:
                 unit="ms",
             )
             logger.warning(f"DEBUG: MillisecCounter available, offsets: {offsets}")
-    
+
         elif exposure_key in self.h5_file:
             # Fallback: cumulative exposure time (seconds)
             exposure = np.asarray(self.h5_file[exposure_key], dtype=np.float64)
             offsets = pd.to_timedelta(np.cumsum(exposure), unit="s")
             logger.warning(f"DEBUG: Using cumulative exposure, offsets: {offsets}")
-    
+
         else:
             raise ValueError(
-                "Cannot construct timestamps: neither millisecCounter nor exposure times available"
+                "Cannot construct timestamps: neither millisecCounter nor exposure times available",
             )
-    
+
         # ------------------------------------------------------------
         # 3) Construct absolute timestamps
         # ------------------------------------------------------------
         timestamps = base_timestamp + offsets
-    
+
         # Convert to UNIX seconds (float)
         unix_seconds = (timestamps - pd.Timestamp("1970-01-01")) / pd.Timedelta("1s")
-    
+
         # ------------------------------------------------------------
         # 4) Build DataFrame
         # ------------------------------------------------------------
@@ -254,28 +264,28 @@ class DataFrameCreator:
         # print("DEBUG of df")
         # ts_alias = "timeStamp"  # or whatever your config uses
         # timestamps = df[ts_alias].to_numpy()
-        
+
         # # Compare lengths
         # if len(timestamps) != len(df.index):
         #     print(f"Length mismatch: timestamps={len(timestamps)}, index={len(df.index)}")
-        
+
         # # Detect NaNs (if any were introduced)
         # nan_rows = df[df[ts_alias].isna()]
         # print("Rows with NaN timestamps (if any):")
         # print(nan_rows)
-        
+
         # # Detect where timestamp differences are huge (likely artificial or missing)
         # dt = np.diff(timestamps)
         # threshold = np.median(dt) * 10  # e.g., 10× median interval
         # anomalous_indices = np.where(dt > threshold)[0]
         # print("Indices where timestamp jump is unusually large:")
         # print(anomalous_indices)
-        
+
         # # Optionally, see these rows in the DataFrame
         # print(df.iloc[anomalous_indices])
 
         return df
-     
+
     # def validate_channel_keys(self) -> None:
     #     """
     #     Validates if the dataset keys for all channels in the config exist in the h5 file.
@@ -299,23 +309,22 @@ class DataFrameCreator:
             InvalidFileError: If the dataset keys are missing in the h5 file.
         """
         invalid_channels = []
-    
+
         for channel in self._config["channels"]:
             dataset_key = self.get_dataset_key(channel)
-    
+
             # missing key
             if dataset_key not in self.h5_file:
                 invalid_channels.append(channel)
                 continue
-    
+
             # empty dataset
             dataset = self.h5_file[dataset_key]
             if len(dataset) == 0:
                 invalid_channels.append(channel)
-    
+
         if invalid_channels:
             raise InvalidFileError(invalid_channels)
-
 
     @property
     def df(self) -> pd.DataFrame:

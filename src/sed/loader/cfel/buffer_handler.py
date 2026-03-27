@@ -3,19 +3,17 @@ from __future__ import annotations
 import time
 from pathlib import Path
 
+import dask.dataframe as dd
 import h5py
 import numpy as np
-import dask.dataframe as dd
-from joblib import delayed
-from joblib import Parallel
 
 from sed.core.logging import setup_logging
 from sed.loader.cfel.dataframe import DataFrameCreator
 from sed.loader.flash.buffer_handler import BufferFilePaths
 from sed.loader.flash.buffer_handler import BufferHandler as BaseBufferHandler
-from sed.loader.flash.utils import InvalidFileError
 from sed.loader.flash.utils import get_channels
 from sed.loader.flash.utils import get_dtypes
+from sed.loader.flash.utils import InvalidFileError
 
 logger = setup_logging("cfel_buffer_handler")
 
@@ -47,72 +45,12 @@ class BufferHandler(BaseBufferHandler):
             except InvalidFileError as e:
                 logger.info(f"Skipping invalid file: {h5_path.stem}\n{e}")
 
-        return valid_h5_paths    
+        return valid_h5_paths
 
-    # def _save_buffer_files(self, force_recreate: bool, debug: bool) -> None:
-    #     """
-    #     Creates the buffer files that are missing, handling multi-file runs properly.
-
-    #     Args:
-    #         force_recreate (bool): Flag to force recreation of buffer files.
-    #         debug (bool): Flag to enable debug mode, which serializes the creation.
-    #     """
-    #     file_sets = self.fp.file_sets_to_process(force_recreate)
-    #     logger.info(f"Reading files: {len(file_sets)} new files of {len(self.fp)} total.")
-        
-    #     if len(file_sets) == 0:
-    #         return
-            
-    #     # Sort file sets by filename to ensure proper order
-    #     file_sets = sorted(file_sets, key=lambda x: x['raw'].name)
-        
-    #     # Get base timestamp from the first file if we have multiple files
-    #     base_timestamp = None
-    #     if len(file_sets) > 1:
-    #         try:
-    #             # Find the first file (ends with _0000)
-    #             first_file_set = None
-    #             for file_set in file_sets:
-    #                 if file_set['raw'].stem.endswith('_0000'):
-    #                     first_file_set = file_set
-    #                     break
-                
-    #             if first_file_set:
-    #                 # Create a temporary DataFrameCreator to extract base timestamp
-    #                 first_dfc = DataFrameCreator(
-    #                     config_dataframe=self._config, 
-    #                     h5_path=first_file_set['raw'],
-    #                     is_first_file=True
-    #                 )
-    #                 base_timestamp = first_dfc.get_base_timestamp()
-    #                 first_dfc.h5_file.close()  # Clean up
-    #                 logger.info(f"Multi-file run detected. Base timestamp: {base_timestamp}")
-    #         except Exception as e:
-    #             logger.warning(f"Could not extract base timestamp: {e}. Processing files independently.")
-    #             base_timestamp = None
-        
-    #     n_cores = min(len(file_sets), self.n_cores)
-    #     if n_cores > 0:
-    #         if debug:
-    #             for file_set in file_sets:
-    #                 is_first_file = file_set['raw'].stem.endswith('_0000')
-    #                 self._save_buffer_file(file_set, is_first_file, base_timestamp)
-    #         else:
-    #             # For parallel processing, we need to be careful about the order
-    #             # Process all files in parallel with the correct parameters
-    #             from joblib import delayed, Parallel
-                
-    #             Parallel(n_jobs=n_cores, verbose=10)(
-    #                 delayed(self._save_buffer_file)(
-    #                     file_set, 
-    #                     file_set['raw'].stem.endswith('_0000'),
-    #                     base_timestamp
-    #                 ) 
-    #                 for file_set in file_sets
-    #             )
     def _save_buffer_files(self, force_recreate: bool, debug: bool) -> None:
         """
-        Creates the buffer files that are missing, handling multi-file and single-file runs properly.
+        Creates the buffer files that are missing, handling multi-file
+        and single-file runs properly.
 
         Args:
             force_recreate (bool): Flag to force recreation of buffer files.
@@ -120,35 +58,32 @@ class BufferHandler(BaseBufferHandler):
         """
         file_sets = self.fp.file_sets_to_process(force_recreate)
         logger.info(f"Reading files: {len(file_sets)} new files of {len(self.fp)} total.")
-    
+
         if not file_sets:
             return
-    
+
         # Sort file sets by filename to ensure deterministic order
         file_sets = sorted(file_sets, key=lambda x: x["raw"].name)
-        
+
         base_timestamp = None
-        
+
         try:
             if len(file_sets) == 1:
                 # Single-file run → that file IS the first file
                 first_file_set = file_sets[0]
                 logger.info(
                     f"Single-file run detected: {first_file_set['raw'].name}. "
-                    "Extracting base timestamp from this file."
+                    "Extracting base timestamp from this file.",
                 )
-        
+
             else:
                 # Multi-file run → look for _0000
-                first_file_set = next(
-                    fs for fs in file_sets
-                    if fs["raw"].stem.endswith("_0000")
-                )
+                first_file_set = next(fs for fs in file_sets if fs["raw"].stem.endswith("_0000"))
                 logger.info(
                     f"Multi-file run detected. "
-                    f"Extracting base timestamp from {first_file_set['raw'].name}"
+                    f"Extracting base timestamp from {first_file_set['raw'].name}",
                 )
-                
+
             # Create a temporary DataFrameCreator to extract base timestamp
             first_dfc = DataFrameCreator(
                 config_dataframe=self._config,
@@ -157,18 +92,17 @@ class BufferHandler(BaseBufferHandler):
             )
             base_timestamp = first_dfc.get_base_timestamp()
             first_dfc.h5_file.close()
-        
+
             logger.info(f"Base timestamp extracted: {base_timestamp}")
-        
+
         except StopIteration:
             logger.warning(
                 "Multi-file run detected but no '_0000' file found. "
-                "Base timestamp will not be extracted."
+                "Base timestamp will not be extracted.",
             )
         except Exception as e:
             logger.warning(
-                f"Could not extract base timestamp: {e}. "
-                "Processing files independently."
+                f"Could not extract base timestamp: {e}. " "Processing files independently.",
             )
 
         # -------------------------------------------------------
@@ -178,12 +112,12 @@ class BufferHandler(BaseBufferHandler):
         # -------------------------------------------------------
         index_offsets = {}
         current_offset = 0
-        
+
         index_alias = self._config.get("index", ["countId"])[0]
         try:
             channel_config = self._config["channels"][index_alias]
             dataset_key = channel_config["dataset_key"]
-            
+
             # Prefer serial scan for safety and simplicity, though could be parallelized
             # For 200 files it might take a few seconds.
             logger.info("Calculating index offsets...")
@@ -191,20 +125,19 @@ class BufferHandler(BaseBufferHandler):
                 try:
                     with h5py.File(file_set["raw"], "r") as h5_file:
                         if dataset_key in h5_file:
-                            
                             dset = h5_file[dataset_key]
                             # sum of all events in this file
                             # Use simple read if small enough
                             n_events = np.sum(dset)
-                            
+
                             index_offsets[file_set["raw"].name] = int(current_offset)
                             current_offset += int(n_events)
                         else:
-                             index_offsets[file_set["raw"].name] = int(current_offset)
+                            index_offsets[file_set["raw"].name] = int(current_offset)
                 except Exception as e:
                     logger.warning(f"Failed to read index offset from {file_set['raw'].name}: {e}")
                     index_offsets[file_set["raw"].name] = int(current_offset)
-            
+
             logger.debug(f"Total events calculated: {current_offset}")
 
         except Exception as e:
@@ -213,17 +146,14 @@ class BufferHandler(BaseBufferHandler):
                 index_offsets[fs["raw"].name] = 0
 
         # -------------------------------------------------------
-    
+
         n_cores = min(len(file_sets), self.n_cores)
         if n_cores <= 0:
             return
-    
+
         def is_first_file(file_set) -> bool:
-            return (
-                len(file_sets) == 1
-                or file_set["raw"].stem.endswith("_0000")
-            )
-    
+            return len(file_sets) == 1 or file_set["raw"].stem.endswith("_0000")
+
         if debug:
             for file_set in file_sets:
                 self._save_buffer_file(
@@ -236,7 +166,7 @@ class BufferHandler(BaseBufferHandler):
             # For parallel processing, we need to be careful about the order
             # Process all files in parallel with the correct parameters
             from joblib import Parallel, delayed
-    
+
             Parallel(n_jobs=n_cores, verbose=10)(
                 delayed(self._save_buffer_file)(
                     file_set,
@@ -250,7 +180,7 @@ class BufferHandler(BaseBufferHandler):
     def _save_buffer_file(self, file_set, is_first_file=True, base_timestamp=None, index_offset=0):
         """
         Saves an HDF5 file to a Parquet file using the DataFrameCreator class.
-        
+
         Args:
             file_set: Dictionary containing file paths
             is_first_file: Whether this is the first file in a multi-file run
@@ -259,13 +189,13 @@ class BufferHandler(BaseBufferHandler):
         """
         start_time = time.time()  # Add this line
         paths = file_set
-        
+
         dfc = DataFrameCreator(
-            config_dataframe=self._config, 
+            config_dataframe=self._config,
             h5_path=paths["raw"],
             is_first_file=is_first_file,
             base_timestamp=base_timestamp,
-            index_offset=index_offset
+            index_offset=index_offset,
         )
         df = dfc.df
 
@@ -289,7 +219,6 @@ class BufferHandler(BaseBufferHandler):
         timed_df = timed_df.reset_index()
         timed_df.to_parquet(paths["timed"], index=False)
 
-
         logger.debug(f"Processed {paths['raw'].stem} in {time.time() - start_time:.2f}s")
 
     def process_and_load_dataframe(
@@ -301,7 +230,7 @@ class BufferHandler(BaseBufferHandler):
         debug: bool = False,
         remove_invalid_files: bool = False,
         filter_timed_by_electron: bool = True,
-    ) -> tuple[dd.DataFrame, dd.DataFrame]:
+    ) -> tuple[dd.DataFrame | None, dd.DataFrame | None]:
         """
         Runs the buffer file creation process.
         Does a schema check on the buffer files and creates them if they are missing.
@@ -339,7 +268,7 @@ class BufferHandler(BaseBufferHandler):
         # NEW: all files were invalid and skipped
         if remove_invalid_files and not self.fp:
             self.df = {"electron": None, "timed": None}
-            return
+            return None, None
 
         self._get_dataframes()
 

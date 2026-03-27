@@ -14,6 +14,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 import dask.dataframe as dd
+import numpy as np
 from natsort import natsorted
 
 from sed.core.logging import set_verbosity
@@ -221,87 +222,57 @@ class FlashLoader(BaseLoader):
 
         return metadata
 
-    def get_count_rate(
-        self,
-        fids: Sequence[int] = None,
-        **kwds,
-    ) -> tuple[np.ndarray, np.ndarray]:
+    def get_count_rate(self, fids=None, **kwds) -> tuple[np.ndarray, np.ndarray]:
         """
-        Calculates the count rate for the specified files.
-        Returns high-resolution (per-train) rates by counting electrons per trainId.
-        
+        Calculates the count rate using the number of rows and elapsed time for each file.
+        Hence the resolution is not very high, but this method is very fast.
+
         Args:
             fids (Sequence[int]): A sequence of file IDs. Defaults to all files.
-            **kwds: Keyword arguments.
-        
+
+        Keyword Args:
+            runs: A sequence of run IDs.
+
         Returns:
-            tuple[np.ndarray, np.ndarray]: The count rate array (Hz) and time array (seconds).
+            tuple[np.ndarray, np.ndarray]: The count rate and elapsed time in seconds.
+
+        Raises:
+            KeyError: If the file statistics are missing.
         """
-        import h5py
-        import numpy as np
-        import pandas as pd
-        
-        if fids is None:
-            fids = range(len(self.files))
-        
-        # Get the electron channel configuration
-        per_electron_channels = get_channels(self._config["dataframe"], "per_electron")
-        if not per_electron_channels:
-             return None, None
-        
-        # We need the 'index_key' (trainId) for an electron channel
-        first_channel = per_electron_channels[0]
-        channel_config = self._config["dataframe"]["channels"][first_channel]
-        index_key = channel_config["index_key"]
-        
+
+        def counts_per_file(fid):
+            try:
+                file_statistics = self.metadata["file_statistics"]["electron"]
+            except KeyError as exc:
+                raise KeyError("File statistics missing. Use 'read_dataframe' first.") from exc
+
+            counts = file_statistics[str(fid)]["num_rows"]
+            return counts
+
+        runs = kwds.pop("runs", None)
+        if len(kwds) > 0:
+            raise TypeError(f"get_count_rate() got unexpected keyword arguments {kwds.keys()}.")
         all_counts = []
-        all_times = []
-        
-        # FLASH repetition rate is usually 10Hz. 
-        # We try to use timestamps if available, otherwise fallback to trainId gaps.
-        time_stamp_alias = self._config["dataframe"].get("time_stamp_alias", "timeStamp")
-        
-        # We need a reference time (t0) from the first selected file
-        with h5py.File(self.files[fids[0]], "r") as h5:
-             # Try to find a global start time if any, otherwise use relative
-             t0 = 0
-             if time_stamp_alias in h5:
-                  # This depends on how timestamps are stored in FLASH files
-                  # For now, we use a simple relative time if not easily found.
-                  pass
+        elapsed_times = []
+        if runs is not None:
+            fids = []
+            for run_id in runs:
+                if self.raw_dir is None:
+                    self._initialize_dirs()
+                files = self.get_files_from_run_id(run_id=run_id, folders=self.raw_dir)
+                for file in files:
+                    fids.append(self.files.index(file))
+        else:
+            if fids is None:
+                fids = range(len(self.files))
 
         for fid in fids:
-            with h5py.File(self.files[fid], "r") as h5:
-                # Read trainIds of all electron events
-                train_ids = np.asarray(h5[index_key])
-                
-                if len(train_ids) == 0:
-                    continue
-                
-                # Count electrons per train
-                df_counts = pd.Series(train_ids).value_counts().sort_index()
-                counts = df_counts.values
-                u_train_ids = df_counts.index.values
-                
-                # Convert trainIds to relative seconds (assuming 10Hz)
-                # Note: This is an approximation. A better way would be to 
-                # use the actual timestamps of the trains.
-                if fid == fids[0]:
-                    t_start_id = u_train_ids[0]
-                
-                times = (u_train_ids - t_start_id) * 0.1
-                
-                # Rate per trainId interval (usually 0.1s)
-                # If we assume exactly 10Hz, duration is 0.1s
-                rates = counts / 0.1 
-                
-                all_counts.append(rates)
-                all_times.append(times)
-        
-        if not all_counts:
-             return None, None
-             
-        return np.concatenate(all_counts), np.concatenate(all_times)
+            all_counts.append(counts_per_file(fid))
+            elapsed_times.append(self.get_elapsed_time(fids=[fid]))
+
+        count_rate = np.array(all_counts) / np.array(elapsed_times)
+        seconds = np.cumsum(elapsed_times)
+        return count_rate, seconds
 
     def get_elapsed_time(self, fids: Sequence[int] = None, **kwds) -> float | list[float]:  # type: ignore[override]
         """
@@ -327,7 +298,7 @@ class FlashLoader(BaseLoader):
             raise KeyError(
                 "File statistics missing. Use 'read_dataframe' first.",
             ) from exc
-        time_stamp_alias = self._config["dataframe"].get("time_stamp_alias", "timeStamp")
+        time_stamp_alias = self._config["dataframe"]["columns"].get("timestamp", "timeStamp")
 
         def get_elapsed_time_from_fid(fid):
             try:

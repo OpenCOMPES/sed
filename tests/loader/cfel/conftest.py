@@ -14,7 +14,7 @@ test_dir = os.path.join(os.path.dirname(__file__), "../..")
 config_path = os.path.join(test_dir, "data/loader/cfel/config2.yaml")
 # Use CFEL test data paths
 H5_PATH = "20250411_12h34m03s185_000123.h5"
-H5_PATHS = [H5_PATH]  
+H5_PATHS = [H5_PATH]
 
 
 @pytest.fixture
@@ -24,7 +24,6 @@ def config():
         user_config=None,
         system_config=None,
     )
-    
 
     return config_dict
 
@@ -74,7 +73,10 @@ def fixture_h5_file2_copy(tmp_path: Path) -> h5py.File:
         h5py.File: The open h5 file copy.
     """
     # Create a copy of the h5 file in a temporary directory
-    original_file_path = os.path.join(test_dir, f"data/loader/cfel/{H5_PATHS[0] if len(H5_PATHS) > 1 else H5_PATH}")  # Use first file if multiple, else single file
+    original_file_path = os.path.join(
+        test_dir,
+        f"data/loader/cfel/{H5_PATHS[0] if len(H5_PATHS) > 1 else H5_PATH}",
+    )  # Use first file if multiple, else single file
     copy_file_path = tmp_path / "copy2.h5"
     shutil.copyfile(original_file_path, copy_file_path)
 

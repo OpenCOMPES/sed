@@ -95,7 +95,7 @@ def test_save_read_parquet_cfel(config: dict) -> None:
     fl = CFELLoader(config=config_)
 
     # First call: should create and read the parquet file
-    df1, _, _ = fl.read_dataframe(runs=[123], force_recreate=True)#was runs = [179]
+    df1, _, _ = fl.read_dataframe(runs=[123], force_recreate=True)  # was runs = [179]
     # Check if new files were created
     data_parquet_dir = data_parquet_dir.joinpath("buffer")
     new_files = {

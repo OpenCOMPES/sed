@@ -9,8 +9,6 @@ from h5py import File
 
 from sed.loader.cfel.buffer_handler import BufferFilePaths
 from sed.loader.cfel.buffer_handler import BufferHandler
-from sed.loader.cfel.dataframe import DataFrameCreator
-from sed.loader.cfel.loader import CFELLoader
 from sed.loader.flash.utils import get_channels
 from sed.loader.flash.utils import InvalidFileError
 
@@ -120,9 +118,9 @@ def test_buffer_schema_mismatch(config: dict, h5_paths: list[Path]) -> None:
             h5_paths=h5_paths,
             folder=folder_step1,
             debug=True,
-            force_recreate=True,   # ← THIS IS REQUIRED
+            force_recreate=True,  # ← THIS IS REQUIRED
         )
-    
+
     assert "gmdTunnel2" in str(exc.value)
 
     # --------------------------------------------------
@@ -130,7 +128,7 @@ def test_buffer_schema_mismatch(config: dict, h5_paths: list[Path]) -> None:
     # All files become invalid → no buffers → FileNotFoundError
     # --------------------------------------------------
     folder_step2 = create_parquet_dir(config, "schema_mismatch_step2")
-    
+
     # create buffer files normally
     bh_base = BufferHandler(config)
     bh_base.process_and_load_dataframe(
@@ -139,7 +137,7 @@ def test_buffer_schema_mismatch(config: dict, h5_paths: list[Path]) -> None:
         debug=True,
         force_recreate=True,
     )
-    
+
     # now re-run with missing channel ignored
     bh_missing = BufferHandler(config_missing_channel)
     bh_missing.process_and_load_dataframe(
@@ -149,7 +147,7 @@ def test_buffer_schema_mismatch(config: dict, h5_paths: list[Path]) -> None:
         remove_invalid_files=True,
         force_recreate=True,
     )
-    
+
     # correct post-condition
     assert bh_missing.df["electron"] is None
     assert bh_missing.df["timed"] is None
@@ -157,13 +155,13 @@ def test_buffer_schema_mismatch(config: dict, h5_paths: list[Path]) -> None:
     # --------------------------------------------------
     # Step 3: TRUE schema mismatch → ValueError
     # --------------------------------------------------
-    
+
     folder_step3 = create_parquet_dir(config, "schema_mismatch_step3")
-    
+
     # choose a REAL channel that exists in HDF5
     removed_channel = "dldPosX"
     assert removed_channel in config["dataframe"]["channels"]
-    
+
     # 1) create parquet normally (with that channel)
     bh_base = BufferHandler(config)
     bh_base.process_and_load_dataframe(
@@ -172,11 +170,11 @@ def test_buffer_schema_mismatch(config: dict, h5_paths: list[Path]) -> None:
         debug=True,
         force_recreate=True,
     )
-    
+
     # 2) remove the channel from config
     config_removed = deepcopy(config)
     del config_removed["dataframe"]["channels"][removed_channel]
-    
+
     # 3) reload → schema mismatch
     with pytest.raises(ValueError) as exc:
         bh_removed = BufferHandler(config_removed)
@@ -185,7 +183,7 @@ def test_buffer_schema_mismatch(config: dict, h5_paths: list[Path]) -> None:
             folder=folder_step3,
             debug=True,
         )
-    
+
     msg = str(exc.value).lower()
     assert "available channels do not match the schema" in msg
     assert "missing in parquet" in msg or "missing" in msg
@@ -220,6 +218,7 @@ def test_save_buffer_files(config: dict, h5_paths: list[Path]) -> None:
         for path in bh_parallel.fp[df_type]:
             path.unlink()
 
+
 def test_save_buffer_files_exception(
     config: dict,
     h5_paths: list[Path],
@@ -240,9 +239,7 @@ def test_save_buffer_files_exception(
 
     with pytest.raises(ValueError):
         bh = BufferHandler(config_)
-        bh.process_and_load_dataframe(
-            h5_paths, folder, debug=False
-        )
+        bh.process_and_load_dataframe(h5_paths, folder, debug=False)
 
     # --------------------------------------------------
     # 2) Empty dataset → InvalidFileError
@@ -291,7 +288,7 @@ def test_save_buffer_files_exception(
     # --------------------------------------------------
     # 4) Single invalid file → nothing valid to load
     # --------------------------------------------------
-    # Only provide one invalid file    
+    # Only provide one invalid file
     bh.process_and_load_dataframe(
         [tmp_path / "copy.h5"],
         folder,
@@ -299,7 +296,7 @@ def test_save_buffer_files_exception(
         force_recreate=True,
         remove_invalid_files=True,
     )
-    
+
     assert bh.df["electron"] is None
     assert bh.df["timed"] is None
 
@@ -319,15 +316,17 @@ def test_get_filled_dataframe(config: dict, h5_paths: list[Path]) -> None:
 
     # For CFEL, check that the timed dataframe contains per_train channels and timestamp
     # but excludes per_electron channels (this is CFEL-specific behavior)
-    per_train_channels = set(get_channels(config["dataframe"], formats=["per_train"], extend_aux=True))
-    per_electron_channels = set(get_channels(config["dataframe"], formats=["per_electron"]))
-    
+    per_train_channels = set(
+        get_channels(config["dataframe"], formats=["per_train"], extend_aux=True),
+    )
+    # per_electron_channels = set(get_channels(config["dataframe"], formats=["per_electron"]))
+
     timed_columns = set(bh.df["timed"].columns)
-    
+
     # Timed should include per_train channels and timestamp
     assert per_train_channels.issubset(timed_columns)
     assert "timeStamp" in timed_columns
-    
+
     # Check that we can read the data
     assert len(df) > 0
     assert len(bh.df["electron"]) > 0
@@ -342,18 +341,19 @@ def test_cfel_multi_file_handling(config: dict, h5_paths: list[Path]) -> None:
     """Test CFEL's multi-file timestamp handling."""
     folder = create_parquet_dir(config, "multi_file_handling")
     bh = BufferHandler(config)
-    
+
     # Test that multi-file processing works with timestamp coordination
     bh.process_and_load_dataframe(h5_paths=h5_paths, folder=folder, debug=True)
-    
+
     # Verify that timestamps are properly coordinated across files
     df = pd.read_parquet(folder)
     assert "timeStamp" in df.columns  # CFEL uses timeStamp, not timestamp
-    
+
     # Clean up
     for df_type in ["electron", "timed"]:
         for path in bh.fp[df_type]:
             path.unlink()
+
 
 def test_cfel_timestamp_base_handling(config: dict, h5_paths: list[Path]) -> None:
     """Test CFEL's base timestamp extraction and handling."""
@@ -362,10 +362,10 @@ def test_cfel_timestamp_base_handling(config: dict, h5_paths: list[Path]) -> Non
         folder = create_parquet_dir(config, "timestamp_base")
         bh = BufferHandler(config)
         bh.process_and_load_dataframe(h5_paths=h5_paths, folder=folder, debug=True)
-        
+
         # Verify processing completed successfully
         assert len(bh.fp["electron"]) == len(h5_paths)
-        
+
         # Clean up
         for df_type in ["electron", "timed"]:
             for path in bh.fp[df_type]:

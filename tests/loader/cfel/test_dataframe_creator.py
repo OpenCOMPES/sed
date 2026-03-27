@@ -2,9 +2,8 @@
 from pathlib import Path
 
 import h5py
-import numpy as np
-import pytest
 import pandas as pd
+import pytest
 
 from sed.loader.cfel.dataframe import DataFrameCreator
 from sed.loader.flash.utils import get_channels
@@ -87,6 +86,7 @@ def test_df_electron(config_dataframe: dict, h5_paths: list[Path]) -> None:
     # No NaNs
     assert not df_elec.isnull().values.any()
 
+
 # def test_df_electron(config_dataframe: dict, h5_paths: list[Path]) -> None:
 #     """Test df_electron (per_electron channels)"""
 #     df = DataFrameCreator(config_dataframe, h5_paths[0])
@@ -139,16 +139,13 @@ def test_df_combined(config_dataframe: dict, h5_paths: list[Path]) -> None:
     )
 
     # 3) Columns must be the union
-    expected_cols = (
-        set(df_elec.columns)
-        | set(df_train.columns)
-        | set(df_ts.columns)
-    )
+    expected_cols = set(df_elec.columns) | set(df_train.columns) | set(df_ts.columns)
     assert set(df.columns) == expected_cols
 
     # 4) per_train + timestamp columns must be forward-filled
     ffill_cols = list(df_train.columns) + list(df_ts.columns)
     assert not df[ffill_cols].isna().any().any()
+
 
 # def test_df_combined(config_dataframe: dict, h5_paths: list[Path]) -> None:
 #     """Test df property (combined DataFrame)"""
@@ -184,7 +181,8 @@ def test_group_name_not_in_h5(
 
     # Pick a non-index channel
     channel = next(
-        ch for ch in config_dataframe["channels"]
+        ch
+        for ch in config_dataframe["channels"]
         if ch != config_dataframe.get("index", ["countId"])[0]
     )
 
@@ -200,6 +198,7 @@ def test_group_name_not_in_h5(
 
     with pytest.raises(KeyError):
         _ = dfc.get_dataset_array(channel)
+
 
 # def test_group_name_not_in_h5(config_dataframe: dict, h5_paths: list[Path]) -> None:
 #     """Test KeyError when a dataset_key is missing"""

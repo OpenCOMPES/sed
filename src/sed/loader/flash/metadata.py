@@ -6,10 +6,12 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+
 import requests
 import yaml
 
-from sed.core.config import read_env_var, save_env_var
+from sed.core.config import read_env_var
+from sed.core.config import save_env_var
 from sed.core.logging import setup_logging
 
 logger = setup_logging("flash_metadata_retriever")
@@ -23,7 +25,7 @@ class MetadataRetriever:
     def __init__(self, metadata_config: dict, token: str = None) -> None:
         """
         Initializes the MetadataRetriever class.
-        
+
         Args:
             metadata_config (dict): Dict containing at least 'archiver_url' for SciCat.
             token (str, optional): Token for fetching metadata. Saved to .env if provided.
@@ -37,7 +39,7 @@ class MetadataRetriever:
         if not self.token:
             raise ValueError(
                 "Token is required for metadata collection. Provide a token "
-                "or set SCICAT_TOKEN in environment."
+                "or set SCICAT_TOKEN in environment.",
             )
 
         self.url = metadata_config.get("archiver_url")
@@ -58,7 +60,7 @@ class MetadataRetriever:
         """
         Retrieves metadata for a beamtime and runs from SciCat.
         Returns a dict with 'scientificMetadata' keyed by run ID.
-        
+
         Args:
             beamtime_id (str): The ID of the beamtime.
             runs (list): A list of run IDs.
@@ -112,7 +114,11 @@ class MetadataRetriever:
             # Check if response is an empty object because wrong url for older implementation
             if not response.content:
                 logger.debug("Empty response, trying old URL format")
-                response = requests.get(self._create_old_dataset_url(pid), headers=headers2, timeout=10)
+                response = requests.get(
+                    self._create_old_dataset_url(pid),
+                    headers=headers2,
+                    timeout=10,
+                )
             # If the dataset request is successful, return the retrieved metadata
             # as a JSON object
             return response.json()
@@ -145,7 +151,7 @@ class MetadataRetriever:
         """
         Retrieves metadata for a beamtime and runs from local YAML files.
         Returns a dict with 'scientificMetadata' keyed by run ID.
-        
+
         Args:
             beamtime_id (str): The ID of the beamtime.
             beamtime_dir (str)|Path: Beamtime directory.
@@ -180,7 +186,7 @@ class MetadataRetriever:
     def _get_beamtime_metadata(self, beamtime_dir: str | Path, beamtime_id: str) -> dict:
         """
         Retrieves general metadata from beamtime-metadata-{beamtime_id}.json
-        
+
         Args:
             beamtime_dir (str)|Path: Beamtime directory.
             beamtime_id (str): The ID of the beamtime.
