@@ -4,7 +4,9 @@ from __future__ import annotations
 import os
 from pathlib import Path
 from typing import Literal
+from unittest.mock import patch
 
+import numpy as np
 import pytest
 
 from .test_buffer_handler import create_parquet_dir
@@ -132,11 +134,13 @@ def test_save_read_parquet_cfel(config: dict) -> None:
 
 
 def test_get_elapsed_time_fid(config: dict) -> None:
-    """Test get_elapsed_time method of CFELLoader class"""
-    # Create an instance of CFELLoader
+    """Test get_elapsed_time and get_elapsed_time_per_file methods of CFELLoader"""
+
     fl = CFELLoader(config=config)
 
-    # Mock the file_statistics and files
+    # -------------------------
+    # Mock valid metadata
+    # -------------------------
     fl.metadata = {
         "file_statistics": {
             "timed": {
@@ -149,79 +153,97 @@ def test_get_elapsed_time_fid(config: dict) -> None:
     fl.files = ["file0", "file1", "file2"]
 
     # -------------------------
-    # Aggregate=True → sum differences
+    # Total elapsed time (aggregated)
     # -------------------------
-    elapsed_total = fl.get_elapsed_time(fids=[0, 1], aggregate=True)
-    expected_total = (20 - 10) + (30 - 20)  # 20
+    elapsed_total = fl.get_elapsed_time(fids=[0, 1])
+    expected_total = (20 - 10) + (30 - 20)
     assert elapsed_total == expected_total
 
     # -------------------------
-    # Aggregate=False → list of per-file differences
+    # Per-file elapsed time
     # -------------------------
-    elapsed_list = fl.get_elapsed_time(fids=[0, 1], aggregate=False)
-    expected_list = [(20 - 10), (30 - 20)]  # [10, 10]
-    assert elapsed_list == expected_list
+    elapsed_list = fl.get_elapsed_time_per_file(fids=[0, 1])
+    expected_list = [10, 10]
+    assert list(elapsed_list) == expected_list
 
     # -------------------------
-    # Test KeyError when file_statistics is missing
+    # Missing metadata → fallback (mocked, no file access)
     # -------------------------
     fl.metadata = {"something": "else"}
-    with pytest.raises(KeyError) as e:
-        fl.get_elapsed_time(fids=[0, 1])
-    assert "File statistics missing. Use 'read_dataframe' first." in str(e.value)
+
+    with patch.object(fl, "_get_elapsed_time_single", return_value=5.0):
+        elapsed = fl.get_elapsed_time(fids=[0, 1])
+        assert elapsed == 10.0  # 2 files × 5.0
 
     # -------------------------
-    # Test KeyError when timeStamp metadata is missing for a file
+    # Missing timestamp in one file → fallback (mocked)
     # -------------------------
     fl.metadata = {
         "file_statistics": {
             "timed": {
-                "0": {},
+                "0": {},  # broken entry
                 "1": {"columns": {"timeStamp": {"min": 20, "max": 30}}},
             },
         },
     }
-    with pytest.raises(KeyError) as e:
-        fl.get_elapsed_time(fids=[0, 1])
-    assert "Timestamp metadata missing in file file0 (fid=0)" in str(e.value)
+
+    with patch.object(fl, "_get_elapsed_time_single", return_value=7.0):
+        elapsed = fl.get_elapsed_time(fids=[0, 1])
+        assert elapsed == 14.0  # 2 files × 7.0
+
+    # -------------------------
+    # Precise mode → always uses HDF5 → must mock
+    # -------------------------
+    with patch.object(fl, "_get_elapsed_time_single", return_value=3.0):
+        elapsed_precise = fl.get_elapsed_time(fids=[0, 1], precise=True)
+        assert elapsed_precise == 6.0
 
 
 def test_get_elapsed_time_run(config: dict) -> None:
     """Test get_elapsed_time method for runs with multiple files"""
+
     config_ = config.copy()
     data_parquet_dir = create_parquet_dir(config_, "get_elapsed_time_run")
     config_["core"]["paths"]["processed"] = data_parquet_dir
     config_["core"]["paths"]["raw"] = "tests/data/loader/cfel/"
 
-    # Create an instance of CFELLoader
+    # Create loader
     fl = CFELLoader(config=config_)
 
-    # Read dataframe for run 123
+    # -------------------------
+    # Load real data
+    # -------------------------
     fl.read_dataframe(runs=[123])
 
-    # Extract expected elapsed times per file from metadata
-    file_stats = fl.metadata["file_statistics"]["electron"]
-    expected_elapsed_list = [
-        file_stats[str(fid)]["columns"]["timeStamp"]["max"]
-        - file_stats[str(fid)]["columns"]["timeStamp"]["min"]
-        for fid in range(len(fl.files))
-    ]
+    # -------------------------
+    # Extract expected elapsed times from *timed* metadata
+    # -------------------------
+    file_stats = fl.metadata["file_statistics"]["timed"]
+
+    expected_elapsed_list = []
+    for fid in range(len(fl.files)):
+        ts = file_stats[str(fid)]["columns"]["timeStamp"]
+
+        tmin = ts["min"].total_seconds() if hasattr(ts["min"], "total_seconds") else ts["min"]
+        tmax = ts["max"].total_seconds() if hasattr(ts["max"], "total_seconds") else ts["max"]
+
+        expected_elapsed_list.append(tmax - tmin)
 
     # -------------------------
-    # Aggregate=False → list of per-file elapsed times
+    # Per-file elapsed time (NEW API)
     # -------------------------
-    elapsed_list = fl.get_elapsed_time(runs=[123], aggregate=False)
-    assert elapsed_list == expected_elapsed_list
+    elapsed_list = fl.get_elapsed_time_per_file(runs=[123])
+    assert np.allclose(elapsed_list, expected_elapsed_list)
 
     # -------------------------
-    # Aggregate=True → sum of per-file elapsed times
+    # Total elapsed time (NEW behavior)
     # -------------------------
-    elapsed_total = fl.get_elapsed_time(runs=[123], aggregate=True)
+    elapsed_total = fl.get_elapsed_time(runs=[123])
     expected_total = sum(expected_elapsed_list)
-    assert elapsed_total == expected_total
+    assert np.isclose(elapsed_total, expected_total)
 
     # -------------------------
-    # Remove the parquet files created during test
+    # Cleanup buffer files
     # -------------------------
     buffer_dir = Path(fl.processed_dir, "buffer")
     if buffer_dir.exists():
