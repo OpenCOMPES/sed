@@ -317,11 +317,43 @@ class CFELLoader(BaseLoader):
     # -------------------------------
     # Count rate with millisecCounter
     # -------------------------------
+    def _unwrap_millis(self, ms: np.ndarray) -> np.ndarray:
+        """
+        Unwrap monotonic millisecCounter that resets to 0 at each acquisition point.
+        
+        Args:
+            ms (np.ndarray): MillisecCounter array.
+            
+        Returns:
+            np.ndarray: Unwrapped monotonic counter in milliseconds.
+        """
+        ms = np.asarray(ms, dtype=np.float64)
+        if len(ms) < 2:
+            return ms
+        
+        # Detect negative jumps (resets)
+        dt = np.diff(ms)
+        negative_jumps = np.where(dt < 0)[0]
+        
+        if len(negative_jumps) == 0:
+            return ms
+            
+        unwrapped = ms.copy()
+        offset = 0.0
+        for idx in negative_jumps:
+            # We assume a reset to 0 happened. We add the last value 
+            # (plus 1ms to ensure strictly monotonic) to the offset.
+            offset += ms[idx] + 1.0
+            unwrapped[idx + 1 :] = ms[idx + 1 :] + offset
+            
+        return unwrapped
+
     def get_count_rate_ms(
         self,
         fids: Sequence[int] | None = None,
         *,
         mode: str = "file",  # "file" or "point"
+        time_unit: str = "relative",  # "relative" (stitched) or "absolute" (with gaps)
         first_files: int | None = None,
         **kwds,
     ) -> tuple[np.ndarray, np.ndarray]:
@@ -335,6 +367,9 @@ class CFELLoader(BaseLoader):
         mode : {"file", "point"}
             - "point": rate per acquisition window
             - "file" : one average rate per file
+        time_unit : {"relative", "absolute"}
+            - "relative": contiguous timeline, files stitched together.
+            - "absolute": global timeline preserving actual gaps between runs/files.
         first_files : int or None
             If given, only the first N files are used.
 
@@ -343,29 +378,30 @@ class CFELLoader(BaseLoader):
         rates : np.ndarray
             Count rate in Hz.
         times : np.ndarray
-            Time in seconds (window end time for point mode, last time per file for file mode)
+            Time in seconds.
         """
         millis_key = self._config.get("millis_counter_key", "/DLD/millisecCounter")
         counts_key = self._config.get("num_events_key", "/DLD/NumOfEvents")
+        start_time_key = self._config.get("first_event_time_stamp_key", "/ScanParam/StartTime")
 
         fids_resolved = self._resolve_fids(fids=fids, first_files=first_files)
 
         # -------------------------------
-        # 1) Load and concatenate (for point-mode)
+        # 1) Load and process per file
         # -------------------------------
-        ms_all = []
-        counts_all = []
-        file_ms_min_max = []
-        file_counts_total = []
+        rates_all = []
+        times_all = []
+        file_stats = []
 
-        cumulative_offset = 0.0  # seconds
+        cumulative_offset = 0.0  # used for 'relative' mode
+        global_start_time = None  # used for 'absolute' mode
 
         for fid in fids_resolved:
             with h5py.File(self.files[fid], "r") as h5:
+                # Get local millisec info
                 ms = np.asarray(h5[millis_key], dtype=np.float64)
-
-                if len(ms) == 0:
-                    logger.warning(f"Empty millisecCounter in file {fid}, skipping.")
+                if len(ms) < 2:
+                    logger.warning(f"Insufficient data in millisecCounter in file {fid}, skipping.")
                     continue
 
                 c = (
@@ -377,85 +413,98 @@ class CFELLoader(BaseLoader):
                 if len(ms) != len(c):
                     raise ValueError(f"Length mismatch in file {self.files[fid]}")
 
-                # --- convert to seconds ---
-                t = ms * 1e-3
+                # Establish temporal anchor for THIS file
+                ms_unwrapped = self._unwrap_millis(ms)
+                t = ms_unwrapped * 1e-3
+                t_normalized = t - t[0]
 
-                # --- normalize to start at 0 ---
-                t = t - t[0]
+                # 1) Establish temporal offset for this file
+                if time_unit == "absolute":
+                    if start_time_key in h5:
+                        start_time_raw = np.reshape(h5[start_time_key], -1)[0]
+                        current_start = pd.to_datetime(start_time_raw.decode())
+                        if global_start_time is None:
+                            global_start_time = current_start
+                        
+                        # file_offset is the gap since the VERY FIRST file in the sequence (in seconds)
+                        file_offset = (current_start - global_start_time).total_seconds()
+                    else:
+                        logger.warning(f"StartTime missing in {fid}. Falling back to relative stitching.")
+                        file_offset = cumulative_offset
+                else:
+                    file_offset = cumulative_offset
 
-                # --- apply cumulative offset (global timeline) ---
-                t = t + cumulative_offset
+                # 2) Handle multiple frames in the same millisecond by grouping
+                # We use the unwrapped ms to ensure chronological order is preserved
+                unique_ms, index = np.unique(ms_unwrapped, return_inverse=True)
+                grouped_counts = np.bincount(index, weights=c)
+                
+                # t_grouped is in seconds (usually starting at 0 for the file or run)
+                t_grouped = unique_ms * 1e-3
+                
+                # We want durations BETWEEN unique ms markers
+                # Note: if ms resets each file, t_grouped[0] is 0.
+                # If it's monotonic across files, t_grouped[0] is > 0.
+                t_normalized = t_grouped - t_grouped[0]
+                dt = np.diff(t_normalized)
+                
+                # Avoid division by zero (should be impossible after unique() but being safe)
+                valid_mask = dt > 1e-9 
+                
+                if mode == "point":
+                    # Assign the counts that arrived in the interval [i-1, i] to the timestamp at i
+                    # Note: We ignore the very first counts (grouped_counts[0]) as they often contain
+                    # DAQ start-up artifacts/bursts.
+                    rates_file = grouped_counts[1:][valid_mask] / dt[valid_mask]
+                    times_file = t_normalized[1:][valid_mask] + file_offset
+                    
+                    # Apply rolling average if requested
+                    bin_size = kwds.get("bin_size", 1)
+                    if bin_size > 1:
+                        rates_file = (
+                            pd.Series(rates_file)
+                            .rolling(window=bin_size, center=True, min_periods=1)
+                            .mean()
+                            .values
+                        )
+                    
+                    rates_all.append(rates_file)
+                    times_all.append(times_file)
 
-                # --- store ---
-                ms_all.append(t)
-                counts_all.append(c)
-
-                file_ms_min_max.append((t[0], t[-1]))
-                file_counts_total.append(c.sum())
-
-                logger.debug(
-                    f"[get_count_rate_ms] File {fid}: "
-                    f"t_min={t[0]:.3f}, t_max={t[-1]:.3f}, counts={c.sum()}",
+                # Store stats for 'file' mode
+                # We exclude grouped_counts[0] as it often contains DAQ start-up artifacts
+                total_counts_file = grouped_counts[1:].sum()
+                file_duration = t_normalized[-1] - t_normalized[0] if len(t_normalized) > 1 else 0
+                
+                print(
+                    f"DEBUG: Processing file {fid} ({Path(self.files[fid]).name}). "
+                    f"ST={current_start if 'current_start' in locals() else 'N/A'}, "
+                    f"MS_range=({unique_ms[0]}, {unique_ms[-1]}), offset={file_offset:.2f}s, "
+                    f"dur={file_duration:.2f}s, counts={total_counts_file}"
                 )
 
-                # --- update offset using THIS file duration ---
-                cumulative_offset += t[-1] - t[0]
+                file_stats.append({
+                    "rate": total_counts_file / file_duration if file_duration > 1e-9 else np.nan,
+                    "time": file_offset + (file_duration / 2),
+                })
 
-        # Handle case with no valid data
-        if not ms_all:
-            return np.array([]), np.array([])
-
-        # Flatten arrays
-        ms_concat = np.concatenate(ms_all)
-        counts_concat = np.concatenate(counts_all)
-
-        # Ensure monotonic time (should already be true now)
-        if not np.all(np.diff(ms_concat) > 0):
-            logger.warning("Non-monotonic global time detected after stitching.")
+                # Update relative offset for next iteration (as if they were continuous)
+                cumulative_offset += file_duration
 
         # -------------------------------
-        # 2) Compute point-resolved rates
+        # 2) Assemble return values
         # -------------------------------
         if mode == "point":
-            bin_size = kwds.pop("bin_size", 1)
+            if not rates_all:
+                return np.array([]), np.array([])
+            return np.concatenate(rates_all), np.concatenate(times_all)
 
-            dt = np.diff(ms_concat)
-            rates_point = counts_concat[1:] / dt
-
-            if bin_size > 1:
-                rates_point = (
-                    pd.Series(rates_point)
-                    .rolling(window=bin_size, center=True, min_periods=1)
-                    .mean()
-                    .values
-                )
-
-            times_point = ms_concat[1:]
-            return rates_point, times_point
-
-        # -------------------------------
-        # 3) Compute file-resolved rates
-        # -------------------------------
-        rates_file = []
-        times_file = []
-
-        for idx, (t_min, t_max) in enumerate(file_ms_min_max):
-            file_duration = t_max - t_min
-
-            if file_duration <= 1e-9:
-                logger.warning(
-                    f"[get_count_rate_ms] File {fids_resolved[idx]} has invalid duration ({file_duration}). "
-                    f"Setting rate to NaN.",
-                )
-                rates_file.append(np.nan)
-                times_file.append((t_min + t_max) / 2)
-                continue
-
-            rate = file_counts_total[idx] / file_duration
-            rates_file.append(rate)
-            times_file.append((t_min + t_max) / 2)
-
-        return np.array(rates_file), np.array(times_file)
+        # mode == "file"
+        if not file_stats:
+            return np.array([]), np.array([])
+        rates_file = np.array([s["rate"] for s in file_stats])
+        times_file = np.array([s["time"] for s in file_stats])
+        return rates_file, times_file
 
     # -------------------------------
     # File-based count rate
@@ -500,6 +549,7 @@ class CFELLoader(BaseLoader):
         runs: Sequence[int] | None = None,
         method: str = "fast",  # "fast" (metadata) or "precise" (h5)
         mode: str = "file",  # "file" (1 pt/file) or "point" (intra-file)
+        time_unit: str = "relative",  # "relative" or "absolute"
         **kwds,
     ) -> tuple[np.ndarray, np.ndarray]:
         """
@@ -523,6 +573,10 @@ class CFELLoader(BaseLoader):
             Temporal resolution:
             - "file": One average rate per file.
             - "point": Intra-file time-resolved rates (hardware or statistical).
+        time_unit : {"relative", "absolute"}, default "relative"
+            Temporal scale:
+            - "relative": Stitched timeline (no gaps).
+            - "absolute": Preserves gaps between runs using StartTime metadata.
         **kwds : dict
             Additional arguments:
             - time_bin_size (float): Binning for "fast" + "point" mode (default: 1.0s).
@@ -533,40 +587,57 @@ class CFELLoader(BaseLoader):
         count_rate : np.ndarray
             Array of count rates in Hz.
         time : np.ndarray
-            Array of global times in seconds since the start of the scan.
-
-        Notes
-        -----
-        'Precise' mode requires 'millisecCounter' to be present in the H5 files.
-        'Fast' mode requires 'file_statistics' to be populated in the loader.
+            Array of global times in seconds.
         """
         fids_resolved = self._resolve_fids(fids=fids, runs=runs)
 
         if method == "fast":
             if mode == "file":
-                # Original get_count_rate_simple logic
                 all_counts = [
                     self.metadata["file_statistics"]["electron"][str(fid)]["num_rows"]
                     for fid in fids_resolved
                 ]
-                # Use metadata-based duration if available, else quick H5 peek
-                # durations = self.get_elapsed_time(fids=fids_resolved)
+                # Subtract the first millisecond counts from each file's total
+                c0_list = []
+                for fid in fids_resolved:
+                    with h5py.File(self.files[fid], "r") as h5:
+                        c0_list.append(h5["/DLD/NumOfEvents"][0] if "/DLD/NumOfEvents" in h5 else 0)
+                # Establish file durations
                 durations = self.get_elapsed_time_per_file(fids=fids_resolved)
-                rates = np.array(all_counts) / np.array(durations)
-                times = np.cumsum(durations)  # Simplified timeline
+                rates = (np.array(all_counts) - np.array(c0_list)) / np.array(durations)
+                
+                # Establish timeline
+                if time_unit == "absolute":
+                    times = []
+                    global_start_time = None
+                    for fid, dur in zip(fids_resolved, durations):
+                        file_stats_timed = self.metadata["file_statistics"]["timed"][str(fid)]
+                        time_stamps = file_stats_timed["columns"].get("timeStamp", file_stats_timed["columns"].get("timestamp"))
+                        current_start = pd.to_datetime(time_stamps["min"], unit='s')
+                        if global_start_time is None:
+                            global_start_time = current_start
+                        file_offset = (current_start - global_start_time).total_seconds()
+                        times.append(file_offset + (dur / 2))
+                    times = np.array(times)
+                else:
+                    # Stitched timeline
+                    times = np.cumsum(durations) - (np.array(durations) / 2) # Centers
                 return rates, times
 
             elif mode == "point":
-                # Original get_count_rate_time_resolved logic
-                # Statistical 'point' mode: resolution without high-precision H5 reading
                 return self.get_count_rate_time_resolved(
                     fids=fids_resolved,
                     time_bin_size=kwds.get("time_bin_size", 1.0),
+                    time_unit=time_unit,
                 )
 
         elif method == "precise":
-            # Always uses get_count_rate_ms logic (which already handles file vs point)
-            return self.get_count_rate_ms(fids=fids_resolved, mode=mode, **kwds)
+            return self.get_count_rate_ms(
+                fids=fids_resolved,
+                mode=mode,
+                time_unit=time_unit,
+                **kwds,
+            )
 
         raise ValueError(f"Invalid method/mode combination: {method}/{mode}")
 
@@ -578,6 +649,7 @@ class CFELLoader(BaseLoader):
         fids: Sequence[int] | None = None,
         time_bin_size: float = 1.0,
         runs: Sequence[int] | None = None,
+        time_unit: str = "relative",
     ) -> tuple[np.ndarray, np.ndarray]:
         """
         Returns count rate in time bins using metadata timestamps.
@@ -600,7 +672,8 @@ class CFELLoader(BaseLoader):
 
         all_rates = []
         all_times = []
-        cumulative_time = 0.0
+        cumulative_offset = 0.0
+        global_start_time = None
 
         for fid in fids_resolved:
             file_statistics = self.metadata["file_statistics"]["timed"]
@@ -613,54 +686,81 @@ class CFELLoader(BaseLoader):
             t_max = float(
                 getattr(time_stamps["max"], "total_seconds", lambda: time_stamps["max"])(),
             )
-            total_counts = self.metadata["file_statistics"]["electron"][str(fid)]["num_rows"]
+            # Subtract the first millisecond counts from the total counts
+            with h5py.File(self.files[fid], "r") as h5:
+                c0 = h5["/DLD/NumOfEvents"][0] if "/DLD/NumOfEvents" in h5 else 0
+            
+            total_counts = (self.metadata["file_statistics"]["electron"][str(fid)]["num_rows"] - c0)
             file_duration = t_max - t_min
-            print(f"File duration: {file_duration}")
+            
+            # Establish temporal offset for this file
+            if time_unit == "absolute":
+                file_stats_timed = self.metadata["file_statistics"]["timed"][str(fid)]
+                time_stamps_full = file_stats_timed["columns"].get("timeStamp", file_stats_timed["columns"].get("timestamp"))
+                current_start = pd.to_datetime(time_stamps_full["min"], unit='s')
+                if global_start_time is None:
+                    global_start_time = current_start
+                file_offset = (current_start - global_start_time).total_seconds()
+            else:
+                file_offset = cumulative_offset
+
+            print(f"DEBUG: Processing file {fid} (Fast method). duration={file_duration}, offset={file_offset}")
 
             n_bins = max(int(file_duration / time_bin_size), 1)
-            counts_per_bin = total_counts / n_bins
-            rate_per_bin = counts_per_bin / time_bin_size
+            rate_per_bin = total_counts / file_duration if file_duration > 1e-9 else 0.0
 
             bin_centers = np.linspace(
-                cumulative_time + time_bin_size / 2,
-                cumulative_time + file_duration - time_bin_size / 2,
+                file_offset + time_bin_size / 2,
+                file_offset + file_duration - time_bin_size / 2,
                 n_bins,
             )
 
             rates = np.full(n_bins, rate_per_bin)
-            all_rates.extend(rates)
-            all_times.extend(bin_centers)
+            all_rates.append(rates)
+            all_times.append(bin_centers)
 
-            cumulative_time += file_duration
+            cumulative_offset += file_duration
 
-        return np.array(all_rates), np.array(all_times)
+        if not all_rates:
+            return np.array([]), np.array([])
 
-    def get_elapsed_time(self, fids: Sequence[int] | None = None, **kwds) -> float:
+        return np.concatenate(all_rates), np.concatenate(all_times)
+
+    def get_elapsed_time(
+        self,
+        fids: Sequence[int] | None = None,
+        aggregate: bool = True,
+        **kwds,
+    ) -> "float | np.ndarray":
         """
-        Return total elapsed time for specified files (BaseLoader-compatible).
+        Return elapsed time for specified files.
 
         Args:
             fids (Sequence[int] | None): File IDs to include. Defaults to all.
+            aggregate (bool): If True (default), return the total elapsed time as a
+                scalar float. If False, return a per-file numpy array.
             kwds: Optional keyword arguments:
                 - runs (Sequence[int] | None)
                 - precise (bool)
 
         Returns:
-            float: Total elapsed time (seconds).
+            float | np.ndarray: Total elapsed time (seconds) or per-file array.
         """
         runs = kwds.pop("runs", None)
         precise = kwds.pop("precise", False)
-
-        if len(kwds) > 0:
-            raise TypeError(f"get_elapsed_time() got unexpected keyword arguments {kwds.keys()}.")
+        # Silently ignore any remaining unrecognised kwargs for forward-compatibility
+        if kwds:
+            logger.warning("get_elapsed_time() ignoring unexpected keyword arguments: %s", list(kwds.keys()))
 
         fids_resolved = self._resolve_fids(fids=fids, runs=runs)
 
-        elapsed_per_file = [
-            self._get_elapsed_time_single(fid, precise=precise) for fid in fids_resolved
-        ]
+        elapsed_per_file = np.array(
+            [self._get_elapsed_time_single(fid, precise=precise) for fid in fids_resolved],
+        )
 
-        return sum(elapsed_per_file)
+        if aggregate:
+            return float(elapsed_per_file.sum())
+        return elapsed_per_file
 
     def get_elapsed_time_per_file(
         self,
@@ -729,7 +829,8 @@ class CFELLoader(BaseLoader):
             try:
                 with h5py.File(self.files[fid], "r") as h5:
                     ms = np.asarray(h5[millis_key], dtype=np.float64)
-                    dt_s = (ms[-1] - ms[0]) / 1000.0
+                    ms_unwrapped = self._unwrap_millis(ms)
+                    dt_s = (ms_unwrapped[-1] - ms_unwrapped[0]) / 1000.0
             except (KeyError, IndexError):
                 logger.warning(
                     "Could not determine duration for fid %s. Using 0.0",
