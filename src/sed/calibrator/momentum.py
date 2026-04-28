@@ -1409,8 +1409,8 @@ class MomentumCorrector:
             fig = pbk.figure(
                 width=figsize[0] * 100,
                 height=figsize[1] * 100,
-                x_range=Range1d(0, num_rows),
-                y_range=Range1d(0, num_cols),
+                x_range=Range1d(0, num_rows),  # type: ignore
+                y_range=Range1d(0, num_cols),  # type: ignore
             )
             fig.hover.tooltips = ttp
             fig.image(
