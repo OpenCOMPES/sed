@@ -34,7 +34,8 @@ def plot_single_hist(
     """
     ttp = kwds.pop("tooltip", [("(x, y)", "($x, $y)")])
 
-    fig = pbk.figure(background_fill_color="white", tooltips=ttp)
+    fig = pbk.figure(background_fill_color="white")
+    fig.hover.tooltips = ttp
     fig.quad(
         top=histvals,
         bottom=0,

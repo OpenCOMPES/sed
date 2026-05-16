@@ -296,7 +296,7 @@
   },
   "/ENTRY/REGISTRATION[registration]": {
     "applied": "!@attrs:metadata/momentum_correction/registration/applied",
-    "depends_on": "/entry/process/registration/transformations/rot_z",
+    "depends_on": "/entry/registration/transformations/rot_z",
     "TRANSFORMATIONS[transformations]": {
       "AXISNAME[trans_x]": "@attrs:metadata/momentum_correction/registration/trans_x/value",
       "AXISNAME[trans_x]/@transformation_type": "translation",
