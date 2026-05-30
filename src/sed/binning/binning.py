@@ -495,7 +495,7 @@ def normalization_histogram_from_timed_dataframe(
 
 
 def apply_jitter_on_column(
-    df: dask.dataframe.core.DataFrame | pd.DataFrame,
+    df: dask.dataframe.DataFrame | pd.DataFrame,
     amp: float,
     col: str,
     mode: str = "uniform",
@@ -503,7 +503,7 @@ def apply_jitter_on_column(
     """Add jittering to the column of a dataframe.
 
     Args:
-        df (Union[dask.dataframe.core.DataFrame, pd.DataFrame]): Dataframe to add
+        df (Union[dask.dataframe.DataFrame, pd.DataFrame]): Dataframe to add
             noise/jittering to.
         amp (float): Amplitude scaling for the jittering noise.
         col (str): Name of the column to add jittering to.

@@ -1520,12 +1520,17 @@ class EnergyCalibrator:
             )
         tof_column = tof_column or self.tof_column
 
-        # align the 8s sectors
-        sector_delays_arr = dask.array.from_array(sector_delays)
+        # align the 8 sectors
+        # Use a local NumPy array and vectorized indexing per partition. Creating a
+        # dask.array and indexing it with per-partition numpy indices is expensive
+        # because it builds additional dask graphs. Using np.take on a NumPy array
+        # inside the partition function keeps the work local and fast.
 
         def align_sector(x):
-            val = x[tof_column] - sector_delays_arr[x[sector_id_column].values.astype(int)]
-            return val.astype(np.float32)
+            # ensure integer indices and use np.take for fast vectorized lookup
+            idx = x[sector_id_column].to_numpy(dtype=int)
+            shifted = x[tof_column].to_numpy(dtype=float) - np.take(sector_delays, idx)
+            return dask.dataframe.from_array(shifted.astype(np.float32))
 
         df[tof_column] = df.map_partitions(align_sector, meta=(tof_column, np.float32))
         metadata: dict[str, Any] = {
