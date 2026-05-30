@@ -1,0 +1,275 @@
+from __future__ import annotations
+
+import time
+from pathlib import Path
+
+import dask.dataframe as dd
+import h5py
+import numpy as np
+
+from sed.core.logging import setup_logging
+from sed.loader.cfel.dataframe import DataFrameCreator
+from sed.loader.flash.buffer_handler import BufferFilePaths
+from sed.loader.flash.buffer_handler import BufferHandler as BaseBufferHandler
+from sed.loader.flash.utils import get_channels
+from sed.loader.flash.utils import get_dtypes
+from sed.loader.flash.utils import InvalidFileError
+
+logger = setup_logging("cfel_buffer_handler")
+
+
+class BufferHandler(BaseBufferHandler):
+    """
+    A class for handling the creation and manipulation of buffer files using DataFrameCreator.
+    """
+
+    def __init__(
+        self,
+        config: dict,
+    ) -> None:
+        """
+        Initializes the BufferHandler.
+
+        Args:
+            config (dict): The configuration dictionary.
+        """
+        super().__init__(config)
+
+    def _validate_h5_files(self, config, h5_paths: list[Path]) -> list[Path]:
+        valid_h5_paths = []
+        for h5_path in h5_paths:
+            try:
+                dfc = DataFrameCreator(config_dataframe=config, h5_path=h5_path)
+                dfc.validate_channel_keys()
+                valid_h5_paths.append(h5_path)
+            except InvalidFileError as e:
+                logger.info(f"Skipping invalid file: {h5_path.stem}\n{e}")
+
+        return valid_h5_paths
+
+    def _save_buffer_files(self, force_recreate: bool, debug: bool) -> None:
+        """
+        Creates the buffer files that are missing, handling multi-file
+        and single-file runs properly.
+
+        Args:
+            force_recreate (bool): Flag to force recreation of buffer files.
+            debug (bool): Flag to enable debug mode, which serializes the creation.
+        """
+        file_sets = self.fp.file_sets_to_process(force_recreate)
+        logger.info(f"Reading files: {len(file_sets)} new files of {len(self.fp)} total.")
+
+        if not file_sets:
+            return
+
+        # Sort file sets by filename to ensure deterministic order
+        file_sets = sorted(file_sets, key=lambda x: x["raw"].name)
+
+        base_timestamp = None
+
+        try:
+            if len(file_sets) == 1:
+                # Single-file run → that file IS the first file
+                first_file_set = file_sets[0]
+                logger.info(
+                    f"Single-file run detected: {first_file_set['raw'].name}. "
+                    "Extracting base timestamp from this file.",
+                )
+
+            else:
+                # Multi-file run → look for _0000
+                first_file_set = next(fs for fs in file_sets if fs["raw"].stem.endswith("_0000"))
+                logger.info(
+                    f"Multi-file run detected. "
+                    f"Extracting base timestamp from {first_file_set['raw'].name}",
+                )
+
+            # Create a temporary DataFrameCreator to extract base timestamp
+            first_dfc = DataFrameCreator(
+                config_dataframe=self._config,
+                h5_path=first_file_set["raw"],
+                is_first_file=True,
+            )
+            base_timestamp = first_dfc.get_base_timestamp()
+            first_dfc.h5_file.close()
+
+            logger.info(f"Base timestamp extracted: {base_timestamp}")
+
+        except StopIteration:
+            logger.warning(
+                "Multi-file run detected but no '_0000' file found. "
+                "Base timestamp will not be extracted.",
+            )
+        except Exception as e:
+            logger.warning(
+                f"Could not extract base timestamp: {e}. " "Processing files independently.",
+            )
+
+        # -------------------------------------------------------
+        # Calculate index offsets
+        # We need to read the 'index' channel (usually countId/NumOfEvents) to know the count.
+        # This requires a quick scan of files.
+        # -------------------------------------------------------
+        index_offsets = {}
+        current_offset = 0
+
+        index_alias = self._config.get("index", ["countId"])[0]
+        try:
+            channel_config = self._config["channels"][index_alias]
+            dataset_key = channel_config["dataset_key"]
+
+            # Prefer serial scan for safety and simplicity, though could be parallelized
+            # For 200 files it might take a few seconds.
+            logger.info("Calculating index offsets...")
+            for file_set in file_sets:
+                try:
+                    with h5py.File(file_set["raw"], "r") as h5_file:
+                        if dataset_key in h5_file:
+                            dset = h5_file[dataset_key]
+                            # sum of all events in this file
+                            # Use simple read if small enough
+                            n_events = np.sum(dset)
+
+                            index_offsets[file_set["raw"].name] = int(current_offset)
+                            current_offset += int(n_events)
+                        else:
+                            index_offsets[file_set["raw"].name] = int(current_offset)
+                except Exception as e:
+                    logger.warning(f"Failed to read index offset from {file_set['raw'].name}: {e}")
+                    index_offsets[file_set["raw"].name] = int(current_offset)
+
+            logger.debug(f"Total events calculated: {current_offset}")
+
+        except Exception as e:
+            logger.warning(f"Failed to calculate index offsets: {e}. Indices may reset.")
+            for fs in file_sets:
+                index_offsets[fs["raw"].name] = 0
+
+        # -------------------------------------------------------
+
+        n_cores = min(len(file_sets), self.n_cores)
+        if n_cores <= 0:
+            return
+
+        def is_first_file(file_set) -> bool:
+            return len(file_sets) == 1 or file_set["raw"].stem.endswith("_0000")
+
+        if debug:
+            for file_set in file_sets:
+                self._save_buffer_file(
+                    file_set,
+                    is_first_file(file_set),
+                    base_timestamp,
+                    index_offset=index_offsets.get(file_set["raw"].name, 0),
+                )
+        else:
+            # For parallel processing, we need to be careful about the order
+            # Process all files in parallel with the correct parameters
+            from joblib import Parallel, delayed
+
+            Parallel(n_jobs=n_cores, verbose=10)(
+                delayed(self._save_buffer_file)(
+                    file_set,
+                    is_first_file(file_set),
+                    base_timestamp,
+                    index_offset=index_offsets.get(file_set["raw"].name, 0),
+                )
+                for file_set in file_sets
+            )
+
+    def _save_buffer_file(self, file_set, is_first_file=True, base_timestamp=None, index_offset=0):
+        """
+        Saves an HDF5 file to a Parquet file using the DataFrameCreator class.
+
+        Args:
+            file_set: Dictionary containing file paths
+            is_first_file: Whether this is the first file in a multi-file run
+            base_timestamp: Base timestamp from the first file (for subsequent files)
+            index_offset: Offset to apply to the index
+        """
+        start_time = time.time()  # Add this line
+        paths = file_set
+
+        dfc = DataFrameCreator(
+            config_dataframe=self._config,
+            h5_path=paths["raw"],
+            is_first_file=is_first_file,
+            base_timestamp=base_timestamp,
+            index_offset=index_offset,
+        )
+        df = dfc.df
+
+        df_timed = dfc.df_timed
+
+        # Save electron resolved dataframe
+        electron_channels = get_channels(self._config, "per_electron")
+        dtypes = get_dtypes(self._config, df.columns.values)
+        # This maintains cumulative event counts across multiple files
+        electron_df = df.dropna(subset=electron_channels).astype(dtypes)
+        logger.debug(f"Saving electron buffer with shape: {electron_df.shape}")
+        # Reset index to column to avoid parquet index issues
+        electron_df = electron_df.reset_index()
+        electron_df.to_parquet(paths["electron"], index=False)
+
+        # Create and save timed dataframe
+        dtypes = get_dtypes(self._config, df_timed.columns.values)
+        timed_df = df_timed.astype(dtypes)
+        logger.debug(f"Saving timed buffer with shape: {timed_df.shape}")
+        # Reset index to column to avoid parquet index issues
+        timed_df = timed_df.reset_index()
+        timed_df.to_parquet(paths["timed"], index=False)
+
+        logger.debug(f"Processed {paths['raw'].stem} in {time.time() - start_time:.2f}s")
+
+    def process_and_load_dataframe(
+        self,
+        h5_paths: list[Path],
+        folder: Path,
+        force_recreate: bool = False,
+        suffix: str = "",
+        debug: bool = False,
+        remove_invalid_files: bool = False,
+        filter_timed_by_electron: bool = True,
+    ) -> tuple[dd.DataFrame | None, dd.DataFrame | None]:
+        """
+        Runs the buffer file creation process.
+        Does a schema check on the buffer files and creates them if they are missing.
+        Performs forward filling and splits the sector ID from the DLD time lazily.
+
+        Args:
+            h5_paths (List[Path]): List of paths to H5 files.
+            folder (Path): Path to the folder for processed files.
+            force_recreate (bool): Flag to force recreation of buffer files.
+            suffix (str): Suffix for buffer file names.
+            debug (bool): Flag to enable debug mode.):
+            remove_invalid_files (bool): Flag to remove invalid files.
+            filter_timed_by_electron (bool): Flag to filter timed data by valid electron events.
+
+        Returns:
+            Tuple[dd.DataFrame, dd.DataFrame]: The electron and timed dataframes.
+        """
+        self.filter_timed_by_electron = filter_timed_by_electron
+        if remove_invalid_files:
+            h5_paths = self._validate_h5_files(self._config, h5_paths)
+
+        self.fp = BufferFilePaths(h5_paths, folder, suffix)
+
+        if not force_recreate:
+            schema_set = set(
+                get_channels(self._config, formats="all", index=True, extend_aux=True)
+                + [self._config["columns"].get("timestamp")],
+            )
+            self._schema_check(self.fp["timed"], schema_set)
+
+            self._schema_check(self.fp["electron"], schema_set)
+
+        self._save_buffer_files(force_recreate, debug)
+
+        # NEW: all files were invalid and skipped
+        if remove_invalid_files and not self.fp:
+            self.df = {"electron": None, "timed": None}
+            return None, None
+
+        self._get_dataframes()
+
+        return self.df["electron"], self.df["timed"]

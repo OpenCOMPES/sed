@@ -18,7 +18,8 @@ from sed.core.logging import setup_logging
 
 package_dir = os.path.dirname(find_spec("sed").origin)
 
-USER_CONFIG_PATH = user_config_path(appname="sed", appauthor="OpenCOMPES", ensure_exists=True)
+USER_CONFIG_PATH = user_config_path(appname="sed", appauthor="OpenCOMPES")
+USER_CONFIG_PATH.mkdir(parents=True, exist_ok=True)
 SYSTEM_CONFIG_PATH = (
     Path(os.environ["ALLUSERSPROFILE"]).joinpath("sed")
     if platform.system() == "Windows"

@@ -1,0 +1,160 @@
+# This file contains the default configuration for the flash loader.
+
+core:
+  # defines the loader
+  loader: cfel
+  # Since this will run on maxwell most probably, we have a lot of cores at our disposal
+  num_cores: 10
+  # the ID number of the beamtime
+  beamtime_id: 11021732
+  # the year of the beamtime
+  year: 2025
+
+  # The paths to the raw and parquet data directories. If these are not
+  # provided, the loader will try to find the data based on year beamtimeID etc
+  paths:
+    # location of the raw data.
+    raw: "tests/data/loader/cfel/"
+    # location of the intermediate parquet files.
+    processed: "tests/data/loader/cfel/parquet"
+
+  # The beamtime directories for different DAQ systems.
+  # (Not to be changed by user)
+  beamtime_dir:
+    pg2: "/asap3/flash/gpfs/pg2/"
+    cfel: "/asap3/fs-flash-o/gpfs/hextof/"
+
+
+dataframe:
+  daq: fl1user3                                   # DAQ system name to resolve filenames/paths
+  ubid_offset: 5                                  # Offset correction to the pulseId
+  forward_fill_iterations: 0                      # Number of iterations to fill the pulseId forward
+  split_sector_id_from_dld_time: True             # Remove reserved bits for dldSectorID from dldTimeSteps column
+  sector_id_reserved_bits: 3                      # Bits reserved for dldSectorID in the dldTimeSteps column
+  sector_delays: [0., 0., 0., 0., 0., 0., 0., 0.] # Sector delays
+
+  first_event_time_stamp_key: /ScanParam/StartTime
+  ms_markers_key: /SlowData/exposure_time
+
+  # Time and binning settings
+  tof_binwidth: 2.0576131995767355E-11            # Base time-of-flight bin width in seconds
+  tof_binning: 8                                  # Binning parameter for time-of-flight data
+
+  # Columns used for jitter correction
+  index: [countId]
+  jitter_cols: [dldPosX, dldPosY, dldTimeSteps]
+  formats: [per_file, per_train, per_electron]
+  fill_formats: [per_train]            # Channels with this format will be forward filled
+
+  # Column settings
+  columns:
+    x: dldPosX
+    corrected_x: X
+    kx: kx
+    y: dldPosY
+    corrected_y: Y
+    ky: ky
+    tof: dldTimeSteps
+    tof_ns: dldTime
+    corrected_tof: tm
+    timestamp: timeStamp
+    auxiliary: dldAux
+    sector_id: dldSectorID
+    delay: delayStage
+    corrected_delay: pumpProbeTime
+
+  units:
+    # These are the units of the columns
+    dldPosX: 'step'
+    dldPosY: 'step'
+    dldTimeSteps: 'step'
+    tof_voltage: 'V'
+    extractorVoltage: 'V'
+    extractorCurrent: 'A'
+    cryoTemperature: 'K'
+    sampleTemperature: 'K'
+    dldTime: 'ns'
+    delay: 'ps'
+    timeStamp: 's'
+    energy: 'eV'
+    E: 'eV'
+    kx: '1/A'
+    ky: '1/A'
+
+  # The channels to load.
+  # channels have the following structure:
+  # <channelAlias>:
+  #   format: per_pulse/per_electron/per_train
+  #   index_key: the hdf5 index key
+  #   dataset_key: the hdf5 dataset key
+  #   slice: int to slice a multidimensional data along axis=1. If not defined, there is no slicing
+  #   dtype: the datatype of the data
+  #   subChannels: further aliases for if the data is multidimensional and needs to be split in different cols
+  #                used currently for the auxiliary channel
+  #      <subChannelAlias>:
+  #        slice: int to slice a multidimensional data along axis=1. Must be defined
+  #        dtype: the datatype of the data
+
+  channels:
+    # event key
+    countId:
+      format: per_file
+      dataset_key: /DLD/NumOfEvents
+    # detector x position
+    dldPosX:
+      format: per_electron
+      dataset_key: /DLD/DLD/xPos
+      # dtype: uint32
+
+    # detector y position
+    dldPosY:
+      format: per_electron
+      dataset_key: /DLD/DLD/yPos
+      # dtype: uint32
+
+    # Detector time-of-flight channel
+    # if split_sector_id_from_dld_time is set to True, This this will generate
+    # also the dldSectorID channel
+    dldTimeSteps:
+      format: per_electron
+      dataset_key: /DLD/DLD/times
+      # dtype: uint32
+
+    # The auxiliary channel has a special structure where the group further contains
+    # a multidimensional structure so further aliases are defined below
+    dldAux:
+      format: per_train
+      dataset_key: "/SlowData/hextof/dld/info/Aux"
+      sub_channels:
+        sampleBias:
+          slice: 0
+          dtype: float32
+        tofVoltage:
+          slice: 1
+          dtype: float64
+        extractorVoltage:
+          slice: 2
+        extractorCurrent:
+          slice: 3
+        cryoTemperature:
+          slice: 4
+        sampleTemperature:
+          slice: 5
+        dldTimeBinSize:
+          slice: 15
+
+    vuRead:
+      format: per_train
+      dataset_key: /SlowData/hextof/logic/kmic1/Sample_VURead
+
+
+
+# metadata collection from scicat
+# metadata:
+#   archiver_url: <URL>
+
+# The nexus collection routine shall be finalized soon for both instruments
+# nexus:
+#   reader: "mpes"
+#   definition: "NXmpes"
+#   input_files: ["NXmpes_config-HEXTOF.json"]
