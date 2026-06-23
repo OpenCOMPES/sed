@@ -496,12 +496,24 @@ class FlashLoader(BaseLoader):
             df, df_timed = wespe_convert(df, df_timed)
 
         # self.metadata.update(self.parse_metadata(token) if collect_metadata else {})
-        if len(self.parse_scicat_metadata(token)) == 0:
-            print("No SciCat metadata available, checking local folder")
+        # if len(self.parse_scicat_metadata(token)) == 0:
+        
+        #     print("No SciCat metadata available, checking local folder")
+        #     self.metadata.update(self.parse_local_metadata())
+        # else:
+        #     print("Metadata taken from SciCat")
+            # self.metadata.update(self.parse_scicat_metadata(token) if collect_metadata else {})
+        scicat_metadata = self.parse_scicat_metadata(token)
+        scicat_runs = scicat_metadata.get("scientificMetadata", {})
+        
+        if not any(scicat_runs.values()):
+            logger.warning("No SciCat metadata available, checking local folder")
             self.metadata.update(self.parse_local_metadata())
         else:
-            print("Metadata taken from SciCat")
-            self.metadata.update(self.parse_scicat_metadata(token) if collect_metadata else {})
+            logger.warning("Metadata taken from SciCat")
+            if collect_metadata:
+                self.metadata.update(scicat_metadata)
+                
         self.metadata.update(bh.metadata)
 
         logger.info(f"Loading complete in {time.time() - t0: .2f} s")
