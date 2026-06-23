@@ -58,8 +58,10 @@ class FlashLoader(BaseLoader):
         set_verbosity(logger, self._verbose)
 
         self.instrument: str = self._config["core"].get("instrument", "hextof")  # default is hextof
+        self.beamtime_dir: str = None
         self.raw_dir: str = None
         self.processed_dir: str = None
+        self.meta_dir: str = None
 
     @property
     def verbose(self) -> bool:
@@ -111,9 +113,14 @@ class FlashLoader(BaseLoader):
         # Only raw_dir is necessary, processed_dir can be based on raw_dir, if not provided
         if "paths" in self._config["core"]:
             raw_dir = Path(self._config["core"]["paths"].get("raw", ""))
+            print(raw_dir)
             processed_dir = Path(
                 self._config["core"]["paths"].get("processed", raw_dir.joinpath("processed")),
             )
+            meta_dir = Path(
+                self._config["core"]["paths"].get("meta", raw_dir.joinpath("meta")),
+            )
+            beamtime_dir = Path(raw_dir).parent
 
         else:
             try:
@@ -147,11 +154,14 @@ class FlashLoader(BaseLoader):
             raw_dir = raw_paths[0].resolve()
 
             processed_dir = beamtime_dir.joinpath("processed")
+            meta_dir = beamtime_dir.joinpath("meta/fabtrack/")
 
         processed_dir.mkdir(parents=True, exist_ok=True)
 
+        self.beamtime_dir = str(beamtime_dir)
         self.raw_dir = str(raw_dir)
         self.processed_dir = str(processed_dir)
+        self.meta_dir = str(meta_dir)
 
     @property
     def available_runs(self) -> list[int]:
@@ -223,7 +233,7 @@ class FlashLoader(BaseLoader):
         # Return the list of found files
         return [str(file.resolve()) for file in files]
 
-    def parse_metadata(self, token: str = None) -> dict:
+    def parse_scicat_metadata(self, token: str = None) -> dict:
         """Uses the MetadataRetriever class to fetch metadata from scicat for each run.
 
         Returns:
@@ -233,6 +243,23 @@ class FlashLoader(BaseLoader):
         metadata_retriever = MetadataRetriever(self._config["metadata"], token)
         metadata = metadata_retriever.get_metadata(
             beamtime_id=self._config["core"]["beamtime_id"],
+            runs=self.runs,
+            metadata=self.metadata,
+        )
+
+        return metadata
+
+    def parse_local_metadata(self) -> dict:
+        """Uses the MetadataRetriever class to fetch metadata from local folder for each run.
+
+        Returns:
+            dict: Metadata dictionary
+        """
+        metadata_retriever = MetadataRetriever(self._config["metadata"])
+        metadata = metadata_retriever.get_local_metadata(
+            beamtime_id=self._config["core"]["beamtime_id"],
+            beamtime_dir=self.beamtime_dir,
+            meta_dir=self.meta_dir,
             runs=self.runs,
             metadata=self.metadata,
         )
@@ -362,7 +389,7 @@ class FlashLoader(BaseLoader):
         folders: str | Sequence[str] = None,
         runs: str | int | Sequence[str | int] = None,
         ftype: str = "h5",
-        metadata: dict = {},
+        metadata: dict | None = None,
         collect_metadata: bool = False,
         **kwds,
     ) -> tuple[dd.DataFrame, dd.DataFrame, dict]:
@@ -406,6 +433,9 @@ class FlashLoader(BaseLoader):
             FileNotFoundError: If the conversion fails for some files or no data is available.
             ValueError: If collect_metadata is True and no token is available.
         """
+        if metadata is None:
+            metadata = {}
+        
         detector = kwds.pop("detector", "")
         force_recreate = kwds.pop("force_recreate", False)
         processed_dir = kwds.pop("processed_dir", None)
@@ -465,7 +495,13 @@ class FlashLoader(BaseLoader):
         if self.instrument == "wespe":
             df, df_timed = wespe_convert(df, df_timed)
 
-        self.metadata.update(self.parse_metadata(token) if collect_metadata else {})
+        # self.metadata.update(self.parse_metadata(token) if collect_metadata else {})
+        if len(self.parse_scicat_metadata(token)) == 0:
+            print("No SciCat metadata available, checking local folder")
+            self.metadata.update(self.parse_local_metadata())
+        else:
+            print("Metadata taken from SciCat")
+            self.metadata.update(self.parse_scicat_metadata(token) if collect_metadata else {})
         self.metadata.update(bh.metadata)
 
         logger.info(f"Loading complete in {time.time() - t0: .2f} s")
